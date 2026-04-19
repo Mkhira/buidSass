@@ -3,11 +3,6 @@ name: build-and-test
 on:
   pull_request:
     types: [opened, synchronize, reopened, closed]
-    paths:
-      - "apps/**"
-      - "services/**"
-      - "packages/**"
-      - ".github/workflows/build-and-test.yml"
 
 permissions:
   contents: read
@@ -15,28 +10,44 @@ permissions:
 
 jobs:
   build:
+    name: build
     if: github.event.action != 'closed'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Detect build target changes
+        id: changes
+        uses: dorny/paths-filter@v3
+        with:
+          filters: |
+            build_targets:
+              - 'apps/**'
+              - 'services/**'
+              - 'packages/**'
+              - '.github/workflows/build-and-test.yml'
+
       - name: Setup .NET
+        if: steps.changes.outputs.build_targets == 'true'
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: "9.0.x"
 
       - name: Setup Flutter
+        if: steps.changes.outputs.build_targets == 'true'
         uses: subosito/flutter-action@v2
         with:
           channel: stable
 
       - name: Setup Node.js
+        if: steps.changes.outputs.build_targets == 'true'
         uses: actions/setup-node@v4
         with:
           node-version: "20"
 
       - name: Build and test backend
+        if: steps.changes.outputs.build_targets == 'true'
         shell: bash
         run: |
           if compgen -G "services/backend_api/*.sln" >/dev/null; then
@@ -52,6 +63,7 @@ jobs:
           fi
 
       - name: Build and test Flutter app
+        if: steps.changes.outputs.build_targets == 'true'
         shell: bash
         run: |
           if [ -f "apps/customer_flutter/pubspec.yaml" ]; then
@@ -64,6 +76,7 @@ jobs:
           fi
 
       - name: Build and test Node apps/packages
+        if: steps.changes.outputs.build_targets == 'true'
         shell: bash
         run: |
           TARGETS=("apps/admin_web" "packages/shared_contracts" "packages/design_system")
@@ -78,6 +91,14 @@ jobs:
               echo "No package.json in ${target}; skipping."
             fi
           done
+
+      - name: build no-op success
+        if: steps.changes.outputs.build_targets != 'true'
+        run: echo "build: no relevant paths changed."
+
+      - name: build completed
+        if: always()
+        run: echo "build check completed."
 
   preview-deploy:
     name: preview-deploy

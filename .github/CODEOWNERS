@@ -1,0 +1,13 @@
+# Governance-critical files (two human code-owners required)
+# NOTE: solo-maintainer bootstrap — second reviewer slot will be filled once a
+# co-maintainer is onboarded. Until then GitHub will require self-review waiver
+# or admin override for changes to these paths.
+/.specify/memory/constitution.md @Mkhira
+/docs/implementation-plan.md @Mkhira
+/.github/CODEOWNERS @Mkhira
+
+# DoD ownership
+/docs/dod.md @Mkhira
+
+# Catchall ownership
+* @Mkhira

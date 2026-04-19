@@ -24,7 +24,7 @@ if [ -z "${REPO:-}" ]; then
     echo "error: no origin remote and REPO env var not set" >&2
     exit 1
   fi
-  REPO="$(echo "${REMOTE_URL}" | sed -E 's|^(https://github\.com/|git@github\.com:)||; s|\.git$||')"
+  REPO="$(echo "${REMOTE_URL}" | sed -E 's|^https://github\.com/||; s|^git@github\.com:||; s|\.git$||')"
 fi
 
 BRANCH="main"

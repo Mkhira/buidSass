@@ -2,13 +2,6 @@ name: lint-format
 
 on:
   pull_request:
-    paths:
-      - "services/backend_api/**"
-      - "apps/customer_flutter/**"
-      - "apps/admin_web/**"
-      - "packages/**"
-      - ".editorconfig"
-      - ".github/workflows/lint-format.yml"
 
 jobs:
   lint-format:
@@ -17,22 +10,39 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Detect lint-format target changes
+        id: changes
+        uses: dorny/paths-filter@v3
+        with:
+          filters: |
+            lint_targets:
+              - 'services/backend_api/**'
+              - 'apps/customer_flutter/**'
+              - 'apps/admin_web/**'
+              - 'packages/**'
+              - '.editorconfig'
+              - '.github/workflows/lint-format.yml'
+
       - name: Setup .NET
+        if: steps.changes.outputs.lint_targets == 'true'
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: "9.0.x"
 
       - name: Setup Flutter
+        if: steps.changes.outputs.lint_targets == 'true'
         uses: subosito/flutter-action@v2
         with:
           channel: stable
 
       - name: Setup Node.js
+        if: steps.changes.outputs.lint_targets == 'true'
         uses: actions/setup-node@v4
         with:
           node-version: "20"
 
       - name: .NET format verification
+        if: steps.changes.outputs.lint_targets == 'true'
         shell: bash
         run: |
           if compgen -G "services/backend_api/*.sln" >/dev/null; then
@@ -44,6 +54,7 @@ jobs:
           fi
 
       - name: Flutter format verification
+        if: steps.changes.outputs.lint_targets == 'true'
         shell: bash
         run: |
           if [ -f "apps/customer_flutter/pubspec.yaml" ]; then
@@ -53,6 +64,7 @@ jobs:
           fi
 
       - name: ESLint + Prettier checks
+        if: steps.changes.outputs.lint_targets == 'true'
         shell: bash
         run: |
           TARGETS=("apps/admin_web" "packages")
@@ -69,5 +81,16 @@ jobs:
           done
 
       - name: Governance agent-context test
+        if: steps.changes.outputs.lint_targets == 'true'
         shell: bash
         run: bash scripts/tests/test-gen-agent-context.sh
+
+      - name: lint-format no-op success
+        if: steps.changes.outputs.lint_targets != 'true'
+        run: |
+          echo "lint-format no-op success - no relevant paths changed."
+
+      - name: lint-format completed
+        if: always()
+        run: |
+          echo "lint-format check completed."

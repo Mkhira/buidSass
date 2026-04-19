@@ -2,10 +2,6 @@ name: contract-diff
 
 on:
   pull_request:
-    paths:
-      - "services/backend_api/**"
-      - "packages/shared_contracts/**"
-      - ".github/workflows/contract-diff.yml"
 
 jobs:
   contract-diff:
@@ -16,17 +12,30 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Detect contract-diff target changes
+        id: changes
+        uses: dorny/paths-filter@v3
+        with:
+          filters: |
+            contract_targets:
+              - 'services/backend_api/**'
+              - 'packages/shared_contracts/**'
+              - '.github/workflows/contract-diff.yml'
+
       - name: Setup .NET
+        if: steps.changes.outputs.contract_targets == 'true'
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: "9.0.x"
 
       - name: Setup Go (for oasdiff)
+        if: steps.changes.outputs.contract_targets == 'true'
         uses: actions/setup-go@v5
         with:
           go-version: "1.23"
 
       - name: Build backend
+        if: steps.changes.outputs.contract_targets == 'true'
         shell: bash
         run: |
           if compgen -G "services/backend_api/*.sln" >/dev/null; then
@@ -38,6 +47,7 @@ jobs:
           fi
 
       - name: Generate current openapi.json (fallback-aware)
+        if: steps.changes.outputs.contract_targets == 'true'
         shell: bash
         run: |
           mkdir -p artifacts
@@ -50,12 +60,14 @@ jobs:
           fi
 
       - name: Upload OpenAPI artifact
+        if: steps.changes.outputs.contract_targets == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: openapi
           path: artifacts/openapi.current.json
 
       - name: Prepare baseline from main
+        if: steps.changes.outputs.contract_targets == 'true'
         shell: bash
         run: |
           git fetch origin main --depth=1
@@ -67,10 +79,22 @@ jobs:
           fi
 
       - name: Install oasdiff
+        if: steps.changes.outputs.contract_targets == 'true'
         shell: bash
         run: go install github.com/oasdiff/oasdiff@latest
 
       - name: Compare specs with oasdiff
+        if: steps.changes.outputs.contract_targets == 'true'
         shell: bash
         run: |
           oasdiff breaking artifacts/openapi.main.json artifacts/openapi.current.json
+
+      - name: contract-diff no-op success
+        if: steps.changes.outputs.contract_targets != 'true'
+        run: |
+          echo "contract-diff no-op success - no relevant paths changed."
+
+      - name: contract-diff completed
+        if: always()
+        run: |
+          echo "contract-diff check completed."

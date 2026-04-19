@@ -1,0 +1,702 @@
+// ERD DBML — dental commerce platform | Version: 1.0.0
+
+Table User {
+  id uuid [pk]
+  vendor_id uuid
+  email varchar
+  phone varchar
+  status varchar
+  created_at timestamp
+}
+
+Table Role {
+  id uuid [pk]
+  code varchar
+  name varchar
+}
+
+Table Permission {
+  id uuid [pk]
+  code varchar
+  name varchar
+}
+
+Table UserRole {
+  id uuid [pk]
+  user_id uuid
+  role_id uuid
+  created_at timestamp
+}
+
+Table Session {
+  id uuid [pk]
+  user_id uuid
+  refresh_token_hash varchar
+  expires_at timestamp
+}
+
+Table OtpCode {
+  id uuid [pk]
+  user_id uuid
+  channel varchar
+  code_hash varchar
+  expires_at timestamp
+}
+
+Table PasswordResetToken {
+  id uuid [pk]
+  user_id uuid
+  token_hash varchar
+  expires_at timestamp
+}
+
+Table Category {
+  id uuid [pk]
+  parent_id uuid
+  name_ar varchar
+  name_en varchar
+  is_active boolean
+}
+
+Table Brand {
+  id uuid [pk]
+  vendor_id uuid
+  name varchar
+  is_active boolean
+}
+
+Table Product {
+  id uuid [pk]
+  vendor_id uuid
+  category_id uuid
+  brand_id uuid
+  sku varchar
+  name_ar varchar
+  name_en varchar
+  restricted_purchase boolean
+}
+
+Table ProductVariant {
+  id uuid [pk]
+  vendor_id uuid
+  product_id uuid
+  variant_sku varchar
+  barcode varchar
+  is_active boolean
+}
+
+Table ProductMedia {
+  id uuid [pk]
+  vendor_id uuid
+  product_id uuid
+  media_url varchar
+  media_type varchar
+}
+
+Table ProductDocument {
+  id uuid [pk]
+  vendor_id uuid
+  product_id uuid
+  document_url varchar
+  document_type varchar
+}
+
+Table ProductAttribute {
+  id uuid [pk]
+  vendor_id uuid
+  code varchar
+  name varchar
+}
+
+Table ProductAttributeValue {
+  id uuid [pk]
+  vendor_id uuid
+  product_id uuid
+  attribute_id uuid
+  value varchar
+}
+
+Table StockLocation {
+  id uuid [pk]
+  vendor_id uuid
+  code varchar
+  name varchar
+  market_code varchar
+}
+
+Table StockLedgerEntry {
+  id uuid [pk]
+  vendor_id uuid
+  product_variant_id uuid
+  stock_location_id uuid
+  movement_type varchar
+  quantity_delta int
+  created_at timestamp
+}
+
+Table StockReservation {
+  id uuid [pk]
+  vendor_id uuid
+  product_variant_id uuid
+  cart_id uuid
+  quantity int
+  expires_at timestamp
+}
+
+Table BatchLot {
+  id uuid [pk]
+  vendor_id uuid
+  product_variant_id uuid
+  stock_location_id uuid
+  lot_number varchar
+  expiry_date date
+}
+
+Table PriceList {
+  id uuid [pk]
+  vendor_id uuid
+  name varchar
+  market_code varchar
+  starts_at timestamp
+}
+
+Table PriceListEntry {
+  id uuid [pk]
+  vendor_id uuid
+  price_list_id uuid
+  product_variant_id uuid
+  price decimal
+}
+
+Table TierPricingRule {
+  id uuid [pk]
+  vendor_id uuid
+  product_variant_id uuid
+  min_qty int
+  unit_price decimal
+}
+
+Table BusinessPricing {
+  id uuid [pk]
+  vendor_id uuid
+  company_id uuid
+  product_variant_id uuid
+  unit_price decimal
+}
+
+Table Coupon {
+  id uuid [pk]
+  vendor_id uuid
+  code varchar
+  discount_type varchar
+  discount_value decimal
+}
+
+Table Promotion {
+  id uuid [pk]
+  vendor_id uuid
+  name varchar
+  starts_at timestamp
+  ends_at timestamp
+}
+
+Table PromotionRule {
+  id uuid [pk]
+  vendor_id uuid
+  promotion_id uuid
+  rule_type varchar
+  rule_payload text
+}
+
+Table TaxRate {
+  id uuid [pk]
+  market_code varchar
+  rate decimal
+  effective_from timestamp
+}
+
+Table TaxProfile {
+  id uuid [pk]
+  vendor_id uuid
+  product_id uuid
+  tax_rate_id uuid
+  tax_category varchar
+}
+
+Table Cart {
+  id uuid [pk]
+  vendor_id uuid
+  user_id uuid
+  state varchar
+  updated_at timestamp
+}
+
+Table CartItem {
+  id uuid [pk]
+  vendor_id uuid
+  cart_id uuid
+  product_variant_id uuid
+  quantity int
+  unit_price decimal
+}
+
+Table CartCouponApplication {
+  id uuid [pk]
+  vendor_id uuid
+  cart_id uuid
+  coupon_id uuid
+  discount_amount decimal
+}
+
+Table CheckoutSession {
+  id uuid [pk]
+  vendor_id uuid
+  cart_id uuid
+  shipping_address_id uuid
+  billing_address_id uuid
+  state varchar
+}
+
+Table Address {
+  id uuid [pk]
+  vendor_id uuid
+  user_id uuid
+  kind varchar
+  country varchar
+  city varchar
+  line1 varchar
+}
+
+Table Order {
+  id uuid [pk]
+  vendor_id uuid
+  user_id uuid
+  checkout_session_id uuid
+  order_status varchar
+  payment_status varchar
+  fulfillment_status varchar
+  return_status varchar
+  total_amount decimal
+}
+
+Table OrderItem {
+  id uuid [pk]
+  vendor_id uuid
+  order_id uuid
+  product_variant_id uuid
+  quantity int
+  unit_price decimal
+}
+
+Table OrderStatusHistory {
+  id uuid [pk]
+  vendor_id uuid
+  order_id uuid
+  status_stream varchar
+  from_state varchar
+  to_state varchar
+  changed_at timestamp
+}
+
+Table Invoice {
+  id uuid [pk]
+  vendor_id uuid
+  order_id uuid
+  invoice_number varchar
+  market_code varchar
+  total_tax decimal
+}
+
+Table InvoiceLineItem {
+  id uuid [pk]
+  vendor_id uuid
+  invoice_id uuid
+  description varchar
+  quantity int
+  line_total decimal
+}
+
+Table ReturnRequest {
+  id uuid [pk]
+  vendor_id uuid
+  order_id uuid
+  user_id uuid
+  state varchar
+  reason_code varchar
+}
+
+Table ReturnItem {
+  id uuid [pk]
+  vendor_id uuid
+  return_request_id uuid
+  order_item_id uuid
+  quantity int
+}
+
+Table RefundTransaction {
+  id uuid [pk]
+  vendor_id uuid
+  return_request_id uuid
+  payment_intent_id uuid
+  amount decimal
+  status varchar
+}
+
+Table VerificationApplication {
+  id uuid [pk]
+  vendor_id uuid
+  user_id uuid
+  profession varchar
+  license_number varchar
+  state varchar
+}
+
+Table VerificationDocument {
+  id uuid [pk]
+  vendor_id uuid
+  verification_application_id uuid
+  document_url varchar
+  document_type varchar
+}
+
+Table Company {
+  id uuid [pk]
+  vendor_id uuid
+  name varchar
+  vat_id varchar
+  market_code varchar
+}
+
+Table CompanyBranch {
+  id uuid [pk]
+  vendor_id uuid
+  company_id uuid
+  name varchar
+  city varchar
+}
+
+Table CompanyMember {
+  id uuid [pk]
+  vendor_id uuid
+  company_id uuid
+  user_id uuid
+  role_code varchar
+}
+
+Table Quote {
+  id uuid [pk]
+  vendor_id uuid
+  company_id uuid
+  requested_by_user_id uuid
+  state varchar
+  expires_at timestamp
+}
+
+Table QuoteItem {
+  id uuid [pk]
+  vendor_id uuid
+  quote_id uuid
+  product_variant_id uuid
+  quantity int
+  quoted_price decimal
+}
+
+Table QuoteRevision {
+  id uuid [pk]
+  vendor_id uuid
+  quote_id uuid
+  revision_no int
+  note text
+}
+
+Table PaymentIntent {
+  id uuid [pk]
+  vendor_id uuid
+  order_id uuid
+  provider varchar
+  provider_reference varchar
+  amount decimal
+  state varchar
+}
+
+Table PaymentAttempt {
+  id uuid [pk]
+  vendor_id uuid
+  payment_intent_id uuid
+  attempt_no int
+  result varchar
+  attempted_at timestamp
+}
+
+Table PaymentWebhookEvent {
+  id uuid [pk]
+  vendor_id uuid
+  payment_intent_id uuid
+  event_type varchar
+  payload_hash varchar
+  received_at timestamp
+}
+
+Table ReconciliationEntry {
+  id uuid [pk]
+  vendor_id uuid
+  payment_intent_id uuid
+  provider_batch_id varchar
+  reconciliation_status varchar
+}
+
+Table ShippingMethod {
+  id uuid [pk]
+  vendor_id uuid
+  code varchar
+  name varchar
+  is_cod_enabled boolean
+}
+
+Table ShippingZone {
+  id uuid [pk]
+  vendor_id uuid
+  shipping_method_id uuid
+  market_code varchar
+  zone_name varchar
+}
+
+Table Shipment {
+  id uuid [pk]
+  vendor_id uuid
+  order_id uuid
+  shipping_method_id uuid
+  provider_shipment_id varchar
+  state varchar
+}
+
+Table ShipmentTrackingEvent {
+  id uuid [pk]
+  vendor_id uuid
+  shipment_id uuid
+  status varchar
+  occurred_at timestamp
+}
+
+Table NotificationTemplate {
+  id uuid [pk]
+  vendor_id uuid
+  event_code varchar
+  channel varchar
+  locale varchar
+}
+
+Table NotificationEvent {
+  id uuid [pk]
+  vendor_id uuid
+  user_id uuid
+  event_code varchar
+  payload_hash varchar
+  created_at timestamp
+}
+
+Table NotificationDeliveryLog {
+  id uuid [pk]
+  vendor_id uuid
+  notification_event_id uuid
+  channel varchar
+  delivery_status varchar
+  delivered_at timestamp
+}
+
+Table ChannelPreference {
+  id uuid [pk]
+  vendor_id uuid
+  user_id uuid
+  channel varchar
+  is_enabled boolean
+}
+
+Table Banner {
+  id uuid [pk]
+  vendor_id uuid
+  title varchar
+  image_url varchar
+  is_published boolean
+}
+
+Table FeaturedSection {
+  id uuid [pk]
+  vendor_id uuid
+  title varchar
+  sort_order int
+  is_published boolean
+}
+
+Table FeaturedSectionItem {
+  id uuid [pk]
+  vendor_id uuid
+  featured_section_id uuid
+  product_id uuid
+  sort_order int
+}
+
+Table BlogPost {
+  id uuid [pk]
+  vendor_id uuid
+  blog_category_id uuid
+  title varchar
+  slug varchar
+  is_published boolean
+}
+
+Table BlogCategory {
+  id uuid [pk]
+  vendor_id uuid
+  name varchar
+  slug varchar
+}
+
+Table LegalPage {
+  id uuid [pk]
+  vendor_id uuid
+  page_code varchar
+  title varchar
+  is_published boolean
+}
+
+Table FaqEntry {
+  id uuid [pk]
+  vendor_id uuid
+  question text
+  answer text
+  sort_order int
+}
+
+Table Review {
+  id uuid [pk]
+  vendor_id uuid
+  order_item_id uuid
+  user_id uuid
+  rating int
+  body text
+  moderation_status varchar
+}
+
+Table ReviewMedia {
+  id uuid [pk]
+  vendor_id uuid
+  review_id uuid
+  media_url varchar
+  media_type varchar
+}
+
+Table SupportTicket {
+  id uuid [pk]
+  vendor_id uuid
+  user_id uuid
+  subject varchar
+  state varchar
+  priority varchar
+}
+
+Table SupportTicketReply {
+  id uuid [pk]
+  vendor_id uuid
+  support_ticket_id uuid
+  author_user_id uuid
+  body text
+  created_at timestamp
+}
+
+Table SupportTicketAttachment {
+  id uuid [pk]
+  vendor_id uuid
+  support_ticket_reply_id uuid
+  file_url varchar
+  file_name varchar
+}
+
+Table SearchSynonym {
+  id uuid [pk]
+  vendor_id uuid
+  term varchar
+  synonym varchar
+  locale varchar
+}
+
+Ref: UserRole.user_id > User.id
+Ref: UserRole.role_id > Role.id
+Ref: Session.user_id > User.id
+Ref: OtpCode.user_id > User.id
+Ref: PasswordResetToken.user_id > User.id
+Ref: Category.parent_id > Category.id
+Ref: Product.category_id > Category.id
+Ref: Product.brand_id > Brand.id
+Ref: ProductVariant.product_id > Product.id
+Ref: ProductMedia.product_id > Product.id
+Ref: ProductDocument.product_id > Product.id
+Ref: ProductAttributeValue.product_id > Product.id
+Ref: ProductAttributeValue.attribute_id > ProductAttribute.id
+Ref: StockLedgerEntry.product_variant_id > ProductVariant.id
+Ref: StockLedgerEntry.stock_location_id > StockLocation.id
+Ref: StockReservation.product_variant_id > ProductVariant.id
+Ref: StockReservation.cart_id > Cart.id
+Ref: BatchLot.product_variant_id > ProductVariant.id
+Ref: BatchLot.stock_location_id > StockLocation.id
+Ref: PriceListEntry.price_list_id > PriceList.id
+Ref: PriceListEntry.product_variant_id > ProductVariant.id
+Ref: TierPricingRule.product_variant_id > ProductVariant.id
+Ref: BusinessPricing.company_id > Company.id
+Ref: BusinessPricing.product_variant_id > ProductVariant.id
+Ref: PromotionRule.promotion_id > Promotion.id
+Ref: TaxProfile.product_id > Product.id
+Ref: TaxProfile.tax_rate_id > TaxRate.id
+Ref: Cart.user_id > User.id
+Ref: CartItem.cart_id > Cart.id
+Ref: CartItem.product_variant_id > ProductVariant.id
+Ref: CartCouponApplication.cart_id > Cart.id
+Ref: CartCouponApplication.coupon_id > Coupon.id
+Ref: Address.user_id > User.id
+Ref: CheckoutSession.cart_id > Cart.id
+Ref: CheckoutSession.shipping_address_id > Address.id
+Ref: CheckoutSession.billing_address_id > Address.id
+Ref: Order.user_id > User.id
+Ref: Order.checkout_session_id > CheckoutSession.id
+Ref: OrderItem.order_id > Order.id
+Ref: OrderItem.product_variant_id > ProductVariant.id
+Ref: OrderStatusHistory.order_id > Order.id
+Ref: Invoice.order_id > Order.id
+Ref: InvoiceLineItem.invoice_id > Invoice.id
+Ref: ReturnRequest.order_id > Order.id
+Ref: ReturnRequest.user_id > User.id
+Ref: ReturnItem.return_request_id > ReturnRequest.id
+Ref: ReturnItem.order_item_id > OrderItem.id
+Ref: RefundTransaction.return_request_id > ReturnRequest.id
+Ref: RefundTransaction.payment_intent_id > PaymentIntent.id
+Ref: VerificationApplication.user_id > User.id
+Ref: VerificationDocument.verification_application_id > VerificationApplication.id
+Ref: CompanyBranch.company_id > Company.id
+Ref: CompanyMember.company_id > Company.id
+Ref: CompanyMember.user_id > User.id
+Ref: Quote.company_id > Company.id
+Ref: Quote.requested_by_user_id > User.id
+Ref: QuoteItem.quote_id > Quote.id
+Ref: QuoteItem.product_variant_id > ProductVariant.id
+Ref: QuoteRevision.quote_id > Quote.id
+Ref: PaymentIntent.order_id > Order.id
+Ref: PaymentAttempt.payment_intent_id > PaymentIntent.id
+Ref: PaymentWebhookEvent.payment_intent_id > PaymentIntent.id
+Ref: ReconciliationEntry.payment_intent_id > PaymentIntent.id
+Ref: ShippingZone.shipping_method_id > ShippingMethod.id
+Ref: Shipment.order_id > Order.id
+Ref: Shipment.shipping_method_id > ShippingMethod.id
+Ref: ShipmentTrackingEvent.shipment_id > Shipment.id
+Ref: NotificationEvent.user_id > User.id
+Ref: NotificationDeliveryLog.notification_event_id > NotificationEvent.id
+Ref: ChannelPreference.user_id > User.id
+Ref: FeaturedSectionItem.featured_section_id > FeaturedSection.id
+Ref: FeaturedSectionItem.product_id > Product.id
+Ref: BlogPost.blog_category_id > BlogCategory.id
+Ref: Review.order_item_id > OrderItem.id
+Ref: Review.user_id > User.id
+Ref: ReviewMedia.review_id > Review.id
+Ref: SupportTicket.user_id > User.id
+Ref: SupportTicketReply.support_ticket_id > SupportTicket.id
+Ref: SupportTicketReply.author_user_id > User.id
+Ref: SupportTicketAttachment.support_ticket_reply_id > SupportTicketReply.id

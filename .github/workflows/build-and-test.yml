@@ -260,7 +260,8 @@ jobs:
                   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
               run: |
                   version="$(node -e "const fs=require('fs');const doc=JSON.parse(fs.readFileSync('packages/shared_contracts/openapi.json','utf8'));process.stdout.write(doc.info.version||'0.0.0');")"
-                  dotnet pack packages/shared_contracts/dotnet/SharedContracts.csproj --configuration Release /p:Version="${version}" -o artifacts/nuget
+                  dotnet build packages/shared_contracts/dotnet/SharedContracts.csproj --configuration Release /p:Version="${version}"
+                  dotnet pack packages/shared_contracts/dotnet/SharedContracts.csproj --configuration Release --no-build /p:Version="${version}" -o artifacts/nuget
                   dotnet nuget push artifacts/nuget/*.nupkg --source "https://nuget.pkg.github.com/${{ github.repository_owner }}/index.json" --api-key "${GITHUB_TOKEN}" --skip-duplicate
 
             - name: Publish Dart shared contracts package

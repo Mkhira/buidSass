@@ -142,7 +142,7 @@ All 7 state machine tasks are independent and can be authored in parallel.
 
 - [X] T055 [US5] Verify and finalize `validate-diagrams` job scaffolded in Phase 2 T010: confirm the job correctly handles all 7 state-machine files and the ERD file; expand the path glob if T010's initial implementation only covers a subset of changed `.md` files; confirm `npm ci` installs Mermaid CLI and the job fails on a malformed block in any of the 9 architecture files.
 - [X] T056 [US5] Add ERD amendment PR template addition to `.github/PULL_REQUEST_TEMPLATE/erd_amendment.md` (GitHub supports multiple PR templates via directory): template fields — ERD version before/after, entities changed, downstream specs affected, migration impact (breaking/additive/no-op).
-- [ ] T057 [US5] Smoke-test the full CI pipeline against a sample PR that touches ERD and one state machine file: confirm `validate-diagrams`, `lint-format`, `verify-context-fingerprint`, and `build` all appear as required checks and pass.
+- [X] T057 [US5] Smoke-test the full CI pipeline against a sample PR that touches ERD and one state machine file: confirm `validate-diagrams`, `lint-format`, `verify-context-fingerprint`, and `build` all appear as required checks and pass.
 
 **Checkpoint**: `validate-diagrams` job reliably blocks PRs with invalid Mermaid and passes PRs with valid Mermaid. ERD amendment PR template available.
 
@@ -167,7 +167,7 @@ All 7 state machine tasks are independent and can be authored in parallel.
 - [X] T061 Run `quickstart.md` verification phases A–G in order; confirm every "Verify" step passes; document any failures before opening the PR
 - [X] T062 [P] Verify `specs/002-architecture-and-contracts/spec.md` satisfies all Universal Core DoD items (UC-1 through UC-8); tick them in `checklists/requirements.md`
 - [X] T063 [P] Confirm active applicability tags for this spec: no state-machine runtime (only documents), no audit events, no storage, no PDF, no user-facing strings — all tags inactive; note in PR template
-- [ ] T064 Commit all deliverables on `002-architecture-and-contracts` branch; embed context fingerprint in PR description; open PR; ensure `validate-diagrams`, `lint-format`, `verify-context-fingerprint`, and `build` all pass
+- [X] T064 Commit all deliverables on `002-architecture-and-contracts` branch; embed context fingerprint in PR description; open PR; ensure `validate-diagrams`, `lint-format`, `verify-context-fingerprint`, and `build` all pass
 
 ---
 

@@ -1,0 +1,3 @@
+class SharedContractsApi {
+  const SharedContractsApi();
+}

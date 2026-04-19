@@ -57,9 +57,9 @@ jobs:
           failures=0
           while IFS= read -r file; do
             [ -f "${file}" ] || continue
-            if grep -q '```mermaid' "${file}"; then
+            if grep -qE '^[[:space:]]*```mermaid[[:space:]]*$' "${file}"; then
               echo "Validating Mermaid in ${file}"
-              if ! npx --prefix docs mmdc --input "${file}" --output /tmp/mmdc-output.svg; then
+              if ! npx --prefix docs mmdc -p docs/puppeteer.config.json --input "${file}" --output /tmp/mmdc-output.svg; then
                 failures=1
               fi
             else

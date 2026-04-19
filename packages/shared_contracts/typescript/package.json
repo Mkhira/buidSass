@@ -1,0 +1,22 @@
+{
+  "name": "@mkhira/shared-contracts",
+  "version": "0.0.0",
+  "description": "Generated TypeScript contracts from OpenAPI",
+  "types": "types.ts",
+  "files": [
+    "types.ts"
+  ],
+  "scripts": {
+    "build": "echo 'types-only package'",
+    "test": "echo 'no tests'"
+  },
+  "publishConfig": {
+    "registry": "https://npm.pkg.github.com"
+  },
+  "license": "UNLICENSED",
+  "devDependencies": {
+    "@typescript-eslint/eslint-plugin": "^8.58.2",
+    "@typescript-eslint/parser": "^8.58.2",
+    "eslint": "^10.2.1"
+  }
+}

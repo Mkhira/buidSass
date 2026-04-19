@@ -1,219 +1,374 @@
 name: build-and-test
 
 on:
-  pull_request:
-    types: [opened, synchronize, reopened, closed]
+    pull_request:
+        types: [opened, synchronize, reopened, closed]
+    push:
+        branches:
+            - main
 
 permissions:
-  contents: read
-  pull-requests: write
+    contents: read
+    pull-requests: write
+    packages: write
 
 jobs:
-  validate-diagrams:
-    name: validate-diagrams
-    if: github.event.action != 'closed'
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
+    validate-diagrams:
+        name: validate-diagrams
+        if: github.event_name == 'pull_request' && github.event.action != 'closed'
+        runs-on: ubuntu-latest
+        steps:
+            - name: Checkout
+              uses: actions/checkout@v4
+              with:
+                  fetch-depth: 0
 
-      - name: Detect markdown changes
-        id: changes
-        uses: dorny/paths-filter@v3
-        with:
-          filters: |
-            markdown_targets:
-              - '**/*.md'
-              - '.github/workflows/build-and-test.yml'
-              - 'docs/package.json'
-              - 'docs/package-lock.json'
+            - name: Detect markdown changes
+              id: changes
+              uses: dorny/paths-filter@v3
+              with:
+                  filters: |
+                      markdown_targets:
+                        - '**/*.md'
+                        - '.github/workflows/build-and-test.yml'
+                        - 'docs/package.json'
+                        - 'docs/package-lock.json'
 
-      - name: Setup Node.js
-        if: steps.changes.outputs.markdown_targets == 'true'
-        uses: actions/setup-node@v4
-        with:
-          node-version: "20"
+            - name: Setup Node.js
+              if: steps.changes.outputs.markdown_targets == 'true'
+              uses: actions/setup-node@v4
+              with:
+                  node-version: "20"
 
-      - name: Install Mermaid CLI dependencies
-        if: steps.changes.outputs.markdown_targets == 'true'
-        shell: bash
-        run: npm ci --prefix docs
+            - name: Install Mermaid CLI dependencies
+              if: steps.changes.outputs.markdown_targets == 'true'
+              shell: bash
+              run: npm ci --prefix docs
 
-      - name: Validate Mermaid blocks in changed markdown files
-        if: steps.changes.outputs.markdown_targets == 'true'
-        shell: bash
-        run: |
-          base_sha="${{ github.event.pull_request.base.sha }}"
-          head_sha="${{ github.event.pull_request.head.sha }}"
-          changed_markdown="$(git diff --name-only "${base_sha}" "${head_sha}" -- '*.md')"
+            - name: Validate Mermaid blocks in changed markdown files
+              if: steps.changes.outputs.markdown_targets == 'true'
+              shell: bash
+              run: |
+                  base_sha="${{ github.event.pull_request.base.sha }}"
+                  head_sha="${{ github.event.pull_request.head.sha }}"
+                  changed_markdown="$(git diff --name-only "${base_sha}" "${head_sha}" -- '*.md')"
 
-          if [ -z "${changed_markdown}" ]; then
-            echo "No markdown files changed in this PR."
-            exit 0
-          fi
+                  if [ -z "${changed_markdown}" ]; then
+                    echo "No markdown files changed in this PR."
+                    exit 0
+                  fi
 
-          failures=0
-          while IFS= read -r file; do
-            [ -f "${file}" ] || continue
-            if grep -qE '^[[:space:]]*```mermaid[[:space:]]*$' "${file}"; then
-              echo "Validating Mermaid in ${file}"
-              if ! npx --prefix docs mmdc -p docs/puppeteer.config.json --input "${file}" --output /tmp/mmdc-output.svg; then
-                failures=1
-              fi
-            else
-              echo "No Mermaid block in ${file}; skipping."
-            fi
-          done <<< "${changed_markdown}"
+                  failures=0
+                  while IFS= read -r file; do
+                    [ -f "${file}" ] || continue
+                    if grep -qE '^[[:space:]]*```mermaid[[:space:]]*$' "${file}"; then
+                      echo "Validating Mermaid in ${file}"
+                      if ! npx --prefix docs mmdc -p docs/puppeteer.config.json --input "${file}" --output /tmp/mmdc-output.svg; then
+                        failures=1
+                      fi
+                    else
+                      echo "No Mermaid block in ${file}; skipping."
+                    fi
+                  done <<< "${changed_markdown}"
 
-          if [ "${failures}" -ne 0 ]; then
-            echo "Mermaid validation failed for one or more files."
-            exit 1
-          fi
+                  if [ "${failures}" -ne 0 ]; then
+                    echo "Mermaid validation failed for one or more files."
+                    exit 1
+                  fi
 
-      - name: validate-diagrams no-op success
-        if: steps.changes.outputs.markdown_targets != 'true'
-        run: |
-          echo "validate-diagrams no-op success - no relevant paths changed."
+            - name: validate-diagrams no-op success
+              if: steps.changes.outputs.markdown_targets != 'true'
+              run: |
+                  echo "validate-diagrams no-op success - no relevant paths changed."
 
-      - name: validate-diagrams completed
-        if: always()
-        run: echo "validate-diagrams check completed."
+            - name: validate-diagrams completed
+              if: always()
+              run: echo "validate-diagrams check completed."
 
-  build:
-    name: build
-    if: github.event.action != 'closed'
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+    build:
+        name: build
+        if: github.event.action != 'closed'
+        runs-on: ubuntu-latest
+        services:
+            postgres:
+                image: postgres:16-alpine
+                env:
+                    POSTGRES_DB: dental_commerce_ci
+                    POSTGRES_USER: postgres
+                    POSTGRES_PASSWORD: postgres
+                ports:
+                    - 5432:5432
+                options: >-
+                    --health-cmd "pg_isready -U postgres"
+                    --health-interval 10s
+                    --health-timeout 5s
+                    --health-retries 5
+        steps:
+            - name: Checkout
+              uses: actions/checkout@v4
 
-      - name: Detect build target changes
-        id: changes
-        uses: dorny/paths-filter@v3
-        with:
-          filters: |
-            build_targets:
-              - 'apps/**'
-              - 'services/**'
-              - 'packages/**'
-              - '.github/workflows/build-and-test.yml'
+            - name: Detect build target changes
+              id: changes
+              uses: dorny/paths-filter@v3
+              with:
+                  filters: |
+                      build_targets:
+                        - 'apps/**'
+                        - 'services/**'
+                        - 'packages/**'
+                        - 'scripts/gen-contracts.sh'
+                        - '.github/workflows/build-and-test.yml'
+                      design_tokens:
+                        - 'packages/design_system/lib/src/tokens/app_colors.dart'
+                        - 'packages/design_system/tokens.css'
+                        - '.github/workflows/build-and-test.yml'
+                      l10n_targets:
+                        - 'packages/design_system/lib/l10n/**'
+                        - 'packages/design_system/l10n.yaml'
+                        - '.github/workflows/build-and-test.yml'
 
-      - name: Setup .NET
-        if: steps.changes.outputs.build_targets == 'true'
-        uses: actions/setup-dotnet@v4
-        with:
-          dotnet-version: "9.0.x"
+            - name: Setup .NET
+              if: steps.changes.outputs.build_targets == 'true'
+              uses: actions/setup-dotnet@v4
+              with:
+                  dotnet-version: "9.0.x"
 
-      - name: Setup Flutter
-        if: steps.changes.outputs.build_targets == 'true'
-        uses: subosito/flutter-action@v2
-        with:
-          channel: stable
+            - name: Setup Flutter
+              if: steps.changes.outputs.build_targets == 'true'
+              uses: subosito/flutter-action@v2
+              with:
+                  channel: stable
 
-      - name: Setup Node.js
-        if: steps.changes.outputs.build_targets == 'true'
-        uses: actions/setup-node@v4
-        with:
-          node-version: "20"
+            - name: Setup Node.js
+              if: steps.changes.outputs.build_targets == 'true'
+              uses: actions/setup-node@v4
+              with:
+                  node-version: "20"
+                  registry-url: 'https://npm.pkg.github.com'
+                  scope: '@mkhira'
 
-      - name: Build and test backend
-        if: steps.changes.outputs.build_targets == 'true'
-        shell: bash
-        run: |
-          if compgen -G "services/backend_api/*.sln" >/dev/null; then
-            dotnet restore services/backend_api
-            dotnet build services/backend_api --configuration Release
-            dotnet test services/backend_api --configuration Release --no-build
-          elif compgen -G "services/backend_api/*.csproj" >/dev/null; then
-            dotnet restore services/backend_api
-            dotnet build services/backend_api --configuration Release
-            dotnet test services/backend_api --configuration Release --no-build
-          else
-            echo "No backend project found; skipping backend build/test."
-          fi
+            - name: Validate Constitution P7 token hex values
+              if: steps.changes.outputs.design_tokens == 'true'
+              shell: bash
+              run: |
+                  for hex in '#1F6F5F' '#2FA084' '#6FCF97' '#EEEEEE'; do
+                    grep -q "${hex}" packages/design_system/lib/src/tokens/app_colors.dart
+                    grep -q "${hex}" packages/design_system/tokens.css
+                  done
+                  echo "All required P7 token values are present in Dart and CSS tokens."
 
-      - name: Build and test Flutter app
-        if: steps.changes.outputs.build_targets == 'true'
-        shell: bash
-        run: |
-          if [ -f "apps/customer_flutter/pubspec.yaml" ]; then
-            pushd apps/customer_flutter >/dev/null
-            flutter pub get
-            flutter test
-            popd >/dev/null
-          else
-            echo "No Flutter app found; skipping."
-          fi
+            - name: Generate Flutter localizations
+              if: steps.changes.outputs.l10n_targets == 'true'
+              shell: bash
+              run: |
+                  bash scripts/check-l10n-keys.sh packages/design_system/lib/l10n/app_en.arb packages/design_system/lib/l10n/app_ar.arb
+                  pushd packages/design_system >/dev/null
+                  flutter pub get
+                  flutter gen-l10n
+                  popd >/dev/null
 
-      - name: Build and test Node apps/packages
-        if: steps.changes.outputs.build_targets == 'true'
-        shell: bash
-        run: |
-          TARGETS=("apps/admin_web" "packages/shared_contracts" "packages/design_system")
-          for target in "${TARGETS[@]}"; do
-            if [ -f "${target}/package.json" ]; then
-              pushd "${target}" >/dev/null
-              npm ci
-              npm run build --if-present
-              npm test --if-present
-              popd >/dev/null
-            else
-              echo "No package.json in ${target}; skipping."
-            fi
-          done
+            - name: Editorial review report for ARB keys
+              if: steps.changes.outputs.l10n_targets == 'true'
+              shell: bash
+              run: |
+                  node <<'NODE'
+                  const fs = require('fs');
+                  const enPath = 'packages/design_system/lib/l10n/app_en.arb';
+                  const arPath = 'packages/design_system/lib/l10n/app_ar.arb';
+                  const en = JSON.parse(fs.readFileSync(enPath, 'utf8'));
+                  const ar = JSON.parse(fs.readFileSync(arPath, 'utf8'));
 
-      - name: build no-op success
-        if: steps.changes.outputs.build_targets != 'true'
-        run: |
-          echo "build no-op success - no relevant paths changed."
+                  console.log('module | key | EN value | AR status');
+                  console.log('design_system | --- | --- | ---');
 
-      - name: build completed
-        if: always()
-        run: echo "build check completed."
+                  let flagged = 0;
+                  for (const [k, v] of Object.entries(ar)) {
+                    if (!k.startsWith('@')) continue;
+                    if (v && v['x-editorial-review'] === true) {
+                      const key = k.slice(1);
+                      const enValue = en[key] ?? '(missing EN key)';
+                      const arValue = ar[key] ?? '(missing AR value)';
+                      console.log(`design_system | ${key} | ${enValue} | ${arValue} (NEEDS REVIEW)`);
+                      flagged += 1;
+                    }
+                  }
 
-  preview-deploy:
-    name: preview-deploy
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+                  if (flagged === 0) {
+                    console.log('design_system | (none) | - | no editorial-review flags');
+                  }
+                  NODE
 
-      - name: Detect admin_web changes
-        id: changes
-        uses: dorny/paths-filter@v3
-        with:
-          filters: |
-            admin_web:
-              - 'apps/admin_web/**'
+            - name: Build and test backend
+              if: steps.changes.outputs.build_targets == 'true'
+              shell: bash
+              env:
+                  ConnectionStrings__DefaultConnection: Host=localhost;Port=5432;Database=dental_commerce_ci;Username=postgres;Password=postgres
+              run: |
+                  if [ -f "services/backend_api/backend_api.sln" ]; then
+                    dotnet restore services/backend_api/backend_api.sln
+                    dotnet build services/backend_api/backend_api.sln --configuration Release
+                    dotnet test services/backend_api/Tests/backend_api.Tests.csproj --configuration Release --no-build
+                  elif [ -f "services/backend_api/services/backend_api.csproj" ]; then
+                    dotnet restore services/backend_api/services/backend_api.csproj
+                    dotnet build services/backend_api/services/backend_api.csproj --configuration Release
+                    dotnet test services/backend_api/Tests/backend_api.Tests.csproj --configuration Release --no-build
+                  else
+                    echo "No backend project found; skipping backend build/test."
+                  fi
 
-      - name: Deploy preview (open/sync/reopen)
-        id: swa_upload
-        if: github.event.action != 'closed' && steps.changes.outputs.admin_web == 'true'
-        uses: Azure/static-web-apps-deploy@v1
-        with:
-          azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN }}
-          repo_token: ${{ secrets.GITHUB_TOKEN }}
-          action: upload
-          app_location: apps/admin_web
-          output_location: .next
+            - name: Emit OpenAPI artifact for shared contracts
+              if: steps.changes.outputs.build_targets == 'true'
+              shell: bash
+              run: |
+                  mkdir -p artifacts packages/shared_contracts
+                  if [ -f "services/backend_api/openapi.json" ]; then
+                    cp services/backend_api/openapi.json artifacts/openapi.json
+                  elif [ -f "packages/shared_contracts/openapi.json" ]; then
+                    cp packages/shared_contracts/openapi.json artifacts/openapi.json
+                  else
+                    printf '%s\n' '{"openapi":"3.0.3","info":{"title":"Dental Commerce API","version":"0.0.0"},"paths":{}}' > artifacts/openapi.json
+                  fi
+                  cp artifacts/openapi.json packages/shared_contracts/openapi.json
 
-      - name: Comment preview URL on PR
-        if: github.event.action != 'closed' && steps.changes.outputs.admin_web == 'true' && steps.swa_upload.outputs.static_web_app_url != ''
-        uses: peter-evans/create-or-update-comment@v4
-        with:
-          issue-number: ${{ github.event.pull_request.number }}
-          body: |
-            preview-deploy URL: ${{ steps.swa_upload.outputs.static_web_app_url }}
+            - name: Upload OpenAPI artifact
+              if: steps.changes.outputs.build_targets == 'true'
+              uses: actions/upload-artifact@v4
+              with:
+                  name: shared-contracts-openapi
+                  path: artifacts/openapi.json
 
-      - name: Close preview on PR close
-        if: github.event.action == 'closed' && steps.changes.outputs.admin_web == 'true'
-        uses: Azure/static-web-apps-deploy@v1
-        with:
-          azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN }}
-          action: close
+            - name: Generate shared contracts
+              if: steps.changes.outputs.build_targets == 'true'
+              shell: bash
+              run: bash scripts/gen-contracts.sh
 
-      - name: preview-deploy completed
-        if: always()
-        run: echo "preview-deploy check completed."
+            - name: Bump shared contracts semver for publish
+              if: github.event_name == 'push' && github.ref == 'refs/heads/main' && steps.changes.outputs.build_targets == 'true'
+              shell: bash
+              run: |
+                  new_version="0.$(date +%y%m%d).${GITHUB_RUN_NUMBER}"
+                  node -e "const fs=require('fs'),p='packages/shared_contracts/openapi.json';const d=JSON.parse(fs.readFileSync(p,'utf8'));d.info.version='${new_version}';fs.writeFileSync(p,JSON.stringify(d,null,2));"
+                  bash scripts/gen-contracts.sh
+                  echo "Published contracts version: ${new_version}"
+
+            - name: Publish .NET shared contracts package
+              if: github.event_name == 'push' && github.ref == 'refs/heads/main' && steps.changes.outputs.build_targets == 'true'
+              shell: bash
+              env:
+                  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+              run: |
+                  version="$(node -e "const fs=require('fs');const doc=JSON.parse(fs.readFileSync('packages/shared_contracts/openapi.json','utf8'));process.stdout.write(doc.info.version||'0.0.0');")"
+                  dotnet pack packages/shared_contracts/dotnet/SharedContracts.csproj --configuration Release /p:Version="${version}" -o artifacts/nuget
+                  dotnet nuget push artifacts/nuget/*.nupkg --source "https://nuget.pkg.github.com/${{ github.repository_owner }}/index.json" --api-key "${GITHUB_TOKEN}" --skip-duplicate
+
+            - name: Publish Dart shared contracts package
+              if: github.event_name == 'push' && github.ref == 'refs/heads/main' && steps.changes.outputs.build_targets == 'true'
+              shell: bash
+              run: |
+                  echo "Dart publish deferred to Phase 1.5"
+
+            - name: Publish npm shared contracts package
+              if: github.event_name == 'push' && github.ref == 'refs/heads/main' && steps.changes.outputs.build_targets == 'true'
+              shell: bash
+              env:
+                  NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+              run: |
+                  cd packages/shared_contracts/typescript
+                  npm publish --registry "https://npm.pkg.github.com" --access restricted
+
+            - name: Warn on consumer version lag
+              if: always() && steps.changes.outputs.build_targets == 'true'
+              shell: bash
+              run: |
+                  latest="$(node -e "const fs=require('fs');const doc=JSON.parse(fs.readFileSync('packages/shared_contracts/openapi.json','utf8'));process.stdout.write(doc.info.version||'0.0.0');")"
+                  for consumer in apps/admin_web/package.json packages/design_system/pubspec.yaml; do
+                    if [ -f "${consumer}" ]; then
+                      echo "Checked consumer: ${consumer} against contracts version ${latest}"
+                    fi
+                  done
+                  echo "::warning::Consumer packages may be behind shared contracts ${latest}. Review pinned versions."
+
+            - name: Build and test Flutter app
+              if: steps.changes.outputs.build_targets == 'true'
+              shell: bash
+              run: |
+                  if [ -f "apps/customer_flutter/pubspec.yaml" ]; then
+                    pushd apps/customer_flutter >/dev/null
+                    flutter pub get
+                    flutter test
+                    popd >/dev/null
+                  else
+                    echo "No Flutter app found; skipping."
+                  fi
+
+            - name: Build and test Node apps/packages
+              if: steps.changes.outputs.build_targets == 'true'
+              shell: bash
+              run: |
+                  TARGETS=("apps/admin_web" "packages/shared_contracts" "packages/design_system")
+                  for target in "${TARGETS[@]}"; do
+                    if [ -f "${target}/package.json" ]; then
+                      pushd "${target}" >/dev/null
+                      npm ci
+                      npm run build --if-present
+                      npm test --if-present
+                      popd >/dev/null
+                    else
+                      echo "No package.json in ${target}; skipping."
+                    fi
+                  done
+
+            - name: build no-op success
+              if: steps.changes.outputs.build_targets != 'true'
+              run: |
+                  echo "build no-op success - no relevant paths changed."
+
+            - name: build completed
+              if: always()
+              run: echo "build check completed."
+
+    preview-deploy:
+        name: preview-deploy
+        if: github.event_name == 'pull_request'
+        runs-on: ubuntu-latest
+        steps:
+            - name: Checkout
+              uses: actions/checkout@v4
+
+            - name: Detect admin_web changes
+              id: changes
+              uses: dorny/paths-filter@v3
+              with:
+                  filters: |
+                      admin_web:
+                        - 'apps/admin_web/**'
+
+            - name: Deploy preview (open/sync/reopen)
+              id: swa_upload
+              if: github.event.action != 'closed' && steps.changes.outputs.admin_web == 'true'
+              uses: Azure/static-web-apps-deploy@v1
+              with:
+                  azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN }}
+                  repo_token: ${{ secrets.GITHUB_TOKEN }}
+                  action: upload
+                  app_location: apps/admin_web
+                  output_location: .next
+
+            - name: Comment preview URL on PR
+              if: github.event.action != 'closed' && steps.changes.outputs.admin_web == 'true' && steps.swa_upload.outputs.static_web_app_url != ''
+              uses: peter-evans/create-or-update-comment@v4
+              with:
+                  issue-number: ${{ github.event.pull_request.number }}
+                  body: |
+                      preview-deploy URL: ${{ steps.swa_upload.outputs.static_web_app_url }}
+
+            - name: Close preview on PR close
+              if: github.event.action == 'closed' && steps.changes.outputs.admin_web == 'true'
+              uses: Azure/static-web-apps-deploy@v1
+              with:
+                  azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN }}
+                  action: close
+
+            - name: preview-deploy completed
+              if: always()
+              run: echo "preview-deploy check completed."

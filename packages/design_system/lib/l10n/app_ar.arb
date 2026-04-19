@@ -1,0 +1,7 @@
+{
+  "appTitle": "التجارة الطبية",
+  "@appTitle": {
+    "description": "عنوان التطبيق في واجهة المستخدم",
+    "x-editorial-review": true
+  }
+}

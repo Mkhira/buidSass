@@ -9,6 +9,77 @@ permissions:
   pull-requests: write
 
 jobs:
+  validate-diagrams:
+    name: validate-diagrams
+    if: github.event.action != 'closed'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Detect markdown changes
+        id: changes
+        uses: dorny/paths-filter@v3
+        with:
+          filters: |
+            markdown_targets:
+              - '**/*.md'
+              - '.github/workflows/build-and-test.yml'
+              - 'docs/package.json'
+              - 'docs/package-lock.json'
+
+      - name: Setup Node.js
+        if: steps.changes.outputs.markdown_targets == 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install Mermaid CLI dependencies
+        if: steps.changes.outputs.markdown_targets == 'true'
+        shell: bash
+        run: npm ci --prefix docs
+
+      - name: Validate Mermaid blocks in changed markdown files
+        if: steps.changes.outputs.markdown_targets == 'true'
+        shell: bash
+        run: |
+          base_sha="${{ github.event.pull_request.base.sha }}"
+          head_sha="${{ github.event.pull_request.head.sha }}"
+          changed_markdown="$(git diff --name-only "${base_sha}" "${head_sha}" -- '*.md')"
+
+          if [ -z "${changed_markdown}" ]; then
+            echo "No markdown files changed in this PR."
+            exit 0
+          fi
+
+          failures=0
+          while IFS= read -r file; do
+            [ -f "${file}" ] || continue
+            if grep -q '```mermaid' "${file}"; then
+              echo "Validating Mermaid in ${file}"
+              if ! npx --prefix docs mmdc --input "${file}" --output /tmp/mmdc-output.svg; then
+                failures=1
+              fi
+            else
+              echo "No Mermaid block in ${file}; skipping."
+            fi
+          done <<< "${changed_markdown}"
+
+          if [ "${failures}" -ne 0 ]; then
+            echo "Mermaid validation failed for one or more files."
+            exit 1
+          fi
+
+      - name: validate-diagrams no-op success
+        if: steps.changes.outputs.markdown_targets != 'true'
+        run: echo "validate-diagrams: no relevant paths changed."
+
+      - name: validate-diagrams completed
+        if: always()
+        run: echo "validate-diagrams check completed."
+
   build:
     name: build
     if: github.event.action != 'closed'

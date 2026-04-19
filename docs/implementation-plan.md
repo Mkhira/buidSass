@@ -68,91 +68,150 @@ Corollary rules:
 
 ## 4. Phase model
 
-From constitution Principle 30:
+Constitution Principle 30 defines three program phases: **Phase 1** (launch), **Phase 1.5** (operate), **Phase 2** (expand). To make Phase 1 executable as discrete spec-kit batches, it is split into **six sub-phases (1A–1F)**. Sub-phases are an execution grouping only — they do not amend the constitution's phase model.
 
 | Phase | Intent | Where in this plan |
 |------|--------|--------------------|
-| **Phase 1** | Strong launch-ready platform | Stages 0–9, Milestones 1–9 |
-| **Phase 1.5** | Optimization and operational depth | "Deferred" notes inside each stage + full Analytics/Observability in Stage 8 |
-| **Phase 2** | Marketplace / vendor expansion | Out of scope here; explicitly excluded: vendor portal, commissions, payouts, split checkout |
+| **Phase 1A** · Foundation | Governance, architecture, shared scaffolding | Milestone 1 · specs 001–003 |
+| **Phase 1B** · Core Commerce | Identity through returns — every transaction-critical backend domain | Milestones 2–4 · specs 004–013 |
+| **Phase 1C** · Customer & Admin UI | Flutter customer shell + Next.js admin shell and CRUD | Milestones 5–6 · specs 014–019 |
+| **Phase 1D** · Business Modules | Verification, B2B, promotions UX, reviews, support, CMS | Milestone 7 · specs 007-b, 020–024 |
+| **Phase 1E** · Integrations | Notifications, shipping, payments providers | Milestone 8 · specs 025–027 |
+| **Phase 1F** · Launch Hardening | QA, localization audit, security, performance, launch checklist | Milestone 9 · spec 029 |
+| **Phase 1.5** · Operate | Analytics depth, WhatsApp, save-for-later, recommenders, synonym console, preference UI, B2B reorder | Post-launch · 7 items |
+| **Phase 2** · Marketplace | Vendor portal, commissions, payouts, split checkout | Out of scope here |
 
-Every scope bullet in this doc is Phase 1 unless labeled otherwise.
+Sub-phase gate rule: **a sub-phase may only begin once every spec of the prior sub-phase is at DoD**. Exception: Phase 1C UI work on a given domain MAY begin the moment that domain's Phase 1B contract is merged (per Lane A → Lane B handoff in §5).
 
 ```
- Phase 1 (launch)            Phase 1.5 (operate)         Phase 2 (expand)
- +----------------------+    +--------------------+      +----------------------+
- | Stages 0-9           | -> | Analytics dashes   |  ->  | Marketplace / vendor |
- | Milestones 1-9       |    | Advanced observab. |      | Payouts / split chk  |
- | Week 1 .. Week 25    |    | "Save for later"   |      | (out of scope here)  |
- +----------------------+    | Home recommenders  |      +----------------------+
-                             | WhatsApp notif     |
-                             +--------------------+
+ Phase 1 (launch-blocking, Week 1..25)
+ +-----------+  +-----------+  +-----------+  +-----------+  +-----------+  +-----------+
+ |   1A      |->|   1B      |->|   1C      |->|   1D      |->|   1E      |->|   1F      |
+ | Foundation|  | Core      |  | Customer+ |  | Business  |  | Integr'ns |  | Launch    |
+ | 001-003   |  | Commerce  |  | Admin UI  |  | Modules   |  | 025-027   |  | Hardening |
+ |  3 specs  |  | 004-013   |  | 014-019   |  | 007-b,    |  |  3 specs  |  |    029    |
+ |           |  |  10 specs |  |  6 specs  |  | 020-024   |  |           |  |  1 spec   |
+ |           |  |           |  |           |  |  6 specs  |  |           |  |           |
+ +-----------+  +-----------+  +-----------+  +-----------+  +-----------+  +-----------+
+
+       |                                                                        |
+       v                                                                        v
+ Phase 1.5 (operate, post-launch)                                    Phase 2 (expand)
+ +------------------------------------+                              +-------------------+
+ | 028 analytics, 1.5-a..1.5-f        |                              | Marketplace /     |
+ | (save-for-later, recs, synonyms,   |                              | vendor / payouts  |
+ |  pref-ui, whatsapp, b2b-reorder)   |                              | (out of scope)    |
+ +------------------------------------+                              +-------------------+
 ```
 
 ### 4.1 Phase scope inventory (spec-ready)
 
 Every item below is a self-contained input for `/speckit-specify`. Copy the **Spec title** verbatim into the command; the **One-liner** is a starter description the spec command will expand. Phase labels map 1:1 to the constitution's Principle 30.
 
-#### Phase 1 — Launch-blocking (29 specs)
+#### How to run a spec task (GitHub Spec Kit cadence)
 
-Foundation (Milestone 1):
+Each task below is a runnable batch for the Spec Kit command chain. Execute in listed order within a sub-phase. Dependencies (`depends-on`) are hard gates — do not start a spec until every listed dependency is at **DoD** (Section 11).
 
-| # | Spec title | Phase | One-liner |
-|---|------------|-------|-----------|
-| 001 | governance-and-setup | 1 | Establish DoD, repo layout per ADR-001, CI skeleton, branch protection, CODEOWNERS, agent-context injection pattern, and the working cadence for all subsequent specs. |
-| 002 | architecture-and-contracts | 1 | Lock API design rules, ERD, permissions matrix, seven Principle-24 state models, testing strategy, CI/CD bootstrap, and finalize remaining ADRs if any. |
-| 003 | shared-foundations | 1 | Build shared contract library, design tokens, localization scaffolding, audit-log module, and storage + PDF abstractions consumed by every later module. |
+```
+./.specify/scripts/bash/create-new-feature.sh "<spec-title>"    # creates specs/NNN-<spec-title>/
+/speckit-specify   "<one-liner>"                                 # authors spec.md
+/speckit-clarify                                                 # resolves open questions
+/speckit-plan                                                    # produces plan.md + contracts
+/speckit-tasks                                                   # breaks plan into tasks.md
+/speckit-implement                                               # executes tasks (Lane A or Lane B per §5)
+```
 
-Core commerce (Milestones 2-4):
+Every spec MUST carry the Constitution + ADR context in its session (Guardrail #3) and pass the lint + contract bar (Guardrails #1, #2) before merge.
 
-| # | Spec title | Phase | One-liner |
-|---|------------|-------|-----------|
-| 004 | identity-and-access | 1 | Registration, login, phone OTP, password reset, sessions, role framework, customer/admin separation. |
-| 005 | catalog | 1 | Categories, brands, products, media, documents, attributes, restriction metadata, active/inactive states. |
-| 006 | search | 1 | Keyword + filter + sort + autocomplete + SKU/barcode + Arabic normalization behind a Meilisearch-backed service boundary. |
-| 007-a | pricing-and-tax-engine | 1 | Price resolution pipeline, VAT/tax for EG and KSA, promotion engine primitives (stacking, exclusions). No UX here. |
-| 008 | inventory | 1 | Stock, available-to-sell, soft-hold reservations with TTL, hard-commit on payment-auth, low-stock, batch/lot, expiry. |
-| 009 | cart | 1 | Guest cart, logged-in cart, merge on login, coupon application, validation. |
-| 010 | checkout | 1 | Address, shipping, billing, payment initiation, order preview, restricted-product enforcement, stock revalidation, invoice linkage. |
-| 011 | orders | 1 | Placement, items, four orthogonal status fields, status history, invoice link, reorder basics. |
-| 012 | tax-and-invoices | 1 | Tax invoice generation for EG/KSA, PDF output (Arabic + English), downloadable artifacts, finance export views. |
-| 013 | returns-and-refunds | 1 | Return submission, eligibility check, admin decision flow, refund execution, full state model, audit. |
+---
 
-Customer app + admin (Milestones 5-6):
+#### Phase 1A — Foundation · Milestone 1 · 3 specs
 
-| # | Spec title | Phase | One-liner |
-|---|------------|-------|-----------|
-| 014 | customer-app-shell | 1 | Flutter (Bloc) UI for mobile + web: shell, auth, home, listing, detail, cart, checkout, orders, more-menu. UI-only; consumes contracts from 004-013. |
-| 015 | admin-foundation | 1 | Next.js + shadcn/ui admin shell, auth, role-based navigation, layout, localization, audit-log reader. |
-| 016 | admin-catalog | 1 | Category/brand/product CRUD, media + document upload, restriction metadata, bulk ops. |
-| 017 | admin-inventory | 1 | Stock adjustments, low-stock queue, batch/lot management, expiry tracking, reservation inspection. |
-| 018 | admin-orders | 1 | Order list + detail, status transitions, refund initiation, invoice reprint, B2B quote linkage. |
-| 019 | admin-customers | 1 | Customer profile view, verification history, quote history, support-ticket linkage, address book view. |
+**Intent**: lock repo layout, CI, agent-context injection, contracts skeleton, ERD, state machines, audit-log, storage/PDF abstractions. **Nothing else starts until 1A is at DoD.**
 
-Business modules (Milestone 7):
+| # | Spec title | depends-on | Exit signal |
+|---|------------|------------|-------------|
+| 001 | `governance-and-setup` | — | CI green on empty repo; CODEOWNERS blocks constitution edits; `CLAUDE.md` injects Constitution + ADR table; every-PR review active |
+| 002 | `architecture-and-contracts` | 001 | ERD published; 7 state machines diagrammed; API style (vertical slice + MediatR) scaffolded; OpenAPI emit job green |
+| 003 | `shared-foundations` | 002 | `packages/shared_contracts` published; design-token package consumed; audit-log module emits one test event; PDF + storage abstractions return signed URLs |
 
-| # | Spec title | Phase | One-liner |
-|---|------------|-------|-----------|
-| 020 | verification | 1 | Professional verification submission, document upload, admin review queue, approve/reject/request-info, expiry, audit. |
-| 021 | quotes-and-b2b | 1 | Quote requests, admin quote creation, revisions, acceptance, quote-to-order conversion, company accounts, PO numbers. |
-| 007-b | promotions-ux-and-campaigns | 1 | Coupon lifecycle, scheduled promotions, banner-linked campaigns, business-pricing authoring, tier pricing. (Continues spec 007-a.) |
-| 022 | reviews-moderation | 1 | Admin moderation queue, hide/delete, abuse notes, verified-buyer enforcement. |
-| 023 | support-tickets | 1 | Ticket creation/list/detail, reply flow, category tagging, order-linked issues, SLA fields. |
-| 024 | cms | 1 | Banners, featured sections, FAQ, legal pages, blog skeleton, localized publishing. |
+Task details:
+- **001 `governance-and-setup`** — DoD, repo layout per ADR-001 (`apps/`, `services/`, `packages/`, `infra/`, `scripts/`), branch protection, CODEOWNERS enforcing Guardrail #4, Guardrail #3 agent-context files (`CLAUDE.md`, Codex, GLM), lint + format bar (Guardrail #1), contract diff job (Guardrail #2).
+- **002 `architecture-and-contracts`** — API design rules, full ERD, permissions matrix, seven Principle-24 state models (verification, cart, payment, order, shipment, return, quote), testing strategy (unit + integration + contract + E2E), CI/CD bootstrap, finalize any remaining ADRs.
+- **003 `shared-foundations`** — shared contract library, design tokens, localization scaffolding (ICU, RTL), centralized audit-log module, storage abstraction, PDF abstraction (AR + EN).
 
-Integrations (Milestone 8):
+---
 
-| # | Spec title | Phase | One-liner |
-|---|------------|-------|-----------|
-| 025 | notifications | 1 | Template management, event-triggered messages (SMS + email + push only at launch), campaign basics, preference management. |
-| 026 | shipping | 1 | Provider settings, market rules, delivery methods, fee configuration, shipment state mapping, tracking webhooks. |
-| 027 | payments-integration | 1 | Swap payment stubs for ADR-007 primary + backup per market; reconciliation job; webhook replay; BNPL wiring (Tabby/Tamara KSA + Valu EG). |
+#### Phase 1B — Core Commerce · Milestones 2–4 · 10 specs
 
-Launch (Milestone 9):
+**Intent**: every transaction-critical backend domain. Lane A (Claude/Codex) lives here. Lane B MAY start the matching UI in Phase 1C the moment a spec here merges its contract.
 
-| # | Spec title | Phase | One-liner |
-|---|------------|-------|-----------|
-| 029 | qa-and-hardening | 1 | Functional + localization + security + reliability + performance regression; launch-readiness checklist (Section 13) passes. |
+| # | Spec title | depends-on | Exit signal |
+|---|------------|------------|-------------|
+| 004 | `identity-and-access` | 1A | Customer + admin auth; OTP; RBAC role framework |
+| 005 | `catalog` | 004 | Product/brand/category/media/document model with restriction metadata |
+| 006 | `search` | 005 | Meilisearch index live; Arabic normalization; SKU + barcode + autocomplete |
+| 007-a | `pricing-and-tax-engine` | 005 | Price resolution pipeline; EG + KSA VAT; promotion primitives (stacking rules) |
+| 008 | `inventory` | 005 | Stock + ATS + soft-hold/TTL + hard-commit + low-stock + batch/lot/expiry |
+| 009 | `cart` | 007-a, 008 | Guest + logged-in carts; merge on login; coupon application; validation |
+| 010 | `checkout` | 009 | Address, shipping, billing, payment init (stubs), restricted-product gate, stock revalidation |
+| 011 | `orders` | 010 | Four orthogonal status fields; history; invoice link; reorder basics |
+| 012 | `tax-and-invoices` | 011 | EG + KSA tax invoices; AR + EN PDF; finance export views |
+| 013 | `returns-and-refunds` | 011 | Return submission, eligibility, admin decision, refund execution, full state model |
+
+---
+
+#### Phase 1C — Customer & Admin UI · Milestones 5–6 · 6 specs
+
+**Intent**: Lane B (GLM) consumes merged contracts from 1B. UI-only — any backend gap found here escalates back to the owning 1B spec (never inline fix).
+
+| # | Spec title | depends-on | Exit signal |
+|---|------------|------------|-------------|
+| 014 | `customer-app-shell` | 004–013 contracts | Flutter (Bloc) Android + iOS + web: shell, auth, home, listing, detail, cart, checkout, orders, more-menu; RTL + AR editorial pass |
+| 015 | `admin-foundation` | 004 contract | Next.js + shadcn/ui shell; auth; role-based nav; AR + EN; audit-log reader |
+| 016 | `admin-catalog` | 005, 015 | CRUD for category/brand/product/media/docs; restriction metadata; bulk ops |
+| 017 | `admin-inventory` | 008, 015 | Stock adjustments, low-stock queue, batch/lot, expiry, reservation inspection |
+| 018 | `admin-orders` | 011, 013, 015 | Order list + detail, status transitions, refund init, invoice reprint, quote linkage |
+| 019 | `admin-customers` | 004, 015 | Profile view, verification history, quotes, support tickets, address book |
+
+---
+
+#### Phase 1D — Business Modules · Milestone 7 · 6 specs
+
+**Intent**: layer professional + B2B + content + moderation on top of the core. Lane A and Lane B run in parallel per-spec.
+
+| # | Spec title | depends-on | Exit signal |
+|---|------------|------------|-------------|
+| 020 | `verification` | 004, 015 | Submission + admin review queue + approve/reject/request-info + expiry + audit |
+| 021 | `quotes-and-b2b` | 011, 018 | Quote request → admin quote → revisions → accept → quote-to-order; company accounts; PO |
+| 007-b | `promotions-ux-and-campaigns` | 007-a, 016 | Coupon lifecycle, scheduled promos, banner-linked campaigns, business + tier pricing authoring |
+| 022 | `reviews-moderation` | 011, 015 | Verified-buyer enforcement; admin moderation queue; hide/delete with audit |
+| 023 | `support-tickets` | 011, 015 | Ticket CRUD, reply flow, category tagging, order linkage, SLA fields |
+| 024 | `cms` | 015 | Banners, featured sections, FAQ, legal, blog skeleton, localized publishing |
+
+---
+
+#### Phase 1E — Integrations · Milestone 8 · 3 specs
+
+**Intent**: swap stubs for real providers. ADRs 007, 008, 009 get **Accepted** during this phase. Every integration must ship with reconciliation + webhook replay + idempotency tests.
+
+| # | Spec title | depends-on | Exit signal |
+|---|------------|------------|-------------|
+| 025 | `notifications` | 004, 011 | Template mgmt; event-triggered SMS + email + push (no WhatsApp); campaign basics; preference mgmt. **ADR-009 Accepted.** |
+| 026 | `shipping` | 010, 011 | Provider settings, market rules, methods, fees, shipment state mapping, tracking webhooks. **ADR-008 Accepted.** |
+| 027 | `payments-integration` | 010, 012 | ADR-007 primary + backup per market live; BNPL (Tabby/Tamara KSA + Valu EG); reconciliation job; webhook replay. **ADR-007 Accepted.** |
+
+---
+
+#### Phase 1F — Launch Hardening · Milestone 9 · 1 spec
+
+**Intent**: no new features. Everything below runs against the complete system.
+
+| # | Spec title | depends-on | Exit signal |
+|---|------------|------------|-------------|
+| 029 | `qa-and-hardening` | all of 1A–1E | Functional + localization (AR editorial signed off) + security + reliability + performance regression complete; Section 13 launch-readiness checklist 100% checked |
+
+Exit of 1F = **launch**. Post-launch work enters Phase 1.5.
 
 #### Phase 1.5 — Post-launch optimization (not launch-blocking)
 

@@ -129,16 +129,44 @@ Every spec MUST carry the Constitution + ADR context in its session (Guardrail #
 
 **Intent**: lock repo layout, CI, agent-context injection, contracts skeleton, ERD, state machines, audit-log, storage/PDF abstractions. **Nothing else starts until 1A is at DoD.**
 
-| # | Spec title | depends-on | Exit signal |
-|---|------------|------------|-------------|
-| 001 | `governance-and-setup` | — | CI green on empty repo; CODEOWNERS blocks constitution edits; `CLAUDE.md` injects Constitution + ADR table; every-PR review active |
-| 002 | `architecture-and-contracts` | 001 | ERD published; 7 state machines diagrammed; API style (vertical slice + MediatR) scaffolded; OpenAPI emit job green |
-| 003 | `shared-foundations` | 002 | `packages/shared_contracts` published; design-token package consumed; audit-log module emits one test event; PDF + storage abstractions return signed URLs |
+##### 001 · `governance-and-setup`
 
-Task details:
-- **001 `governance-and-setup`** — DoD, repo layout per ADR-001 (`apps/`, `services/`, `packages/`, `infra/`, `scripts/`), branch protection, CODEOWNERS enforcing Guardrail #4, Guardrail #3 agent-context files (`CLAUDE.md`, Codex, GLM), lint + format bar (Guardrail #1), contract diff job (Guardrail #2).
-- **002 `architecture-and-contracts`** — API design rules, full ERD, permissions matrix, seven Principle-24 state models (verification, cart, payment, order, shipment, return, quote), testing strategy (unit + integration + contract + E2E), CI/CD bootstrap, finalize any remaining ADRs.
-- **003 `shared-foundations`** — shared contract library, design tokens, localization scaffolding (ICU, RTL), centralized audit-log module, storage abstraction, PDF abstraction (AR + EN).
+- **depends-on**: none
+- **exit**: CI green on empty repo; CODEOWNERS blocks constitution edits; `CLAUDE.md` injects Constitution + ADR table; every-PR review active
+- **tasks**:
+  1. Scaffold monorepo per ADR-001 (`apps/customer_flutter`, `apps/admin_web`, `services/backend_api`, `packages/shared_contracts`, `packages/design_system`, `infra/`, `scripts/`).
+  2. Add `.editorconfig` + dotnet/dart/eslint/prettier configs; wire lint+format job (Guardrail #1).
+  3. Author `CLAUDE.md`, Codex rules, GLM rules that inject Constitution + ADR Decisions table (Guardrail #3).
+  4. Add `CODEOWNERS` requiring human approval for `.specify/memory/constitution.md` and Section 7 ADR block (Guardrail #4).
+  5. Configure branch protection: required PR review, green CI, signed commits.
+  6. Define DoD checklist template; link from pull-request template.
+  7. Commit per-spec session-init script that pastes Constitution + ADR context on spec creation.
+
+##### 002 · `architecture-and-contracts`
+
+- **depends-on**: 001
+- **exit**: ERD published; 7 state machines diagrammed; API style scaffolded; OpenAPI emit job green
+- **tasks**:
+  1. Draft full ERD covering all Phase-1 domains; commit as `docs/erd.md` + dbdiagram source.
+  2. Define API style: vertical slice + MediatR (ADR-003) — folder conventions, request/response envelopes, error model.
+  3. Diagram seven Principle-24 state machines (verification, cart, payment, order, shipment, return, quote) with states, transitions, actors, triggers.
+  4. Author permissions matrix (role × resource × action) covering customer, admin roles, B2B buyer/approver.
+  5. Testing strategy: unit (xUnit), integration (Testcontainers+Postgres), contract (schemathesis vs OpenAPI), E2E (Playwright + Flutter integration_test).
+  6. CI/CD bootstrap: build → test → OpenAPI emit → contract diff → artifacts (Guardrail #2).
+  7. Finalize any residual ADR questions; keep Section 7 in sync.
+
+##### 003 · `shared-foundations`
+
+- **depends-on**: 002
+- **exit**: `packages/shared_contracts` published; design-token package consumed; audit-log module emits one test event; PDF + storage abstractions return signed URLs
+- **tasks**:
+  1. Generate `packages/shared_contracts` from OpenAPI; publish to internal feed; wire Flutter + Next.js consumers.
+  2. Build `packages/design_system`: color tokens (Principle 7), typography, spacing, RTL mirroring rules, semantic colors.
+  3. Localization scaffolding: ICU message format, AR + EN resource files, RTL layout helpers, editorial-review flag.
+  4. Central audit-log module: domain-event subscriber, append-only table, actor + reason + before/after capture.
+  5. Storage abstraction: upload, signed URL issuance, virus-scan hook, market-aware bucket routing.
+  6. PDF abstraction: template engine, AR + EN layouts, RTL rendering, font embedding, tax-invoice stub template.
+  7. Health-check endpoint wired; structured logging baseline; correlation-id middleware.
 
 ---
 
@@ -146,18 +174,135 @@ Task details:
 
 **Intent**: every transaction-critical backend domain. Lane A (Claude/Codex) lives here. Lane B MAY start the matching UI in Phase 1C the moment a spec here merges its contract.
 
-| # | Spec title | depends-on | Exit signal |
-|---|------------|------------|-------------|
-| 004 | `identity-and-access` | 1A | Customer + admin auth; OTP; RBAC role framework |
-| 005 | `catalog` | 004 | Product/brand/category/media/document model with restriction metadata |
-| 006 | `search` | 005 | Meilisearch index live; Arabic normalization; SKU + barcode + autocomplete |
-| 007-a | `pricing-and-tax-engine` | 005 | Price resolution pipeline; EG + KSA VAT; promotion primitives (stacking rules) |
-| 008 | `inventory` | 005 | Stock + ATS + soft-hold/TTL + hard-commit + low-stock + batch/lot/expiry |
-| 009 | `cart` | 007-a, 008 | Guest + logged-in carts; merge on login; coupon application; validation |
-| 010 | `checkout` | 009 | Address, shipping, billing, payment init (stubs), restricted-product gate, stock revalidation |
-| 011 | `orders` | 010 | Four orthogonal status fields; history; invoice link; reorder basics |
-| 012 | `tax-and-invoices` | 011 | EG + KSA tax invoices; AR + EN PDF; finance export views |
-| 013 | `returns-and-refunds` | 011 | Return submission, eligibility, admin decision, refund execution, full state model |
+##### 004 · `identity-and-access`
+
+- **depends-on**: 1A
+- **exit**: customer + admin auth; OTP; RBAC role framework
+- **tasks**:
+  1. User + role + permission tables; seed admin roles; audit on role changes.
+  2. Registration + email/phone verification; password hashing (Argon2id); lockout policy.
+  3. Login (email or phone) + session (JWT access + refresh) + revoke.
+  4. Phone OTP service abstraction (provider decided in 1E spec 025); rate limits; replay protection.
+  5. Password reset flow with single-use token.
+  6. Customer vs admin separation (distinct auth surfaces).
+  7. RBAC middleware; permission claim carried in token; tests cover role × resource matrix.
+
+##### 005 · `catalog`
+
+- **depends-on**: 004
+- **exit**: product/brand/category/media/document model with restriction metadata
+- **tasks**:
+  1. Category tree (nested set or closure table); active/inactive.
+  2. Brand + manufacturer entities.
+  3. Product model: SKU, barcode, attributes (EAV or JSONB), media, documents, spec sheets.
+  4. Restriction metadata (Principle 8): which products require verified professional purchase.
+  5. Media pipeline via storage abstraction (003); variant generation; alt text AR + EN.
+  6. Multi-vendor-ready fields (owner_id, vendor_id nullable) per Principle 6.
+  7. Admin-facing + customer-facing DTOs; audit on catalog edits.
+
+##### 006 · `search`
+
+- **depends-on**: 005
+- **exit**: Meilisearch index live; Arabic normalization; SKU + barcode + autocomplete
+- **tasks**:
+  1. Service boundary per Principle 12/26; Meilisearch adapter; swappable contract.
+  2. Product indexer (initial + incremental via domain events).
+  3. Arabic normalization (alef/ya/ta-marbuta folding); diacritics stripping; stopwords.
+  4. Synonyms bootstrap (admin console deferred to Phase 1.5).
+  5. Autocomplete + typo tolerance + SKU + barcode lookup.
+  6. Facets (category, brand, price range, availability, restriction).
+  7. Sort modes (relevance, price asc/desc, newness); relevance tuning.
+
+##### 007-a · `pricing-and-tax-engine`
+
+- **depends-on**: 005
+- **exit**: price resolution pipeline; EG + KSA VAT; promotion primitives (stacking rules)
+- **tasks**:
+  1. Price resolution pipeline: base → business/tier → active promo → coupon → tax.
+  2. VAT rules per market (KSA 15%, EG as configured); inclusive/exclusive modes.
+  3. Promotion primitives: percentage, fixed, BOGO, bundle, tier; stacking + exclusion rules.
+  4. Coupon model (code, usage caps, eligibility); engine only — UX is 007-b.
+  5. Business + tier pricing tables; per-customer overrides.
+  6. Auditable price breakdown returned with every cart/checkout total.
+  7. Property-based tests for pricing correctness; golden-file tests per market.
+
+##### 008 · `inventory`
+
+- **depends-on**: 005
+- **exit**: stock + ATS + soft-hold/TTL + hard-commit + low-stock + batch/lot/expiry
+- **tasks**:
+  1. Stock ledger (append-only movements); warehouses table; multi-warehouse-ready.
+  2. Available-to-sell computation (on-hand − reserved − allocated).
+  3. Soft-hold reservation with TTL on checkout-start.
+  4. Hard-commit on payment-auth; release on cancel/timeout.
+  5. Low-stock thresholds + domain-event emission for alerts.
+  6. Batch/lot numbers + expiry tracking; FEFO picking guidance.
+  7. Reservation-inspection API for admin; audit on adjustments.
+
+##### 009 · `cart`
+
+- **depends-on**: 007-a, 008
+- **exit**: guest + logged-in carts; merge on login; coupon application; validation
+- **tasks**:
+  1. Cart model (guest via cookie/device id, logged-in via user id); line items; metadata.
+  2. Merge on login policy (sum quantities, resolve conflicts, re-validate).
+  3. Coupon application against 007-a engine; multi-coupon per stacking rules.
+  4. Validation: stock, restrictions, quantity limits, market eligibility.
+  5. Price snapshot vs re-resolve policy; explicit "prices may update at checkout" signal.
+  6. Abandoned-cart marker (consumed by 025 notifications).
+  7. Idempotent add/update/remove endpoints.
+
+##### 010 · `checkout`
+
+- **depends-on**: 009
+- **exit**: address, shipping, billing, payment init (stubs), restricted-product gate, stock revalidation
+- **tasks**:
+  1. Address book (shipping + billing) with market-specific fields.
+  2. Shipping method selection + fee quote (provider stubbed; real in 1E 026).
+  3. Restricted-product enforcement: block if customer not verified; surface reason.
+  4. Stock revalidation + soft-hold extension at submission.
+  5. Payment initiation stub with provider abstraction (real in 1E 027).
+  6. Order-preview endpoint returning full price + tax breakdown.
+  7. Checkout state machine (Principle 24) with retry/timeout/failure paths.
+
+##### 011 · `orders`
+
+- **depends-on**: 010
+- **exit**: four orthogonal status fields; history; invoice link; reorder basics
+- **tasks**:
+  1. Order model with **four orthogonal status fields** (order, payment, fulfillment, refund/return).
+  2. Placement workflow converts checkout into order; reserves become allocations.
+  3. Status history table; actor + timestamp + reason on every transition.
+  4. Invoice linkage to spec 012.
+  5. Reorder (clone into new cart); quote-linkage placeholder for 021.
+  6. Admin + customer order views.
+  7. Audit events per transition; structured log line per event.
+
+##### 012 · `tax-and-invoices`
+
+- **depends-on**: 011
+- **exit**: EG + KSA tax invoices; AR + EN PDF; finance export views
+- **tasks**:
+  1. Tax-invoice entity (sequence per market, legal fields, VAT number).
+  2. Template renderer via 003 PDF abstraction; AR + EN; RTL pass.
+  3. KSA ZATCA-compliant fields (QR placeholder; full phase-2 compliance tracked separately).
+  4. EG ETA-compliant fields per current law.
+  5. B2B invoice variant (company name, VAT id, PO number).
+  6. Finance export view (CSV + PDF bundle) for admin.
+  7. Audit on regenerate; immutable originals.
+
+##### 013 · `returns-and-refunds`
+
+- **depends-on**: 011
+- **exit**: return submission, eligibility, admin decision, refund execution, full state model
+- **tasks**:
+  1. Return eligibility rules (window, condition, restricted-product restocking rules).
+  2. Customer submission flow; reason codes; photo upload via storage.
+  3. Admin review queue + decision (approve/partial/reject) with audit.
+  4. Refund execution against original payment method (provider abstracted; real in 027).
+  5. Inventory reversal on approved return.
+  6. Return state machine (Principle 24).
+  7. Customer-visible timeline.
 
 ---
 
@@ -165,14 +310,83 @@ Task details:
 
 **Intent**: Lane B (GLM) consumes merged contracts from 1B. UI-only — any backend gap found here escalates back to the owning 1B spec (never inline fix).
 
-| # | Spec title | depends-on | Exit signal |
-|---|------------|------------|-------------|
-| 014 | `customer-app-shell` | 004–013 contracts | Flutter (Bloc) Android + iOS + web: shell, auth, home, listing, detail, cart, checkout, orders, more-menu; RTL + AR editorial pass |
-| 015 | `admin-foundation` | 004 contract | Next.js + shadcn/ui shell; auth; role-based nav; AR + EN; audit-log reader |
-| 016 | `admin-catalog` | 005, 015 | CRUD for category/brand/product/media/docs; restriction metadata; bulk ops |
-| 017 | `admin-inventory` | 008, 015 | Stock adjustments, low-stock queue, batch/lot, expiry, reservation inspection |
-| 018 | `admin-orders` | 011, 013, 015 | Order list + detail, status transitions, refund init, invoice reprint, quote linkage |
-| 019 | `admin-customers` | 004, 015 | Profile view, verification history, quotes, support tickets, address book |
+##### 014 · `customer-app-shell`
+
+- **depends-on**: 004–013 contracts
+- **exit**: Flutter (Bloc) Android + iOS + web: shell, auth, home, listing, detail, cart, checkout, orders, more-menu; RTL + AR editorial pass
+- **tasks**:
+  1. App shell + routing + Bloc setup; app-wide theming via `packages/design_system`.
+  2. Localization + RTL; editorial AR strings pass.
+  3. Auth screens (register, login, OTP, reset); session management.
+  4. Home (banners from CMS stub, featured sections, categories).
+  5. Product listing (facets, sort, Arabic search) + product detail (media, specs, restricted badge, price breakdown).
+  6. Cart + checkout screens wired to 009/010 contracts.
+  7. Orders list + detail + reorder + support shortcut; more-menu (addresses, language, logout, verification CTA).
+
+##### 015 · `admin-foundation`
+
+- **depends-on**: 004 contract
+- **exit**: Next.js + shadcn/ui shell; auth; role-based nav; AR + EN; audit-log reader
+- **tasks**:
+  1. Next.js app scaffold + shadcn/ui base; AR + EN i18n; RTL toggle.
+  2. Admin auth; RBAC guard per route.
+  3. Shell layout: sidebar, topbar, breadcrumbs, global search.
+  4. Audit-log reader (filter by actor, resource, timeframe).
+  5. Shared table + form components (pagination, filters, saved views).
+  6. Notification center (in-app alerts for admin tasks).
+  7. Accessibility pass (keyboard nav, focus rings, contrast).
+
+##### 016 · `admin-catalog`
+
+- **depends-on**: 005, 015
+- **exit**: CRUD for category/brand/product/media/docs; restriction metadata; bulk ops
+- **tasks**:
+  1. Category tree editor (drag-reorder, activate/deactivate).
+  2. Brand CRUD.
+  3. Product CRUD with attribute editor; AR + EN content tabs.
+  4. Media + document upload via storage abstraction; variant previews.
+  5. Restriction flag editor + rationale field.
+  6. Bulk import/export (CSV) with validation report.
+  7. Draft + publish workflow; audit on publish.
+
+##### 017 · `admin-inventory`
+
+- **depends-on**: 008, 015
+- **exit**: stock adjustments, low-stock queue, batch/lot, expiry, reservation inspection
+- **tasks**:
+  1. Stock adjustment form (reason codes, per-warehouse).
+  2. Low-stock queue view; threshold editor per SKU.
+  3. Batch/lot creation + linkage to receipts.
+  4. Expiry calendar + near-expiry alerts.
+  5. Reservation inspection (who holds what, TTL, release).
+  6. Ledger view (append-only movements) with export.
+  7. Audit on every adjustment.
+
+##### 018 · `admin-orders`
+
+- **depends-on**: 011, 013, 015
+- **exit**: order list + detail, status transitions, refund init, invoice reprint, quote linkage
+- **tasks**:
+  1. Order list with filters (status × 4 fields, market, B2B flag, date range).
+  2. Order detail with timeline showing all four status streams.
+  3. Status-transition actions gated by state machine + permissions.
+  4. Refund initiation flow (calls spec 013).
+  5. Invoice reprint via spec 012.
+  6. Quote linkage (from 021).
+  7. Export view (CSV) for finance.
+
+##### 019 · `admin-customers`
+
+- **depends-on**: 004, 015
+- **exit**: profile view, verification history, quotes, support tickets, address book
+- **tasks**:
+  1. Customer list + filters (market, B2B, verification state).
+  2. Profile detail: identity, roles, orders summary.
+  3. Verification history panel (from 020).
+  4. Quote history panel (from 021).
+  5. Support-ticket linkage (from 023).
+  6. Address book view; B2B company hierarchy view.
+  7. Admin actions: suspend, unlock, trigger password reset (audited).
 
 ---
 
@@ -180,14 +394,83 @@ Task details:
 
 **Intent**: layer professional + B2B + content + moderation on top of the core. Lane A and Lane B run in parallel per-spec.
 
-| # | Spec title | depends-on | Exit signal |
-|---|------------|------------|-------------|
-| 020 | `verification` | 004, 015 | Submission + admin review queue + approve/reject/request-info + expiry + audit |
-| 021 | `quotes-and-b2b` | 011, 018 | Quote request → admin quote → revisions → accept → quote-to-order; company accounts; PO |
-| 007-b | `promotions-ux-and-campaigns` | 007-a, 016 | Coupon lifecycle, scheduled promos, banner-linked campaigns, business + tier pricing authoring |
-| 022 | `reviews-moderation` | 011, 015 | Verified-buyer enforcement; admin moderation queue; hide/delete with audit |
-| 023 | `support-tickets` | 011, 015 | Ticket CRUD, reply flow, category tagging, order linkage, SLA fields |
-| 024 | `cms` | 015 | Banners, featured sections, FAQ, legal, blog skeleton, localized publishing |
+##### 020 · `verification`
+
+- **depends-on**: 004, 015
+- **exit**: submission + admin review queue + approve/reject/request-info + expiry + audit
+- **tasks**:
+  1. Verification entity + state machine (Principle 24): submitted → in-review → approved/rejected/info-requested → expired.
+  2. Customer submission: profession, license number, documents (upload via storage).
+  3. Admin review queue with filters; decision actions with required reasoning.
+  4. Expiry tracking + renewal reminder trigger (consumed by 025).
+  5. Restricted-product eligibility hook used by 005/009/010.
+  6. Market-aware fields (EG vs KSA regulator differences).
+  7. Audit trail per decision.
+
+##### 021 · `quotes-and-b2b`
+
+- **depends-on**: 011, 018
+- **exit**: quote request → admin quote → revisions → accept → quote-to-order; company accounts; PO
+- **tasks**:
+  1. Company account + multi-user (buyer, approver) + branch/company hierarchy.
+  2. Quote entity + state machine: requested → drafted → revised → accepted/rejected/expired.
+  3. Customer quote-request flow (from cart or from product).
+  4. Admin quote authoring (line-item pricing, terms, validity).
+  5. Accept → convert-to-order with PO number + invoice-billing flag.
+  6. Approval flow inside company accounts (buyer submits, approver accepts).
+  7. Repeat-order template linkage (Phase 1.5 completes the UI, backend stubs here).
+
+##### 007-b · `promotions-ux-and-campaigns`
+
+- **depends-on**: 007-a, 016
+- **exit**: coupon lifecycle, scheduled promos, banner-linked campaigns, business + tier pricing authoring
+- **tasks**:
+  1. Coupon admin UX (create, schedule, usage caps, eligibility, deactivate).
+  2. Scheduled promotion authoring (start/end, target, stacking behavior).
+  3. Banner-linked campaigns (CMS 024 integration for hero slots).
+  4. Business-pricing authoring (per-company, per-tier).
+  5. Tier-pricing table editor.
+  6. Preview tool showing resolved price for a sample customer + cart.
+  7. Audit on every promo/coupon/business-pricing edit.
+
+##### 022 · `reviews-moderation`
+
+- **depends-on**: 011, 015
+- **exit**: verified-buyer enforcement; admin moderation queue; hide/delete with audit
+- **tasks**:
+  1. Review entity linked to delivered order line.
+  2. Customer submission only if order is in delivered state + not refunded.
+  3. Admin moderation queue (flag reasons, hide/delete, reinstate).
+  4. Profanity / abuse filter hook.
+  5. Aggregated rating on product detail.
+  6. Admin notes on review (audited).
+  7. Report-review flow for other customers.
+
+##### 023 · `support-tickets`
+
+- **depends-on**: 011, 015
+- **exit**: ticket CRUD, reply flow, category tagging, order linkage, SLA fields
+- **tasks**:
+  1. Ticket entity (subject, body, category, priority, linked order/return/quote).
+  2. Customer ticket creation + list + detail + reply.
+  3. Admin queue with filters, assignment, status transitions.
+  4. SLA timers per priority; breach alerting.
+  5. File attachments via storage abstraction.
+  6. Internal notes (not customer-visible).
+  7. Conversion between ticket and return/refund request where applicable.
+
+##### 024 · `cms`
+
+- **depends-on**: 015
+- **exit**: banners, featured sections, FAQ, legal, blog skeleton, localized publishing
+- **tasks**:
+  1. Banner slots + scheduling + market/locale targeting.
+  2. Featured-section composer (products, categories, bundles).
+  3. FAQ entries (category, AR + EN, ordering).
+  4. Legal pages (terms, privacy, returns, cookies) with version history.
+  5. Blog skeleton (articles, categories, author, scheduled publish).
+  6. SEO fields (meta, OG, schema.org) per entity.
+  7. Preview + draft/publish flow with audit.
 
 ---
 
@@ -195,11 +478,44 @@ Task details:
 
 **Intent**: swap stubs for real providers. ADRs 007, 008, 009 get **Accepted** during this phase. Every integration must ship with reconciliation + webhook replay + idempotency tests.
 
-| # | Spec title | depends-on | Exit signal |
-|---|------------|------------|-------------|
-| 025 | `notifications` | 004, 011 | Template mgmt; event-triggered SMS + email + push (no WhatsApp); campaign basics; preference mgmt. **ADR-009 Accepted.** |
-| 026 | `shipping` | 010, 011 | Provider settings, market rules, methods, fees, shipment state mapping, tracking webhooks. **ADR-008 Accepted.** |
-| 027 | `payments-integration` | 010, 012 | ADR-007 primary + backup per market live; BNPL (Tabby/Tamara KSA + Valu EG); reconciliation job; webhook replay. **ADR-007 Accepted.** |
+##### 025 · `notifications`
+
+- **depends-on**: 004, 011
+- **exit**: template mgmt; event-triggered SMS + email + push (no WhatsApp); campaign basics; preference mgmt. **ADR-009 Accepted.**
+- **tasks**:
+  1. Provider selection + ADR-009 flip to Accepted (SMS, email, push — WhatsApp deferred to 1.5).
+  2. Template entity + AR + EN variants + placeholders; admin editor.
+  3. Event subscribers for: OTP, order updates, abandoned cart, restock, price drop, verification results, refunds, shipping updates.
+  4. Channel-preference management (customer-facing opt-out basics; full UI in 1.5-e).
+  5. Campaign authoring (admin-triggered broadcast with targeting).
+  6. Delivery logging + retry + dead-letter.
+  7. Rate limits + per-market compliance (time windows, unsubscribe language).
+
+##### 026 · `shipping`
+
+- **depends-on**: 010, 011
+- **exit**: provider settings, market rules, methods, fees, shipment state mapping, tracking webhooks. **ADR-008 Accepted.**
+- **tasks**:
+  1. Provider selection + ADR-008 flip to Accepted.
+  2. Shipping-method entity (market, zones, fees, SLAs); admin editor.
+  3. Provider adapter implementing generic shipping contract.
+  4. Shipment creation on order placement; label + tracking number persisted.
+  5. Tracking webhook receiver + shipment state machine (Principle 24).
+  6. Fee quote endpoint used by checkout.
+  7. Delivery attempt + failure + re-delivery handling.
+
+##### 027 · `payments-integration`
+
+- **depends-on**: 010, 012
+- **exit**: ADR-007 primary + backup per market live; BNPL (Tabby/Tamara KSA + Valu EG); reconciliation job; webhook replay. **ADR-007 Accepted.**
+- **tasks**:
+  1. Provider selection + ADR-007 flip to Accepted; PCI scope boundary documented.
+  2. Card provider adapter (KSA + EG); Apple Pay + Mada + STC Pay for KSA; Valu for EG.
+  3. BNPL adapters: Tabby + Tamara (KSA), Valu BNPL (EG).
+  4. COD + bank transfer handlers.
+  5. Webhook receiver + signature verification + idempotency + replay tool.
+  6. Reconciliation job (daily) matching provider ledger vs internal; exception queue.
+  7. Payment-retry flow for failed captures (order.payment_status transitions).
 
 ---
 
@@ -207,9 +523,18 @@ Task details:
 
 **Intent**: no new features. Everything below runs against the complete system.
 
-| # | Spec title | depends-on | Exit signal |
-|---|------------|------------|-------------|
-| 029 | `qa-and-hardening` | all of 1A–1E | Functional + localization (AR editorial signed off) + security + reliability + performance regression complete; Section 13 launch-readiness checklist 100% checked |
+##### 029 · `qa-and-hardening`
+
+- **depends-on**: all of 1A–1E at DoD
+- **exit**: functional + localization + security + reliability + performance regression complete; Section 13 launch-readiness checklist 100% checked
+- **tasks**:
+  1. Functional regression across every user story (customer + admin + B2B).
+  2. Localization audit: Arabic editorial reviewer signs off every screen, email, PDF, notification.
+  3. RTL visual regression sweep.
+  4. Security pass: OWASP ASVS L1, dependency scan, secret scan, auth fuzzing, IDOR checks.
+  5. Reliability: chaos drills on payment, shipping, notification providers; reconciliation rerun.
+  6. Performance: k6 load tests on catalog, search, checkout; p95 budgets enforced.
+  7. Launch-readiness checklist (Section 13) executed end-to-end; sign-offs captured.
 
 Exit of 1F = **launch**. Post-launch work enters Phase 1.5.
 

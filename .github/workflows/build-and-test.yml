@@ -74,7 +74,8 @@ jobs:
 
       - name: validate-diagrams no-op success
         if: steps.changes.outputs.markdown_targets != 'true'
-        run: echo "validate-diagrams: no relevant paths changed."
+        run: |
+          echo "validate-diagrams no-op success - no relevant paths changed."
 
       - name: validate-diagrams completed
         if: always()
@@ -165,7 +166,8 @@ jobs:
 
       - name: build no-op success
         if: steps.changes.outputs.build_targets != 'true'
-        run: echo "build: no relevant paths changed."
+        run: |
+          echo "build no-op success - no relevant paths changed."
 
       - name: build completed
         if: always()

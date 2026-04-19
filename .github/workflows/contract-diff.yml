@@ -91,8 +91,10 @@ jobs:
 
       - name: contract-diff no-op success
         if: steps.changes.outputs.contract_targets != 'true'
-        run: echo "contract-diff: no relevant paths changed."
+        run: |
+          echo "contract-diff no-op success - no relevant paths changed."
 
       - name: contract-diff completed
         if: always()
-        run: echo "contract-diff check completed."
+        run: |
+          echo "contract-diff check completed."

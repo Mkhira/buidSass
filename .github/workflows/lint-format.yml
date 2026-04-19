@@ -87,8 +87,10 @@ jobs:
 
       - name: lint-format no-op success
         if: steps.changes.outputs.lint_targets != 'true'
-        run: echo "lint-format: no relevant paths changed."
+        run: |
+          echo "lint-format no-op success - no relevant paths changed."
 
       - name: lint-format completed
         if: always()
-        run: echo "lint-format check completed."
+        run: |
+          echo "lint-format check completed."

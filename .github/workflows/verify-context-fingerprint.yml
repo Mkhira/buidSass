@@ -1,0 +1,50 @@
+name: verify-context-fingerprint
+
+on:
+  pull_request:
+    types: [opened, edited, synchronize, reopened]
+
+jobs:
+  verify-context-fingerprint:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Extract fingerprint from PR description
+        id: extract
+        shell: bash
+        env:
+          PR_BODY: ${{ github.event.pull_request.body }}
+        run: |
+          EXPECTED="$(printf '%s' "${PR_BODY}" | grep -Eo '<!-- context-fingerprint: [0-9a-f]{64} -->' | head -n1 | grep -Eo '[0-9a-f]{64}' || true)"
+          if [ -z "${EXPECTED}" ]; then
+            echo "Missing context fingerprint marker in PR body."
+            echo "Expected format: <!-- context-fingerprint: <64-hex> -->"
+            exit 1
+          fi
+          echo "expected=${EXPECTED}" >> "$GITHUB_OUTPUT"
+
+      - name: Compute canonical fingerprint from origin/main
+        id: actual
+        shell: bash
+        run: |
+          git fetch origin main --depth=1
+          TMP_DIR="$(mktemp -d)"
+          git worktree add --detach "${TMP_DIR}" origin/main >/dev/null
+          ACTUAL="$("${TMP_DIR}/scripts/compute-fingerprint.sh")"
+          git worktree remove --force "${TMP_DIR}" >/dev/null
+          echo "actual=${ACTUAL}" >> "$GITHUB_OUTPUT"
+
+      - name: Compare fingerprints
+        shell: bash
+        run: |
+          if [ "${{ steps.extract.outputs.expected }}" != "${{ steps.actual.outputs.actual }}" ]; then
+            echo "Fingerprint mismatch."
+            echo "PR:   ${{ steps.extract.outputs.expected }}"
+            echo "Main: ${{ steps.actual.outputs.actual }}"
+            exit 1
+          fi
+          echo "Fingerprint is valid."

@@ -8,6 +8,10 @@ ehthumbs.db
 Thumbs.db
 Desktop.ini
 
+# ─── Local agent tooling (not project code) ───────────────────────────────────
+.agents/
+.claude/settings.local.json
+
 # ─── Editor / IDE ─────────────────────────────────────────────────────────────
 .vscode/*
 !.vscode/extensions.json
@@ -148,3 +152,20 @@ lerna-debug.log*
 .tmp/
 tmp/
 temp/
+
+# ─── .NET ─────────────────────────────────────────────────────────────────────
+bin/
+obj/
+*.user
+*.userosscache
+*.rsuser
+
+# ─── Flutter ──────────────────────────────────────────────────────────────────
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+.pub-cache/
+.pub/
+pubspec.lock
+build/

@@ -715,6 +715,7 @@ Nx / Turborepo deferred until cross-package coupling proves the ceremony is wort
 ### ADR-007 · Payment providers · **Proposed**
 
 **Context**: Apple Pay, Visa, MasterCard, Mada, STC Pay, bank transfer, COD, BNPL (Principle 13). Per-market selection. Decided in Stage 7 / Milestone 8.
+**Deferral**: Proposed — deferred to Stage 7 (provider selection at integration phase).
 
 **Scope confirmed for v1.0**:
 - Both markets at launch (EG + KSA).
@@ -732,6 +733,7 @@ Nx / Turborepo deferred until cross-package coupling proves the ceremony is wort
 ### ADR-008 · Shipping providers · **Proposed**
 
 **Context**: rate calculation, shipment creation, tracking, zones, delivery estimates, provider replacement (Principle 14). Decided in Stage 7 / Milestone 8.
+**Deferral**: Proposed — deferred to Stage 7 (provider selection at integration phase).
 
 **Options — Egypt**: Bosta · Aramex · Mylerz · R2S · Fetchr · J&T Express EG.
 **Options — KSA**: SMSA · Aramex · SPL · DHL · J&T Express KSA · Naqel.
@@ -744,6 +746,7 @@ Nx / Turborepo deferred until cross-package coupling proves the ceremony is wort
 ### ADR-009 · Notification & OTP providers · **Proposed (narrowed)**
 
 **Context**: push, email, SMS across OTP, order updates, offers, abandoned cart, restock, price drop, verification, refunds, shipping (Principle 19). Decided in Stage 7 / Milestone 8.
+**Deferral**: Proposed — deferred to Stage 7 (provider selection at integration phase).
 
 **Scope confirmed for v1.0**: **SMS + email + push only at launch**. WhatsApp deferred to Phase 1.5 (spec 1.5-f).
 

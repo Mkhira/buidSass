@@ -123,9 +123,9 @@
 **Purpose**: Final verification, documentation consistency, and DoD sign-off for this spec.
 
 - [X] T025 Run `quickstart.md` verification for all five phases (A–E) and confirm every "Verify" step passes; document any failures as issues before merge
-- [ ] T026 [P] Verify `specs/001-governance-and-setup/spec.md` satisfies all Universal Core DoD items (UC-1 through UC-8); tick them in `checklists/requirements.md`; confirm no applicability tags are active (no state machine, no audit events, no storage, no PDF, no user-facing strings in this spec)
-- [ ] T027 [P] Run a full end-to-end smoke test: open a PR from a feature branch, confirm all four CI jobs appear, confirm the fingerprint check fires, confirm squash-merge is the only available merge method, confirm a direct push to `main` is rejected
-- [ ] T028 Commit all deliverables on the `001-governance-and-setup` branch and open a PR. Ensure the PR description includes the context fingerprint. Mark all UC checklist items in the PR template.
+- [X] T026 [P] Verify `specs/001-governance-and-setup/spec.md` satisfies all Universal Core DoD items (UC-1 through UC-8); tick them in `checklists/requirements.md`; confirm no applicability tags are active (no state machine, no audit events, no storage, no PDF, no user-facing strings in this spec)
+- [X] T027 [P] Run a full end-to-end smoke test: open a PR from a feature branch, confirm all four CI jobs appear, confirm the fingerprint check fires, confirm squash-merge is the only available merge method, confirm a direct push to `main` is rejected
+- [X] T028 Commit all deliverables on the `001-governance-and-setup` branch and open a PR. Ensure the PR description includes the context fingerprint. Mark all UC checklist items in the PR template.
 
 **Checkpoint**: All eight UC items in `docs/dod.md` pass for this spec. PR is ready for human code-owner review.
 

@@ -1,0 +1,73 @@
+name: lint-format
+
+on:
+  pull_request:
+    paths:
+      - "services/backend_api/**"
+      - "apps/customer_flutter/**"
+      - "apps/admin_web/**"
+      - "packages/**"
+      - ".editorconfig"
+      - ".github/workflows/lint-format.yml"
+
+jobs:
+  lint-format:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "9.0.x"
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: .NET format verification
+        shell: bash
+        run: |
+          if compgen -G "services/backend_api/*.sln" >/dev/null; then
+            dotnet format services/backend_api --verify-no-changes
+          elif compgen -G "services/backend_api/*.csproj" >/dev/null; then
+            dotnet format services/backend_api --verify-no-changes
+          else
+            echo "No .NET project found under services/backend_api; skipping."
+          fi
+
+      - name: Flutter format verification
+        shell: bash
+        run: |
+          if [ -f "apps/customer_flutter/pubspec.yaml" ]; then
+            dart format --set-exit-if-changed apps/customer_flutter
+          else
+            echo "No Flutter pubspec found under apps/customer_flutter; skipping."
+          fi
+
+      - name: ESLint + Prettier checks
+        shell: bash
+        run: |
+          TARGETS=("apps/admin_web" "packages")
+          for target in "${TARGETS[@]}"; do
+            if [ -f "${target}/package.json" ]; then
+              pushd "${target}" >/dev/null
+              npm ci
+              npx eslint . --max-warnings=0
+              npx prettier --check .
+              popd >/dev/null
+            else
+              echo "No package.json in ${target}; skipping."
+            fi
+          done
+
+      - name: Governance agent-context test
+        shell: bash
+        run: bash scripts/tests/test-gen-agent-context.sh

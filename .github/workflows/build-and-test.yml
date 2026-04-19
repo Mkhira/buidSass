@@ -248,7 +248,7 @@ jobs:
               if: github.event_name == 'push' && github.ref == 'refs/heads/main' && steps.changes.outputs.build_targets == 'true'
               shell: bash
               run: |
-                  new_version="0.$(date +%y%m%d).${GITHUB_RUN_NUMBER}"
+                  new_version="0.$(date +%y%m).${GITHUB_RUN_NUMBER}"
                   node -e "const fs=require('fs'),p='packages/shared_contracts/openapi.json';const d=JSON.parse(fs.readFileSync(p,'utf8'));d.info.version='${new_version}';fs.writeFileSync(p,JSON.stringify(d,null,2));"
                   bash scripts/gen-contracts.sh
                   echo "Published contracts version: ${new_version}"

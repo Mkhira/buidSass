@@ -1,0 +1,76 @@
+name: contract-diff
+
+on:
+  pull_request:
+    paths:
+      - "services/backend_api/**"
+      - "packages/shared_contracts/**"
+      - ".github/workflows/contract-diff.yml"
+
+jobs:
+  contract-diff:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "9.0.x"
+
+      - name: Setup Go (for oasdiff)
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.23"
+
+      - name: Build backend
+        shell: bash
+        run: |
+          if compgen -G "services/backend_api/*.sln" >/dev/null; then
+            dotnet build services/backend_api --configuration Release
+          elif compgen -G "services/backend_api/*.csproj" >/dev/null; then
+            dotnet build services/backend_api --configuration Release
+          else
+            echo "No .NET backend project found; continuing with file-based OpenAPI fallback."
+          fi
+
+      - name: Generate current openapi.json (fallback-aware)
+        shell: bash
+        run: |
+          mkdir -p artifacts
+          if [ -f "services/backend_api/openapi.json" ]; then
+            cp services/backend_api/openapi.json artifacts/openapi.current.json
+          elif [ -f "packages/shared_contracts/openapi.json" ]; then
+            cp packages/shared_contracts/openapi.json artifacts/openapi.current.json
+          else
+            echo '{}' > artifacts/openapi.current.json
+          fi
+
+      - name: Upload OpenAPI artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: openapi
+          path: artifacts/openapi.current.json
+
+      - name: Prepare baseline from main
+        shell: bash
+        run: |
+          git fetch origin main --depth=1
+          mkdir -p artifacts
+          if git show origin/main:packages/shared_contracts/openapi.json >/tmp/openapi.main.json 2>/dev/null; then
+            cp /tmp/openapi.main.json artifacts/openapi.main.json
+          else
+            echo '{}' > artifacts/openapi.main.json
+          fi
+
+      - name: Install oasdiff
+        shell: bash
+        run: go install github.com/oasdiff/oasdiff@latest
+
+      - name: Compare specs with oasdiff
+        shell: bash
+        run: |
+          oasdiff breaking artifacts/openapi.main.json artifacts/openapi.current.json

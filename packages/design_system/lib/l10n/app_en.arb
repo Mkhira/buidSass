@@ -1,0 +1,6 @@
+{
+  "appTitle": "Dental Commerce",
+  "@appTitle": {
+    "description": "Application title shown in the app shell"
+  }
+}

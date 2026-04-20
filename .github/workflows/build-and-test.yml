@@ -211,9 +211,9 @@ jobs:
                     dotnet restore services/backend_api/backend_api.sln
                     dotnet build services/backend_api/backend_api.sln --configuration Release
                     dotnet test services/backend_api/Tests/backend_api.Tests.csproj --configuration Release --no-build
-                  elif [ -f "services/backend_api/services/backend_api.csproj" ]; then
-                    dotnet restore services/backend_api/services/backend_api.csproj
-                    dotnet build services/backend_api/services/backend_api.csproj --configuration Release
+                  elif [ -f "services/backend_api/backend_api.csproj" ]; then
+                    dotnet restore services/backend_api/backend_api.csproj
+                    dotnet build services/backend_api/backend_api.csproj --configuration Release
                     dotnet test services/backend_api/Tests/backend_api.Tests.csproj --configuration Release --no-build
                   else
                     echo "No backend project found; skipping backend build/test."
@@ -243,7 +243,7 @@ jobs:
                   if [ "${paths}" = "0" ] && [ "${schemas}" = "0" ]; then
                     # Spec 003 shipped an empty skeleton; once spec 004 lands real endpoints
                     # this guard becomes a merge-blocker preventing empty-publish regressions.
-                    if [ -f "services/backend_api/Features" ] || grep -rq "MapGet\|MapPost\|MapPut\|MapDelete" services/backend_api/services/Program.cs 2>/dev/null; then
+                    if [ -f "services/backend_api/Features" ] || grep -rq "MapGet\|MapPost\|MapPut\|MapDelete" services/backend_api/Program.cs 2>/dev/null; then
                       echo "::error::OpenAPI has zero paths and zero schemas but backend has endpoints. Emit/export step is broken."
                       exit 1
                     fi

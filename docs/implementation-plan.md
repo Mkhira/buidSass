@@ -192,15 +192,32 @@ Both streams MUST be at DoD before Phase 1B begins.
   7. **Docs.** `docs/environments.md`, `docs/local-setup.md`, `docs/seed-data.md`, `docs/staging-data-policy.md`. Repo layout and DoD updated.
 - **Spec-level impact (per-spec seeder tasks appended to each owning spec)**:
 
-  | Spec | Seeder         | Task IDs added |
-  |------|----------------|----------------|
-  | 004  | `identity-v1`  | T101–T103      |
-  | 005  | `catalog-v1`   | T101–T103      |
-  | 006  | `search-v1`    | T069–T071      |
-  | 007  | `pricing-v1`   | T080–T081      |
-  | 008  | `inventory-v1` | T087–T089      |
+  | Spec | Seeder              | Notes                                                                  |
+  |------|---------------------|------------------------------------------------------------------------|
+  | 004  | `identity-v1`       | synthetic users per role incl. verified professionals                  |
+  | 005  | `catalog-v1`        | categories, brands, products, variants, media, AR + EN                 |
+  | 006  | `search-v1`         | index bootstrap against seeded catalog                                 |
+  | 007  | `pricing-v1`        | coupons, bundles, tier pricing, business pricing                       |
+  | 008  | `inventory-v1`      | stock, warehouses, batch/lot, expiry, reservations                     |
+  | 009  | `cart-v1`           | guest + logged-in carts                                                |
+  | 010  | `checkout-v1`       | in-progress sessions across every state                                |
+  | 011  | `orders-v1`         | across all four orthogonal status combinations                         |
+  | 012  | `tax-invoices-v1`   | EG + KSA + B2B invoice variants                                        |
+  | 013  | `returns-v1`        | approve / partial / reject decisions                                   |
+  | 020  | `verification-v1`   | submissions across every state                                         |
+  | 021  | `quotes-b2b-v1`     | company accounts + quotes spanning all states                          |
+  | 007-b| `promotions-v1`     | coupons, scheduled promos, business-pricing tiers                      |
+  | 022  | `reviews-v1`        | verified-buyer reviews + moderation states                             |
+  | 023  | `support-v1`        | tickets across categories, priorities, SLA states                      |
+  | 024  | `cms-v1`            | banners, FAQ, legal, blog — AR + EN                                    |
+  | 025  | `notifications-v1`  | templates + delivery-log entries                                       |
+  | 026  | `shipping-v1`       | methods + zones + fees (EG + KSA)                                      |
+  | 027  | `payments-v1`       | attempts across success / failure / retry / reconciliation-exception  |
 
-- **Deliberately deferred to Phase 1E**: Azure IaC (Bicep), real Key Vault provisioning, `deploy-staging.yml` wiring, Meilisearch HA, managed Postgres Flexible Server provisioning.
+  Each seeder MUST pass the `seed-pii-guard` CI check (no real phones, emails, or national-ID patterns) and MUST obey `docs/staging-data-policy.md`.
+
+- **Rule (applies to every post-1A spec)**: every spec in 1B, 1D, 1E MUST (a) register any environment-specific secret via Key Vault + `AddLayeredConfiguration()` — never in `appsettings.json`, (b) ship a `<spec>-v1` seeder for Staging + local, (c) pass `seed-pii-guard`. UI specs in 1C MAY skip (b) if they add zero persistent entities.
+- **Deliberately deferred to Phase 1E E1**: Azure IaC (Bicep), real Key Vault provisioning, `deploy-staging.yml` wiring, Meilisearch HA, managed Postgres Flexible Server provisioning, Flutter-web hosting decision (Static Web Apps vs container).
 
 ---
 
@@ -236,7 +253,7 @@ Both streams MUST be at DoD before Phase 1B begins.
 
 ##### 006 · `search`
 
-- **depends-on**: 005
+- **depends-on**: 005; A1 (Meilisearch local container health-gated in `infra/local/docker-compose.yml`)
 - **exit**: Meilisearch index live; Arabic normalization; SKU + barcode + autocomplete
 - **tasks**:
   1. Service boundary per Principle 12/26; Meilisearch adapter; swappable contract.
@@ -285,6 +302,7 @@ Both streams MUST be at DoD before Phase 1B begins.
   5. Price snapshot vs re-resolve policy; explicit "prices may update at checkout" signal.
   6. Abandoned-cart marker (consumed by 025 notifications).
   7. Idempotent add/update/remove endpoints.
+  8. Author `cart-v1` seeder (synthetic guest + logged-in carts for staging + local per `docs/staging-data-policy.md`).
 
 ##### 010 · `checkout`
 
@@ -298,6 +316,7 @@ Both streams MUST be at DoD before Phase 1B begins.
   5. Payment initiation stub with provider abstraction (real in 1E 027).
   6. Order-preview endpoint returning full price + tax breakdown.
   7. Checkout state machine (Principle 24) with retry/timeout/failure paths.
+  8. Author `checkout-v1` seeder (synthetic in-progress checkout sessions covering each state).
 
 ##### 011 · `orders`
 
@@ -311,6 +330,7 @@ Both streams MUST be at DoD before Phase 1B begins.
   5. Reorder (clone into new cart); quote-linkage placeholder for 021.
   6. Admin + customer order views.
   7. Audit events per transition; structured log line per event.
+  8. Author `orders-v1` seeder (synthetic orders across all four status combinations for staging + local).
 
 ##### 012 · `tax-and-invoices`
 
@@ -324,6 +344,7 @@ Both streams MUST be at DoD before Phase 1B begins.
   5. B2B invoice variant (company name, VAT id, PO number).
   6. Finance export view (CSV + PDF bundle) for admin.
   7. Audit on regenerate; immutable originals.
+  8. Author `tax-invoices-v1` seeder (synthetic invoices covering EG + KSA + B2B variants).
 
 ##### 013 · `returns-and-refunds`
 
@@ -337,16 +358,19 @@ Both streams MUST be at DoD before Phase 1B begins.
   5. Inventory reversal on approved return.
   6. Return state machine (Principle 24).
   7. Customer-visible timeline.
+  8. Author `returns-v1` seeder (synthetic returns spanning approve/partial/reject decisions).
 
 ---
 
-#### Phase 1C — Customer & Admin UI · Milestones 5–6 · 6 specs
+#### Phase 1C — Customer & Admin UI · Milestones 5–6 · 6 specs + C-Infra
 
 **Intent**: Lane B (GLM) consumes merged contracts from 1B. UI-only — any backend gap found here escalates back to the owning 1B spec (never inline fix).
 
+**Phase 1C-Infra** (runs in parallel with 014/015): author `apps/admin_web/Dockerfile` (multi-stage, `node:20-alpine` runtime + Next.js `output: 'standalone'`, non-root uid 10001, matches the A1 backend recipe), add `.github/workflows/admin-docker-build.yml` pushing to GHCR on `main` (sha + `latest-main` tags), extend compose with an optional `admin_web` service behind an `admin` profile. Flutter-web hosting decision (static via Azure Static Web Apps vs container) is deferred to Phase 1E E1.
+
 ##### 014 · `customer-app-shell`
 
-- **depends-on**: 004–013 contracts
+- **depends-on**: 004–013 contracts merged to `main` (not just DoD)
 - **exit**: Flutter (Bloc) Android + iOS + web: shell, auth, home, listing, detail, cart, checkout, orders, more-menu; RTL + AR editorial pass
 - **tasks**:
   1. App shell + routing + Bloc setup; app-wide theming via `packages/design_system`.
@@ -359,7 +383,7 @@ Both streams MUST be at DoD before Phase 1B begins.
 
 ##### 015 · `admin-foundation`
 
-- **depends-on**: 004 contract
+- **depends-on**: 004 contract merged to `main`
 - **exit**: Next.js + shadcn/ui shell; auth; role-based nav; AR + EN; audit-log reader
 - **tasks**:
   1. Next.js app scaffold + shadcn/ui base; AR + EN i18n; RTL toggle.
@@ -372,7 +396,7 @@ Both streams MUST be at DoD before Phase 1B begins.
 
 ##### 016 · `admin-catalog`
 
-- **depends-on**: 005, 015
+- **depends-on**: 005 contract merged to `main`, 015
 - **exit**: CRUD for category/brand/product/media/docs; restriction metadata; bulk ops
 - **tasks**:
   1. Category tree editor (drag-reorder, activate/deactivate).
@@ -385,7 +409,7 @@ Both streams MUST be at DoD before Phase 1B begins.
 
 ##### 017 · `admin-inventory`
 
-- **depends-on**: 008, 015
+- **depends-on**: 008 contract merged to `main`, 015
 - **exit**: stock adjustments, low-stock queue, batch/lot, expiry, reservation inspection
 - **tasks**:
   1. Stock adjustment form (reason codes, per-warehouse).
@@ -398,7 +422,7 @@ Both streams MUST be at DoD before Phase 1B begins.
 
 ##### 018 · `admin-orders`
 
-- **depends-on**: 011, 013, 015
+- **depends-on**: 011, 013 contracts merged to `main`, 015
 - **exit**: order list + detail, status transitions, refund init, invoice reprint, quote linkage
 - **tasks**:
   1. Order list with filters (status × 4 fields, market, B2B flag, date range).
@@ -411,7 +435,7 @@ Both streams MUST be at DoD before Phase 1B begins.
 
 ##### 019 · `admin-customers`
 
-- **depends-on**: 004, 015
+- **depends-on**: 004 contract merged to `main`, 015
 - **exit**: profile view, verification history, quotes, support tickets, address book
 - **tasks**:
   1. Customer list + filters (market, B2B, verification state).
@@ -440,6 +464,7 @@ Both streams MUST be at DoD before Phase 1B begins.
   5. Restricted-product eligibility hook used by 005/009/010.
   6. Market-aware fields (EG vs KSA regulator differences).
   7. Audit trail per decision.
+  8. Author `verification-v1` seeder (synthetic submissions across every state for staging + local).
 
 ##### 021 · `quotes-and-b2b`
 
@@ -453,6 +478,7 @@ Both streams MUST be at DoD before Phase 1B begins.
   5. Accept → convert-to-order with PO number + invoice-billing flag.
   6. Approval flow inside company accounts (buyer submits, approver accepts).
   7. Repeat-order template linkage (Phase 1.5 completes the UI, backend stubs here).
+  8. Author `quotes-b2b-v1` seeder (synthetic company accounts + quotes spanning all states).
 
 ##### 007-b · `promotions-ux-and-campaigns`
 
@@ -466,6 +492,7 @@ Both streams MUST be at DoD before Phase 1B begins.
   5. Tier-pricing table editor.
   6. Preview tool showing resolved price for a sample customer + cart.
   7. Audit on every promo/coupon/business-pricing edit.
+  8. Author `promotions-v1` seeder (sample coupons, scheduled promos, business-pricing tiers).
 
 ##### 022 · `reviews-moderation`
 
@@ -479,6 +506,7 @@ Both streams MUST be at DoD before Phase 1B begins.
   5. Aggregated rating on product detail.
   6. Admin notes on review (audited).
   7. Report-review flow for other customers.
+  8. Author `reviews-v1` seeder (synthetic verified-buyer reviews, moderated + flagged states).
 
 ##### 023 · `support-tickets`
 
@@ -492,6 +520,7 @@ Both streams MUST be at DoD before Phase 1B begins.
   5. File attachments via storage abstraction.
   6. Internal notes (not customer-visible).
   7. Conversion between ticket and return/refund request where applicable.
+  8. Author `support-v1` seeder (synthetic tickets across categories, priorities, SLA states).
 
 ##### 024 · `cms`
 
@@ -505,16 +534,30 @@ Both streams MUST be at DoD before Phase 1B begins.
   5. Blog skeleton (articles, categories, author, scheduled publish).
   6. SEO fields (meta, OG, schema.org) per entity.
   7. Preview + draft/publish flow with audit.
+  8. Author `cms-v1` seeder (sample banners, FAQ, legal pages, blog posts — AR + EN).
 
 ---
 
-#### Phase 1E — Integrations · Milestone 8 · 3 specs
+#### Phase 1E — Integrations · Milestone 8 · 3 specs + E1
 
-**Intent**: swap stubs for real providers. ADRs 007, 008, 009 get **Accepted** during this phase. Every integration must ship with reconciliation + webhook replay + idempotency tests.
+**Intent**: swap stubs for real providers. ADRs 007, 008, 009 get **Accepted** during this phase. Every integration must ship with reconciliation + webhook replay + idempotency tests. **E1 runs first** — it provisions the Azure runtime that 025/026/027 depend on.
+
+##### E1 · `infrastructure-integration`
+
+- **depends-on**: A1 (layered config + seed framework), 1A/1B/1C/1D at DoD for scope confirmation
+- **exit**: Azure Container Apps environment live in KSA Central (ADR-010); Key Vault `kv-dental-stg` + `kv-dental-prd` provisioned with all ADR-007/008/009 provider secrets; `deploy-staging.yml` promotes `ghcr.io/<org>/backend-api:<sha>` to Staging ACA on every `main` merge; `apps/admin_web` container promoted the same way; Flutter-web hosting finalized (Azure Static Web Apps vs ACA container)
+- **tasks**:
+  1. Bicep IaC for Resource Group, Container Apps Environment, Postgres Flexible Server (managed, private endpoint), Meilisearch-hosted or self-hosted (HA) decision, Key Vaults (Staging + Production), Log Analytics workspace, App Insights.
+  2. Key Vault bootstrap: register ADR-007 (payments), ADR-008 (shipping), ADR-009 (notifications) secrets under documented key names; RBAC wired to ACA managed identity.
+  3. Wire `deploy-staging.yml` to authenticate via OIDC federated credential, pull GHCR image by sha, deploy `backend_api` + `admin_web` container apps, run EF migrations job, run `seed --mode=apply` (Staging only).
+  4. Flutter-web hosting decision + implementation (Static Web Apps preferred for static build output; container path available if SSR-like needs emerge).
+  5. Post-deploy smoke: `/health` 200, `seed --mode=dry-run` exits 0, one Meilisearch query returns results, one representative admin page renders.
+  6. Runbook: rotating secrets, re-running migrations, rollback by image tag, seed-dataset refresh cadence.
+  7. Alerts: deploy-failure, health-probe failure, high 5xx, Key Vault access anomalies.
 
 ##### 025 · `notifications`
 
-- **depends-on**: 004, 011
+- **depends-on**: 004, 011, E1
 - **exit**: template mgmt; event-triggered SMS + email + push (no WhatsApp); campaign basics; preference mgmt. **ADR-009 Accepted.**
 - **tasks**:
   1. Provider selection + ADR-009 flip to Accepted (SMS, email, push — WhatsApp deferred to 1.5).
@@ -524,10 +567,12 @@ Both streams MUST be at DoD before Phase 1B begins.
   5. Campaign authoring (admin-triggered broadcast with targeting).
   6. Delivery logging + retry + dead-letter.
   7. Rate limits + per-market compliance (time windows, unsubscribe language).
+  8. Register ADR-009 provider credentials (SMS + email + push) in Key Vault Staging + Production via E1 IaC; consume via `AddLayeredConfiguration()` — no secrets in `appsettings.json`.
+  9. Author `notifications-v1` seeder (sample templates AR + EN, delivery-log entries across channels).
 
 ##### 026 · `shipping`
 
-- **depends-on**: 010, 011
+- **depends-on**: 010, 011, E1
 - **exit**: provider settings, market rules, methods, fees, shipment state mapping, tracking webhooks. **ADR-008 Accepted.**
 - **tasks**:
   1. Provider selection + ADR-008 flip to Accepted.
@@ -537,10 +582,12 @@ Both streams MUST be at DoD before Phase 1B begins.
   5. Tracking webhook receiver + shipment state machine (Principle 24).
   6. Fee quote endpoint used by checkout.
   7. Delivery attempt + failure + re-delivery handling.
+  8. Register ADR-008 provider credentials + API keys in Key Vault Staging + Production via E1 IaC; consume via `AddLayeredConfiguration()`.
+  9. Author `shipping-v1` seeder (sample methods + zones + fees covering EG + KSA markets).
 
 ##### 027 · `payments-integration`
 
-- **depends-on**: 010, 012
+- **depends-on**: 010, 012, E1
 - **exit**: ADR-007 primary + backup per market live; BNPL (Tabby/Tamara KSA + Valu EG); reconciliation job; webhook replay. **ADR-007 Accepted.**
 - **tasks**:
   1. Provider selection + ADR-007 flip to Accepted; PCI scope boundary documented.
@@ -550,6 +597,8 @@ Both streams MUST be at DoD before Phase 1B begins.
   5. Webhook receiver + signature verification + idempotency + replay tool.
   6. Reconciliation job (daily) matching provider ledger vs internal; exception queue.
   7. Payment-retry flow for failed captures (order.payment_status transitions).
+  8. Register ADR-007 provider credentials + webhook signing secrets in Key Vault Staging + Production via E1 IaC; consume via `AddLayeredConfiguration()`; PCI-scope review signed off.
+  9. Author `payments-v1` seeder (sample payment attempts across success / failure / retry / reconciliation-exception states).
 
 ---
 
@@ -567,8 +616,10 @@ Both streams MUST be at DoD before Phase 1B begins.
   3. RTL visual regression sweep.
   4. Security pass: OWASP ASVS L1, dependency scan, secret scan, auth fuzzing, IDOR checks.
   5. Reliability: chaos drills on payment, shipping, notification providers; reconciliation rerun.
-  6. Performance: k6 load tests on catalog, search, checkout; p95 budgets enforced.
-  7. Launch-readiness checklist (Section 13) executed end-to-end; sign-offs captured.
+  6. Performance: k6 load tests on catalog, search, checkout executed **against the Staging ACA stack at 5× expected launch RPS**; p95 budgets enforced.
+  7. Production smoke: `ASPNETCORE_ENVIRONMENT=Production dotnet run -- seed --mode=dry-run` exits 0 and writes zero `seed_applied` rows; `/health` returns 200 from Production ACA.
+  8. Container health verification: `backend_api`, `admin_web`, and Flutter-web (per E1 hosting decision) pass health-probes on Staging; rollback by image tag rehearsed.
+  9. Launch-readiness checklist (Section 13) executed end-to-end; sign-offs captured.
 
 Exit of 1F = **launch**. Post-launch work enters Phase 1.5.
 
@@ -1210,3 +1261,4 @@ The ChatGPT "AI-Build Execution Plan" had useful structure but material gaps. Th
 
 - **2026-04-20** — A1 (Environments / Docker / Seed framework) promoted from trailing appendix to first-class Phase 1A content (§4 table + §4.1 A1 sub-section). Full retrofit rationale: `docs/missing-env-docker-plan.md`.
 - **2026-04-20** — `specs/phase-1B/` (004–008 draft specs) removed; Phase 1B spec authoring restarts against the refreshed plan.
+- **2026-04-20** — Plan-fidelity audit: extended A1 config/seed/Docker patterns across all specs 009–027; added **Phase 1C-Infra** (admin_web Dockerfile + CI) and **Phase 1E E1** (`infrastructure-integration` — Azure Container Apps IaC, Key Vault provisioning, `deploy-staging.yml` wiring, Flutter-web hosting decision); made Phase 1C → 1B dependencies explicitly require "contract merged to `main`"; extended spec 029 with load-test on Staging, Production `seed --mode=dry-run` smoke, and multi-container health verification. **No Phase 1A re-implementation required** — all changes are plan-text fidelity fixes.

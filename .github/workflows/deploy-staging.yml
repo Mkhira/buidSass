@@ -1,0 +1,14 @@
+name: deploy-staging
+
+on:
+  workflow_dispatch:
+
+jobs:
+  placeholder:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Not-yet-provisioned notice
+        run: |
+          echo "Staging deploy target not yet provisioned."
+          echo "Actual wiring lands in Phase 1E (infrastructure as code)."
+          echo "See docs/missing-env-docker-plan.md §10 for the Phase 1E boundary."

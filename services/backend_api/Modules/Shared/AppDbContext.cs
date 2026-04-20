@@ -1,3 +1,4 @@
+using BackendApi.Features.Seeding;
 using BackendApi.Modules.AuditLog;
 using BackendApi.Modules.Storage;
 using Microsoft.EntityFrameworkCore;
@@ -8,6 +9,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
 {
     public DbSet<AuditLogEntry> AuditLogEntries => Set<AuditLogEntry>();
     public DbSet<StoredFile> StoredFiles => Set<StoredFile>();
+    public DbSet<SeedApplied> SeedApplied => Set<SeedApplied>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -36,6 +38,18 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             entity.Property(x => x.MimeType).HasMaxLength(100).IsRequired();
             entity.Property(x => x.VirusScanStatus).HasMaxLength(20).IsRequired();
             entity.Property(x => x.UploadedAt).IsRequired();
+        });
+
+        modelBuilder.Entity<SeedApplied>(entity =>
+        {
+            entity.ToTable("seed_applied");
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.SeederName).HasMaxLength(100).IsRequired();
+            entity.Property(x => x.SeederVersion).IsRequired();
+            entity.Property(x => x.Checksum).HasMaxLength(64).IsRequired();
+            entity.Property(x => x.Environment).HasMaxLength(32).IsRequired();
+            entity.Property(x => x.AppliedAt).IsRequired();
+            entity.HasIndex(x => new { x.SeederName, x.SeederVersion, x.Environment }).IsUnique();
         });
     }
 }

@@ -30,3 +30,14 @@ Canonical top-level folders:
 4. Document package purpose in this file and update `CONTRIBUTING.md` if contributor-facing.
 5. Wire CI checks in `.github/workflows/` if build/test/lint behavior differs.
 6. If adding a new top-level folder (not package), raise ADR amendment first.
+
+## A1 additions (2026-04-20)
+
+| Path                                            | Purpose                                               |
+|-------------------------------------------------|-------------------------------------------------------|
+| `infra/local/`                                  | Compose, OTel config, `.env.example` — local only     |
+| `scripts/dev/`                                  | One-command dev stack scripts (`up.sh`, `reset.sh`, …) |
+| `services/backend_api/Dockerfile`               | Multi-stage build, distroless chiseled-extra runtime  |
+| `services/backend_api/Configuration/`           | `AddLayeredConfiguration` (json → env → Key Vault)    |
+| `services/backend_api/Features/Seeding/`        | `ISeeder`, `SeedRunner`, `SeedGuard`, CLI verb        |
+| `services/backend_api/Features/Search/`         | `ISearchIndexer` stub (spec 006 concrete impl)        |

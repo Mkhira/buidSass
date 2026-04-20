@@ -1,0 +1,413 @@
+openapi: 3.1.0
+info:
+  title: Dental Commerce Platform — Search API (spec 006)
+  version: 0.1.0
+  description: |
+    Customer search + autocomplete + admin reindex surfaces.
+    All responses bilingual via Accept-Language; error envelopes carry both messages.
+    Price fields never returned inline — hits carry a `priceToken` resolved by spec 007-a.
+servers:
+  - url: https://api.buidsass.com
+    description: Production
+  - url: http://localhost:5080
+    description: Local dev
+
+tags:
+  - name: customer-search
+  - name: admin-search
+
+paths:
+  /search:
+    get:
+      tags: [customer-search]
+      summary: Keyword + faceted search
+      operationId: search
+      parameters:
+        - $ref: '#/components/parameters/Market'
+        - $ref: '#/components/parameters/Lang'
+        - name: q
+          in: query
+          required: false
+          schema: { type: string, maxLength: 200 }
+        - name: page
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 834, default: 1 }
+        - name: pageSize
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 96, default: 24 }
+        - name: brand
+          in: query
+          schema: { type: array, items: { type: string } }
+          style: form
+          explode: true
+        - name: category
+          in: query
+          schema: { type: array, items: { type: string } }
+          style: form
+          explode: true
+        - name: priceBucket
+          in: query
+          schema: { type: array, items: { type: string, enum: ["0-50","50-200","200-500","500+"] } }
+          style: form
+          explode: true
+        - name: availability
+          in: query
+          schema: { type: array, items: { type: string, enum: [in_stock, low, out, preorder] } }
+          style: form
+          explode: true
+        - name: sort
+          in: query
+          schema: { type: string, enum: [relevance, newest, popularity] , default: relevance }
+      responses:
+        '200':
+          description: Search results (may include empty-state payload)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SearchResponse' }
+        '400':
+          $ref: '#/components/responses/Error'
+        '429':
+          $ref: '#/components/responses/Error'
+        '503':
+          $ref: '#/components/responses/Error'
+
+  /search/autocomplete:
+    get:
+      tags: [customer-search]
+      summary: Typeahead suggestions
+      operationId: autocomplete
+      parameters:
+        - $ref: '#/components/parameters/Market'
+        - $ref: '#/components/parameters/Lang'
+        - name: q
+          in: query
+          required: true
+          schema: { type: string, minLength: 1, maxLength: 64 }
+      responses:
+        '200':
+          description: Autocomplete payload
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AutocompleteResponse' }
+        '400':
+          $ref: '#/components/responses/Error'
+        '503':
+          $ref: '#/components/responses/Error'
+
+  /search/health:
+    get:
+      tags: [customer-search]
+      summary: Search provider liveness probe (public, minimal info)
+      operationId: searchHealthPublic
+      responses:
+        '200':
+          description: Up
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status: { type: string, enum: [up, degraded, down] }
+                required: [status]
+        '503':
+          $ref: '#/components/responses/Error'
+
+  /admin/search/reindex:
+    post:
+      tags: [admin-search]
+      summary: Trigger full reindex for a market
+      operationId: adminTriggerReindex
+      security:
+        - bearerAuth: [search.reindex]
+      parameters:
+        - $ref: '#/components/parameters/Market'
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                scope: { type: string, enum: [full, subset], default: full }
+                subsetFilter:
+                  type: object
+                  additionalProperties: true
+      responses:
+        '202':
+          description: Job queued
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ReindexJob' }
+        '409':
+          description: Active job already running
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+        '403':
+          $ref: '#/components/responses/Error'
+
+  /admin/search/reindex/{jobId}:
+    get:
+      tags: [admin-search]
+      summary: Reindex job status
+      operationId: adminGetReindexJob
+      security:
+        - bearerAuth: [search.reindex]
+      parameters:
+        - name: jobId
+          in: path
+          required: true
+          schema: { type: string, format: ulid }
+      responses:
+        '200':
+          description: Job
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ReindexJob' }
+        '404':
+          $ref: '#/components/responses/Error'
+
+  /admin/search/health:
+    get:
+      tags: [admin-search]
+      summary: Detailed provider + queue health
+      operationId: adminSearchHealth
+      security:
+        - bearerAuth: [search.reindex]
+      responses:
+        '200':
+          description: Health snapshot
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminHealth' }
+
+  /admin/search/dead-letter:
+    get:
+      tags: [admin-search]
+      summary: List unresolved dead-letter commands
+      operationId: adminListDeadLetter
+      security:
+        - bearerAuth: [search.reindex]
+      parameters:
+        - $ref: '#/components/parameters/Market'
+        - name: page
+          in: query
+          schema: { type: integer, minimum: 1, default: 1 }
+        - name: pageSize
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 100, default: 50 }
+      responses:
+        '200':
+          description: Dead-letter entries
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DeadLetterPage' }
+
+  /admin/search/dead-letter/{id}/replay:
+    post:
+      tags: [admin-search]
+      summary: Replay a dead-lettered command
+      operationId: adminReplayDeadLetter
+      security:
+        - bearerAuth: [search.reindex]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: ulid }
+      responses:
+        '202':
+          description: Replay queued
+        '404':
+          $ref: '#/components/responses/Error'
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  parameters:
+    Market:
+      name: market
+      in: query
+      required: true
+      schema: { type: string, enum: [eg, ksa] }
+    Lang:
+      name: lang
+      in: query
+      required: false
+      schema: { type: string, enum: [ar, en] }
+
+  responses:
+    Error:
+      description: Error envelope
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+
+  schemas:
+    SearchResponse:
+      type: object
+      required: [hits, totalEstimated, facets, page, pageSize, clampFlags]
+      properties:
+        hits:
+          type: array
+          items: { $ref: '#/components/schemas/SearchHit' }
+        totalEstimated: { type: integer }
+        facets:
+          type: object
+          additionalProperties:
+            type: array
+            items:
+              type: object
+              properties:
+                value: { type: string }
+                count: { type: integer }
+        page: { type: integer }
+        pageSize: { type: integer }
+        clampFlags:
+          type: object
+          properties:
+            query: { type: boolean }
+            pagination: { type: boolean }
+        emptyState:
+          $ref: '#/components/schemas/EmptyStatePayload'
+
+    SearchHit:
+      type: object
+      required: [id, name, priceToken]
+      properties:
+        id: { type: string, format: ulid }
+        name: { type: string }
+        brandName: { type: string, nullable: true }
+        categoryPath:
+          type: array
+          items: { type: string }
+        thumbnailUrl: { type: string, format: uri, nullable: true }
+        priceToken: { type: string }
+        priceBucket: { type: string, enum: ["0-50","50-200","200-500","500+"] }
+        availabilityState: { type: string, enum: [in_stock, low, out, preorder] }
+        restricted: { type: boolean }
+        restrictionReasonCode: { type: string, nullable: true }
+
+    EmptyStatePayload:
+      type: object
+      properties:
+        didYouMean: { type: string, nullable: true }
+        suggestedFilterRelaxations:
+          type: array
+          items: { type: string }
+        suggestions:
+          type: array
+          items: { $ref: '#/components/schemas/SearchHit' }
+
+    AutocompleteResponse:
+      type: object
+      required: [products, brands, categories]
+      properties:
+        products:
+          type: array
+          maxItems: 8
+          items:
+            type: object
+            properties:
+              id: { type: string }
+              name: { type: string }
+              thumbnailUrl: { type: string, format: uri, nullable: true }
+              priceToken: { type: string }
+        brands:
+          type: array
+          maxItems: 3
+          items:
+            type: object
+            properties:
+              id: { type: string }
+              name: { type: string }
+        categories:
+          type: array
+          maxItems: 3
+          items:
+            type: object
+            properties:
+              id: { type: string }
+              name: { type: string }
+              path:
+                type: array
+                items: { type: string }
+
+    ReindexJob:
+      type: object
+      required: [id, marketCode, scope, state, triggeredBy, correlationId]
+      properties:
+        id: { type: string, format: ulid }
+        marketCode: { type: string, enum: [eg, ksa] }
+        scope: { type: string, enum: [full, subset] }
+        subsetFilter: { type: object, additionalProperties: true, nullable: true }
+        state: { type: string, enum: [queued, running, succeeded, failed, cancelled] }
+        totalProducts: { type: integer, nullable: true }
+        processedProducts: { type: integer }
+        failedProducts: { type: integer }
+        startedAt: { type: string, format: date-time, nullable: true }
+        completedAt: { type: string, format: date-time, nullable: true }
+        triggeredBy: { type: string, format: ulid }
+        correlationId: { type: string, format: ulid }
+        errorSummary: { type: string, nullable: true }
+
+    AdminHealth:
+      type: object
+      properties:
+        provider: { type: string }
+        markets:
+          type: array
+          items:
+            type: object
+            properties:
+              marketCode: { type: string, enum: [eg, ksa] }
+              status: { type: string, enum: [up, degraded, down] }
+              indexDocCount: { type: integer }
+              queueDepth: { type: integer }
+              deadLetterOpen: { type: integer }
+              activeJob: { $ref: '#/components/schemas/ReindexJob' }
+
+    DeadLetterPage:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            type: object
+            properties:
+              id: { type: string, format: ulid }
+              marketCode: { type: string, enum: [eg, ksa] }
+              commandType: { type: string, enum: [upsert, delete] }
+              productId: { type: string, format: ulid }
+              sourceEventId: { type: string, format: ulid }
+              lastError: { type: string }
+              attempts: { type: integer }
+              createdAt: { type: string, format: date-time }
+        page: { type: integer }
+        pageSize: { type: integer }
+        total: { type: integer }
+
+    ErrorEnvelope:
+      type: object
+      required: [code, messageEn, messageAr, correlationId]
+      properties:
+        code:
+          type: string
+          enum:
+            - search.query_too_long
+            - search.pagination_too_deep
+            - search.provider_unavailable
+            - search.reindex_in_progress
+            - search.rate_limited
+            - search.job_not_found
+            - search.forbidden
+        messageEn: { type: string }
+        messageAr: { type: string }
+        details:
+          type: object
+          additionalProperties: true
+        correlationId: { type: string, format: ulid }

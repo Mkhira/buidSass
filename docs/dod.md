@@ -50,3 +50,15 @@ If the spec generates PDF outputs, it must validate Arabic + English rendering, 
 ### [trigger: user-facing-strings]
 
 If the spec introduces user-facing strings, it must include Arabic editorial review evidence and localization key coverage.
+
+### [trigger: environment-aware]
+
+If the spec introduces runtime behavior that differs by environment, it must declare Development/Staging/Production defaults and confirm `SeedGuard` is not bypassed.
+
+### [trigger: docker-surface]
+
+If the spec adds or changes runtime container behavior, it must update `services/backend_api/Dockerfile` and verify `scripts/dev/up.sh` warm bring-up < 90 s.
+
+### [trigger: ships-a-seeder]
+
+If the spec ships a seeder, it must: (a) implement `ISeeder`, (b) register in DI, (c) use curated phrase banks for user-visible Arabic, (d) pass `seed-pii-guard`, (e) add an idempotency test (re-run = zero writes).

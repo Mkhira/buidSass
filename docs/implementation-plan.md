@@ -1169,3 +1169,26 @@ The ChatGPT "AI-Build Execution Plan" had useful structure but material gaps. Th
 | iOS at launch unclear | **Confirmed**: full parity Android + iOS + web at launch. |
 | Markets strategy unclear | **Confirmed**: EG + KSA simultaneously at launch. |
 | BNPL scope unclear | **Confirmed Phase 1 both markets**: Tabby + Tamara (KSA), Valu (EG). |
+
+---
+
+## Amendment A1 — Environments, Docker, Seed Framework (2026-04-20)
+
+See `docs/missing-env-docker-plan.md` for the full retrofit plan. A1 introduces:
+
+- `Development`, `Staging`, `Production` runtime environments (config-driven, single binary).
+- Multi-stage Dockerfile + `infra/local/docker-compose.yml` (Postgres 16 + Meilisearch v1.10 + Mailhog + OTel collector).
+- `scripts/dev/{up,reset,migrate,seed,logs,down}.sh` one-command bring-up.
+- Seed framework (`ISeeder`, `SeedRunner`, `SeedGuard`, `seed_applied` table) — **Production hard-blocked**.
+- `docker-build.yml` → GHCR; `deploy-staging.yml` placeholder (real wiring = Phase 1E).
+- `seed-pii-guard` CI job enforcing synthetic-only staging data.
+
+### Spec-level impact (per-spec seeders ride their owning spec PR)
+
+| Spec | Seeder           | Task IDs added |
+|------|------------------|----------------|
+| 004  | `identity-v1`    | T101–T103      |
+| 005  | `catalog-v1`     | T101–T103      |
+| 006  | `search-v1`      | T069–T071      |
+| 007  | `pricing-v1`     | T080–T081      |
+| 008  | `inventory-v1`   | T087–T089      |

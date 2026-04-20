@@ -1,0 +1,13 @@
+**/bin
+**/obj
+**/node_modules
+**/.git
+**/.github
+**/Tests
+**/*.md
+**/appsettings.Development.json
+**/*.user
+**/.vs
+**/.vscode
+**/.idea
+**/.DS_Store

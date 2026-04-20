@@ -1,3 +1,5 @@
+using BackendApi.Configuration;
+using BackendApi.Features.Seeding;
 using BackendApi.Modules.Observability;
 using BackendApi.Modules.Shared;
 using Microsoft.EntityFrameworkCore;
@@ -8,6 +10,18 @@ using QuestPDF.Infrastructure;
 QuestPDF.Settings.License = LicenseType.Community;
 
 var builder = WebApplication.CreateBuilder(args);
+
+// Fast-path Production hard-block for the seed CLI: evaluate BEFORE AddLayeredConfiguration so
+// that a missing / unreachable Key Vault cannot mask SeedGuard's intent. See A1 §5.2.
+if (args.Length > 0
+    && string.Equals(args[0], SeedingCliVerb.Verb, StringComparison.Ordinal)
+    && builder.Environment.IsProduction())
+{
+    Console.Error.WriteLine(SeedGuard.ProductionBlockedMessage);
+    return 1;
+}
+
+builder.AddLayeredConfiguration();
 
 builder.Host.UseSerilog((_, _, loggerConfiguration) =>
 {
@@ -30,8 +44,14 @@ builder.Services.AddAuditLogModule();
 builder.Services.AddStorageModule();
 builder.Services.AddPdfModule();
 builder.Services.AddObservabilityModule();
+builder.Services.AddSeeding(builder.Configuration);
 
 var app = builder.Build();
+
+if (args.Length > 0 && string.Equals(args[0], SeedingCliVerb.Verb, StringComparison.Ordinal))
+{
+    return await SeedingCliVerb.RunAsync(app, args, CancellationToken.None);
+}
 
 app.UseMiddleware<CorrelationIdMiddleware>();
 
@@ -42,6 +62,7 @@ if (app.Environment.IsDevelopment())
 
 app.MapHealthChecks("/health");
 
-app.Run();
+await app.RunAsync();
+return 0;
 
 public partial class Program;

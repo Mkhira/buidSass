@@ -123,6 +123,41 @@ namespace BackendApi.Migrations
 
                     b.ToTable("stored_files", (string)null);
                 });
+
+            modelBuilder.Entity("BackendApi.Features.Seeding.SeedApplied", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("SeederName")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<int>("SeederVersion")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Checksum")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<string>("Environment")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.Property<DateTimeOffset>("AppliedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("SeederName", "SeederVersion", "Environment")
+                        .IsUnique();
+
+                    b.ToTable("seed_applied", (string)null);
+                });
 #pragma warning restore 612, 618
         }
     }

@@ -11,6 +11,24 @@ Legend: 🔴 blocker · 🟠 high · 🟡 medium · 🟢 low · ℹ️ info
 
 ---
 
+## Closeout Status (2026-04-20)
+
+Individual fix PRs landed on `main`:
+
+| PR | Scope | Findings addressed |
+|---|---|---|
+| #11 | Spec 003 closeout + audit doc | E1, E2 |
+| #12 | EF migration `RevokeAuditWriteGrants` + grant-enforcement integration tests | **C1** (blocker) |
+| #13 | CI hardening: `workflow_dispatch`, empty-OpenAPI guard, PR-gate dotnet pack + npm/dart `--dry-run`, monotonic version formula, drop `preview-deploy` from required checks | A1, A4, B2, B3 |
+| #14 | Polish: portable `gen-contracts.sh` (python3), migration-snapshot drift test, `infra/README.md`, `packages/shared_contracts/CHANGELOG.md` | B4, C4, D2, D3 |
+| #15 | Flatten `services/backend_api/services/` up one level; exclude `Tests\**` from main csproj | **C2** |
+
+Investigated and closed as false-positive: C3 (`AuditLogReadPolicy` is live-referenced), C5 (`Microsoft.EntityFrameworkCore.InMemory` used by tests), C6 (QuestPDF license set once), C7 (`MediatR` used in test scaffolding).
+
+Accepted as bootstrap posture: A2, A3, A5, A6 (revisit when a second maintainer is onboarded). D1 tracked for Phase 1B/1C kickoff. B1 tracked for spec 004 (first backend endpoints generate real OpenAPI).
+
+---
+
 ## A. Governance & CI
 
 | # | Sev | Finding | Evidence | Recommended action |

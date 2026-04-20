@@ -1,6 +1,7 @@
 using System.Security.Cryptography;
 using System.Text;
 using BackendApi.Features.Seeding.Datasets;
+using BackendApi.Modules.AuditLog;
 using BackendApi.Modules.Shared;
 using Microsoft.EntityFrameworkCore;
 
@@ -17,13 +18,16 @@ public sealed class SeedRunner(
     IServiceProvider services,
     IHostEnvironment env,
     IConfiguration cfg,
+    IAuditEventPublisher audit,
     ILogger<SeedRunner> logger)
 {
     public enum Mode { Apply, Fresh, DryRun }
 
+    private static readonly Guid SystemActorId = Guid.Parse("00000000-0000-0000-0000-000000000001");
+
     public async Task<int> RunAsync(Mode mode, CancellationToken ct)
     {
-        SeedGuard.EnsureSafe(env, cfg);
+        SeedGuard.EnsureSafe(env, cfg, isDryRun: mode == Mode.DryRun);
 
         var options = new SeedingOptions
         {
@@ -81,15 +85,28 @@ public sealed class SeedRunner(
             var ctx = new SeedContext(db, services, size, env, logger);
             await seeder.ApplyAsync(ctx, ct);
 
-            db.SeedApplied.Add(new SeedApplied
+            var row = new SeedApplied
             {
                 SeederName = seeder.Name,
                 SeederVersion = seeder.Version,
                 Checksum = checksum,
                 Environment = env.EnvironmentName,
                 AppliedAt = DateTimeOffset.UtcNow,
-            });
+            };
+            db.SeedApplied.Add(row);
             await db.SaveChangesAsync(ct);
+
+            await audit.PublishAsync(new AuditEvent(
+                ActorId: SystemActorId,
+                ActorRole: "system.seed",
+                Action: "seeding.applied",
+                EntityType: "SeedApplied",
+                EntityId: row.Id,
+                BeforeState: null,
+                AfterState: new { row.SeederName, row.SeederVersion, row.Checksum, row.Environment, row.AppliedAt },
+                Reason: $"mode={mode};size={size}"
+            ), ct);
+
             applied++;
         }
 

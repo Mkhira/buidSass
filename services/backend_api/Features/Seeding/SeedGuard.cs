@@ -12,12 +12,12 @@ public static class SeedGuard
     public const string ProductionBlockedMessage =
         "SeedGuard: seeding is hard-blocked in Production, regardless of config flags.";
 
-    public static void EnsureSafe(IHostEnvironment env, IConfiguration cfg)
+    public static void EnsureSafe(IHostEnvironment env, IConfiguration cfg, bool isDryRun = false)
     {
-        if (env.IsProduction())
+        if (env.IsProduction() && !isDryRun)
             throw new InvalidOperationException(ProductionBlockedMessage);
 
-        if (env.IsStaging())
+        if (env.IsStaging() && !isDryRun)
         {
             var autoApply = cfg.GetValue<bool>($"{SeedingOptions.SectionName}:AutoApply");
             if (!autoApply)

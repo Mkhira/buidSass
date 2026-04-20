@@ -94,3 +94,25 @@ jobs:
         if: always()
         run: |
           echo "lint-format check completed."
+
+  seed-pii-guard:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Scan seeders for PII-shaped literals
+        shell: bash
+        run: |
+          set -euo pipefail
+          SEED_DIR="services/backend_api/Features/Seeding"
+          if [ ! -d "$SEED_DIR" ]; then
+            echo "No seeding directory yet; skipping."
+            exit 0
+          fi
+          PATTERNS='(\+?20[0-9]{9,10}|\+?9665[0-9]{8})|([A-Za-z0-9._%+-]+@(gmail|hotmail|yahoo|outlook)\.(com|net))|(\b\d{14}\b)'
+          if grep -REn --include="*.cs" --include="*.json" -P "$PATTERNS" "$SEED_DIR" ; then
+            echo "::error::PII-shaped literal found in seeders. Move to curated synthetic generators."
+            exit 1
+          fi
+          echo "seed-pii-guard: clean."

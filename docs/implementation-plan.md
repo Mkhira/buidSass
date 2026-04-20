@@ -12,6 +12,8 @@
 
 ---
 
+_Last updated 2026-04-20. See Changelog at end._
+
 ## Table of Contents
 
 1. [Executive summary](#1-executive-summary)
@@ -72,7 +74,7 @@ Constitution Principle 30 defines three program phases: **Phase 1** (launch), **
 
 | Phase | Intent | Where in this plan |
 |------|--------|--------------------|
-| **Phase 1A** · Foundation | Governance, architecture, shared scaffolding | Milestone 1 · specs 001–003 |
+| **Phase 1A** · Foundation | Governance, architecture, shared scaffolding, **three-environment runtime (Dev/Staging/Prod), Docker + local compose, seed framework** | Milestone 1 · specs 001–003 + A1 (envs/Docker/seed) |
 | **Phase 1B** · Core Commerce | Identity through returns — every transaction-critical backend domain | Milestones 2–4 · specs 004–013 |
 | **Phase 1C** · Customer & Admin UI | Flutter customer shell + Next.js admin shell and CRUD | Milestones 5–6 · specs 014–019 |
 | **Phase 1D** · Business Modules | Verification, B2B, promotions UX, reviews, support, CMS | Milestone 7 · specs 007-b, 020–024 |
@@ -88,7 +90,7 @@ Sub-phase gate rule: **a sub-phase may only begin once every spec of the prior s
  +-----------+  +-----------+  +-----------+  +-----------+  +-----------+  +-----------+
  |   1A      |->|   1B      |->|   1C      |->|   1D      |->|   1E      |->|   1F      |
  | Foundation|  | Core      |  | Customer+ |  | Business  |  | Integr'ns |  | Launch    |
- | 001-003   |  | Commerce  |  | Admin UI  |  | Modules   |  | 025-027   |  | Hardening |
+ | 001-003+A1|  | Commerce  |  | Admin UI  |  | Modules   |  | 025-027   |  | Hardening |
  |  3 specs  |  | 004-013   |  | 014-019   |  | 007-b,    |  |  3 specs  |  |    029    |
  |           |  |  10 specs |  |  6 specs  |  | 020-024   |  |           |  |  1 spec   |
  |           |  |           |  |           |  |  6 specs  |  |           |  |           |
@@ -125,9 +127,16 @@ Every spec MUST carry the Constitution + ADR context in its session (Guardrail #
 
 ---
 
-#### Phase 1A — Foundation · Milestone 1 · 3 specs
+#### Phase 1A — Foundation · Milestone 1 · 3 specs + A1
 
-**Intent**: lock repo layout, CI, agent-context injection, contracts skeleton, ERD, state machines, audit-log, storage/PDF abstractions. **Nothing else starts until 1A is at DoD.**
+**Intent**: lock repo layout, CI, agent-context injection, contracts skeleton, ERD, state machines, audit-log, storage/PDF abstractions, **plus the three-environment runtime (Development / Staging / Production), containerization, and seed framework**. **Nothing else starts until 1A is at DoD.**
+
+Phase 1A contains **two parallel streams**:
+
+- **Spec stream** · 001–003 authored through Spec-Kit; each gets its own spec folder.
+- **Infra stream** · A1 (`environments-and-containers` + seed framework) — platform scaffolding that underpins every later spec; no per-spec clarify/plan cadence required because it is a fixed, one-shot retrofit governed by `docs/missing-env-docker-plan.md`.
+
+Both streams MUST be at DoD before Phase 1B begins.
 
 ##### 001 · `governance-and-setup`
 
@@ -167,6 +176,31 @@ Every spec MUST carry the Constitution + ADR context in its session (Guardrail #
   5. Storage abstraction: upload, signed URL issuance, virus-scan hook, market-aware bucket routing.
   6. PDF abstraction: template engine, AR + EN layouts, RTL rendering, font embedding, tax-invoice stub template.
   7. Health-check endpoint wired; structured logging baseline; correlation-id middleware.
+
+##### A1 · `environments-and-containers` · **shipped 2026-04-20**
+
+- **depends-on**: 001 (repo layout, CI primitives)
+- **status**: merged via PR #18; follow-up finalization in this PR
+- **exit**: `scripts/dev/up.sh` brings full local stack healthy in <90 s warm; `/health` returns 200; `ASPNETCORE_ENVIRONMENT=Production dotnet run -- seed --mode=apply` exits 1 with SeedGuard message; `docker-build.yml` pushes image to GHCR; `seed-pii-guard` CI job green
+- **what A1 delivers (first-class phase content, not an appendix)**:
+  1. **Three-environment runtime.** `Development` (local compose, verbose logs, fake integrations), `Staging` (Azure Container Apps + KSA Central, sandbox integrations, synthetic data, 100% trace sampling), `Production` (real integrations, tiered sampling, seeding hard-blocked). Selected via `ASPNETCORE_ENVIRONMENT`; all environment deltas live in `appsettings.{env}.json` + Key Vault — never in code.
+  2. **Layered configuration.** `builder.AddLayeredConfiguration()` chains json → env vars → Azure Key Vault (`DefaultAzureCredential`, Staging/Prod only). Missing KV cannot unlock seeding — `SeedGuard` + Program.cs fast-path both enforce the Production block.
+  3. **Containerization.** Multi-stage `services/backend_api/Dockerfile` on `aspnet:9.0-noble-chiseled-extra` (tzdata + ICU for Arabic + Asia/Riyadh + Africa/Cairo), non-root uid 10001. `infra/local/docker-compose.yml` composes `backend_api` + `postgres:16` + `meilisearch:v1.10` + `mailhog` + OTel collector (profile-gated) with health gates and named volumes.
+  4. **Dev scripts.** `scripts/dev/{up,reset,migrate,seed,logs,down}.sh` — POSIX, `set -euo pipefail`, idempotent. One-command bring-up target.
+  5. **Seed framework.** `ISeeder`, `SeedRunner` (topological `DependsOn` sort + SHA256 checksum + idempotent `seed_applied` table + `seeding.applied` audit emit), `SeedGuard` (belt-and-braces Production block), `SeedingCliVerb` (`dotnet run -- seed --mode=apply|fresh|dry-run`). `--mode=dry-run` is the only mode allowed in Production (diagnostic, no writes). Per-spec seeders (identity-v1, catalog-v1, search-v1, pricing-v1, inventory-v1) ride their owning spec's PR.
+  6. **CI.** `docker-build.yml` builds on every PR, pushes to GHCR on `main` (sha + `latest-main` tags). `deploy-staging.yml` is a `workflow_dispatch` placeholder — real Azure Container Apps wiring lands in Phase 1E (§ADR-010). `seed-pii-guard` regex-scans `Features/Seeding/**` for EG/KSA phone shapes, consumer email domains, and 14-digit national IDs; fails the build on any match.
+  7. **Docs.** `docs/environments.md`, `docs/local-setup.md`, `docs/seed-data.md`, `docs/staging-data-policy.md`. Repo layout and DoD updated.
+- **Spec-level impact (per-spec seeder tasks appended to each owning spec)**:
+
+  | Spec | Seeder         | Task IDs added |
+  |------|----------------|----------------|
+  | 004  | `identity-v1`  | T101–T103      |
+  | 005  | `catalog-v1`   | T101–T103      |
+  | 006  | `search-v1`    | T069–T071      |
+  | 007  | `pricing-v1`   | T080–T081      |
+  | 008  | `inventory-v1` | T087–T089      |
+
+- **Deliberately deferred to Phase 1E**: Azure IaC (Bicep), real Key Vault provisioning, `deploy-staging.yml` wiring, Meilisearch HA, managed Postgres Flexible Server provisioning.
 
 ---
 
@@ -1172,23 +1206,7 @@ The ChatGPT "AI-Build Execution Plan" had useful structure but material gaps. Th
 
 ---
 
-## Amendment A1 — Environments, Docker, Seed Framework (2026-04-20)
+## Changelog
 
-See `docs/missing-env-docker-plan.md` for the full retrofit plan. A1 introduces:
-
-- `Development`, `Staging`, `Production` runtime environments (config-driven, single binary).
-- Multi-stage Dockerfile + `infra/local/docker-compose.yml` (Postgres 16 + Meilisearch v1.10 + Mailhog + OTel collector).
-- `scripts/dev/{up,reset,migrate,seed,logs,down}.sh` one-command bring-up.
-- Seed framework (`ISeeder`, `SeedRunner`, `SeedGuard`, `seed_applied` table) — **Production hard-blocked**.
-- `docker-build.yml` → GHCR; `deploy-staging.yml` placeholder (real wiring = Phase 1E).
-- `seed-pii-guard` CI job enforcing synthetic-only staging data.
-
-### Spec-level impact (per-spec seeders ride their owning spec PR)
-
-| Spec | Seeder           | Task IDs added |
-|------|------------------|----------------|
-| 004  | `identity-v1`    | T101–T103      |
-| 005  | `catalog-v1`     | T101–T103      |
-| 006  | `search-v1`      | T069–T071      |
-| 007  | `pricing-v1`     | T080–T081      |
-| 008  | `inventory-v1`   | T087–T089      |
+- **2026-04-20** — A1 (Environments / Docker / Seed framework) promoted from trailing appendix to first-class Phase 1A content (§4 table + §4.1 A1 sub-section). Full retrofit rationale: `docs/missing-env-docker-plan.md`.
+- **2026-04-20** — `specs/phase-1B/` (004–008 draft specs) removed; Phase 1B spec authoring restarts against the refreshed plan.

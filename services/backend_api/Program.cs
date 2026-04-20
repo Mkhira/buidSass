@@ -13,9 +13,11 @@ var builder = WebApplication.CreateBuilder(args);
 
 // Fast-path Production hard-block for the seed CLI: evaluate BEFORE AddLayeredConfiguration so
 // that a missing / unreachable Key Vault cannot mask SeedGuard's intent. See A1 §5.2.
+// Dry-run is allowed in all environments per A1 §5.4 (diagnostic-only, no writes).
 if (args.Length > 0
     && string.Equals(args[0], SeedingCliVerb.Verb, StringComparison.Ordinal)
-    && builder.Environment.IsProduction())
+    && builder.Environment.IsProduction()
+    && !args.Any(a => a.Equals("--mode=dry-run", StringComparison.Ordinal)))
 {
     Console.Error.WriteLine(SeedGuard.ProductionBlockedMessage);
     return 1;

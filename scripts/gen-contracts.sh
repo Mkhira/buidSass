@@ -32,10 +32,14 @@ echo "Using OpenAPI: ${OPENAPI_PATH}"
 echo "Detected version: ${VERSION}"
 
 # Keep package manifests aligned to OpenAPI semver.
-sed -i.bak -E "s|<Version>[^<]+</Version>|<Version>${VERSION}</Version>|" "${DOTNET_DIR}/SharedContracts.csproj"
-sed -i.bak -E "s|^version: .*|version: ${VERSION}|" "${DART_DIR}/pubspec.yaml"
-sed -i.bak -E "s|\"version\": \".*\"|\"version\": \"${VERSION}\"|" "${TS_DIR}/package.json"
-rm -f "${DOTNET_DIR}/SharedContracts.csproj.bak" "${DART_DIR}/pubspec.yaml.bak" "${TS_DIR}/package.json.bak"
+# Use python for portable in-place edits — GNU vs BSD sed -i differ on macOS.
+python3 - "${VERSION}" "${DOTNET_DIR}/SharedContracts.csproj" "${DART_DIR}/pubspec.yaml" "${TS_DIR}/package.json" <<'PY'
+import re, sys, pathlib
+version, csproj, pubspec, pkg = sys.argv[1:5]
+p = pathlib.Path(csproj); p.write_text(re.sub(r"<Version>[^<]+</Version>", f"<Version>{version}</Version>", p.read_text()))
+p = pathlib.Path(pubspec); p.write_text(re.sub(r"^version: .*", f"version: {version}", p.read_text(), flags=re.M))
+p = pathlib.Path(pkg);     p.write_text(re.sub(r'"version"\s*:\s*"[^"]*"', f'"version": "{version}"', p.read_text()))
+PY
 
 # .NET contracts (Kiota)
 if command -v kiota >/dev/null 2>&1; then

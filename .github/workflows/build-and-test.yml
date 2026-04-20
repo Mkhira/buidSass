@@ -286,6 +286,12 @@ jobs:
                   pushd packages/shared_contracts/typescript >/dev/null
                   npm publish --dry-run --registry "https://npm.pkg.github.com" --access restricted
                   popd >/dev/null
+                  pushd packages/shared_contracts/dart >/dev/null
+                  flutter pub get
+                  # `dart pub publish --dry-run` catches pubspec/file-list breakage.
+                  # Failures don't block merge since Dart publishing is deferred to Phase 1.5.
+                  dart pub publish --dry-run || echo "::warning::Dart dry-run reported issues (Phase 1.5 concern)"
+                  popd >/dev/null
 
             - name: Publish .NET shared contracts package
               if: github.event_name == 'push' && github.ref == 'refs/heads/main' && steps.changes.outputs.build_targets == 'true'

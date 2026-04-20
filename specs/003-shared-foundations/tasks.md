@@ -161,7 +161,7 @@
 **Goal**: All tests green in CI, contracts pipeline verified end-to-end, formatting clean, DoD gate passed.
 
 - [X] T076 Run full integration test suite in CI with Testcontainers + Postgres and confirm all Phase 5–8 tests pass (update .github/workflows/build-and-test.yml if any Testcontainers config is missing)
-- [ ] T077 Verify contracts pipeline end-to-end: add a dummy field to a backend response model, merge to main, assert all three shared_contracts packages published with a bumped semver (Dart publish deferred to Phase 1.5; this task remains open until merge logs verify dotnet + npm publish success)
+- [X] T077 Verify contracts pipeline end-to-end: dotnet + npm publish verified on GitHub Actions run `24636917073` (main @ fcf0eb1 → post-PR-#10) — NuGet "Your package was pushed" for `BuidSass.SharedContracts 0.2604.23`, npm `+ @mkhira/shared-contracts@0.2604.23`. Dart publish deferred to Phase 1.5 per ADR note.
 - [X] T078 Confirm validate-diagrams CI job from spec 002 still passes after spec 003 source files are added (no Mermaid regressions)
 - [X] T079 Run dotnet format, dart format, eslint, and prettier across all spec 003 files and fix any formatting violations
 - [X] T080 Embed context fingerprint (scripts/compute-fingerprint.sh output) in PR description; confirm DoD UC-1 through UC-8 checklist passes

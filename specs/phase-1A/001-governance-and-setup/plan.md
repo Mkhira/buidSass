@@ -1,7 +1,7 @@
 # Implementation Plan: Governance and Setup
 
 **Branch**: `001-governance-and-setup` | **Date**: 2026-04-19 | **Spec**: [spec.md](./spec.md)
-**Input**: Feature specification from `specs/001-governance-and-setup/spec.md`
+**Input**: Feature specification from `specs/phase-1A/001-governance-and-setup/spec.md`
 
 ## Summary
 
@@ -41,7 +41,7 @@ Establish the foundational governance layer that every subsequent Phase-1 spec i
 ### Documentation (this feature)
 
 ```text
-specs/001-governance-and-setup/
+specs/phase-1A/001-governance-and-setup/
 ├── plan.md                          # This file
 ├── research.md                      # Phase 0 — all unknowns resolved
 ├── data-model.md                    # Phase 1 — governance artifact schemas

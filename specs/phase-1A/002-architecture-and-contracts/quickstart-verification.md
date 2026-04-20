@@ -1,7 +1,7 @@
 # Quickstart Verification Report (Spec 002)
 
 **Date**: 2026-04-19
-**Scope**: `specs/002-architecture-and-contracts/quickstart.md` phases A–G
+**Scope**: `specs/phase-1A/002-architecture-and-contracts/quickstart.md` phases A–G
 
 ## Phase A — Architecture directory skeleton
 

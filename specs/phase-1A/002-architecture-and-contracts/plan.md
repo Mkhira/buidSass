@@ -1,7 +1,7 @@
 # Implementation Plan: Architecture and Contracts
 
 **Branch**: `002-architecture-and-contracts` | **Date**: 2026-04-19 | **Spec**: [spec.md](./spec.md)
-**Input**: Feature specification from `specs/002-architecture-and-contracts/spec.md`
+**Input**: Feature specification from `specs/phase-1A/002-architecture-and-contracts/spec.md`
 **Depends on**: Spec 001 at DoD
 
 ## Summary
@@ -41,7 +41,7 @@ Author and ratify the four foundational architecture artifacts — ERD, seven st
 ### Documentation (this feature)
 
 ```text
-specs/002-architecture-and-contracts/
+specs/phase-1A/002-architecture-and-contracts/
 ├── plan.md                                    # This file
 ├── research.md                                # Phase 0 — all unknowns resolved
 ├── data-model.md                              # Phase 1 — artifact schemas

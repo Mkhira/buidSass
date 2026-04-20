@@ -1,6 +1,6 @@
 # Tasks: Governance and Setup
 
-**Input**: Design documents from `specs/001-governance-and-setup/`
+**Input**: Design documents from `specs/phase-1A/001-governance-and-setup/`
 **Prerequisites**: plan.md ✅ | spec.md ✅ | research.md ✅ | data-model.md ✅ | contracts/ci-pipeline-contract.md ✅
 
 **Organization**: Tasks grouped by user story to enable independent implementation and testing.
@@ -109,12 +109,12 @@
 
 **Goal**: Every spec records the constitution version in force at authoring time. An auditor can cross-reference any spec to the governing principles that applied without git archaeology.
 
-**Independent Test**: Open `specs/001-governance-and-setup/spec.md`. Confirm the constitution version is recorded in the spec header. Open `.github/pull_request_template.md`. Confirm it includes a field for constitution version.
+**Independent Test**: Open `specs/phase-1A/001-governance-and-setup/spec.md`. Confirm the constitution version is recorded in the spec header. Open `.github/pull_request_template.md`. Confirm it includes a field for constitution version.
 
 - [X] T023 [US5] Create `.github/pull_request_template.md` with these sections: spec link (`Spec: specs/<NNN>-<name>/spec.md`), constitution version field (`Constitution: v<semver>`), Universal Core checklist (8 UC items as checkboxes), active applicability tags declaration (`Active tags: none / state-machine / audit-event / ...`), summary field, and the squash-merge commit format reminder
-- [X] T024 [US5] Update `specs/001-governance-and-setup/spec.md` header to include the explicit constitution version line: `**Constitution**: v1.0.0` (verify `spec.md` already satisfies UC-8 after this change)
+- [X] T024 [US5] Update `specs/phase-1A/001-governance-and-setup/spec.md` header to include the explicit constitution version line: `**Constitution**: v1.0.0` (verify `spec.md` already satisfies UC-8 after this change)
 
-**Checkpoint**: Create a test PR using the template. Confirm the constitution version field appears pre-populated in the description. Confirm `specs/001-governance-and-setup/spec.md` header explicitly records `v1.0.0`.
+**Checkpoint**: Create a test PR using the template. Confirm the constitution version field appears pre-populated in the description. Confirm `specs/phase-1A/001-governance-and-setup/spec.md` header explicitly records `v1.0.0`.
 
 ---
 
@@ -123,7 +123,7 @@
 **Purpose**: Final verification, documentation consistency, and DoD sign-off for this spec.
 
 - [X] T025 Run `quickstart.md` verification for all five phases (A–E) and confirm every "Verify" step passes; document any failures as issues before merge
-- [X] T026 [P] Verify `specs/001-governance-and-setup/spec.md` satisfies all Universal Core DoD items (UC-1 through UC-8); tick them in `checklists/requirements.md`; confirm no applicability tags are active (no state machine, no audit events, no storage, no PDF, no user-facing strings in this spec)
+- [X] T026 [P] Verify `specs/phase-1A/001-governance-and-setup/spec.md` satisfies all Universal Core DoD items (UC-1 through UC-8); tick them in `checklists/requirements.md`; confirm no applicability tags are active (no state machine, no audit events, no storage, no PDF, no user-facing strings in this spec)
 - [X] T027 [P] Run a full end-to-end smoke test: open a PR from a feature branch, confirm all four CI jobs appear, confirm the fingerprint check fires, confirm squash-merge is the only available merge method, confirm a direct push to `main` is rejected
 - [X] T028 Commit all deliverables on the `001-governance-and-setup` branch and open a PR. Ensure the PR description includes the context fingerprint. Mark all UC checklist items in the PR template.
 

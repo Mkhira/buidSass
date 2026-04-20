@@ -1,6 +1,6 @@
 # Tasks: Architecture and Contracts
 
-**Input**: Design documents from `specs/002-architecture-and-contracts/`
+**Input**: Design documents from `specs/phase-1A/002-architecture-and-contracts/`
 **Prerequisites**: plan.md ✅ | spec.md ✅ | research.md ✅ | data-model.md ✅ | contracts/architecture-document-contract.md ✅ | quickstart.md ✅
 **Depends on**: Spec 001 at DoD (repo guardrails, CI pipeline, CODEOWNERS live)
 
@@ -165,7 +165,7 @@ All 7 state machine tasks are independent and can be authored in parallel.
 ## Phase 9: Polish and Cross-Cutting Concerns
 
 - [X] T061 Run `quickstart.md` verification phases A–G in order; confirm every "Verify" step passes; document any failures before opening the PR
-- [X] T062 [P] Verify `specs/002-architecture-and-contracts/spec.md` satisfies all Universal Core DoD items (UC-1 through UC-8); tick them in `checklists/requirements.md`
+- [X] T062 [P] Verify `specs/phase-1A/002-architecture-and-contracts/spec.md` satisfies all Universal Core DoD items (UC-1 through UC-8); tick them in `checklists/requirements.md`
 - [X] T063 [P] Confirm active applicability tags for this spec: no state-machine runtime (only documents), no audit events, no storage, no PDF, no user-facing strings — all tags inactive; note in PR template
 - [X] T064 Commit all deliverables on `002-architecture-and-contracts` branch; embed context fingerprint in PR description; open PR; ensure `validate-diagrams`, `lint-format`, `verify-context-fingerprint`, and `build` all pass
 

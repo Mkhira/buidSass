@@ -11,7 +11,7 @@ Verified on: 2026-04-19 against PR #1 (merge commit d5f86ec).
 - [x] **UC-5**: Constitution and ADR-protected paths are not changed without required code-owner approvals. — CODEOWNERS rules in place; enforced by branch protection (T018).
 - [x] **UC-6**: Required human code-owner approvals are present. — PR #1 approved and merged by @Mkhira.
 - [x] **UC-7**: Merge target enforces signed commits and approved merge policy. — settings documented in `docs/branch-protection.md`; applied via `scripts/apply-branch-protection.sh` (T018).
-- [x] **UC-8**: Spec header records the constitution version in force. — `specs/001-governance-and-setup/spec.md` records `**Constitution**: v1.0.0`.
+- [x] **UC-8**: Spec header records the constitution version in force. — `specs/phase-1A/001-governance-and-setup/spec.md` records `**Constitution**: v1.0.0`.
 
 ## Active applicability tags
 

@@ -1,7 +1,7 @@
 # Implementation Plan: Shared Foundations
 
 **Branch**: `003-shared-foundations` | **Date**: 2026-04-19 | **Spec**: [spec.md](./spec.md)
-**Input**: Feature specification from `specs/003-shared-foundations/spec.md`
+**Input**: Feature specification from `specs/phase-1A/003-shared-foundations/spec.md`
 **Depends on**: Spec 001 at DoD, Spec 002 at DoD
 
 ## Summary
@@ -54,7 +54,7 @@ Build the shared infrastructure consumed by every Phase-1 domain module: a gener
 ### Documentation (this feature)
 
 ```text
-specs/003-shared-foundations/
+specs/phase-1A/003-shared-foundations/
 ├── plan.md                                    # This file
 ├── research.md                                # Phase 0 — all decisions resolved
 ├── data-model.md                              # Phase 1 — entity schemas + interface signatures

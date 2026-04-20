@@ -1,7 +1,7 @@
 # Quickstart Verification Report (Spec 001)
 
 **Date**: 2026-04-19  
-**Scope**: `specs/001-governance-and-setup/quickstart.md` phases A–E
+**Scope**: `specs/phase-1A/001-governance-and-setup/quickstart.md` phases A–E
 
 ## Phase A — Repository skeleton
 

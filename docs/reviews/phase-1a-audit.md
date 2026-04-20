@@ -81,8 +81,8 @@ Accepted as bootstrap posture: A2, A3, A5, A6 (revisit when a second maintainer 
 
 | # | Sev | Finding | Recommended action |
 |---|---|---|---|
-| E1 | 🟡 | `specs/003-shared-foundations/tasks.md` T077 is still `[ ]` but CI run `24636917073` at `2026-04-19T19:13` on main shows `Your package was pushed` (NuGet) + `+ @mkhira/shared-contracts@0.2604.23` (npm). | Tick T077 `[X]` on a Spec 003 closeout PR with a one-line note referencing run id. |
-| E2 | 🟡 | Spec 003 DoD UC-1..UC-8 checklist not verified on main yet (T080 was marked complete locally). | In the same closeout PR, confirm `specs/003-shared-foundations/checklists/requirements.md` matches the state on main. |
+| E1 | 🟡 | `specs/phase-1A/003-shared-foundations/tasks.md` T077 is still `[ ]` but CI run `24636917073` at `2026-04-19T19:13` on main shows `Your package was pushed` (NuGet) + `+ @mkhira/shared-contracts@0.2604.23` (npm). | Tick T077 `[X]` on a Spec 003 closeout PR with a one-line note referencing run id. |
+| E2 | 🟡 | Spec 003 DoD UC-1..UC-8 checklist not verified on main yet (T080 was marked complete locally). | In the same closeout PR, confirm `specs/phase-1A/003-shared-foundations/checklists/requirements.md` matches the state on main. |
 
 ---
 

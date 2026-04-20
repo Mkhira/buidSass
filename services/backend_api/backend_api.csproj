@@ -23,11 +23,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Compile Include="..\Modules\**\*.cs" />
-    <Compile Include="..\Migrations\**\*.cs" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <EmbeddedResource Include="..\Resources\Fonts\Noto_Naskh_Arabic-Regular.ttf" />
+    <EmbeddedResource Include="Resources\Fonts\Noto_Naskh_Arabic-Regular.ttf" />
   </ItemGroup>
 </Project>

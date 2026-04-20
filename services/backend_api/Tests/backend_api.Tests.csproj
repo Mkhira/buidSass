@@ -30,7 +30,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\services\backend_api.csproj" />
+    <ProjectReference Include="..\backend_api.csproj" />
   </ItemGroup>
 
 </Project>

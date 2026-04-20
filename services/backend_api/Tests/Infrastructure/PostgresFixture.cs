@@ -46,8 +46,30 @@ public sealed class PostgresFixture : IAsyncLifetime
             ConnectionString = _container.GetConnectionString();
         }
 
+        await EnsureAppRoleAsync(ConnectionString);
         await MigrateAsync(ConnectionString);
         await InitializeRespawnerAsync();
+    }
+
+    private static async Task EnsureAppRoleAsync(string connectionString)
+    {
+        await using var connection = new NpgsqlConnection(connectionString);
+        await connection.OpenAsync();
+        await using var cmd = connection.CreateCommand();
+        // The role must exist before Migrate runs so the RevokeAuditWriteGrants
+        // migration's IF EXISTS guard resolves true and grants actually apply.
+        // USAGE on schema public is required for any subsequent GRANT on tables;
+        // the grant migration itself handles table-level privileges.
+        cmd.CommandText = @"
+            DO $$
+            BEGIN
+                IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'dental_api_app') THEN
+                    CREATE ROLE dental_api_app LOGIN PASSWORD 'dental_api_app';
+                END IF;
+                GRANT USAGE ON SCHEMA public TO dental_api_app;
+            END$$;
+        ";
+        await cmd.ExecuteNonQueryAsync();
     }
 
     public async Task DisposeAsync()

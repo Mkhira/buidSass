@@ -13,4 +13,4 @@ Default privileges baseline:
 - `INSERT` granted only where module migrations explicitly allow writes
 - `UPDATE`/`DELETE` are explicitly revoked on append-only audit artifacts
 
-Module migrations and grant/revoke scripts (including audit-log `RevokeAuditWriteGrants.sql`) must reference this role name.
+Module migrations that touch role-level privileges MUST reference this role name. The `dental_api_app` role is provisioned out-of-band; grant changes are applied through EF migrations under `services/backend_api/Migrations/` (see `20260419190000_RevokeAuditWriteGrants.cs` for the audit-log INSERT-only enforcement).

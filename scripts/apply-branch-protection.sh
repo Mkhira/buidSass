@@ -38,8 +38,7 @@ PAYLOAD="$(cat <<'JSON'
       "lint-format",
       "contract-diff",
       "verify-context-fingerprint",
-      "build",
-      "preview-deploy"
+      "build"
     ]
   },
   "enforce_admins": false,

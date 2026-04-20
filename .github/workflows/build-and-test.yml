@@ -6,6 +6,7 @@ on:
     push:
         branches:
             - main
+    workflow_dispatch:
 
 permissions:
     contents: read
@@ -232,6 +233,23 @@ jobs:
                   fi
                   cp artifacts/openapi.json packages/shared_contracts/openapi.json
 
+            - name: Guard against empty OpenAPI (post Phase 1A)
+              if: steps.changes.outputs.build_targets == 'true' && github.event_name == 'push' && github.ref == 'refs/heads/main'
+              shell: bash
+              run: |
+                  paths=$(node -e "const d=require('./packages/shared_contracts/openapi.json');process.stdout.write(String(Object.keys(d.paths||{}).length))")
+                  schemas=$(node -e "const d=require('./packages/shared_contracts/openapi.json');process.stdout.write(String(Object.keys((d.components&&d.components.schemas)||{}).length))")
+                  echo "OpenAPI paths=${paths} schemas=${schemas}"
+                  if [ "${paths}" = "0" ] && [ "${schemas}" = "0" ]; then
+                    # Spec 003 shipped an empty skeleton; once spec 004 lands real endpoints
+                    # this guard becomes a merge-blocker preventing empty-publish regressions.
+                    if [ -f "services/backend_api/Features" ] || grep -rq "MapGet\|MapPost\|MapPut\|MapDelete" services/backend_api/services/Program.cs 2>/dev/null; then
+                      echo "::error::OpenAPI has zero paths and zero schemas but backend has endpoints. Emit/export step is broken."
+                      exit 1
+                    fi
+                    echo "::warning::OpenAPI is empty. Acceptable until spec 004 emits real contracts; becomes a failure once backend endpoints exist."
+                  fi
+
             - name: Upload OpenAPI artifact
               if: steps.changes.outputs.build_targets == 'true'
               uses: actions/upload-artifact@v4
@@ -248,10 +266,26 @@ jobs:
               if: github.event_name == 'push' && github.ref == 'refs/heads/main' && steps.changes.outputs.build_targets == 'true'
               shell: bash
               run: |
-                  new_version="0.$(date +%y%m).${GITHUB_RUN_NUMBER}"
+                  # Monotonic across month boundaries: major=0, minor=0, patch=run_number.
+                  # GITHUB_RUN_NUMBER is repo-wide and monotonically increasing — safe as
+                  # both a NuGet/npm SemVer patch and a u16 AssemblyVersion component.
+                  new_version="0.0.${GITHUB_RUN_NUMBER}"
                   node -e "const fs=require('fs'),p='packages/shared_contracts/openapi.json';const d=JSON.parse(fs.readFileSync(p,'utf8'));d.info.version='${new_version}';fs.writeFileSync(p,JSON.stringify(d,null,2));"
                   bash scripts/gen-contracts.sh
                   echo "Published contracts version: ${new_version}"
+
+            - name: Dry-run contracts pack (PR gate)
+              if: github.event_name == 'pull_request' && steps.changes.outputs.build_targets == 'true'
+              shell: bash
+              run: |
+                  # Catches publish regressions (csproj/package.json breakage) before merge.
+                  probe_version="0.0.0-pr.${{ github.event.pull_request.number }}"
+                  dotnet build packages/shared_contracts/dotnet/SharedContracts.csproj --configuration Release /p:Version="${probe_version}"
+                  dotnet pack packages/shared_contracts/dotnet/SharedContracts.csproj --configuration Release --no-build /p:Version="${probe_version}" -o /tmp/nuget-dryrun
+                  ls -la /tmp/nuget-dryrun/*.nupkg
+                  pushd packages/shared_contracts/typescript >/dev/null
+                  npm publish --dry-run --registry "https://npm.pkg.github.com" --access restricted
+                  popd >/dev/null
 
             - name: Publish .NET shared contracts package
               if: github.event_name == 'push' && github.ref == 'refs/heads/main' && steps.changes.outputs.build_targets == 'true'

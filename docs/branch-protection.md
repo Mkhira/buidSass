@@ -8,7 +8,8 @@ This document records the exact GitHub settings required for `main` per spec 001
 - `contract-diff`
 - `verify-context-fingerprint`
 - `build`
-- `preview-deploy`
+
+`preview-deploy` is intentionally **not required** until `apps/admin_web` is scaffolded and `AZURE_STATIC_WEB_APPS_API_TOKEN` is populated. Re-add it to the required list when both conditions are met (spec 004 / Phase 1C kickoff).
 
 ## Pull Request Review Rules
 

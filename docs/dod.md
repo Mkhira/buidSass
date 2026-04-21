@@ -62,3 +62,7 @@ If the spec adds or changes runtime container behavior, it must update `services
 ### [trigger: ships-a-seeder]
 
 If the spec ships a seeder, it must: (a) implement `ISeeder`, (b) register in DI, (c) use curated phrase banks for user-visible Arabic, (d) pass `seed-pii-guard`, (e) add an idempotency test (re-run = zero writes).
+
+### [trigger: ui-surface]
+
+If the spec introduces or modifies pixels in `apps/customer_flutter/**`, `apps/admin_web/**`, or `packages/design_system/**`, it must: (a) load the `impeccable-brand` overlay before any `/impeccable` invocation (enforced by the D1 context block in `CLAUDE.md` / `.codex/system.md` / `GLM_CONTEXT.md`), (b) run `/audit` before PR and attach the report to the PR description, (c) honor the advisory `impeccable-scan` CI job's findings (merge-blocking for `apps/admin_web` from spec 029 onward), (d) confirm every delivery includes loading/empty/error/success/restricted-state/payment-failure/accessibility states per Principle 27. See `docs/design-agent-skills.md`.

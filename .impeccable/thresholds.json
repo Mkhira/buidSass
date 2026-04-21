@@ -1,0 +1,13 @@
+{
+  "_comment": "Advisory-only through Phase 1C/1D/1E. Promoted to merge-blocking for apps/admin_web in Phase 1F (spec 029). See docs/design-agent-skills.md.",
+  "mode": "advisory",
+  "scope": ["apps/admin_web"],
+  "ignore_paths": ["apps/customer_flutter/**"],
+  "severity_budgets": {
+    "P0": 0,
+    "P1": 5,
+    "P2": 20,
+    "P3": null
+  },
+  "waiver_path": "CODEOWNERS-approved PR tagged `impeccable-waiver`"
+}

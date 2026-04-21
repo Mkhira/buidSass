@@ -169,6 +169,20 @@ EOF
 - Compute PR fingerprint with \`scripts/compute-fingerprint.sh\`.
 - Apply DoD from \`docs/dod.md\` (DoD version: ${DOD_VERSION}).
 - Constitution version in source context: ${CONSTITUTION_VERSION}.
+
+## Design-agent skills (D1 workstream)
+
+Impeccable design skills are vendored under this repo at commit \`$(cat "${REPO_ROOT}/.impeccable/VERSION" 2>/dev/null | awk '/^commit:/ {print $2; exit}' || echo 'unknown')\` (see \`.impeccable/VERSION\`, Apache-2.0).
+
+**When working on a UI-bearing spec** — any spec numbered 014–024 or 029, OR any change touching \`apps/customer_flutter/**\`, \`apps/admin_web/**\`, or \`packages/design_system/**\`:
+
+1. Load the \`impeccable-brand\` skill **before** any \`impeccable\` command (\`/impeccable\`, \`/audit\`, \`/polish\`, \`/critique\`, \`/typeset\`, \`/colorize\`, \`/layout\`, \`/harden\`, \`/adapt\`, \`/animate\`, \`/delight\`, \`/quieter\`, \`/bolder\`, \`/distill\`, \`/clarify\`, \`/shape\`, \`/optimize\`, \`/overdrive\`). The brand overlay encodes Principle 7 palette, Principle 4 Arabic/RTL editorial rules, and medical-marketplace tone; it overrides upstream impeccable defaults where they conflict.
+2. Run \`/audit\` before opening a UI PR; attach the report to the PR description.
+3. The impeccable CLI scanner runs as an **advisory** CI job on \`apps/admin_web\` PRs (see \`.github/workflows/impeccable-scan.yml\`); it is **promoted to merge-blocking in Phase 1F spec 029** per \`docs/design-agent-skills.md\`.
+
+**Backend-only specs (001–013, 025–028) must not invoke impeccable.** The skills are not loaded there; reaching for them wastes context.
+
+Upgrade procedure, CLI usage, and waiver path live in \`docs/design-agent-skills.md\`.
 EOF
 }
 

@@ -1,0 +1,143 @@
+name: impeccable-scan
+
+# D1 · design-agent-skills — advisory design-quality scan for apps/admin_web.
+# Advisory only through Phase 1C/1D/1E (exit 0 regardless of findings).
+# Promoted to merge-blocking in Phase 1F spec 029 — see docs/design-agent-skills.md.
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  impeccable-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Detect admin_web changes
+        id: changes
+        uses: dorny/paths-filter@v3
+        with:
+          filters: |
+            admin_web:
+              - 'apps/admin_web/**'
+              - '.github/workflows/impeccable-scan.yml'
+              - '.impeccable/**'
+
+      - name: Read pinned impeccable SHA
+        if: steps.changes.outputs.admin_web == 'true'
+        id: pin
+        run: |
+          sha="$(awk '/^commit:/ {print $2; exit}' .impeccable/VERSION)"
+          if [ -z "$sha" ]; then
+            echo "error: could not read pinned commit from .impeccable/VERSION" >&2
+            exit 1
+          fi
+          echo "sha=$sha" >> "$GITHUB_OUTPUT"
+
+      - name: Setup Node.js
+        if: steps.changes.outputs.admin_web == 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Setup pnpm
+        if: steps.changes.outputs.admin_web == 'true'
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+          run_install: false
+
+      # Phase 1C scaffold guard: until spec 015 lands a real Next.js app, the
+      # admin_web directory may only hold placeholders. Build + scan step is
+      # skipped cleanly in that case.
+      - name: Check for buildable admin_web
+        if: steps.changes.outputs.admin_web == 'true'
+        id: buildable
+        run: |
+          if [ -f apps/admin_web/package.json ]; then
+            echo "buildable=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "buildable=false" >> "$GITHUB_OUTPUT"
+            echo "apps/admin_web not yet scaffolded — skipping scan (pre-spec-015)." >&2
+          fi
+
+      - name: Install admin_web deps
+        if: steps.changes.outputs.admin_web == 'true' && steps.buildable.outputs.buildable == 'true'
+        run: pnpm install --frozen-lockfile --filter ./apps/admin_web
+
+      - name: Build admin_web
+        if: steps.changes.outputs.admin_web == 'true' && steps.buildable.outputs.buildable == 'true'
+        run: pnpm --filter ./apps/admin_web build
+
+      - name: Run impeccable detect (advisory)
+        if: steps.changes.outputs.admin_web == 'true' && steps.buildable.outputs.buildable == 'true'
+        id: scan
+        continue-on-error: true
+        run: |
+          mkdir -p .impeccable-report
+          scan_target="apps/admin_web/out"
+          [ -d "$scan_target" ] || scan_target="apps/admin_web/.next"
+          [ -d "$scan_target" ] || scan_target="apps/admin_web"
+
+          npx --yes "github:pbakaus/impeccable#${{ steps.pin.outputs.sha }}" detect \
+            "$scan_target" --json > .impeccable-report/report.json || true
+
+          # Human-readable summary (best-effort).
+          npx --yes "github:pbakaus/impeccable#${{ steps.pin.outputs.sha }}" detect \
+            "$scan_target" > .impeccable-report/report.txt || true
+
+      - name: Upload report artifact
+        if: steps.changes.outputs.admin_web == 'true' && steps.buildable.outputs.buildable == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: impeccable-report
+          path: .impeccable-report/
+          if-no-files-found: warn
+
+      - name: Post summary comment
+        if: steps.changes.outputs.admin_web == 'true' && steps.buildable.outputs.buildable == 'true'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            let body = '### impeccable-scan — advisory report\n\n';
+            try {
+              const raw = fs.readFileSync('.impeccable-report/report.txt', 'utf8');
+              const truncated = raw.length > 60000 ? raw.slice(0, 60000) + '\n\n… (truncated; see artifact) …' : raw;
+              body += '```\n' + truncated + '\n```\n';
+            } catch (_) {
+              body += '_No report produced. Check workflow logs._\n';
+            }
+            body += '\n_Advisory only — does not block merge until Phase 1F spec 029 (`docs/design-agent-skills.md`)._';
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+            });
+            const prior = comments.find(c => c.user.type === 'Bot' && c.body.startsWith('### impeccable-scan'));
+            if (prior) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: prior.id,
+                body,
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body,
+              });
+            }
+
+      # Advisory: this workflow always succeeds through Phase 1C/1D/1E.
+      # Spec 029 replaces this with a thresholds-enforcing step.
+      - name: Advisory exit
+        if: always()
+        run: echo "impeccable-scan is advisory; see .impeccable/thresholds.json and docs/design-agent-skills.md"

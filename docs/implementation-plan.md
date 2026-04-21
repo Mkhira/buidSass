@@ -362,6 +362,34 @@ Both streams MUST be at DoD before Phase 1B begins.
 
 ---
 
+##### D1 · `design-agent-skills` · runs in parallel with 1B
+
+- **depends-on**: 001 (agent-context injection script exists)
+- **owner**: Lane B primary, Lane A reviewer
+- **status**: scaffolded 2026-04-22 (pinned `pbakaus/impeccable@00d4856`, Apache-2.0)
+- **exit**: 18 impeccable skills + `impeccable-brand` overlay vendored into `.claude/skills/` (single committed source of truth); Guardrail #3 script writes a D1 block into every agent context file pointing Codex and GLM at the `.claude/skills/impeccable*/` paths; advisory `impeccable-scan` CI job runs on `apps/admin_web` PRs; `docs/design-agent-skills.md` published; D1 at DoD **before spec 014 or 015 starts**
+- **what D1 delivers**:
+  1. **Vendored skill bundle (pinned).** `/impeccable`, `/audit`, `/polish`, `/critique`, `/typeset`, `/colorize`, `/layout`, `/harden`, `/adapt`, `/animate`, `/delight`, `/quieter`, `/bolder`, `/distill`, `/clarify`, `/shape`, `/optimize`, `/overdrive` copied from upstream commit `00d4856` into `.claude/skills/` as the single committed source of truth (`.agents/` is gitignored per existing repo convention; Codex/GLM read via their context files). Pinned SHA recorded at `.impeccable/VERSION`; Apache-2.0 notice at `.impeccable/LICENSE` + `.impeccable/NOTICE.md`.
+  2. **Brand-adapter overlay.** `.claude/skills/impeccable-brand/SKILL.md` locks Principle 7 palette, defers typography to `packages/design_system/tokens.css`, codifies Principle 4 Arabic/RTL editorial rules, and encodes medical-marketplace tone. Precedence: Constitution → overlay → design-system tokens → upstream impeccable. Explicit Principle 31 tail clause.
+  3. **Guardrail #3 extension.** `scripts/gen-agent-context.sh` now writes a "Design-agent skills (D1 workstream)" block into `CLAUDE.md`, `.codex/system.md`, and `GLM_CONTEXT.md`. Block tells agents: invoke impeccable only on specs 014–024 or 029 (or paths `apps/customer_flutter/**`, `apps/admin_web/**`, `packages/design_system/**`); load `impeccable-brand` before any `/impeccable` command; attach `/audit` report to every UI-bearing PR.
+  4. **Advisory CI scan.** `.github/workflows/impeccable-scan.yml` triggers on `apps/admin_web/**` PRs, builds Next.js, runs `npx github:pbakaus/impeccable#<pinned-sha> detect` on the output, uploads a JSON + text report artifact, and posts a summary comment. Always exits 0 through Phase 1C/1D/1E (advisory). Skips cleanly until spec 015 lands `apps/admin_web/package.json`. Does NOT run on `apps/customer_flutter/**` — the scanner is HTML/CSS-only.
+  5. **Thresholds stub.** `.impeccable/thresholds.json` carries P0/P1/P2/P3 severity budgets and a waiver path. `mode: advisory` through 1C/1D/1E; spec 029 flips it to `enforced`.
+  6. **Authority doc.** `docs/design-agent-skills.md` — precedence rules, cadence per UI spec, upgrade procedure, local CLI usage, promotion plan.
+- **Spec-level impact (additive; advisory through 1C/1D/1E)**:
+
+  | Spec | Impact |
+  |------|--------|
+  | 014 `customer-app-shell` | Run `/audit` on each screen before PR; attach report to PR description. `impeccable-brand` overlay loaded with every `/impeccable` invocation. |
+  | 015 `admin-foundation` | Same as 014 + advisory `impeccable-scan` CI job active against Next.js build output. |
+  | 016–019 `admin-*` | Inherit the advisory scan; `/audit` + `/polish` expected on each PR. |
+  | 020–024 Phase 1D UX tasks | Same advisory pattern. |
+  | 029 `qa-and-hardening` | **Promote** `impeccable-scan` to merge-blocking on `apps/admin_web`; flip `.impeccable/thresholds.json` to `enforced`; wire `impeccable-waiver` label via CODEOWNERS. |
+- **Rule**: backend-only specs (001–013, 025–028) MUST NOT load impeccable — the skills are not registered against those specs and reaching for them wastes context.
+- **Deliberately NOT included**: constitution amendment (not needed, tooling layer only), ADR change (stack is unchanged), design-token authoring (remains with spec 003), Flutter-side CLI scanning (infeasible; reference-doc + steering-command value only).
+- **Reference**: `docs/design-agent-skills.md` for upgrade procedure, waiver path, and promotion steps.
+
+---
+
 #### Phase 1C — Customer & Admin UI · Milestones 5–6 · 6 specs + C-Infra
 
 **Intent**: Lane B (GLM) consumes merged contracts from 1B. UI-only — any backend gap found here escalates back to the owning 1B spec (never inline fix).
@@ -620,6 +648,7 @@ Both streams MUST be at DoD before Phase 1B begins.
   7. Production smoke: `ASPNETCORE_ENVIRONMENT=Production dotnet run -- seed --mode=dry-run` exits 0 and writes zero `seed_applied` rows; `/health` returns 200 from Production ACA.
   8. Container health verification: `backend_api`, `admin_web`, and Flutter-web (per E1 hosting decision) pass health-probes on Staging; rollback by image tag rehearsed.
   9. Launch-readiness checklist (Section 13) executed end-to-end; sign-offs captured.
+  10. Promote D1 `impeccable-scan` to a merge-blocking CI job on `apps/admin_web`: flip `.impeccable/thresholds.json` to `mode: enforced`, remove advisory exit from `.github/workflows/impeccable-scan.yml`, wire `impeccable-waiver` label through CODEOWNERS. Dry-run on a throwaway PR to verify red-check → waiver → unblock. See `docs/design-agent-skills.md` §10.
 
 Exit of 1F = **launch**. Post-launch work enters Phase 1.5.
 
@@ -701,6 +730,7 @@ These four guardrails are non-negotiable. They are the only reliable brake on AI
    - Root `CLAUDE.md` (and equivalents for Codex / GLM) carries the constitution's enforced principles + the ADR Decisions table.
    - Every `/speckit-*` command prepends this context before spec work begins.
    - Cold-start agent sessions without this context are considered invalid — the work is redone with context.
+   - **D1 extension**: the injected context also carries a "Design-agent skills" block pointing UI-bearing specs (014–024, 029, or paths `apps/customer_flutter/**`, `apps/admin_web/**`, `packages/design_system/**`) at the vendored impeccable skills + `impeccable-brand` overlay. Backend-only specs do not load it. See `docs/design-agent-skills.md`.
 
 4. **Agents forbidden from editing constitution + ADRs (human-only)**.
    - CODEOWNERS requires human approval for `.specify/memory/constitution.md` and Section 7 of this file.

@@ -1,0 +1,9 @@
+upstream: https://github.com/pbakaus/impeccable
+commit:   00d485659af82982aef0328d0419c49a2716d123
+date:     2026-04-10
+pinned:   2026-04-22
+license:  Apache-2.0 (see .impeccable/LICENSE, .impeccable/NOTICE.md)
+
+Vendored under the D1 · design-agent-skills workstream.
+See docs/design-agent-skills.md for the upgrade procedure.
+Source skills committed under: .claude/skills/ (single source of truth).

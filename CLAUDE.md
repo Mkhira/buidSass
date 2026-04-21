@@ -1,6 +1,6 @@
 # Claude Agent Context
 
-<!-- context-fingerprint: 40a3c07741fafa08c182761d9c2d76668f3706f9b66d4817f2b64464cd6ae417 -->
+<!-- context-fingerprint: 789f39325c0f0e8d7d646fc493718867540f9da41f1eed71c31bf15b53e8fb62 -->
 <!-- context-fingerprint-source: .specify/memory/constitution.md + docs/implementation-plan.md §7 -->
 <!-- generated-by: scripts/gen-agent-context.sh -->
 
@@ -305,3 +305,17 @@ product decision explicitly overrides a specific section.
 - Compute PR fingerprint with `scripts/compute-fingerprint.sh`.
 - Apply DoD from `docs/dod.md` (DoD version: 1.0).
 - Constitution version in source context: 1.0.0.
+
+## Design-agent skills (D1 workstream)
+
+Impeccable design skills are vendored under this repo at commit `00d485659af82982aef0328d0419c49a2716d123` (see `.impeccable/VERSION`, Apache-2.0).
+
+**When working on a UI-bearing spec** — any spec numbered 014–024 or 029, OR any change touching `apps/customer_flutter/**`, `apps/admin_web/**`, or `packages/design_system/**`:
+
+1. Load the `impeccable-brand` skill **before** any `impeccable` command (`/impeccable`, `/audit`, `/polish`, `/critique`, `/typeset`, `/colorize`, `/layout`, `/harden`, `/adapt`, `/animate`, `/delight`, `/quieter`, `/bolder`, `/distill`, `/clarify`, `/shape`, `/optimize`, `/overdrive`). The brand overlay encodes Principle 7 palette, Principle 4 Arabic/RTL editorial rules, and medical-marketplace tone; it overrides upstream impeccable defaults where they conflict.
+2. Run `/audit` before opening a UI PR; attach the report to the PR description.
+3. The impeccable CLI scanner runs as an **advisory** CI job on `apps/admin_web` PRs (see `.github/workflows/impeccable-scan.yml`); it is **promoted to merge-blocking in Phase 1F spec 029** per `docs/design-agent-skills.md`.
+
+**Backend-only specs (001–013, 025–028) must not invoke impeccable.** The skills are not loaded there; reaching for them wastes context.
+
+Upgrade procedure, CLI usage, and waiver path live in `docs/design-agent-skills.md`.

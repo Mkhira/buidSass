@@ -319,3 +319,10 @@ Impeccable design skills are vendored under this repo at commit `00d485659af8298
 **Backend-only specs (001–013, 025–028) must not invoke impeccable.** The skills are not loaded there; reaching for them wastes context.
 
 Upgrade procedure, CLI usage, and waiver path live in `docs/design-agent-skills.md`.
+
+## Active Technologies
+- C# 12 / .NET 9 (LTS), PostgreSQL 16 (004-identity-and-access)
+- PostgreSQL (Azure Saudi Arabia Central per ADR-010). 17 new tables across identity / session / OTP / admin-provisioning / MFA / RBAC / rate-limit domains. Reuses spec 003's `audit_log_entries`. In-process bloom filter mirrors the refresh-token revocation set to cut DB chatter on the hot path. (004-identity-and-access)
+
+## Recent Changes
+- 004-identity-and-access: Added C# 12 / .NET 9 (LTS), PostgreSQL 16

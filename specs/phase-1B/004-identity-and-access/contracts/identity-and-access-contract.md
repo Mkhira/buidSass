@@ -230,7 +230,7 @@ Admin profile including MFA state, allowed permissions, market scope.
 
 ## Authorization model
 
-- Bearer JWT on every authed endpoint. `aud` = surface (`customer.api` | `admin.api`); token validator rejects cross-audience tokens at the framework layer (SC-011).
+- Bearer JWT on every authed endpoint. `aud` = surface (`customer.api` | `admin.api` | `internal.api`); token validator rejects cross-audience tokens at the framework layer (SC-011). `internal.api` tokens are issued to service accounts (see "Internal / service-to-service" below) and carry no human account id.
 - Handler-level authorization via `[RequirePermission("permission.code")]` attribute that reads the authenticated account's merged role→permission set from the session JWT claims.
 - For admin endpoints marked "requires step-up," a `[RequireStepUp]` attribute additionally checks the `step_up_valid_until` claim; if absent or expired, returns `412 Precondition Failed` with `identity.step_up.required`.
 - Every authorization decision emits a row to `authorization_audit` (denies always; allows sampled 1 %) — SC-007.
@@ -247,6 +247,28 @@ Enforced by `System.Threading.RateLimiting`. `X-RateLimit-*` headers on response
 
 - `POST /…/sign-in`, `…/refresh`, `…/sign-out`: NOT idempotent (each call creates a distinct session/refresh revision).
 - `POST /…/otp/request`, `…/password/reset-request`, `…/register`: idempotent within the rate-limit window (same scope-key + recent call yields 202 without dispatch duplication).
+
+---
+
+## Internal / service-to-service
+
+Internal callers (specs 005, 007-a, 008, 011, 012, 013) hit each other's `/v1/internal/*` endpoints. Spec 004 is the issuer and verifier for the tokens those callers present.
+
+### GET /.well-known/jwks.json
+Public JWKS for signature verification of every platform-issued JWT (customer, admin, and internal audiences share one signing-key rotation schedule). No auth. Cached ≤ 60 s. Rotation handled by `IdentityKeyRotationWorker`; old keys remain verifiable for the refresh-token TTL window.
+
+### Internal service-token model
+- Each backend service has a service account registered in `identity.service_accounts` with a shared-secret (or mTLS cert, Phase 1.5) and a `scope` list naming the `/v1/internal/*` prefixes it may call.
+- A service obtains an `internal.api` access token at module boot via the private `POST /v1/internal/identity/service-tokens` endpoint (mTLS + shared secret); the token is a short-lived (≤ 10 min) ES256 JWT with:
+  - `aud`: `internal.api`
+  - `iss`: `platform-identity`
+  - `sub`: service account id (e.g. `svc.pricing`)
+  - `scope`: space-separated list (e.g. `internal.catalog.restrictions.read internal.inventory.reservations.write`)
+- Receivers validate signature via JWKS and reject if `aud != internal.api` or if the required scope is missing.
+- Internal tokens never carry a human account id; audit-logged admin actions continue to require a separate on-behalf claim (`act` claim carrying the originating admin session id).
+
+### POST /v1/internal/identity/service-tokens
+Mint / refresh a service token. Auth: mTLS client cert + shared secret header. Body: `{ "serviceAccountId", "scopes": [...] }`. Response: `{ "accessToken", "expiresAt" }`. Rate-limited per service account.
 
 ---
 

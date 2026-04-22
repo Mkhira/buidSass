@@ -20,7 +20,7 @@ Returns the product detail DTO: names, descriptions, media variants, documents, 
 ### GET /v1/customer/catalog/brands?market=ksa
 List active brands with product counts.
 
-### POST /v1/catalog/restrictions/check (internal; called by specs 008/009/010)
+### POST /v1/internal/catalog/restrictions/check (internal; called by specs 008/009/010/011)
 Auth: service-to-service token (issued by spec 004 platform JWT).
 Request: `{ "productId", "marketCode", "verificationState": "unverified"|"verified" }`.
 Response: `{ "allowed": bool, "reasonCode": "catalog.restricted.verification_required"|"ok" }`.

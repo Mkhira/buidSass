@@ -28,12 +28,14 @@ Response 200:
 ```json
 {
   "orderId": "…",
-  "invoiceNumber": "…",
+  "orderNumber": "…",
   "paymentState": "captured"|"pending"|"pending_cod",
+  "invoicePending": true,
   "pricing": { /* Issue explanation */ },
   "shipping": { /* selected method */ }
 }
 ```
+Invoice issuance is asynchronous — spec 012 subscribes to `payment.captured` (or `order.placed` for COD) and renders the PDF. Clients poll `GET /v1/customer/orders/{orderId}/invoice.pdf` (spec 012) or consume the `invoice.rendered` event.
 - `401 checkout.requires_auth`, `403 checkout.restricted_not_allowed`, `409 checkout.inventory_lost`, `409 checkout.pricing_drift`, `400 checkout.b2b.po_required`, `400 checkout.cod_cap_exceeded`, `409 checkout.already_submitted`.
 
 ### POST /v1/customer/checkout/sessions/{id}/accept-drift

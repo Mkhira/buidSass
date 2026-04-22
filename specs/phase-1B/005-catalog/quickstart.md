@@ -14,7 +14,7 @@
 5. **Admin write slices.** Categories → brands → products → media → documents. Each slice is `Request/Validator/Handler/Endpoint` (ADR-003).
 6. **Workflow slices.** Submit/Publish/Schedule/CancelSchedule/Archive with ProductStateMachine enforcement.
 7. **Customer read slices.** ListCategories, CategoryProducts (with facet counts), ProductBySlug.
-8. **Restriction API.** `/v1/catalog/restrictions/check` + 5 s cache.
+8. **Restriction API.** `/v1/internal/catalog/restrictions/check` + 5 s cache.
 9. **Workers.** ScheduledPublishWorker (60 s tick), MediaVariantWorker (queue consumer), CatalogOutboxDispatcherWorker (polls `catalog_outbox` every 2 s).
 10. **Bulk import.** JSON-Lines streaming, per-row idempotency.
 11. **AR/EN bundles + editorial pass.**

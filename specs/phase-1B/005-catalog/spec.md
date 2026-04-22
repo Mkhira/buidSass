@@ -135,7 +135,7 @@ Every product, brand, and media asset carries `owner_id` and `vendor_id` (nullab
 - **FR-017**: Media + document URLs MUST be content-addressed (hash-suffixed) so CDN caching is safe.
 
 **Restriction enforcement**
-- **FR-018**: System MUST expose a read API `GET /v1/catalog/restrictions/check` consumable by spec 008/009/010 returning `{ allowed, reasonCode }` given `(product_id, market_code, customer_verification_state)`.
+- **FR-018**: System MUST expose an internal read API `POST /v1/internal/catalog/restrictions/check` consumable by spec 008/009/010/011 returning `{ allowed, reasonCode }` given `(product_id, market_code, customer_verification_state)`.
 - **FR-019**: Restriction evaluation is per-market; a single product MAY be restricted in KSA and not in EG.
 - **FR-020**: Restriction decisions MUST be cached for ≤ 5 s per `(product_id, market_code, verification_state)` tuple in the API layer; invalidation occurs on product publish/status change.
 

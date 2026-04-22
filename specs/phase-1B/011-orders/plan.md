@@ -57,7 +57,7 @@
 
 ## Phase F — Workers
 - `QuotationExpiryWorker` — daily tick; sets `status=expired` on passed `expires_at`.
-- `PaymentFailedRecoveryWorker` — periodic retry per policy (spec 017-friendly).
+- `PaymentFailedRecoveryWorker` — periodic retry per policy (Phase 1D notifications consumer will subscribe to the emitted events).
 
 ## Phase G — Events + outbox
 - Transactional outbox `orders.orders_outbox` with `event_type` + `aggregate_id`; dispatcher publishes to downstream consumers (analytics, notifications, search `order.placed`-derived signals if any).

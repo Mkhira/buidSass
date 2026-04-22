@@ -7,7 +7,7 @@
 Response: `{ orders: [{ orderNumber, placedAt, grandTotalMinor, currency, highLevelStatus }], total, page, pageSize }`.
 
 ### GET /v1/customer/orders/{id}
-Full detail: lines, shipments, payments, refunds (summary), timeline, invoiceUrl, returnEligibility.
+Full detail: lines, shipments, payments, refunds (summary), returns (summary — `[{ returnNumber, state, submittedAt, refundedAmountMinor? }]`, sourced from spec 013), timeline, invoiceUrl (may be null until spec 012 renders), returnEligibility.
 
 ### POST /v1/customer/orders/{id}/cancel
 Request: `{ reason? }`. Policy-enforced. Returns updated order.
@@ -58,6 +58,10 @@ Called by spec 010 confirm. Body: `{ checkoutSessionId }`.
 
 ### POST /v1/internal/orders/from-quotation
 Body: `{ quotationId }`.
+
+### POST /v1/internal/orders/{id}/advance-refund-state
+Called by spec 013 when a `refund.completed` or `refund.manual_confirmed` event fires. Body: `{ refundId, refundedAmountMinor, returnRequestId }`. Server computes the new `refund_state` (`none → partial → full`) by comparing cumulative refunded amount to the captured total; advances `high_level_status` accordingly (`delivered → partially_refunded → refunded`). Idempotent on `(orderId, refundId)`.
+Errors: `409 order.refund.over_refund_blocked` if cumulative refunded would exceed captured total; `404 order.not_found`.
 
 ## Reason codes
 `order.not_found`, `order.cancel.shipment_exists`, `order.cancel.policy_denied`, `order.cancel.window_expired`, `order.quote.integrity_fail`, `order.quote.expired`, `order.state.illegal_transition`, `order.number.collision` (should never happen; fuzz-tested), `order.payment.not_in_pending_bank_transfer`, `order.fulfillment.not_ready`, `order.reorder.no_eligible_lines`.

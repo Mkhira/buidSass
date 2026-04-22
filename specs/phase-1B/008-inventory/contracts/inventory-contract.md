@@ -12,6 +12,10 @@ Request: `{ cartId, marketCode, items: [{ productId, qty }] }`.
 Response: `{ reservationId, items: [{ productId, qty, pickedBatchId, expiresAt }] }`.
 Errors: `409 inventory.insufficient` with `{ shortfallByProduct }`.
 
+### PATCH /v1/internal/inventory/reservations/{id}
+Adjust live reservation. Request: `{ items?: [{ productId, qty }], extendTtlSeconds? }`. Called by spec 009 on cart line add/update and by spec 010 on session extension / pricing-drift accept. Idempotent on `(reservationId, sha256(payload))`.
+Response: updated reservation DTO (same shape as create). Errors: `409 inventory.insufficient`, `409 inventory.reservation.expired`, `409 inventory.reservation.already_converted`.
+
 ### DELETE /v1/internal/inventory/reservations/{id}
 Explicit release (cart abandon, checkout timeout).
 

@@ -99,3 +99,11 @@ Lists reindex jobs. Permission: `search.read`.
 
 ## Reason codes
 `search.engine_unavailable`, `search.reindex.in_progress`, `search.invalid_sort`, `search.invalid_locale`, `search.invalid_market`, `search.market_locale_index_missing`.
+
+## Events
+
+Spec 006 is a **consumer**, not a producer. Subscribes to:
+- Spec 005 — `catalog.product.published`, `catalog.product.archived`, `catalog.product.field_updated`, `catalog.product.restriction_changed`.
+- Spec 008 — `product.availability.changed` (re-indexes the `availability` facet only).
+
+No events are emitted; the engine is a read-side projection.

@@ -59,7 +59,7 @@
 
 ## Phase F — Integration
 - Hook into spec 004 login success → call `CartMerger`.
-- Hook into spec 005 `product.archived` event → flag affected cart lines.
+- Hook into spec 005 `catalog.product.archived` event → flag affected cart lines.
 - Hook into spec 008 `product.availability.changed` event → cache-bust cart-read availability.
 
 ## Phase G — Testing

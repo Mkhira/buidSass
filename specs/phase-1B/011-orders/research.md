@@ -45,8 +45,8 @@
 **Rationale**: COD is pay-on-delivery by definition.
 
 ## R11 — Return eligibility
-**Decision**: Per-market `return_window_days` (KSA launch 14 d, EG launch 7 d); evaluator returns `eligible + reasonCode + daysRemaining`.
-**Rationale**: Common market norms; admin-configurable.
+**Decision**: Evaluator reads `return_window_days` from spec 013 `returns.return_policies` (single source of truth; KSA launch 14 d, EG launch 7 d) and returns `eligible + reasonCode + daysRemaining`.
+**Rationale**: Common market norms; admin-configurable; no duplicated policy column.
 
 ## R12 — Audit trail storage
 **Decision**: `order_state_transitions` + admin-mutation rows via spec 003 `audit_log_entries`. The local table captures state-machine trace; the shared audit table captures admin actions with actor + before/after snapshots.

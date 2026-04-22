@@ -60,11 +60,28 @@ Called by spec 010 confirm. Body: `{ checkoutSessionId }`.
 Body: `{ quotationId }`.
 
 ### POST /v1/internal/orders/{id}/advance-refund-state
-Called by spec 013 when a `refund.completed` or `refund.manual_confirmed` event fires. Body: `{ refundId, refundedAmountMinor, returnRequestId }`. Server computes the new `refund_state` (`none → partial → full`) by comparing cumulative refunded amount to the captured total; advances `high_level_status` accordingly (`delivered → partially_refunded → refunded`). Idempotent on `(orderId, refundId)`.
-Errors: `409 order.refund.over_refund_blocked` if cumulative refunded would exceed captured total; `404 order.not_found`.
+Called by spec 013's `returns_outbox` dispatcher on every refund-relevant lifecycle event. Body:
+```json
+{
+  "eventType": "return.submitted" | "return.rejected" | "refund.completed" | "refund.manual_confirmed",
+  "returnRequestId": "…",
+  "refundId": "…",                // required for refund.* eventTypes
+  "refundedAmountMinor": 0,       // required for refund.* eventTypes; 0 otherwise
+  "returnedLineQtys": [            // required for refund.* eventTypes; optional for return.*
+    { "orderLineId": "…", "deltaQty": 0 }
+  ]
+}
+```
+Server semantics:
+- `return.submitted`: `refund_state none → requested` (first open RMA).
+- `return.rejected` (and no other open RMA remains): `refund_state requested → none`.
+- `refund.completed` / `refund.manual_confirmed`: atomically (a) increment `order_lines.returned_qty` by each `deltaQty`, (b) compare cumulative refunded to captured total and advance `refund_state` to `partial` or `full`, (c) emit `payment.partially_refunded` or `payment.refunded` on the orders outbox, (d) advance `high_level_status` accordingly (`delivered → partially_refunded → refunded`).
+- Idempotent on `(orderId, eventType, returnRequestId, refundId)`.
+
+Errors: `409 order.refund.over_refund_blocked` if cumulative refunded would exceed captured total; `409 order.line.returned_qty_exceeds_delivered` if any line's `returned_qty + deltaQty > qty - cancelled_qty`; `404 order.not_found`.
 
 ## Reason codes
-`order.not_found`, `order.cancel.shipment_exists`, `order.cancel.policy_denied`, `order.cancel.window_expired`, `order.quote.integrity_fail`, `order.quote.expired`, `order.state.illegal_transition`, `order.number.collision` (should never happen; fuzz-tested), `order.payment.not_in_pending_bank_transfer`, `order.fulfillment.not_ready`, `order.reorder.no_eligible_lines`.
+`order.not_found`, `order.cancel.shipment_exists`, `order.cancel.policy_denied`, `order.cancel.window_expired`, `order.quote.integrity_fail`, `order.quote.expired`, `order.state.illegal_transition`, `order.number.collision` (should never happen; fuzz-tested), `order.payment.not_in_pending_bank_transfer`, `order.fulfillment.not_ready`, `order.reorder.no_eligible_lines`, `order.refund.over_refund_blocked`, `order.line.returned_qty_exceeds_delivered`.
 
 ## Events (outbox → published)
 `order.placed`, `order.cancelled`, `order.cancellation_pending`, `payment.authorized`, `payment.captured`, `payment.failed`, `payment.voided`, `payment.refunded`, `payment.partially_refunded`, `fulfillment.picking_started`, `fulfillment.packed`, `fulfillment.shipped`, `fulfillment.delivered`, `fulfillment.awaiting_stock`, `quote.created`, `quote.sent`, `quote.accepted`, `quote.rejected`, `quote.expired`, `quote.converted`.

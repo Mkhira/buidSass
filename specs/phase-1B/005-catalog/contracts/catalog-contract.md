@@ -69,3 +69,12 @@ All require admin JWT (spec 004) with relevant permission claim.
 ## Reason codes (subset)
 
 `catalog.product.not_found`, `catalog.product.invalid_transition`, `catalog.publish.media_required`, `catalog.publish.locale_required`, `catalog.publish.market_unconfigured`, `catalog.restricted.verification_required`, `catalog.brand.unknown`, `catalog.category.cycle_detected`, `catalog.category.in_use`, `catalog.schedule.past_time`, `catalog.attributes.schema_violation`, `catalog.slug.immutable`, `catalog.bulk.row_idempotent_duplicate`.
+
+## Events (outbox → published)
+
+Emitted via `catalog_outbox`, dispatched by `CatalogOutboxDispatcherWorker` (2 s poll). Consumers: spec 006 (search indexer), spec 008 (product lifecycle), spec 009 (cart line invalidation).
+
+- `catalog.product.published`
+- `catalog.product.archived`
+- `catalog.product.field_updated`
+- `catalog.product.restriction_changed`

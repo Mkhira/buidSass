@@ -138,7 +138,7 @@ Unique `(product_id, doc_type, locale)`.
 | column | type | notes |
 |---|---|---|
 | `id` | bigserial PK | |
-| `event_type` | citext NOT NULL | `product.published`, `product.archived`, `product.updated`, `product.restriction_changed` |
+| `event_type` | citext NOT NULL | `catalog.product.published`, `catalog.product.archived`, `catalog.product.field_updated`, `catalog.product.restriction_changed` |
 | `aggregate_id` | uuid NOT NULL | product id |
 | `payload_json` | jsonb NOT NULL | |
 | `committed_at` | timestamptz NOT NULL | |

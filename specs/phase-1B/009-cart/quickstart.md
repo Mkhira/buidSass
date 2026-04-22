@@ -10,7 +10,7 @@
 3. **Customer slices.** Get, AddLine, UpdateLine, RemoveLine, Merge, ApplyCoupon, SaveForLater, B2BMetadata, SwitchMarket, Restore.
 4. **Admin slices.** Inspect + abandoned list.
 5. **Workers.** Abandonment emitter, guest cleanup, archive reaper.
-6. **Hooks.** Spec 004 login → merge; spec 005 `product.archived` → flag lines; spec 008 `availability.changed` → stockChanged surfacing.
+6. **Hooks.** Spec 004 login → merge; spec 005 `catalog.product.archived` → flag lines; spec 008 `product.availability.changed` → stockChanged surfacing.
 7. **Tests.** 100 merge scenarios, reservation lifecycle, coupon apply/remove, market switch + restore, abandonment dedup.
 8. **AR editorial.**
 

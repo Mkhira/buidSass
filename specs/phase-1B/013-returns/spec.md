@@ -112,7 +112,7 @@ Customer sees the return status on the original order detail and on a dedicated 
 - **FR-007**: System MUST call `IPaymentGateway.Refund()` with the captured transaction id + idempotency key.
 - **FR-008**: System MUST emit `refund.completed` event which triggers spec 012 credit note.
 - **FR-009**: System MUST emit `inventory.return_movement` to spec 008 for sellable units only.
-- **FR-010**: On `refund.completed` (gateway path) and `refund.manual_confirmed` (COD path), the `returns_outbox` dispatcher MUST call spec 011 `POST /v1/internal/orders/{id}/advance-refund-state` with `{ refundId, refundedAmountMinor, returnRequestId }`. Spec 011 owns the `order.refund_state` / `high_level_status` transition and its over-refund guard; spec 013 MUST NOT write those columns directly.
+- **FR-010**: The `returns_outbox` dispatcher MUST call spec 011 `POST /v1/internal/orders/{id}/advance-refund-state` on every refund-relevant lifecycle event: `return.submitted` (moves `refund_state` to `requested`), `return.rejected` (may move back to `none` when no other open RMA), and `refund.completed` / `refund.manual_confirmed` (supplies `refundId`, `refundedAmountMinor`, and `returnedLineQtys` so spec 011 increments `order_lines.returned_qty` atomically with the refund-state advance). Spec 011 owns `refund_state`, `order_lines.returned_qty`, `high_level_status`, and the over-refund guard; spec 013 MUST NOT write those columns directly.
 - **FR-011**: System MUST support COD manual bank-transfer refund path with admin-entered IBAN.
 - **FR-012**: System MUST audit every admin action (Principle 25).
 - **FR-013**: System MUST surface return tracking on the order detail (customer-facing).

@@ -49,11 +49,14 @@ Force re-enqueue.
 - `GET /v1/admin/credit-notes/{id}/pdf`
 
 ## Internal
+
+Primary ingestion path for both endpoints below is the **event subscription** (spec 011 / spec 013 outbox). The HTTP endpoints exist for replay / admin recovery / integration test seeding. Either path hits the same handler.
+
 ### POST /v1/internal/invoices/issue-on-capture
-Called by spec 011 after `payment.captured`. Body: `{ orderId }`. Idempotent on `(orderId)`.
+Idempotent replay endpoint for the `payment.captured` subscriber (spec 011 outbox). Body: `{ orderId }`. Idempotent on `(orderId)`. COD orders emit `payment.captured` on delivery confirmation; bank-transfer orders emit it on `AdminConfirmBankTransfer` — one code path.
 
 ### POST /v1/internal/credit-notes/issue
-Called by spec 013 on refund. Body: `{ invoiceId, refundId, lines: [{ invoiceLineId, qty }], reasonCode }`. Idempotent on `(refundId)`.
+Idempotent replay endpoint for the `refund.completed` / `refund.manual_confirmed` subscriber (spec 013 outbox). Body: `{ invoiceId, refundId, lines: [{ invoiceLineId, qty }], reasonCode }`. Idempotent on `(refundId)`.
 
 ## Reason codes
 `invoice.not_found`, `invoice.not_rendered`, `invoice.render_pending`, `invoice.immutable`, `invoice.regenerate.denied`, `invoice.template.missing`, `invoice.zatca.qr_failed`, `credit_note.not_found`, `credit_note.line_exceeds_invoice`.

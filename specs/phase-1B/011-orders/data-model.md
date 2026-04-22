@@ -118,9 +118,10 @@ Partial index `WHERE dispatched_at IS NULL`.
 | `market_code` | citext PK | |
 | `authorized_cancel_allowed` | bool NOT NULL DEFAULT true | |
 | `captured_cancel_hours` | int NOT NULL DEFAULT 24 | refund path enabled within |
-| `return_window_days` | int NOT NULL | consumed by spec 013 |
 | `updated_by_account_id` | uuid | audit |
 | `updated_at` | timestamptz | |
+
+Return window policy is owned by spec 013 `returns.return_policies.return_window_days`; spec 011's `GET /v1/customer/orders/{id}/return-eligibility` handler reads from spec 013 via direct DB join (same PostgreSQL instance, cross-schema read permitted inside the monolith). Do NOT duplicate the column here.
 
 ---
 

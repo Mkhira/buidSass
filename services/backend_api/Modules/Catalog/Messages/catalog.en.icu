@@ -1,0 +1,15 @@
+catalog.common.ok = Operation completed successfully.
+catalog.common.denied = You are not allowed to perform this action.
+catalog.product.not_found = Product not found.
+catalog.product.invalid_transition = The requested product state transition is not allowed.
+catalog.publish.media_required = At least one primary image is required before publish.
+catalog.publish.locale_required = Both Arabic and English content are required before publish.
+catalog.publish.market_unconfigured = The product references a market that is not configured.
+catalog.restricted.verification_required = This product requires professional verification.
+catalog.brand.unknown = The requested brand does not exist.
+catalog.category.cycle_detected = The requested reparent would introduce a cycle.
+catalog.category.in_use = The category is still referenced by active products.
+catalog.schedule.past_time = The scheduled publish time must be in the future.
+catalog.attributes.schema_violation = The submitted attributes do not match the category schema.
+catalog.slug.immutable = Slugs cannot be changed after first publish.
+catalog.bulk.row_idempotent_duplicate = A row with the same idempotency key has already been processed.

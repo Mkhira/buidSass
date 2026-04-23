@@ -28,6 +28,10 @@ public sealed class IdentityDbContext(DbContextOptions<IdentityDbContext> option
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.HasDefaultSchema("identity");
-        modelBuilder.ApplyConfigurationsFromAssembly(typeof(IdentityDbContext).Assembly);
+        // Only apply configurations from the Identity namespace so sibling modules (e.g. Catalog)
+        // in the same assembly don't bleed their entities into this context's model.
+        modelBuilder.ApplyConfigurationsFromAssembly(
+            typeof(IdentityDbContext).Assembly,
+            type => type.Namespace?.StartsWith("BackendApi.Modules.Identity", StringComparison.Ordinal) == true);
     }
 }

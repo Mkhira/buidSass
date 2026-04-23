@@ -21,6 +21,8 @@ public sealed class IdentityReferenceDataSeeder : ISeeder
             new Role { Id = Guid.NewGuid(), Code = "platform.super_admin", NameAr = "مشرف المنصة", NameEn = "Platform Super Admin", Scope = "platform", System = true },
             new Role { Id = Guid.NewGuid(), Code = "platform.finance", NameAr = "فريق المالية", NameEn = "Platform Finance", Scope = "platform", System = true },
             new Role { Id = Guid.NewGuid(), Code = "platform.support", NameAr = "فريق الدعم", NameEn = "Platform Support", Scope = "platform", System = true },
+            new Role { Id = Guid.NewGuid(), Code = "catalog.editor", NameAr = "محرر الكتالوج", NameEn = "Catalog Editor", Scope = "platform", System = true },
+            new Role { Id = Guid.NewGuid(), Code = "catalog.publisher", NameAr = "ناشر الكتالوج", NameEn = "Catalog Publisher", Scope = "platform", System = true },
             new Role { Id = Guid.NewGuid(), Code = "customer.standard", NameAr = "عميل", NameEn = "Customer", Scope = "market", System = true },
             new Role { Id = Guid.NewGuid(), Code = "customer.company_owner", NameAr = "مالك الشركة", NameEn = "Company Owner", Scope = "market", System = true },
         };
@@ -37,6 +39,17 @@ public sealed class IdentityReferenceDataSeeder : ISeeder
             "identity.customer.session.manage",
             "identity.customer.profile.manage",
             "identity.customer.self",
+            // Catalog (spec 005)
+            "catalog.category.write",
+            "catalog.brand.write",
+            "catalog.manufacturer.write",
+            "catalog.product.write",
+            "catalog.product.submit",
+            "catalog.product.publish",
+            "catalog.product.archive",
+            "catalog.media.write",
+            "catalog.document.write",
+            "catalog.bulk_import",
         }.Select(code => new Permission
         {
             Id = Guid.NewGuid(),
@@ -89,6 +102,22 @@ public sealed class IdentityReferenceDataSeeder : ISeeder
                 "identity.customer.profile.manage",
                 "identity.customer.session.manage",
                 "identity.customer.self",
+            ],
+            ["catalog.editor"] =
+            [
+                "catalog.category.write",
+                "catalog.brand.write",
+                "catalog.manufacturer.write",
+                "catalog.product.write",
+                "catalog.product.submit",
+                "catalog.media.write",
+                "catalog.document.write",
+                "catalog.bulk_import",
+            ],
+            ["catalog.publisher"] =
+            [
+                "catalog.product.publish",
+                "catalog.product.archive",
             ],
         };
 

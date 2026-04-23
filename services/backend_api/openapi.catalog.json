@@ -1,0 +1,182 @@
+{
+  "openapi": "3.0.1",
+  "info": {
+    "title": "Dental Commerce Platform — Catalog surface",
+    "version": "1.0.0",
+    "description": "Spec 005 HTTP surface: customer read, internal restriction check, and admin write endpoints. Contract of record is specs/phase-1B/005-catalog/contracts/catalog-contract.md."
+  },
+  "servers": [
+    { "url": "http://localhost:5099/" }
+  ],
+  "tags": [
+    { "name": "customer", "description": "Storefront-facing read endpoints." },
+    { "name": "internal", "description": "Service-to-service endpoints (spec 008/009/010/011 callers)." },
+    { "name": "admin", "description": "Admin write surface; requires AdminJwt + catalog.* permission." }
+  ],
+  "paths": {
+    "/v1/customer/catalog/categories": {
+      "get": {
+        "tags": ["customer"],
+        "summary": "Active category tree for a market.",
+        "parameters": [{ "name": "market", "in": "query", "schema": { "type": "string" } }],
+        "responses": { "200": { "description": "ListCategoriesResponse" } }
+      }
+    },
+    "/v1/customer/catalog/categories/{slug}/products": {
+      "get": {
+        "tags": ["customer"],
+        "summary": "Paged published products in a category with facet counts.",
+        "parameters": [
+          { "name": "slug", "in": "path", "required": true, "schema": { "type": "string" } },
+          { "name": "market", "in": "query", "schema": { "type": "string" } },
+          { "name": "page", "in": "query", "schema": { "type": "integer" } },
+          { "name": "pageSize", "in": "query", "schema": { "type": "integer" } },
+          { "name": "sort", "in": "query", "schema": { "type": "string", "enum": ["relevance", "price-asc", "price-desc", "newest"] } },
+          { "name": "brand", "in": "query", "schema": { "type": "string" } },
+          { "name": "priceMin", "in": "query", "schema": { "type": "integer" } },
+          { "name": "priceMax", "in": "query", "schema": { "type": "integer" } },
+          { "name": "restricted", "in": "query", "schema": { "type": "string", "enum": ["any", "only-unrestricted"] } }
+        ],
+        "responses": { "200": { "description": "GetCategoryProductsResponse" }, "404": { "description": "catalog.category.not_found" } }
+      }
+    },
+    "/v1/customer/catalog/products/{slug}": {
+      "get": {
+        "tags": ["customer"],
+        "summary": "Product detail DTO (locale-aware with x-locale-fallback header).",
+        "parameters": [
+          { "name": "slug", "in": "path", "required": true, "schema": { "type": "string" } },
+          { "name": "market", "in": "query", "schema": { "type": "string" } }
+        ],
+        "responses": { "200": { "description": "GetProductBySlugResponse" }, "404": { "description": "catalog.product.not_found" } }
+      }
+    },
+    "/v1/customer/catalog/brands": {
+      "get": {
+        "tags": ["customer"],
+        "summary": "Active brands with product counts for a market.",
+        "parameters": [{ "name": "market", "in": "query", "schema": { "type": "string" } }],
+        "responses": { "200": { "description": "ListBrandsResponse" } }
+      }
+    },
+    "/v1/internal/catalog/restrictions/check": {
+      "post": {
+        "tags": ["internal"],
+        "summary": "Restriction decision for a productId+market+verificationState.",
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/CheckRestrictionRequest" } } } },
+        "responses": {
+          "200": { "description": "CheckRestrictionResponse", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/CheckRestrictionResponse" } } } },
+          "400": { "description": "catalog.restrictions.invalid_request" }
+        }
+      }
+    },
+    "/v1/admin/catalog/categories": {
+      "post": { "tags": ["admin"], "summary": "Create category. Permission: catalog.category.write.", "security": [{ "AdminJwt": [] }], "responses": { "201": { "description": "Created" }, "400": { "description": "catalog.category.invalid_request" }, "409": { "description": "catalog.category.slug_conflict" } } }
+    },
+    "/v1/admin/catalog/categories/{id}": {
+      "patch": { "tags": ["admin"], "summary": "Update category. Permission: catalog.category.write.", "security": [{ "AdminJwt": [] }], "responses": { "204": { "description": "No Content" }, "404": { "description": "catalog.category.not_found" } } },
+      "delete": { "tags": ["admin"], "summary": "Soft-delete category. Permission: catalog.category.write.", "security": [{ "AdminJwt": [] }], "responses": { "204": { "description": "No Content" }, "409": { "description": "catalog.category.has_children|in_use" } } }
+    },
+    "/v1/admin/catalog/categories/{id}/reparent": {
+      "post": { "tags": ["admin"], "summary": "Reparent category (rejects cycles). Permission: catalog.category.write.", "security": [{ "AdminJwt": [] }], "responses": { "204": { "description": "No Content" }, "409": { "description": "catalog.category.cycle_detected" } } }
+    },
+    "/v1/admin/catalog/brands": {
+      "post": { "tags": ["admin"], "summary": "Create brand. Permission: catalog.brand.write.", "security": [{ "AdminJwt": [] }], "responses": { "201": { "description": "Created" } } }
+    },
+    "/v1/admin/catalog/brands/{id}": {
+      "patch": { "tags": ["admin"], "summary": "Update brand. Permission: catalog.brand.write.", "security": [{ "AdminJwt": [] }], "responses": { "204": { "description": "No Content" } } }
+    },
+    "/v1/admin/catalog/manufacturers": {
+      "post": { "tags": ["admin"], "summary": "Create manufacturer. Permission: catalog.manufacturer.write.", "security": [{ "AdminJwt": [] }], "responses": { "201": { "description": "Created" } } }
+    },
+    "/v1/admin/catalog/manufacturers/{id}": {
+      "patch": { "tags": ["admin"], "summary": "Update manufacturer. Permission: catalog.manufacturer.write.", "security": [{ "AdminJwt": [] }], "responses": { "204": { "description": "No Content" } } }
+    },
+    "/v1/admin/catalog/products": {
+      "get": { "tags": ["admin"], "summary": "List products (admin DTO). Permission: catalog.product.write.", "security": [{ "AdminJwt": [] }], "responses": { "200": { "description": "AdminProductListResponse" } } },
+      "post": { "tags": ["admin"], "summary": "Create product (draft). Permission: catalog.product.write.", "security": [{ "AdminJwt": [] }], "responses": { "201": { "description": "Created" }, "400": { "description": "catalog.product.invalid_request | catalog.brand.unknown | catalog.attributes.schema_violation" }, "409": { "description": "catalog.product.sku_conflict" } } }
+    },
+    "/v1/admin/catalog/products/{id}": {
+      "get": { "tags": ["admin"], "summary": "Product detail (admin DTO).", "security": [{ "AdminJwt": [] }], "responses": { "200": { "description": "AdminProductDetailResponse" } } },
+      "patch": { "tags": ["admin"], "summary": "Update product (draft/in_review only). Permission: catalog.product.write.", "security": [{ "AdminJwt": [] }], "responses": { "204": { "description": "No Content" }, "409": { "description": "catalog.product.invalid_transition | catalog.slug.immutable" } } }
+    },
+    "/v1/admin/catalog/products/{id}/submit-for-review": { "post": { "tags": ["admin"], "summary": "Submit draft for review. Permission: catalog.product.submit.", "security": [{ "AdminJwt": [] }], "responses": { "204": { "description": "No Content" } } } },
+    "/v1/admin/catalog/products/{id}/publish": { "post": { "tags": ["admin"], "summary": "Publish immediately or schedule. Permission: catalog.product.publish.", "security": [{ "AdminJwt": [] }], "responses": { "204": { "description": "No Content" }, "400": { "description": "catalog.schedule.past_time | catalog.publish.{media_required|locale_required|market_unconfigured}" } } } },
+    "/v1/admin/catalog/products/{id}/cancel-schedule": { "post": { "tags": ["admin"], "summary": "Cancel a scheduled publish. Permission: catalog.product.publish.", "security": [{ "AdminJwt": [] }], "responses": { "204": { "description": "No Content" } } } },
+    "/v1/admin/catalog/products/{id}/archive": { "post": { "tags": ["admin"], "summary": "Archive a published product. Permission: catalog.product.archive.", "security": [{ "AdminJwt": [] }], "responses": { "204": { "description": "No Content" } } } },
+    "/v1/admin/catalog/products/{id}/media": { "post": { "tags": ["admin"], "summary": "Upload a media file. Permission: catalog.media.write.", "security": [{ "AdminJwt": [] }], "responses": { "202": { "description": "Accepted; variantStatus=pending" } } } },
+    "/v1/admin/catalog/products/{id}/media/{mediaId}": {
+      "patch": { "tags": ["admin"], "summary": "Update alt text / display order / primary flag. Permission: catalog.media.write.", "security": [{ "AdminJwt": [] }], "responses": { "204": { "description": "No Content" } } },
+      "delete": { "tags": ["admin"], "summary": "Remove media. Permission: catalog.media.write.", "security": [{ "AdminJwt": [] }], "responses": { "204": { "description": "No Content" } } }
+    },
+    "/v1/admin/catalog/products/{id}/documents": { "post": { "tags": ["admin"], "summary": "Upload product document. Permission: catalog.document.write.", "security": [{ "AdminJwt": [] }], "responses": { "201": { "description": "Created" }, "400": { "description": "catalog.document.invalid_type | catalog.document.invalid_locale" } } } },
+    "/v1/admin/catalog/products/bulk-import": { "post": { "tags": ["admin"], "summary": "NDJSON bulk product import (X-Idempotency-Key supported). Permission: catalog.bulk_import.", "security": [{ "AdminJwt": [] }], "responses": { "200": { "description": "NDJSON per-row results" }, "415": { "description": "catalog.bulk.unsupported_media_type" } } } }
+  },
+  "components": {
+    "securitySchemes": {
+      "AdminJwt": { "type": "http", "scheme": "bearer", "bearerFormat": "JWT" }
+    },
+    "schemas": {
+      "CheckRestrictionRequest": {
+        "type": "object",
+        "required": ["productId", "marketCode", "verificationState"],
+        "properties": {
+          "productId": { "type": "string", "format": "uuid" },
+          "marketCode": { "type": "string" },
+          "verificationState": { "type": "string", "enum": ["unverified", "pending", "verified", "rejected", "expired"] }
+        }
+      },
+      "CheckRestrictionResponse": {
+        "type": "object",
+        "properties": {
+          "allowed": { "type": "boolean" },
+          "reasonCode": { "type": "string" }
+        }
+      }
+    }
+  },
+  "x-outbox-events": [
+    "catalog.product.published",
+    "catalog.product.archived",
+    "catalog.product.field_updated",
+    "catalog.product.restriction_changed",
+    "catalog.media.variant_failed"
+  ],
+  "x-reason-codes": [
+    "catalog.product.not_found",
+    "catalog.product.invalid_transition",
+    "catalog.product.invalid_request",
+    "catalog.product.sku_conflict",
+    "catalog.publish.media_required",
+    "catalog.publish.locale_required",
+    "catalog.publish.market_unconfigured",
+    "catalog.restricted.verification_required",
+    "catalog.restricted.professional_verification",
+    "catalog.brand.unknown",
+    "catalog.brand.invalid_request",
+    "catalog.brand.slug_conflict",
+    "catalog.brand.not_found",
+    "catalog.manufacturer.invalid_request",
+    "catalog.manufacturer.slug_conflict",
+    "catalog.manufacturer.not_found",
+    "catalog.manufacturer.unknown",
+    "catalog.category.invalid_request",
+    "catalog.category.slug_conflict",
+    "catalog.category.cycle_detected",
+    "catalog.category.has_children",
+    "catalog.category.in_use",
+    "catalog.category.not_found",
+    "catalog.schedule.past_time",
+    "catalog.attributes.schema_violation",
+    "catalog.slug.immutable",
+    "catalog.bulk.row_idempotent_duplicate",
+    "catalog.bulk.unsupported_media_type",
+    "catalog.media.empty_upload",
+    "catalog.media.invalid_image",
+    "catalog.media.not_found",
+    "catalog.document.empty_upload",
+    "catalog.document.invalid_type",
+    "catalog.document.invalid_locale",
+    "catalog.restrictions.invalid_request"
+  ]
+}

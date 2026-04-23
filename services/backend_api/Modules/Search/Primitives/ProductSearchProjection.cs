@@ -72,6 +72,9 @@ public sealed record ProductSearchProjection
     [JsonPropertyName("priceHintMinorUnits")]
     public long? PriceHintMinorUnits { get; init; }
 
+    [JsonPropertyName("priceBucket")]
+    public string? PriceBucket { get; init; }
+
     [JsonPropertyName("restricted")]
     public bool Restricted { get; init; }
 
@@ -149,6 +152,7 @@ public static class ProductSearchProjectionMapper
             CategoryBreadcrumb = categoryBreadcrumb,
             Attributes = attributes,
             PriceHintMinorUnits = snapshot.PriceHintMinorUnits,
+            PriceBucket = ToPriceBucket(snapshot.PriceHintMinorUnits),
             Restricted = snapshot.Restricted,
             RestrictionReasonCode = snapshot.RestrictionReasonCode,
             Availability = "in_stock",
@@ -159,4 +163,13 @@ public static class ProductSearchProjectionMapper
             VendorId = snapshot.VendorId,
         };
     }
+
+    public static string? ToPriceBucket(long? minorUnits) => minorUnits switch
+    {
+        null => null,
+        < 10_000 => "0-99",
+        < 50_000 => "100-499",
+        < 200_000 => "500-1999",
+        _ => "2000+",
+    };
 }

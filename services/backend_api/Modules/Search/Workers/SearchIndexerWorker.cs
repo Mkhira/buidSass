@@ -1,13 +1,11 @@
 using BackendApi.Modules.Catalog.Persistence;
 using BackendApi.Modules.Catalog.Primitives.Outbox;
 using BackendApi.Modules.Observability;
-using BackendApi.Modules.Search.Entities;
 using BackendApi.Modules.Search.Persistence;
 using BackendApi.Modules.Search.Primitives;
 using BackendApi.Modules.Search.Primitives.Normalization;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 
 namespace BackendApi.Modules.Search.Workers;
@@ -15,10 +13,8 @@ namespace BackendApi.Modules.Search.Workers;
 public sealed class SearchIndexerWorker(
     IServiceScopeFactory scopeFactory,
     SearchMetrics searchMetrics,
-    ILogger<SearchIndexerWorker> logger) : BackgroundService, ICatalogEventSubscriber
+    ILogger<SearchIndexerWorker> logger) : ICatalogEventSubscriber
 {
-    private static readonly TimeSpan Interval = TimeSpan.FromSeconds(2);
-
     private readonly IServiceScopeFactory _scopeFactory = scopeFactory;
     private readonly SearchMetrics _searchMetrics = searchMetrics;
     private readonly ILogger<SearchIndexerWorker> _logger = logger;
@@ -28,21 +24,6 @@ public sealed class SearchIndexerWorker(
         // Process in-band so catalog outbox dispatch only succeeds after the search side-effect
         // is actually applied. This avoids queue timing races in shared fixture hosts.
         await ProcessEnvelopeAsync(envelope, cancellationToken);
-    }
-
-    protected override async Task ExecuteAsync(CancellationToken stoppingToken)
-    {
-        while (!stoppingToken.IsCancellationRequested)
-        {
-            try
-            {
-                await Task.Delay(Interval, stoppingToken);
-            }
-            catch (OperationCanceledException)
-            {
-                break;
-            }
-        }
     }
 
     private async Task ProcessEnvelopeAsync(CatalogEventEnvelope envelope, CancellationToken cancellationToken)
@@ -75,6 +56,10 @@ public sealed class SearchIndexerWorker(
                 return;
 
             default:
+                _logger.LogDebug(
+                    "search.indexer.unhandled-event eventType={EventType} outboxId={OutboxId}",
+                    envelope.EventType,
+                    envelope.OutboxId);
                 return;
         }
     }
@@ -137,22 +122,23 @@ public sealed class SearchIndexerWorker(
             primaryMedia?.StorageKey is null ? null : $"/v1/customer/catalog/media/{primaryMedia.StorageKey}",
             primaryMedia?.StorageKey is null ? null : $"/v1/customer/catalog/media/{primaryMedia.StorageKey}");
 
-        // Delete first to ensure old market assignments are cleaned up.
-        await DeleteFromAllIndexesAsync(searchEngine, product.Id, cancellationToken);
+        var currentMarkets = product.MarketCodes
+            .Select(m => m.Trim().ToLowerInvariant())
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
-        foreach (var market in product.MarketCodes.Select(m => m.Trim().ToLowerInvariant()).Distinct(StringComparer.OrdinalIgnoreCase))
+        // Upsert to current markets' indexes; delete from any other index the product may live in.
+        foreach (var index in IndexNames.All)
         {
-            if (!IndexNames.TryResolve(market, "ar", out var arIndex)
-                || !IndexNames.TryResolve(market, "en", out var enIndex))
+            if (currentMarkets.Contains(index.MarketCode))
             {
-                continue;
+                var projection = ProductSearchProjectionMapper.FromCatalogProduct(snapshot, index.Locale, index.MarketCode, normalizer);
+                await searchEngine.UpsertAsync(index.Name, [projection], cancellationToken);
             }
-
-            var arProjection = ProductSearchProjectionMapper.FromCatalogProduct(snapshot, "ar", market, normalizer);
-            var enProjection = ProductSearchProjectionMapper.FromCatalogProduct(snapshot, "en", market, normalizer);
-
-            await searchEngine.UpsertAsync(arIndex.Name, [arProjection], cancellationToken);
-            await searchEngine.UpsertAsync(enIndex.Name, [enProjection], cancellationToken);
+            else
+            {
+                await searchEngine.DeleteAsync(index.Name, [product.Id], cancellationToken);
+            }
         }
     }
 

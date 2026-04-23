@@ -1,11 +1,14 @@
 using BackendApi.Modules.Search.Primitives;
+using BackendApi.Modules.Search.Primitives.Normalization;
 using YamlDotNet.Serialization;
 using YamlDotNet.Serialization.NamingConventions;
 
 namespace BackendApi.Modules.Search.Synonyms;
 
-public sealed class SynonymsSeeder
+public sealed class SynonymsSeeder(ArabicNormalizer normalizer)
 {
+    private readonly ArabicNormalizer _normalizer = normalizer;
+
     private static readonly IReadOnlyList<string> SearchableAttributes =
     [
         "name",
@@ -24,6 +27,7 @@ public sealed class SynonymsSeeder
         "sku",
         "barcode",
         "priceHintMinorUnits",
+        "priceBucket",
         "restricted",
         "availability",
     ];
@@ -56,7 +60,7 @@ public sealed class SynonymsSeeder
         }
     }
 
-    private static async Task<Dictionary<string, IReadOnlyDictionary<string, IReadOnlyCollection<string>>>> LoadSynonymsAsync(
+    private async Task<Dictionary<string, IReadOnlyDictionary<string, IReadOnlyCollection<string>>>> LoadSynonymsAsync(
         CancellationToken cancellationToken)
     {
         var result = new Dictionary<string, IReadOnlyDictionary<string, IReadOnlyCollection<string>>>(StringComparer.OrdinalIgnoreCase);
@@ -75,19 +79,26 @@ public sealed class SynonymsSeeder
                 .WithNamingConvention(CamelCaseNamingConvention.Instance)
                 .Build();
 
+            var isArabic = locale == "ar";
             var groups = deserializer.Deserialize<List<List<string>>>(yaml) ?? [];
             var map = new Dictionary<string, IReadOnlyCollection<string>>(StringComparer.OrdinalIgnoreCase);
             foreach (var group in groups.Where(g => g.Count > 1))
             {
-                var normalized = group
+                var terms = group
                     .Where(term => !string.IsNullOrWhiteSpace(term))
-                    .Select(term => term.Trim())
+                    .Select(term => isArabic ? _normalizer.Normalize(term) : term.Trim().ToLowerInvariant())
+                    .Where(term => !string.IsNullOrWhiteSpace(term))
                     .Distinct(StringComparer.OrdinalIgnoreCase)
                     .ToArray();
 
-                foreach (var term in normalized)
+                if (terms.Length < 2)
                 {
-                    map[term] = normalized;
+                    continue;
+                }
+
+                foreach (var term in terms)
+                {
+                    map[term] = terms;
                 }
             }
 
@@ -97,7 +108,7 @@ public sealed class SynonymsSeeder
         return result;
     }
 
-    private static async Task<Dictionary<string, IReadOnlyCollection<string>>> LoadStopwordsAsync(CancellationToken cancellationToken)
+    private async Task<Dictionary<string, IReadOnlyCollection<string>>> LoadStopwordsAsync(CancellationToken cancellationToken)
     {
         var result = new Dictionary<string, IReadOnlyCollection<string>>(StringComparer.OrdinalIgnoreCase);
 
@@ -110,10 +121,13 @@ public sealed class SynonymsSeeder
                 continue;
             }
 
+            var isArabic = locale == "ar";
             var lines = await File.ReadAllLinesAsync(path, cancellationToken);
             result[locale] = lines
                 .Select(line => line.Trim())
                 .Where(line => !string.IsNullOrWhiteSpace(line) && !line.StartsWith('#'))
+                .Select(line => isArabic ? _normalizer.Normalize(line) : line.ToLowerInvariant())
+                .Where(line => !string.IsNullOrWhiteSpace(line))
                 .Distinct(StringComparer.OrdinalIgnoreCase)
                 .ToArray();
         }

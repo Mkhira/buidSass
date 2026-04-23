@@ -1,3 +1,4 @@
+using BackendApi.Modules.AuditLog;
 using BackendApi.Modules.Catalog.Persistence;
 using BackendApi.Modules.Search.Entities;
 using BackendApi.Modules.Search.Persistence;
@@ -5,6 +6,7 @@ using BackendApi.Modules.Search.Primitives;
 using BackendApi.Modules.Search.Primitives.Normalization;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Npgsql;
 
@@ -12,11 +14,14 @@ namespace BackendApi.Modules.Search.Admin.Reindex;
 
 public sealed class SearchReindexService(
     IServiceScopeFactory scopeFactory,
+    IHostApplicationLifetime lifetime,
     ILogger<SearchReindexService> logger)
 {
     private const int BatchSize = 500;
+    private static readonly TimeSpan StaleJobThreshold = TimeSpan.FromMinutes(15);
 
     private readonly IServiceScopeFactory _scopeFactory = scopeFactory;
+    private readonly IHostApplicationLifetime _lifetime = lifetime;
     private readonly ILogger<SearchReindexService> _logger = logger;
 
     public async Task<ReindexStartResult> StartAsync(
@@ -32,6 +37,8 @@ public sealed class SearchReindexService(
 
         await using var scope = _scopeFactory.CreateAsyncScope();
         var db = scope.ServiceProvider.GetRequiredService<SearchDbContext>();
+
+        await ReapStaleJobsAsync(db, index.Name, cancellationToken);
 
         var now = DateTimeOffset.UtcNow;
         var newJob = new ReindexJob
@@ -66,8 +73,45 @@ public sealed class SearchReindexService(
             return ReindexStartResult.Conflict(active.Id);
         }
 
-        _ = Task.Run(() => RunJobAsync(newJob.Id, index), CancellationToken.None);
+        var auditPublisher = scope.ServiceProvider.GetRequiredService<IAuditEventPublisher>();
+        await auditPublisher.PublishAsync(
+            new AuditEvent(
+                ActorId: startedByAccountId,
+                ActorRole: "admin",
+                Action: "search.reindex.started",
+                EntityType: nameof(ReindexJob),
+                EntityId: newJob.Id,
+                BeforeState: null,
+                AfterState: new { index = index.Name, newJob.Id, newJob.StartedAt },
+                Reason: "search.reindex.admin_requested"),
+            cancellationToken);
+
+        _ = Task.Run(() => RunJobAsync(newJob.Id, index, _lifetime.ApplicationStopping), CancellationToken.None);
         return ReindexStartResult.Started(newJob.Id);
+    }
+
+    private async Task ReapStaleJobsAsync(SearchDbContext db, string indexName, CancellationToken cancellationToken)
+    {
+        var cutoff = DateTimeOffset.UtcNow - StaleJobThreshold;
+        var stale = await db.ReindexJobs
+            .Where(x => x.IndexName == indexName
+                && (x.Status == "pending" || x.Status == "running")
+                && x.StartedAt < cutoff)
+            .ToListAsync(cancellationToken);
+
+        if (stale.Count == 0)
+        {
+            return;
+        }
+
+        foreach (var job in stale)
+        {
+            job.Status = "failed";
+            job.CompletedAt = DateTimeOffset.UtcNow;
+            job.Error = "reaped: no progress within stale threshold (host likely restarted mid-reindex)";
+        }
+
+        await db.SaveChangesAsync(cancellationToken);
     }
 
     public async Task<ReindexJob?> GetJobAsync(Guid jobId, CancellationToken cancellationToken)
@@ -77,7 +121,7 @@ public sealed class SearchReindexService(
         return await db.ReindexJobs.AsNoTracking().SingleOrDefaultAsync(x => x.Id == jobId, cancellationToken);
     }
 
-    private async Task RunJobAsync(Guid jobId, SearchIndexConfig index)
+    private async Task RunJobAsync(Guid jobId, SearchIndexConfig index, CancellationToken cancellationToken)
     {
         try
         {
@@ -87,29 +131,31 @@ public sealed class SearchReindexService(
             var searchEngine = scope.ServiceProvider.GetRequiredService<ISearchEngine>();
             var normalizer = scope.ServiceProvider.GetRequiredService<ArabicNormalizer>();
 
-            var job = await searchDb.ReindexJobs.SingleAsync(x => x.Id == jobId);
+            var job = await searchDb.ReindexJobs.SingleAsync(x => x.Id == jobId, cancellationToken);
             job.Status = "running";
-            await searchDb.SaveChangesAsync();
+            await searchDb.SaveChangesAsync(cancellationToken);
 
-            await searchEngine.EnsureIndexAsync(index, CancellationToken.None);
-            await searchEngine.ClearIndexAsync(index.Name, CancellationToken.None);
+            await searchEngine.EnsureIndexAsync(index, cancellationToken);
+            await searchEngine.ClearIndexAsync(index.Name, cancellationToken);
 
             var baseQuery = catalogDb.Products
                 .AsNoTracking()
                 .Where(p => p.Status == "published" && p.MarketCodes.Contains(index.MarketCode));
 
-            var docsExpected = await baseQuery.CountAsync();
+            var docsExpected = await baseQuery.CountAsync(cancellationToken);
             job.DocsExpected = docsExpected;
             job.DocsWritten = 0;
-            await searchDb.SaveChangesAsync();
+            await searchDb.SaveChangesAsync(cancellationToken);
 
             for (var skip = 0; ; skip += BatchSize)
             {
+                cancellationToken.ThrowIfCancellationRequested();
+
                 var products = await baseQuery
                     .OrderBy(x => x.Id)
                     .Skip(skip)
                     .Take(BatchSize)
-                    .ToListAsync();
+                    .ToListAsync(cancellationToken);
 
                 if (products.Count == 0)
                 {
@@ -120,7 +166,7 @@ public sealed class SearchReindexService(
                 var brands = await catalogDb.Brands
                     .AsNoTracking()
                     .Where(b => brandIds.Contains(b.Id))
-                    .ToDictionaryAsync(b => b.Id);
+                    .ToDictionaryAsync(b => b.Id, cancellationToken);
 
                 var productIds = products.Select(x => x.Id).ToArray();
                 var categories = await (
@@ -128,12 +174,12 @@ public sealed class SearchReindexService(
                         join c in catalogDb.Categories.AsNoTracking() on pc.CategoryId equals c.Id
                         where productIds.Contains(pc.ProductId)
                         select new { pc.ProductId, CategoryId = c.Id, c.NameAr, c.NameEn })
-                    .ToListAsync();
+                    .ToListAsync(cancellationToken);
 
                 var media = await catalogDb.ProductMedia
                     .AsNoTracking()
                     .Where(m => productIds.Contains(m.ProductId) && m.IsPrimary)
-                    .ToListAsync();
+                    .ToListAsync(cancellationToken);
 
                 var projections = new List<ProductSearchProjection>(products.Count);
                 foreach (var product in products)
@@ -173,23 +219,28 @@ public sealed class SearchReindexService(
                     projections.Add(ProductSearchProjectionMapper.FromCatalogProduct(snapshot, index.Locale, index.MarketCode, normalizer));
                 }
 
-                await searchEngine.UpsertAsync(index.Name, projections, CancellationToken.None);
+                await searchEngine.UpsertAsync(index.Name, projections, cancellationToken);
                 job.DocsWritten += projections.Count;
-                await searchDb.SaveChangesAsync();
+                await searchDb.SaveChangesAsync(cancellationToken);
             }
 
             job.Status = "completed";
             job.CompletedAt = DateTimeOffset.UtcNow;
-            await searchDb.SaveChangesAsync();
+            await searchDb.SaveChangesAsync(cancellationToken);
+        }
+        catch (OperationCanceledException)
+        {
+            _logger.LogInformation("search.reindex.job-canceled jobId={JobId}", jobId);
+            await MarkFailedAsync(jobId, "canceled: host shutdown");
         }
         catch (Exception ex)
         {
             _logger.LogWarning(ex, "search.reindex.job-failed jobId={JobId}", jobId);
-            await MarkFailedAsync(jobId, ex);
+            await MarkFailedAsync(jobId, ex.Message);
         }
     }
 
-    private async Task MarkFailedAsync(Guid jobId, Exception ex)
+    private async Task MarkFailedAsync(Guid jobId, string errorMessage)
     {
         try
         {
@@ -203,7 +254,7 @@ public sealed class SearchReindexService(
 
             job.Status = "failed";
             job.CompletedAt = DateTimeOffset.UtcNow;
-            job.Error = ex.Message;
+            job.Error = errorMessage;
             await db.SaveChangesAsync();
         }
         catch (Exception updateEx)

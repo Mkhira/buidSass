@@ -34,7 +34,7 @@ public static class Endpoint
 
             return Results.Ok(result.Response);
         }
-        catch
+        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or TimeoutException)
         {
             return CustomerSearchResponseFactory.Problem(
                 context,

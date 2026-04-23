@@ -27,8 +27,8 @@ public sealed class ArabicNormalizer
             var mapped = ch switch
             {
                 'آ' or 'إ' or 'أ' or 'ٱ' or 'ا' => 'ا',
-                'ي' or 'ى' or 'ئ' => 'ى',
-                'ه' or 'ة' => 'ة',
+                'ي' or 'ى' or 'ئ' => 'ي',
+                'ه' or 'ة' => 'ه',
                 >= '\u0660' and <= '\u0669' => (char)('0' + (ch - '\u0660')),
                 _ => ch,
             };

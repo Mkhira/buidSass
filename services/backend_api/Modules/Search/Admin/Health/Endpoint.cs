@@ -28,7 +28,7 @@ public static class Endpoint
             var response = await HealthHandler.HandleAsync(searchEngine, searchDbContext, cancellationToken);
             return Results.Ok(response);
         }
-        catch
+        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or TimeoutException)
         {
             return AdminSearchResponseFactory.Problem(
                 context,

@@ -40,6 +40,7 @@ public static class HealthHandler
         return new SearchHealthResponse(
             indexes,
             isHealthy ? "available" : "unavailable",
-            averagePing);
+            averagePing,
+            SearchBootstrapHostedService.LastBootstrapSucceeded);
     }
 }

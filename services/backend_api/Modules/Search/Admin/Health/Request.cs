@@ -5,7 +5,8 @@ public sealed record HealthRequest();
 public sealed record SearchHealthResponse(
     IReadOnlyList<SearchIndexHealthItem> Indexes,
     string EngineStatus,
-    int EnginePingMs);
+    int EnginePingMs,
+    bool BootstrapSucceeded);
 
 public sealed record SearchIndexHealthItem(
     string Name,

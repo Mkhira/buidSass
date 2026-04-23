@@ -52,7 +52,6 @@ public static class SearchModule
         services.AddSingleton<SearchIndexerWorker>();
         services.AddScoped<ICatalogEventSubscriber>(sp => sp.GetRequiredService<SearchIndexerWorker>());
         services.AddHostedService<SearchBootstrapHostedService>();
-        services.AddHostedService(sp => sp.GetRequiredService<SearchIndexerWorker>());
 
         return services;
     }

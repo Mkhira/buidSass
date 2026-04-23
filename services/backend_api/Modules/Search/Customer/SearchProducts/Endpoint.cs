@@ -1,6 +1,7 @@
 using BackendApi.Modules.Catalog.Persistence;
 using BackendApi.Modules.Search.Customer.Common;
 using BackendApi.Modules.Search.Primitives;
+using BackendApi.Modules.Search.Primitives.Normalization;
 using Microsoft.AspNetCore.Routing;
 
 namespace BackendApi.Modules.Search.Customer.SearchProducts;
@@ -18,12 +19,13 @@ public static class Endpoint
         HttpContext context,
         ISearchEngine searchEngine,
         CatalogDbContext catalogDbContext,
+        ArabicNormalizer normalizer,
         QueryLogger queryLogger,
         CancellationToken cancellationToken)
     {
         try
         {
-            var result = await SearchProductsHandler.HandleAsync(request, searchEngine, catalogDbContext, queryLogger, cancellationToken);
+            var result = await SearchProductsHandler.HandleAsync(request, searchEngine, catalogDbContext, normalizer, queryLogger, cancellationToken);
             if (!result.IsSuccess)
             {
                 return CustomerSearchResponseFactory.Problem(
@@ -36,7 +38,7 @@ public static class Endpoint
 
             return Results.Ok(result.Response);
         }
-        catch (Exception)
+        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or TimeoutException)
         {
             return CustomerSearchResponseFactory.Problem(
                 context,

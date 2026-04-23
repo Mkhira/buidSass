@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using BackendApi.Modules.Catalog.Persistence;
 using BackendApi.Modules.Search.Primitives;
+using BackendApi.Modules.Search.Primitives.Normalization;
 using Microsoft.EntityFrameworkCore;
 
 namespace BackendApi.Modules.Search.Customer.SearchProducts;
@@ -11,6 +12,7 @@ public static class SearchProductsHandler
         SearchProductsRequest request,
         ISearchEngine searchEngine,
         CatalogDbContext catalogDbContext,
+        ArabicNormalizer normalizer,
         QueryLogger queryLogger,
         CancellationToken cancellationToken)
     {
@@ -26,14 +28,17 @@ public static class SearchProductsHandler
                 "The requested market and locale index is not configured.");
         }
 
-        var query = request.Query?.Trim() ?? string.Empty;
+        var rawQuery = request.Query?.Trim() ?? string.Empty;
+        var query = string.Equals(locale, "ar", StringComparison.OrdinalIgnoreCase)
+            ? normalizer.Normalize(rawQuery)
+            : rawQuery;
         var page = request.Page is null or < 1 ? 1 : request.Page.Value;
         var pageSize = request.PageSize is null or < 1 or > 100 ? 24 : request.PageSize.Value;
 
         if (string.IsNullOrWhiteSpace(query))
         {
             var fallback = await GetFeaturedFallbackAsync(catalogDbContext, marketCode, locale, page, pageSize, cancellationToken);
-            queryLogger.Log(query, marketCode, locale, fallback.Hits.Count, fallback.QueryDurationMs, HasFilters(request.Filters));
+            queryLogger.Log(rawQuery, marketCode, locale, fallback.Hits.Count, fallback.QueryDurationMs, HasFilters(request.Filters));
             return SearchProductsHandlerResult.Success(fallback, localeFallbackApplied: false);
         }
 
@@ -58,7 +63,7 @@ public static class SearchProductsHandler
                 pageSize,
                 filters,
                 sort,
-                ["brandId", "categoryIds", "restricted", "availability"]),
+                ["brandId", "categoryIds", "priceBucket", "restricted", "availability"]),
             cancellationToken);
 
         stopwatch.Stop();
@@ -82,10 +87,10 @@ public static class SearchProductsHandler
                 hit.Locale))
             .ToArray();
 
-        var facets = BuildFacets(searchResponse.Facets, searchResponse.Hits);
+        var facets = BuildFacets(searchResponse.Facets);
         var queryDuration = (int)stopwatch.ElapsedMilliseconds;
 
-        queryLogger.Log(query, marketCode, locale, hits.Length, queryDuration, filters.Count > 0);
+        queryLogger.Log(rawQuery, marketCode, locale, hits.Length, queryDuration, filters.Count > 0);
 
         return SearchProductsHandlerResult.Success(
             new SearchProductsResponse(
@@ -275,8 +280,7 @@ public static class SearchProductsHandler
     }
 
     private static SearchFacets BuildFacets(
-        IReadOnlyDictionary<string, IReadOnlyDictionary<string, int>> engineFacets,
-        IReadOnlyList<ProductSearchProjection> hits)
+        IReadOnlyDictionary<string, IReadOnlyDictionary<string, int>> engineFacets)
     {
         var brand = engineFacets.TryGetValue("brandId", out var brandFacet)
             ? brandFacet
@@ -290,24 +294,11 @@ public static class SearchProductsHandler
         var availability = engineFacets.TryGetValue("availability", out var availabilityFacet)
             ? availabilityFacet
             : new Dictionary<string, int>();
-
-        var priceBucket = hits
-            .Where(h => h.PriceHintMinorUnits.HasValue)
-            .GroupBy(h => ToPriceBucket(h.PriceHintMinorUnits!.Value))
-            .ToDictionary(g => g.Key, g => g.Count(), StringComparer.OrdinalIgnoreCase);
+        var priceBucket = engineFacets.TryGetValue("priceBucket", out var priceBucketFacet)
+            ? priceBucketFacet
+            : new Dictionary<string, int>();
 
         return new SearchFacets(brand, category, priceBucket, restricted, availability);
-    }
-
-    private static string ToPriceBucket(long minorUnits)
-    {
-        return minorUnits switch
-        {
-            < 10_000 => "0-99",
-            < 50_000 => "100-499",
-            < 200_000 => "500-1999",
-            _ => "2000+",
-        };
     }
 
     private static string EscapeFilter(string value)

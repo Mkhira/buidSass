@@ -4,6 +4,7 @@ using BackendApi.Modules.Catalog;
 using BackendApi.Modules.Identity;
 using BackendApi.Modules.Identity.Seeding;
 using BackendApi.Modules.Observability;
+using BackendApi.Modules.Pricing;
 using BackendApi.Modules.Search;
 using BackendApi.Modules.Shared;
 using Microsoft.EntityFrameworkCore;
@@ -52,6 +53,7 @@ builder.Services.AddObservabilityModule();
 builder.Services.AddIdentityModule(builder.Configuration, builder.Environment);
 builder.Services.AddCatalogModule(builder.Configuration, builder.Environment);
 builder.Services.AddSearchModule(builder.Configuration, builder.Environment);
+builder.Services.AddPricingModule(builder.Configuration, builder.Environment);
 builder.Services.AddSeeding(builder.Configuration);
 
 var app = builder.Build();
@@ -70,6 +72,7 @@ app.UseMiddleware<CorrelationIdMiddleware>();
 app.UseIdentityModuleEndpoints();
 app.UseCatalogModuleEndpoints();
 app.UseSearchModuleEndpoints();
+app.UsePricingModuleEndpoints();
 
 if (app.Environment.IsDevelopment())
 {

@@ -23,6 +23,8 @@ public sealed class IdentityReferenceDataSeeder : ISeeder
             new Role { Id = Guid.NewGuid(), Code = "platform.support", NameAr = "فريق الدعم", NameEn = "Platform Support", Scope = "platform", System = true },
             new Role { Id = Guid.NewGuid(), Code = "catalog.editor", NameAr = "محرر الكتالوج", NameEn = "Catalog Editor", Scope = "platform", System = true },
             new Role { Id = Guid.NewGuid(), Code = "catalog.publisher", NameAr = "ناشر الكتالوج", NameEn = "Catalog Publisher", Scope = "platform", System = true },
+            new Role { Id = Guid.NewGuid(), Code = "pricing.editor", NameAr = "محرر التسعير", NameEn = "Pricing Editor", Scope = "platform", System = true },
+            new Role { Id = Guid.NewGuid(), Code = "pricing.admin", NameAr = "مشرف التسعير", NameEn = "Pricing Admin", Scope = "platform", System = true },
             new Role { Id = Guid.NewGuid(), Code = "customer.standard", NameAr = "عميل", NameEn = "Customer", Scope = "market", System = true },
             new Role { Id = Guid.NewGuid(), Code = "customer.company_owner", NameAr = "مالك الشركة", NameEn = "Company Owner", Scope = "market", System = true },
         };
@@ -54,6 +56,17 @@ public sealed class IdentityReferenceDataSeeder : ISeeder
             "search.reindex",
             "search.index.manage",
             "search.read",
+            // Pricing (spec 007-a)
+            "pricing.tax.read",
+            "pricing.tax.write",
+            "pricing.promotion.read",
+            "pricing.promotion.write",
+            "pricing.coupon.read",
+            "pricing.coupon.write",
+            "pricing.tier.read",
+            "pricing.tier.write",
+            "pricing.explanation.read",
+            "pricing.internal.calculate",
         }.Select(code => new Permission
         {
             Id = Guid.NewGuid(),
@@ -124,6 +137,29 @@ public sealed class IdentityReferenceDataSeeder : ISeeder
             [
                 "catalog.product.publish",
                 "catalog.product.archive",
+            ],
+            ["pricing.editor"] =
+            [
+                "pricing.promotion.read",
+                "pricing.promotion.write",
+                "pricing.coupon.read",
+                "pricing.coupon.write",
+                "pricing.tier.read",
+                "pricing.tier.write",
+                "pricing.explanation.read",
+            ],
+            ["pricing.admin"] =
+            [
+                "pricing.tax.read",
+                "pricing.tax.write",
+                "pricing.promotion.read",
+                "pricing.promotion.write",
+                "pricing.coupon.read",
+                "pricing.coupon.write",
+                "pricing.tier.read",
+                "pricing.tier.write",
+                "pricing.explanation.read",
+                "pricing.internal.calculate",
             ],
         };
 

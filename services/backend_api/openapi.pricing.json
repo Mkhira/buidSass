@@ -1,0 +1,241 @@
+{
+  "openapi": "3.0.1",
+  "info": {
+    "title": "Dental Commerce — Pricing & Tax Engine v1",
+    "description": "Spec 007-a. Layered pricing pipeline (list → B2B tier → promotion → coupon → VAT) with immutable explanation audit.",
+    "version": "1.0.0"
+  },
+  "servers": [
+    { "url": "https://api.dental-commerce/v1" }
+  ],
+  "paths": {
+    "/customer/pricing/price-cart": {
+      "post": {
+        "tags": ["customer-pricing"],
+        "summary": "Preview-mode pricing for an anonymous or authenticated cart.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/PriceCartRequest" }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Priced cart.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/PriceCartResponse" } } } },
+          "400": { "$ref": "#/components/responses/PricingProblem" },
+          "404": { "$ref": "#/components/responses/PricingProblem" },
+          "500": { "$ref": "#/components/responses/PricingProblem" }
+        }
+      }
+    },
+    "/internal/pricing/calculate": {
+      "post": {
+        "tags": ["internal-pricing"],
+        "summary": "Preview or issue-mode pricing. Requires admin JWT + pricing.internal.calculate permission.",
+        "security": [{ "AdminJwt": [] }],
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/CalculateRequest" } } }
+        },
+        "responses": {
+          "200": { "description": "Priced cart; when mode=issue returns explanationId.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/CalculateResponse" } } } },
+          "400": { "$ref": "#/components/responses/PricingProblem" },
+          "401": { "$ref": "#/components/responses/PricingProblem" },
+          "403": { "$ref": "#/components/responses/PricingProblem" },
+          "404": { "$ref": "#/components/responses/PricingProblem" },
+          "409": { "$ref": "#/components/responses/PricingProblem" }
+        }
+      }
+    },
+    "/admin/pricing/tax-rates": {
+      "get": { "tags": ["admin-pricing"], "security": [{ "AdminJwt": [] }], "responses": { "200": { "description": "List tax rates." } } },
+      "post": { "tags": ["admin-pricing"], "security": [{ "AdminJwt": [] }], "responses": { "201": { "description": "Tax rate created." } } }
+    },
+    "/admin/pricing/tax-rates/{id}": {
+      "patch": { "tags": ["admin-pricing"], "security": [{ "AdminJwt": [] }], "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }], "responses": { "200": { "description": "Tax rate patched." } } }
+    },
+    "/admin/pricing/promotions": {
+      "get": { "tags": ["admin-pricing"], "security": [{ "AdminJwt": [] }], "responses": { "200": { "description": "List promotions." } } },
+      "post": { "tags": ["admin-pricing"], "security": [{ "AdminJwt": [] }], "responses": { "201": { "description": "Promotion created." } } }
+    },
+    "/admin/pricing/promotions/{id}": {
+      "put": { "tags": ["admin-pricing"], "security": [{ "AdminJwt": [] }], "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }], "responses": { "200": { "description": "Promotion updated." } } },
+      "delete": { "tags": ["admin-pricing"], "security": [{ "AdminJwt": [] }], "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }], "responses": { "204": { "description": "Deactivated." } } }
+    },
+    "/admin/pricing/promotions/{id}/activate": { "post": { "tags": ["admin-pricing"], "security": [{ "AdminJwt": [] }], "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }], "responses": { "204": { "description": "Activated." } } } },
+    "/admin/pricing/promotions/{id}/deactivate": { "post": { "tags": ["admin-pricing"], "security": [{ "AdminJwt": [] }], "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }], "responses": { "204": { "description": "Deactivated." } } } },
+    "/admin/pricing/coupons": {
+      "get": { "tags": ["admin-pricing"], "security": [{ "AdminJwt": [] }], "responses": { "200": { "description": "List coupons." } } },
+      "post": { "tags": ["admin-pricing"], "security": [{ "AdminJwt": [] }], "responses": { "201": { "description": "Coupon created." }, "409": { "description": "Duplicate code." } } }
+    },
+    "/admin/pricing/coupons/{id}": { "put": { "tags": ["admin-pricing"], "security": [{ "AdminJwt": [] }], "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }], "responses": { "200": { "description": "Coupon updated." } } } },
+    "/admin/pricing/coupons/{id}/deactivate": { "post": { "tags": ["admin-pricing"], "security": [{ "AdminJwt": [] }], "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }], "responses": { "204": { "description": "Deactivated." } } } },
+    "/admin/pricing/coupons/{id}/redemptions": { "get": { "tags": ["admin-pricing"], "security": [{ "AdminJwt": [] }], "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }], "responses": { "200": { "description": "Paginated redemptions." } } } },
+    "/admin/pricing/b2b-tiers": {
+      "get": { "tags": ["admin-pricing"], "security": [{ "AdminJwt": [] }], "responses": { "200": { "description": "List B2B tiers." } } },
+      "post": { "tags": ["admin-pricing"], "security": [{ "AdminJwt": [] }], "responses": { "201": { "description": "Tier created." } } }
+    },
+    "/admin/pricing/b2b-tiers/{id}": {
+      "put": { "tags": ["admin-pricing"], "security": [{ "AdminJwt": [] }], "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }], "responses": { "200": { "description": "Tier updated." } } },
+      "delete": { "tags": ["admin-pricing"], "security": [{ "AdminJwt": [] }], "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }], "responses": { "204": { "description": "Tier deactivated." } } }
+    },
+    "/admin/pricing/accounts/{accountId}/tier": { "post": { "tags": ["admin-pricing"], "security": [{ "AdminJwt": [] }], "parameters": [{ "name": "accountId", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }], "responses": { "204": { "description": "Assigned." } } } },
+    "/admin/pricing/products/{productId}/tier-prices": {
+      "post": { "tags": ["admin-pricing"], "security": [{ "AdminJwt": [] }], "parameters": [{ "name": "productId", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }], "responses": { "204": { "description": "Upserted." } } },
+      "delete": { "tags": ["admin-pricing"], "security": [{ "AdminJwt": [] }], "parameters": [{ "name": "productId", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }], "responses": { "204": { "description": "Deleted." } } }
+    },
+    "/admin/pricing/explanations/{ownerKind}/{ownerId}": {
+      "get": {
+        "tags": ["admin-pricing"],
+        "security": [{ "AdminJwt": [] }],
+        "parameters": [
+          { "name": "ownerKind", "in": "path", "required": true, "schema": { "type": "string", "enum": ["quote", "order", "preview"] } },
+          { "name": "ownerId", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }
+        ],
+        "responses": {
+          "200": { "description": "Immutable price explanation." },
+          "404": { "$ref": "#/components/responses/PricingProblem" }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "AdminJwt": { "type": "http", "scheme": "bearer", "bearerFormat": "JWT" }
+    },
+    "responses": {
+      "PricingProblem": {
+        "description": "Problem details (RFC 7807) with `reasonCode` extension.",
+        "content": {
+          "application/problem+json": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "type": { "type": "string" },
+                "title": { "type": "string" },
+                "status": { "type": "integer" },
+                "detail": { "type": "string" },
+                "instance": { "type": "string" },
+                "reasonCode": {
+                  "type": "string",
+                  "enum": [
+                    "pricing.product.not_found",
+                    "pricing.product.no_price",
+                    "pricing.invalid_qty",
+                    "pricing.lines_required",
+                    "pricing.currency_mismatch",
+                    "pricing.tax_rate_missing",
+                    "pricing.coupon.invalid",
+                    "pricing.coupon.expired",
+                    "pricing.coupon.limit_reached",
+                    "pricing.coupon.excludes_restricted",
+                    "pricing.coupon.already_applied",
+                    "pricing.coupon.duplicate_code",
+                    "pricing.tax.invalid_rate",
+                    "pricing.tax.not_found",
+                    "pricing.promotion.not_found",
+                    "pricing.tier.not_found",
+                    "pricing.tier.duplicate_slug",
+                    "pricing.tier_price.invalid",
+                    "pricing.tier_price.not_found",
+                    "pricing.explanation.not_found",
+                    "pricing.explanation.invalid_kind",
+                    "pricing.invalid_mode",
+                    "pricing.floor.clamped_to_zero"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "schemas": {
+      "PriceCartRequest": {
+        "type": "object",
+        "properties": {
+          "marketCode": { "type": "string", "enum": ["ksa", "eg"] },
+          "locale": { "type": "string", "enum": ["ar", "en"] },
+          "lines": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "productId": { "type": "string", "format": "uuid" },
+                "qty": { "type": "integer", "minimum": 1 }
+              },
+              "required": ["productId", "qty"]
+            }
+          },
+          "couponCode": { "type": "string", "nullable": true }
+        },
+        "required": ["lines"]
+      },
+      "PriceCartResponse": {
+        "type": "object",
+        "properties": {
+          "lines": { "type": "array", "items": { "$ref": "#/components/schemas/PriceResultLine" } },
+          "totals": { "$ref": "#/components/schemas/Totals" },
+          "currency": { "type": "string" },
+          "explanationHash": { "type": "string", "description": "base64url(SHA-256 of canonical explanation JSON)" }
+        }
+      },
+      "CalculateRequest": {
+        "type": "object",
+        "properties": {
+          "marketCode": { "type": "string" },
+          "locale": { "type": "string" },
+          "lines": { "type": "array", "items": { "type": "object" } },
+          "couponCode": { "type": "string", "nullable": true },
+          "quotationId": { "type": "string", "format": "uuid", "nullable": true },
+          "orderId": { "type": "string", "format": "uuid", "nullable": true },
+          "accountId": { "type": "string", "format": "uuid", "nullable": true },
+          "mode": { "type": "string", "enum": ["preview", "issue"] }
+        }
+      },
+      "CalculateResponse": {
+        "type": "object",
+        "properties": {
+          "lines": { "type": "array", "items": { "$ref": "#/components/schemas/PriceResultLine" } },
+          "totals": { "$ref": "#/components/schemas/Totals" },
+          "currency": { "type": "string" },
+          "explanationHash": { "type": "string" },
+          "explanationId": { "type": "string", "format": "uuid", "nullable": true }
+        }
+      },
+      "PriceResultLine": {
+        "type": "object",
+        "properties": {
+          "productId": { "type": "string", "format": "uuid" },
+          "qty": { "type": "integer" },
+          "listMinor": { "type": "integer", "format": "int64" },
+          "netMinor": { "type": "integer", "format": "int64" },
+          "taxMinor": { "type": "integer", "format": "int64" },
+          "grossMinor": { "type": "integer", "format": "int64" },
+          "layers": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "layer": { "type": "string", "enum": ["list", "tier", "promotion", "coupon", "tax"] },
+                "ruleId": { "type": "string", "nullable": true },
+                "ruleKind": { "type": "string", "nullable": true },
+                "appliedMinor": { "type": "integer", "format": "int64" }
+              }
+            }
+          }
+        }
+      },
+      "Totals": {
+        "type": "object",
+        "properties": {
+          "subtotalMinor": { "type": "integer", "format": "int64" },
+          "discountMinor": { "type": "integer", "format": "int64" },
+          "taxMinor": { "type": "integer", "format": "int64" },
+          "grandTotalMinor": { "type": "integer", "format": "int64" }
+        }
+      }
+    }
+  }
+}

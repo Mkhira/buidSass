@@ -49,4 +49,16 @@
     <EmbeddedResource Include="Resources\Fonts\Noto_Naskh_Arabic-Regular.ttf" />
     <EmbeddedResource Include="Modules\Identity\Primitives\Resources\hibp-top-100k.txt.gz" />
   </ItemGroup>
+
+  <ItemGroup>
+    <None Update="Modules\Search\Synonyms\*.yaml">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Update="Modules\Search\Synonyms\*.txt">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Update="Modules\Search\Messages\*.icu">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
 </Project>

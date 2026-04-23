@@ -1,0 +1,10 @@
+search.engine_unavailable = خدمة البحث غير متاحة حاليًا. يُرجى إعادة المحاولة بعد قليل.
+search.reindex.in_progress = توجد عملية إعادة فهرسة جارية لهذا الفهرس حاليًا.
+search.invalid_sort = خيار الفرز المطلوب غير مدعوم.
+search.invalid_status = عامل تصفية الحالة المطلوب غير مدعوم.
+search.invalid_locale = اللغة المطلوبة غير صالحة.
+search.invalid_market = السوق المطلوب غير صالح.
+search.market_locale_index_missing = لا يوجد فهرس مطابق للسوق واللغة المطلوبَين.
+search.auth_required = يلزم رمز وصول إداري (JWT) لتنفيذ هذا الإجراء.
+search.no_matches = لا توجد منتجات مطابقة لطلب البحث.
+search.restricted_market = بعض المنتجات مقيّدة في السوق المحدد.

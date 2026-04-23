@@ -1,0 +1,10 @@
+search.engine_unavailable = Search is temporarily unavailable. Please retry shortly.
+search.reindex.in_progress = A reindex job is already running for this index.
+search.invalid_sort = The requested sort key is not supported.
+search.invalid_status = The requested status filter is not supported.
+search.invalid_locale = The requested locale is invalid.
+search.invalid_market = The requested market is invalid.
+search.market_locale_index_missing = The requested market and locale index is not configured.
+search.auth_required = An admin JWT is required for this action.
+search.no_matches = No products matched your query.
+search.restricted_market = Products are restricted for the selected market.

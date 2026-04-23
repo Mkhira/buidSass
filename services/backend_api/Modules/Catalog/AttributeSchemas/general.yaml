@@ -1,0 +1,21 @@
+# Attribute schema for the default platform-owned root category.
+# Validated by NJsonSchema on every product write for that category.
+name: general
+title: General product attributes
+schema:
+  $schema: "https://json-schema.org/draft/2020-12/schema"
+  type: object
+  additionalProperties: true
+  properties:
+    packSize:
+      type: string
+    sterilization:
+      type: string
+      enum:
+        - sterile
+        - non_sterile
+        - n_a
+    shelfLifeMonths:
+      type: integer
+      minimum: 0
+      maximum: 120

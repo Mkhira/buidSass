@@ -1,37 +1,38 @@
-using System.Net;
+using System.Security.Cryptography;
 using BackendApi.Modules.Catalog.Persistence;
 using BackendApi.Modules.Identity.Persistence;
-using BackendApi.Modules.Identity.Primitives;
 using BackendApi.Modules.Shared;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Npgsql;
-using System.Security.Cryptography;
 using Testcontainers.PostgreSql;
 
-namespace Identity.Tests.Infrastructure;
+namespace Catalog.Tests.Infrastructure;
 
-public sealed class IdentityTestFactory : WebApplicationFactory<Program>, IAsyncLifetime
+public sealed class CatalogTestFactory : WebApplicationFactory<Program>, IAsyncLifetime
 {
     private static readonly string CustomerPrivateKeyPem = CreatePrivateKeyPem();
     private static readonly string AdminPrivateKeyPem = CreatePrivateKeyPem();
 
     private readonly PostgreSqlContainer _postgres = new PostgreSqlBuilder()
         .WithImage("postgres:16-alpine")
-        .WithDatabase("identity_test")
+        .WithDatabase("catalog_test")
         .WithUsername("postgres")
         .WithPassword("postgres")
         .WithCleanUp(true)
         .Build();
 
+    public string ConnectionString { get; private set; } = string.Empty;
+
     public async Task InitializeAsync()
     {
         await _postgres.StartAsync();
+        ConnectionString = _postgres.GetConnectionString();
 
         _ = CreateClient(new WebApplicationFactoryClientOptions
         {
@@ -39,7 +40,7 @@ public sealed class IdentityTestFactory : WebApplicationFactory<Program>, IAsync
             AllowAutoRedirect = false,
         });
 
-        await EnsureMigrationsAsync();
+        await MigrateAsync();
     }
 
     public new async Task DisposeAsync()
@@ -50,54 +51,37 @@ public sealed class IdentityTestFactory : WebApplicationFactory<Program>, IAsync
 
     public async Task ResetDatabaseAsync()
     {
-        Services.GetRequiredService<IdentityDispatchCaptureStore>().Clear();
-
-        var connectionString = _postgres.GetConnectionString();
-        await using var connection = new NpgsqlConnection(connectionString);
+        await using var connection = new NpgsqlConnection(ConnectionString);
         await connection.OpenAsync();
-
         await using var command = connection.CreateCommand();
         command.CommandText = """
             TRUNCATE TABLE
-                identity.account_roles,
-                identity.role_permissions,
-                identity.permissions,
-                identity.roles,
-                identity.authorization_audit,
-                identity.rate_limit_events,
-                identity.admin_mfa_replay_guard,
-                identity.admin_mfa_factors,
-                identity.admin_mfa_challenges,
-                identity.admin_partial_auth_tokens,
-                identity.admin_invitations,
-                identity.password_reset_tokens,
-                identity.email_verification_challenges,
-                identity.otp_challenges,
-                identity.revoked_refresh_tokens,
-                identity.refresh_tokens,
-                identity.sessions,
-                identity.lockout_state,
-                identity.accounts
-            RESTART IDENTITY CASCADE;
-
-            TRUNCATE TABLE
-                public.audit_log_entries,
-                public.seed_applied
+                catalog.catalog_outbox,
+                catalog.bulk_import_idempotency,
+                catalog.scheduled_publishes,
+                catalog.product_state_transitions,
+                catalog.product_documents,
+                catalog.product_media,
+                catalog.product_categories,
+                catalog.products,
+                catalog.manufacturers,
+                catalog.brands,
+                catalog.category_attribute_schemas,
+                catalog.category_closure,
+                catalog.categories
             RESTART IDENTITY CASCADE;
             """;
-
         await command.ExecuteNonQueryAsync();
     }
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
         builder.UseEnvironment("Test");
-
         builder.ConfigureAppConfiguration((_, cfg) =>
         {
-            var overrides = new Dictionary<string, string?>
+            cfg.AddInMemoryCollection(new Dictionary<string, string?>
             {
-                ["ConnectionStrings:DefaultConnection"] = _postgres.GetConnectionString(),
+                ["ConnectionStrings:DefaultConnection"] = ConnectionString,
                 ["Identity:Jwt:Customer:Issuer"] = "platform-identity",
                 ["Identity:Jwt:Customer:Audience"] = "customer.api",
                 ["Identity:Jwt:Customer:PrivateKeyPem"] = CustomerPrivateKeyPem,
@@ -107,9 +91,7 @@ public sealed class IdentityTestFactory : WebApplicationFactory<Program>, IAsync
                 ["Identity:Jwt:Admin:PrivateKeyPem"] = AdminPrivateKeyPem,
                 ["Identity:Jwt:Admin:KeyId"] = "test-admin-current",
                 ["Seeding:Enabled"] = "false",
-            };
-
-            cfg.AddInMemoryCollection(overrides);
+            });
         });
 
         builder.ConfigureServices(services =>
@@ -118,37 +100,29 @@ public sealed class IdentityTestFactory : WebApplicationFactory<Program>, IAsync
             services.RemoveAll<DbContextOptions<IdentityDbContext>>();
             services.RemoveAll<DbContextOptions<CatalogDbContext>>();
             services.RemoveAll<NpgsqlDataSource>();
-            services.RemoveAll<IOtpChallengeDispatcher>();
-            services.RemoveAll<IIdentityEmailDispatcher>();
 
-            var connectionString = _postgres.GetConnectionString();
-            services.AddSingleton(_ => new NpgsqlDataSourceBuilder(connectionString).Build());
+            services.AddSingleton(_ => new NpgsqlDataSourceBuilder(ConnectionString).Build());
 
             services.AddDbContext<AppDbContext>(options =>
             {
-                options.UseNpgsql(connectionString);
+                options.UseNpgsql(ConnectionString);
                 options.ConfigureWarnings(w => w.Ignore(CoreEventId.ManyServiceProvidersCreatedWarning));
             });
             services.AddDbContext<IdentityDbContext>((provider, options) =>
             {
                 options.UseNpgsql(provider.GetRequiredService<NpgsqlDataSource>());
                 options.ConfigureWarnings(w => w.Ignore(CoreEventId.ManyServiceProvidersCreatedWarning));
-                options.AddInterceptors(provider.GetRequiredService<IdentitySaveChangesInterceptor>());
             });
-
-            services.AddSingleton<IdentityDispatchCaptureStore>();
-            services.AddScoped<IOtpChallengeDispatcher, TestOtpChallengeDispatcher>();
-            services.AddScoped<IIdentityEmailDispatcher, TestIdentityEmailDispatcher>();
-
             services.AddDbContext<CatalogDbContext>((provider, options) =>
             {
                 options.UseNpgsql(provider.GetRequiredService<NpgsqlDataSource>());
                 options.ConfigureWarnings(w => w.Ignore(CoreEventId.ManyServiceProvidersCreatedWarning));
+                options.AddInterceptors(provider.GetRequiredService<CatalogSaveChangesInterceptor>());
             });
         });
     }
 
-    private async Task EnsureMigrationsAsync()
+    private async Task MigrateAsync()
     {
         await using var scope = Services.CreateAsyncScope();
         var appDb = scope.ServiceProvider.GetRequiredService<AppDbContext>();
@@ -157,8 +131,6 @@ public sealed class IdentityTestFactory : WebApplicationFactory<Program>, IAsync
         var identityDb = scope.ServiceProvider.GetRequiredService<IdentityDbContext>();
         await identityDb.Database.MigrateAsync();
 
-        // Program.cs registers CatalogModule; workers query catalog schema on startup so this must
-        // exist even though no Identity test asserts against it.
         var catalogDb = scope.ServiceProvider.GetRequiredService<CatalogDbContext>();
         await catalogDb.Database.MigrateAsync();
     }

@@ -1,5 +1,6 @@
 using BackendApi.Configuration;
 using BackendApi.Features.Seeding;
+using BackendApi.Modules.Catalog;
 using BackendApi.Modules.Identity;
 using BackendApi.Modules.Identity.Seeding;
 using BackendApi.Modules.Observability;
@@ -48,6 +49,7 @@ builder.Services.AddStorageModule();
 builder.Services.AddPdfModule();
 builder.Services.AddObservabilityModule();
 builder.Services.AddIdentityModule(builder.Configuration, builder.Environment);
+builder.Services.AddCatalogModule(builder.Configuration, builder.Environment);
 builder.Services.AddSeeding(builder.Configuration);
 
 var app = builder.Build();
@@ -64,6 +66,7 @@ if (args.Length > 0 && string.Equals(args[0], SeedAdminCliCommand.Verb, StringCo
 
 app.UseMiddleware<CorrelationIdMiddleware>();
 app.UseIdentityModuleEndpoints();
+app.UseCatalogModuleEndpoints();
 
 if (app.Environment.IsDevelopment())
 {

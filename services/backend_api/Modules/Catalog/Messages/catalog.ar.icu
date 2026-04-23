@@ -1,0 +1,15 @@
+catalog.common.ok = تمت العملية بنجاح.
+catalog.common.denied = لا يُسمح لك بتنفيذ هذا الإجراء.
+catalog.product.not_found = المنتج غير موجود.
+catalog.product.invalid_transition = الانتقال المطلوب لحالة المنتج غير مسموح.
+catalog.publish.media_required = يلزم وجود صورة رئيسية واحدة على الأقل قبل النشر.
+catalog.publish.locale_required = يلزم توفير المحتوى بالعربية والإنجليزية قبل النشر.
+catalog.publish.market_unconfigured = يشير المنتج إلى سوق غير مُعرَّفة ضمن الإعدادات.
+catalog.restricted.verification_required = يتطلب هذا المنتج تحقق الترخيص المهني.
+catalog.brand.unknown = العلامة التجارية المطلوبة غير موجودة.
+catalog.category.cycle_detected = يؤدي إعادة الإسناد المطلوب إلى حلقة مغلقة.
+catalog.category.in_use = التصنيف لا يزال مرتبطًا بمنتجات نشطة.
+catalog.schedule.past_time = يجب أن يكون وقت النشر المجدول في المستقبل.
+catalog.attributes.schema_violation = لا تطابق الخصائص المرسلة مخطط التصنيف.
+catalog.slug.immutable = لا يمكن تغيير المعرف الودّي بعد أول نشر للمنتج.
+catalog.bulk.row_idempotent_duplicate = تم استلام صف بنفس مفتاح الخاصية المثالية مسبقًا.

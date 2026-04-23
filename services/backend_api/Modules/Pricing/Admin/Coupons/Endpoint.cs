@@ -6,6 +6,7 @@ using BackendApi.Modules.Pricing.Persistence;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.EntityFrameworkCore;
+using Npgsql;
 
 namespace BackendApi.Modules.Pricing.Admin.Coupons;
 
@@ -22,7 +23,7 @@ public sealed record CreateCouponRequest(
     DateTimeOffset? ValidTo);
 
 public sealed record UpdateCouponRequest(
-    int? CapMinor,
+    long? CapMinor,
     int? PerCustomerLimit,
     int? OverallLimit,
     bool ExcludesRestricted,
@@ -111,12 +112,20 @@ public static class Endpoint
             UpdatedAt = DateTimeOffset.UtcNow,
         };
         db.Coupons.Add(entity);
-        await db.SaveChangesAsync(ct);
+        try
+        {
+            await db.SaveChangesAsync(ct);
+        }
+        catch (DbUpdateException ex) when (ex.InnerException is PostgresException { SqlState: PostgresErrorCodes.UniqueViolation })
+        {
+            // Concurrent create with the same code lost the race on IX_coupons_Code.
+            return AdminPricingResponseFactory.Problem(context, 409, "pricing.coupon.duplicate_code", "Coupon code exists", "");
+        }
 
         await audit.PublishAsync(new AuditEvent(
             AdminPricingResponseFactory.ResolveActorAccountId(context),
             "admin", "pricing.coupon.created", nameof(Coupon), entity.Id,
-            null, new { entity.Code, entity.Kind, entity.Value, entity.CapMinor, entity.OverallLimit, entity.PerCustomerLimit },
+            null, new { entity.Code, entity.Kind, entity.Value, entity.CapMinor, entity.OverallLimit, entity.PerCustomerLimit, entity.MarketCodes, entity.ExcludesRestricted, entity.ValidFrom, entity.ValidTo },
             "pricing.coupon.create"), ct);
 
         return Results.Created($"/v1/admin/pricing/coupons/{entity.Id:N}",
@@ -131,6 +140,32 @@ public static class Endpoint
         IAuditEventPublisher audit,
         CancellationToken ct)
     {
+        if (request.CapMinor is long cap && cap < 0)
+        {
+            return AdminPricingResponseFactory.Problem(context, 400, "pricing.coupon.invalid", "CapMinor must be >= 0", "");
+        }
+        if (request.PerCustomerLimit is int pcl && pcl < 0)
+        {
+            return AdminPricingResponseFactory.Problem(context, 400, "pricing.coupon.invalid", "PerCustomerLimit must be >= 0", "");
+        }
+        if (request.OverallLimit is int ol && ol < 0)
+        {
+            return AdminPricingResponseFactory.Problem(context, 400, "pricing.coupon.invalid", "OverallLimit must be >= 0", "");
+        }
+        if (request.MarketCodes is null)
+        {
+            return AdminPricingResponseFactory.Problem(context, 400, "pricing.coupon.invalid", "At least one marketCode required", "");
+        }
+        var markets = request.MarketCodes
+            .Where(m => !string.IsNullOrWhiteSpace(m))
+            .Select(m => m.Trim().ToLowerInvariant())
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+        if (markets.Length == 0)
+        {
+            return AdminPricingResponseFactory.Problem(context, 400, "pricing.coupon.invalid", "At least one non-blank marketCode required", "");
+        }
+
         var entity = await db.Coupons.SingleOrDefaultAsync(c => c.Id == id && c.DeletedAt == null, ct);
         if (entity is null)
         {
@@ -141,7 +176,7 @@ public static class Endpoint
         entity.PerCustomerLimit = request.PerCustomerLimit;
         entity.OverallLimit = request.OverallLimit;
         entity.ExcludesRestricted = request.ExcludesRestricted;
-        entity.MarketCodes = request.MarketCodes.Select(m => m.Trim().ToLowerInvariant()).ToArray();
+        entity.MarketCodes = markets;
         entity.ValidFrom = request.ValidFrom;
         entity.ValidTo = request.ValidTo;
         entity.UpdatedAt = DateTimeOffset.UtcNow;

@@ -73,6 +73,7 @@ namespace BackendApi.Modules.Pricing.Persistence.Migrations
                     CouponId = table.Column<Guid>(type: "uuid", nullable: false),
                     AccountId = table.Column<Guid>(type: "uuid", nullable: false),
                     OrderId = table.Column<Guid>(type: "uuid", nullable: true),
+                    MarketCode = table.Column<string>(type: "citext", nullable: false),
                     RedeemedAt = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false)
                 },
                 constraints: table =>
@@ -200,17 +201,20 @@ namespace BackendApi.Modules.Pricing.Persistence.Migrations
                 unique: true);
 
             migrationBuilder.CreateIndex(
-                name: "IX_coupon_redemptions_CouponId_AccountId",
-                schema: "pricing",
-                table: "coupon_redemptions",
-                columns: new[] { "CouponId", "AccountId" });
-
-            migrationBuilder.CreateIndex(
-                name: "IX_coupon_redemptions_CouponId_AccountId_OrderId",
+                name: "IX_coupon_redemptions_coupon_account_order_not_null",
                 schema: "pricing",
                 table: "coupon_redemptions",
                 columns: new[] { "CouponId", "AccountId", "OrderId" },
-                unique: true);
+                unique: true,
+                filter: "\"OrderId\" IS NOT NULL");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_coupon_redemptions_coupon_account_order_null",
+                schema: "pricing",
+                table: "coupon_redemptions",
+                columns: new[] { "CouponId", "AccountId" },
+                unique: true,
+                filter: "\"OrderId\" IS NULL");
 
             migrationBuilder.CreateIndex(
                 name: "IX_coupons_Code",

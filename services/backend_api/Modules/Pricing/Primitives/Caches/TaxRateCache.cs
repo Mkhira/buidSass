@@ -13,18 +13,21 @@ public sealed class TaxRateCache(IServiceScopeFactory scopeFactory, IMemoryCache
 
     private static string KeyFor(string market, string kind) => $"pricing.tax_rate:{market}:{kind}";
 
+    private sealed record CacheEntry(
+        TaxRateSnapshot Snapshot,
+        DateTimeOffset EffectiveFrom,
+        DateTimeOffset? EffectiveTo);
+
     public async Task<TaxRateSnapshot?> GetAsync(string marketCode, string kind, DateTimeOffset effectiveAt, CancellationToken cancellationToken)
     {
         var normalizedMarket = marketCode.Trim().ToLowerInvariant();
         var normalizedKind = kind.Trim().ToLowerInvariant();
         var cacheKey = KeyFor(normalizedMarket, normalizedKind);
 
-        // Cache is only safe for "now-ish" queries. If the caller passes a historical effectiveAt,
-        // skip the cache and resolve against the effective-window directly (spec 013 returns rely on this).
-        var cacheIsSafe = effectiveAt >= DateTimeOffset.UtcNow - TimeSpan.FromMinutes(5);
-        if (cacheIsSafe && cache.TryGetValue<TaxRateSnapshot>(cacheKey, out var cached) && cached is not null)
+        if (cache.TryGetValue<CacheEntry>(cacheKey, out var cached) && cached is not null
+            && IsEffective(cached, effectiveAt))
         {
-            return cached;
+            return cached.Snapshot;
         }
 
         await using var scope = scopeFactory.CreateAsyncScope();
@@ -45,9 +48,14 @@ public sealed class TaxRateCache(IServiceScopeFactory scopeFactory, IMemoryCache
         }
 
         var snapshot = new TaxRateSnapshot(row.Id, row.MarketCode, row.Kind, row.RateBps);
-        if (cacheIsSafe)
+        // Only cache when the effectiveAt is in the recent window AND fits inside the row's validity.
+        // Historical re-pricing (spec 013 returns) + scheduled-rate previews bypass the cache so callers
+        // always get the rate that is actually effective at the requested moment in time.
+        var now = DateTimeOffset.UtcNow;
+        var isRecent = Math.Abs((effectiveAt - now).TotalMinutes) <= 1;
+        if (isRecent)
         {
-            cache.Set(cacheKey, snapshot, Ttl);
+            cache.Set(cacheKey, new CacheEntry(snapshot, row.EffectiveFrom, row.EffectiveTo), Ttl);
         }
         return snapshot;
     }
@@ -73,4 +81,7 @@ public sealed class TaxRateCache(IServiceScopeFactory scopeFactory, IMemoryCache
             }
         }
     }
+
+    private static bool IsEffective(CacheEntry entry, DateTimeOffset at) =>
+        entry.EffectiveFrom <= at && (entry.EffectiveTo is null || at < entry.EffectiveTo);
 }

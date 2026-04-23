@@ -82,12 +82,16 @@ public static class Endpoint
     private static async Task<IResult> DeleteAsync(
         Guid productId,
         Guid tierId,
-        string marketCode,
+        string? marketCode,
         HttpContext context,
         PricingDbContext db,
         IAuditEventPublisher audit,
         CancellationToken ct)
     {
+        if (string.IsNullOrWhiteSpace(marketCode))
+        {
+            return AdminPricingResponseFactory.Problem(context, 400, "pricing.tier_price.invalid", "marketCode query parameter required", "");
+        }
         var m = marketCode.Trim().ToLowerInvariant();
         var entity = await db.ProductTierPrices
             .SingleOrDefaultAsync(p => p.ProductId == productId && p.TierId == tierId && p.MarketCode == m, ct);

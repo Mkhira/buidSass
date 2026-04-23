@@ -139,19 +139,24 @@ public sealed class PromotionLayer
         var qualifyQty = promo.BogoQualifyQty ?? 0;
         var rewardQty = promo.BogoRewardQty ?? 0;
         var rewardPctBps = promo.BogoRewardPercentBps ?? 10_000;
+        var qualifyingSku = promo.BogoQualifyingProductId;
 
-        if (qualifyQty <= 0 || rewardQty <= 0)
+        if (qualifyQty <= 0 || rewardQty <= 0 || qualifyingSku is null)
         {
             return;
         }
 
-        // Qualifies only if the line's productId is listed as qualifying.
-        var qualifyingSku = promo.BogoQualifyingProductId;
-        var rewardSku = promo.BogoRewardProductId ?? qualifyingSku;
+        // Cross-SKU BOGO (reward != qualifying) is NOT supported at launch — spec research R9 allowed
+        // the extension via BogoRewardProductId but the engine only discounts the qualifying line today.
+        // Skip silently rather than misprice: admin should be rejected at create time (spec 011 follow-up).
+        if (promo.BogoRewardProductId is Guid rewardSku && rewardSku != qualifyingSku.Value)
+        {
+            return;
+        }
 
         foreach (var line in ws.Lines.OrderBy(l => l.ProductId))
         {
-            if (qualifyingSku is null || line.ProductId != qualifyingSku.Value)
+            if (line.ProductId != qualifyingSku.Value)
             {
                 continue;
             }
@@ -163,8 +168,11 @@ public sealed class PromotionLayer
                 continue;
             }
 
-            var perUnitNet = line.Qty == 0 ? 0 : line.NetMinor / line.Qty;
-            var discount = BankersRounding.RoundMinor((decimal)perUnitNet * freeUnits * rewardPctBps / 10_000m);
+            // Reward share computed off the full line total; round ONCE to avoid per-unit truncation drift.
+            var discount = line.Qty == 0
+                ? 0L
+                : BankersRounding.RoundMinor(
+                    (decimal)line.NetMinor * freeUnits * rewardPctBps / (line.Qty * 10_000m));
             discount = Math.Min(discount, line.NetMinor);
             if (discount <= 0)
             {
@@ -173,7 +181,6 @@ public sealed class PromotionLayer
 
             line.NetMinor -= discount;
 
-            _ = rewardSku; // reward-sku variant reserved; at launch reward = qualifying.
             line.Explanation.Add(new ExplanationRow(
                 Layer: "promotion",
                 RuleId: $"promo:{promo.Id:N}",

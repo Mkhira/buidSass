@@ -64,7 +64,15 @@ public static class Endpoint
             UpdatedAt = DateTimeOffset.UtcNow,
         };
         db.B2BTiers.Add(entity);
-        await db.SaveChangesAsync(ct);
+        try
+        {
+            await db.SaveChangesAsync(ct);
+        }
+        catch (Microsoft.EntityFrameworkCore.DbUpdateException ex)
+            when (ex.InnerException is Npgsql.PostgresException { SqlState: Npgsql.PostgresErrorCodes.UniqueViolation })
+        {
+            return AdminPricingResponseFactory.Problem(context, 409, "pricing.tier.duplicate_slug", "Tier slug exists", "");
+        }
 
         await audit.PublishAsync(new AuditEvent(
             AdminPricingResponseFactory.ResolveActorAccountId(context),
@@ -78,6 +86,14 @@ public static class Endpoint
 
     private static async Task<IResult> UpdateAsync(Guid id, UpdateB2BTierRequest request, HttpContext context, PricingDbContext db, IAuditEventPublisher audit, CancellationToken ct)
     {
+        if (string.IsNullOrWhiteSpace(request.Name))
+        {
+            return AdminPricingResponseFactory.Problem(context, 400, "pricing.tier.invalid", "Name required", "");
+        }
+        if (request.DefaultDiscountBps < 0 || request.DefaultDiscountBps > 10_000)
+        {
+            return AdminPricingResponseFactory.Problem(context, 400, "pricing.tier.invalid", "DefaultDiscountBps must be 0–10000", "");
+        }
         var entity = await db.B2BTiers.SingleOrDefaultAsync(t => t.Id == id, ct);
         if (entity is null)
         {
@@ -107,6 +123,7 @@ public static class Endpoint
             return AdminPricingResponseFactory.Problem(context, 404, "pricing.tier.not_found", "Not found", "");
         }
         entity.IsActive = false;
+        entity.UpdatedAt = DateTimeOffset.UtcNow;
         await db.SaveChangesAsync(ct);
 
         await audit.PublishAsync(new AuditEvent(

@@ -23,6 +23,7 @@ public static class PricingModule
     {
         var connectionString = configuration.ResolveRequiredDefaultConnectionString(hostEnvironment);
 
+        services.AddSingleton<Persistence.ImmutablePriceExplanationInterceptor>();
         services.AddDbContext<PricingDbContext>((provider, options) =>
         {
             var dataSource = provider.GetService<NpgsqlDataSource>();
@@ -34,6 +35,7 @@ public static class PricingModule
             {
                 options.UseNpgsql(connectionString);
             }
+            options.AddInterceptors(provider.GetRequiredService<Persistence.ImmutablePriceExplanationInterceptor>());
         });
 
         services.AddMemoryCache();

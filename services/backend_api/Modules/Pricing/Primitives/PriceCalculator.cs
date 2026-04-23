@@ -309,8 +309,11 @@ public sealed class PriceCalculator(
         }
         catch (DbUpdateException ex) when (ex.InnerException is Npgsql.PostgresException { SqlState: Npgsql.PostgresErrorCodes.UniqueViolation })
         {
-            // Concurrent insert for the same (ownerKind, ownerId). Return the committed row.
-            var winner = await db.PriceExplanations
+            // Concurrent insert for the same (ownerKind, ownerId). The DbContext is in a failed
+            // state after a SaveChanges exception — resolve the winner from a fresh scope (EF guidance).
+            await using var retryScope = scopeFactory.CreateAsyncScope();
+            var retryDb = retryScope.ServiceProvider.GetRequiredService<PricingDbContext>();
+            var winner = await retryDb.PriceExplanations
                 .AsNoTracking()
                 .SingleAsync(e => e.OwnerKind == ownerKind && e.OwnerId == ownerId, cancellationToken);
             return winner.Id;

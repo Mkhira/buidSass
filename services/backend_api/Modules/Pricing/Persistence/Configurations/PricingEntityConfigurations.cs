@@ -61,8 +61,17 @@ public sealed class CouponRedemptionConfiguration : IEntityTypeConfiguration<Cou
     {
         builder.ToTable("coupon_redemptions", "pricing");
         builder.HasKey(x => x.Id);
+        builder.Property(x => x.MarketCode).HasColumnType("citext").IsRequired();
         builder.HasIndex(x => new { x.CouponId, x.AccountId });
-        builder.HasIndex(x => new { x.CouponId, x.AccountId, x.OrderId }).IsUnique();
+        // Postgres treats NULL as distinct in UNIQUE constraints → split into two partial indexes.
+        builder.HasIndex(x => new { x.CouponId, x.AccountId, x.OrderId })
+            .IsUnique()
+            .HasFilter("\"OrderId\" IS NOT NULL")
+            .HasDatabaseName("IX_coupon_redemptions_coupon_account_order_not_null");
+        builder.HasIndex(x => new { x.CouponId, x.AccountId })
+            .IsUnique()
+            .HasFilter("\"OrderId\" IS NULL")
+            .HasDatabaseName("IX_coupon_redemptions_coupon_account_order_null");
     }
 }
 

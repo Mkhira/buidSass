@@ -12,7 +12,7 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace BackendApi.Modules.Pricing.Persistence.Migrations
 {
     [DbContext(typeof(PricingDbContext))]
-    [Migration("20260423184123_Pricing_Initial")]
+    [Migration("20260423221137_Pricing_Initial")]
     partial class Pricing_Initial
     {
         /// <inheritdoc />
@@ -177,6 +177,10 @@ namespace BackendApi.Modules.Pricing.Persistence.Migrations
                     b.Property<Guid>("CouponId")
                         .HasColumnType("uuid");
 
+                    b.Property<string>("MarketCode")
+                        .IsRequired()
+                        .HasColumnType("citext");
+
                     b.Property<Guid?>("OrderId")
                         .HasColumnType("uuid");
 
@@ -185,10 +189,15 @@ namespace BackendApi.Modules.Pricing.Persistence.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("CouponId", "AccountId");
+                    b.HasIndex("CouponId", "AccountId")
+                        .IsUnique()
+                        .HasDatabaseName("IX_coupon_redemptions_coupon_account_order_null")
+                        .HasFilter("\"OrderId\" IS NULL");
 
                     b.HasIndex("CouponId", "AccountId", "OrderId")
-                        .IsUnique();
+                        .IsUnique()
+                        .HasDatabaseName("IX_coupon_redemptions_coupon_account_order_not_null")
+                        .HasFilter("\"OrderId\" IS NOT NULL");
 
                     b.ToTable("coupon_redemptions", "pricing");
                 });

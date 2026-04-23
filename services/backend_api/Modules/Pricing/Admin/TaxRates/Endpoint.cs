@@ -59,6 +59,10 @@ public static class Endpoint
         {
             return AdminPricingResponseFactory.Problem(context, 400, "pricing.tax.invalid_rate", "Invalid rate", "RateBps must be between 0 and 10000.");
         }
+        if (request.EffectiveTo is { } effTo && effTo <= request.EffectiveFrom)
+        {
+            return AdminPricingResponseFactory.Problem(context, 400, "pricing.tax.invalid_window", "Invalid window", "effectiveTo must be after effectiveFrom");
+        }
         var market = request.MarketCode.Trim().ToLowerInvariant();
         var kind = request.Kind.Trim().ToLowerInvariant();
 
@@ -103,6 +107,10 @@ public static class Endpoint
         if (entity is null)
         {
             return AdminPricingResponseFactory.Problem(context, 404, "pricing.tax.not_found", "Tax rate not found", "");
+        }
+        if (request.EffectiveTo <= entity.EffectiveFrom)
+        {
+            return AdminPricingResponseFactory.Problem(context, 400, "pricing.tax.invalid_window", "Invalid window", "effectiveTo must be after effectiveFrom");
         }
 
         var before = new { entity.EffectiveTo };

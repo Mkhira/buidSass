@@ -131,6 +131,7 @@ public static class CalculateHandler
                 request.CouponCode!,
                 accountId,
                 request.OrderId,
+                marketCode,
                 nowUtc,
                 cancellationToken);
             if (!recordOutcome.IsSuccess)
@@ -157,38 +158,61 @@ public static class CalculateHandler
         string couponCode,
         Guid accountId,
         Guid? orderId,
+        string marketCode,
         DateTimeOffset nowUtc,
         CancellationToken cancellationToken)
     {
         var code = couponCode.Trim().ToUpperInvariant();
-        var coupon = await db.Coupons.SingleOrDefaultAsync(c => c.Code == code && c.DeletedAt == null, cancellationToken);
+        var coupon = await db.Coupons.AsNoTracking()
+            .SingleOrDefaultAsync(c => c.Code == code && c.DeletedAt == null, cancellationToken);
         if (coupon is null || !coupon.IsActive)
         {
             return CalculateHandlerResult.Fail(404, "pricing.coupon.invalid", "Unknown or deactivated coupon.");
         }
 
-        if (coupon.PerCustomerLimit is int perCust)
-        {
-            var usedByAccount = await db.CouponRedemptions
-                .CountAsync(r => r.CouponId == coupon.Id && r.AccountId == accountId, cancellationToken);
-            if (usedByAccount >= perCust)
-            {
-                return CalculateHandlerResult.Fail(409, "pricing.coupon.limit_reached", "Per-customer redemption limit reached.");
-            }
-        }
-
-        if (coupon.OverallLimit is int overall && coupon.UsedCount >= overall)
+        // Atomic overall-limit gate: UPDATE … WHERE used_count < overall_limit RETURNING 1.
+        // If no row returns, limit is reached. Eliminates the read-modify-write TOCTOU on UsedCount.
+        var whereClause = coupon.OverallLimit is int overall
+            ? $" AND (\"OverallLimit\" IS NULL OR \"UsedCount\" < {overall})"
+            : string.Empty;
+        var updatedRows = await db.Database.ExecuteSqlInterpolatedAsync($"""
+            UPDATE pricing.coupons
+            SET "UsedCount" = "UsedCount" + 1, "UpdatedAt" = {nowUtc}
+            WHERE "Id" = {coupon.Id}
+              AND ("OverallLimit" IS NULL OR "UsedCount" < "OverallLimit")
+            """, cancellationToken);
+        _ = whereClause;
+        if (updatedRows == 0)
         {
             return CalculateHandlerResult.Fail(409, "pricing.coupon.limit_reached", "Overall redemption limit reached.");
         }
 
-        coupon.UsedCount += 1;
+        // Per-customer limit is enforced by the pair of partial unique indexes on
+        // (CouponId, AccountId, [OrderId]); the insert below will trip 23505 for duplicates.
+        // The explicit count is still a fast-fail heuristic that prevents a doomed insert.
+        if (coupon.PerCustomerLimit is int perCust)
+        {
+            var usedByAccount = await db.CouponRedemptions
+                .AsNoTracking()
+                .CountAsync(r => r.CouponId == coupon.Id && r.AccountId == accountId, cancellationToken);
+            if (usedByAccount >= perCust)
+            {
+                // Roll back the used_count bump we just made — otherwise it drifts.
+                await db.Database.ExecuteSqlInterpolatedAsync($"""
+                    UPDATE pricing.coupons SET "UsedCount" = "UsedCount" - 1, "UpdatedAt" = {nowUtc}
+                    WHERE "Id" = {coupon.Id}
+                    """, cancellationToken);
+                return CalculateHandlerResult.Fail(409, "pricing.coupon.limit_reached", "Per-customer redemption limit reached.");
+            }
+        }
+
         db.CouponRedemptions.Add(new CouponRedemption
         {
             Id = Guid.NewGuid(),
             CouponId = coupon.Id,
             AccountId = accountId,
             OrderId = orderId,
+            MarketCode = marketCode,
             RedeemedAt = nowUtc,
         });
 
@@ -196,12 +220,13 @@ public static class CalculateHandler
         {
             await db.SaveChangesAsync(cancellationToken);
         }
-        catch (DbUpdateConcurrencyException)
-        {
-            return CalculateHandlerResult.Fail(409, "pricing.coupon.limit_reached", "Concurrent redemption detected.");
-        }
         catch (DbUpdateException ex) when (ex.InnerException is PostgresException { SqlState: PostgresErrorCodes.UniqueViolation })
         {
+            // Lost the race. Roll back the used_count bump.
+            await db.Database.ExecuteSqlInterpolatedAsync($"""
+                UPDATE pricing.coupons SET "UsedCount" = "UsedCount" - 1, "UpdatedAt" = {nowUtc}
+                WHERE "Id" = {coupon.Id}
+                """, cancellationToken);
             return CalculateHandlerResult.Fail(409, "pricing.coupon.limit_reached", "Duplicate redemption blocked.");
         }
 

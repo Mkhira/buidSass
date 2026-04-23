@@ -42,6 +42,7 @@ public static class ModuleRegistrationExtensions
 
     public static IServiceCollection AddObservabilityModule(this IServiceCollection services)
     {
+        services.AddSingleton<SearchMetrics>();
         services.AddTransient<CorrelationIdDelegatingHandler>();
         services.AddHttpClient("default").AddHttpMessageHandler<CorrelationIdDelegatingHandler>();
         services.AddHealthChecks()

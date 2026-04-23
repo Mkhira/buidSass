@@ -50,6 +50,10 @@ public sealed class IdentityReferenceDataSeeder : ISeeder
             "catalog.media.write",
             "catalog.document.write",
             "catalog.bulk_import",
+            // Search (spec 006)
+            "search.reindex",
+            "search.index.manage",
+            "search.read",
         }.Select(code => new Permission
         {
             Id = Guid.NewGuid(),
@@ -90,6 +94,8 @@ public sealed class IdentityReferenceDataSeeder : ISeeder
             [
                 "identity.admin.session.manage",
                 "identity.customer.profile.manage",
+                "search.index.manage",
+                "search.read",
             ],
             ["customer.standard"] =
             [

@@ -1,0 +1,456 @@
+{
+  "openapi": "3.0.1",
+  "info": {
+    "title": "Dental Commerce Platform — Search surface",
+    "version": "1.0.0",
+    "description": "Spec 006 HTTP surface: customer search/read endpoints and admin reindex/health endpoints. Contract of record is specs/phase-1B/006-search/contracts/search-contract.md."
+  },
+  "servers": [
+    { "url": "http://localhost:5099/" }
+  ],
+  "tags": [
+    { "name": "customer", "description": "Storefront search read endpoints." },
+    { "name": "admin", "description": "Admin search endpoints; requires AdminJwt + search.* permission." }
+  ],
+  "paths": {
+    "/v1/customer/search/products": {
+      "post": {
+        "tags": ["customer"],
+        "summary": "Search products by query + facets in the market/locale partition.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/SearchProductsRequest" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "SearchProductsResponse",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/SearchProductsResponse" }
+              }
+            }
+          },
+          "400": { "description": "search.invalid_sort | search.market_locale_index_missing" },
+          "503": {
+            "description": "search.engine_unavailable",
+            "headers": {
+              "Retry-After": {
+                "description": "Retry delay in seconds.",
+                "schema": { "type": "string", "example": "5" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/customer/search/autocomplete": {
+      "post": {
+        "tags": ["customer"],
+        "summary": "Autocomplete suggestions for short queries.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/AutocompleteRequest" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "AutocompleteResponse",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/AutocompleteResponse" }
+              }
+            }
+          },
+          "400": { "description": "search.market_locale_index_missing" },
+          "503": { "description": "search.engine_unavailable" }
+        }
+      }
+    },
+    "/v1/customer/search/lookup": {
+      "post": {
+        "tags": ["customer"],
+        "summary": "Exact SKU/barcode shortcut.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/LookupRequest" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "LookupResponse",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/LookupResponse" }
+              }
+            }
+          },
+          "400": { "description": "search.market_locale_index_missing" },
+          "503": { "description": "search.engine_unavailable" }
+        }
+      }
+    },
+    "/v1/admin/search/reindex": {
+      "post": {
+        "tags": ["admin"],
+        "summary": "Start a single in-flight reindex job for an index partition.",
+        "security": [{ "AdminJwt": [] }],
+        "parameters": [
+          {
+            "name": "index",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "description": "Index name (e.g., products_ar_ksa). Legacy dash names are accepted."
+            }
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "Reindex started.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ReindexStartResponse" }
+              }
+            }
+          },
+          "400": { "description": "search.market_locale_index_missing" },
+          "401": { "description": "search.auth_required" },
+          "403": { "description": "Forbidden (missing search.reindex permission)" },
+          "409": {
+            "description": "search.reindex.in_progress",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "activeJobId": { "type": "string", "format": "uuid" }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/admin/search/reindex/{jobId}/stream": {
+      "get": {
+        "tags": ["admin"],
+        "summary": "Stream reindex progress via Server-Sent Events.",
+        "security": [{ "AdminJwt": [] }],
+        "parameters": [
+          {
+            "name": "jobId",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "format": "uuid" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "SSE stream with progress/completed/failed events.",
+            "content": {
+              "text/event-stream": {
+                "schema": {
+                  "type": "string",
+                  "example": "event: progress\\ndata: {\"docsWritten\":1000,\"docsExpected\":20000,\"elapsedMs\":12000,\"status\":\"running\",\"error\":null}\\n\\n"
+                }
+              }
+            }
+          },
+          "403": { "description": "Forbidden (missing search.reindex permission)" }
+        }
+      }
+    },
+    "/v1/admin/search/health": {
+      "get": {
+        "tags": ["admin"],
+        "summary": "Current search engine health and per-index lag/doc-count status.",
+        "security": [{ "AdminJwt": [] }],
+        "responses": {
+          "200": {
+            "description": "SearchHealthResponse",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/SearchHealthResponse" }
+              }
+            }
+          },
+          "403": { "description": "Forbidden (missing search.read permission)" },
+          "503": { "description": "search.engine_unavailable" }
+        }
+      }
+    },
+    "/v1/admin/search/jobs": {
+      "get": {
+        "tags": ["admin"],
+        "summary": "List historical and running reindex jobs.",
+        "security": [{ "AdminJwt": [] }],
+        "parameters": [
+          { "name": "index", "in": "query", "schema": { "type": "string" } },
+          { "name": "status", "in": "query", "schema": { "type": "string", "enum": ["pending", "running", "completed", "failed"] } },
+          { "name": "page", "in": "query", "schema": { "type": "integer", "minimum": 1 } },
+          { "name": "pageSize", "in": "query", "schema": { "type": "integer", "minimum": 1, "maximum": 100 } }
+        ],
+        "responses": {
+          "200": {
+            "description": "ListJobsResponse",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ListJobsResponse" }
+              }
+            }
+          },
+          "400": { "description": "search.market_locale_index_missing | search.invalid_status" },
+          "403": { "description": "Forbidden (missing search.read permission)" }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "AdminJwt": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT"
+      }
+    },
+    "schemas": {
+      "SearchProductsRequest": {
+        "type": "object",
+        "properties": {
+          "query": { "type": "string" },
+          "marketCode": { "type": "string", "example": "ksa" },
+          "locale": { "type": "string", "example": "ar" },
+          "filters": { "$ref": "#/components/schemas/SearchProductsFilters" },
+          "sort": { "type": "string", "enum": ["relevance", "price-asc", "price-desc", "newness", "featured"] },
+          "page": { "type": "integer", "minimum": 1 },
+          "pageSize": { "type": "integer", "minimum": 1, "maximum": 100 }
+        }
+      },
+      "SearchProductsFilters": {
+        "type": "object",
+        "properties": {
+          "brandIds": {
+            "type": "array",
+            "items": { "type": "string", "format": "uuid" }
+          },
+          "categoryIds": {
+            "type": "array",
+            "items": { "type": "string", "format": "uuid" }
+          },
+          "priceMinMinor": { "type": "integer", "format": "int64" },
+          "priceMaxMinor": { "type": "integer", "format": "int64" },
+          "restricted": { "type": "string", "enum": ["any", "only-restricted", "only-unrestricted"] },
+          "availability": { "type": "string", "example": "in_stock" }
+        }
+      },
+      "SearchProductsResponse": {
+        "type": "object",
+        "required": ["hits", "facets", "totalEstimate", "queryDurationMs", "engineLatencyMs", "localeFallbackApplied"],
+        "properties": {
+          "hits": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/SearchProductHit" }
+          },
+          "facets": { "$ref": "#/components/schemas/SearchFacets" },
+          "totalEstimate": { "type": "integer" },
+          "queryDurationMs": { "type": "integer" },
+          "engineLatencyMs": { "type": "integer" },
+          "localeFallbackApplied": { "type": "boolean" }
+        }
+      },
+      "SearchProductHit": {
+        "type": "object",
+        "required": ["id", "sku", "name", "brandId", "brandName", "categoryIds", "restricted", "availability", "marketCode", "locale"],
+        "properties": {
+          "id": { "type": "string", "format": "uuid" },
+          "sku": { "type": "string" },
+          "barcode": { "type": "string", "nullable": true },
+          "name": { "type": "string" },
+          "shortDescription": { "type": "string", "nullable": true },
+          "brandId": { "type": "string", "format": "uuid" },
+          "brandName": { "type": "string" },
+          "categoryIds": {
+            "type": "array",
+            "items": { "type": "string", "format": "uuid" }
+          },
+          "priceHintMinorUnits": { "type": "integer", "format": "int64", "nullable": true },
+          "restricted": { "type": "boolean" },
+          "restrictionReasonCode": { "type": "string", "nullable": true },
+          "availability": { "type": "string" },
+          "thumbUrl": { "type": "string", "nullable": true },
+          "marketCode": { "type": "string" },
+          "locale": { "type": "string" }
+        }
+      },
+      "SearchFacets": {
+        "type": "object",
+        "required": ["brandId", "categoryId", "priceBucket", "restricted", "availability"],
+        "properties": {
+          "brandId": { "type": "object", "additionalProperties": { "type": "integer" } },
+          "categoryId": { "type": "object", "additionalProperties": { "type": "integer" } },
+          "priceBucket": { "type": "object", "additionalProperties": { "type": "integer" } },
+          "restricted": { "type": "object", "additionalProperties": { "type": "integer" } },
+          "availability": { "type": "object", "additionalProperties": { "type": "integer" } }
+        }
+      },
+      "AutocompleteRequest": {
+        "type": "object",
+        "required": ["query"],
+        "properties": {
+          "query": { "type": "string" },
+          "marketCode": { "type": "string" },
+          "locale": { "type": "string" },
+          "limit": { "type": "integer", "minimum": 1, "maximum": 10 }
+        }
+      },
+      "AutocompleteResponse": {
+        "type": "object",
+        "required": ["suggestions"],
+        "properties": {
+          "suggestions": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/AutocompleteSuggestion" }
+          },
+          "noResultsReason": {
+            "type": "string",
+            "nullable": true,
+            "enum": ["no_matches", "restricted_market", null]
+          }
+        }
+      },
+      "AutocompleteSuggestion": {
+        "type": "object",
+        "required": ["productId", "name", "restricted"],
+        "properties": {
+          "productId": { "type": "string", "format": "uuid" },
+          "name": { "type": "string" },
+          "thumbUrl": { "type": "string", "nullable": true },
+          "restricted": { "type": "boolean" }
+        }
+      },
+      "LookupRequest": {
+        "type": "object",
+        "required": ["code"],
+        "properties": {
+          "code": { "type": "string" },
+          "marketCode": { "type": "string" },
+          "locale": { "type": "string" }
+        }
+      },
+      "LookupResponse": {
+        "type": "object",
+        "properties": {
+          "hit": {
+            "allOf": [
+              { "$ref": "#/components/schemas/SearchLookupHit" }
+            ],
+            "nullable": true
+          }
+        }
+      },
+      "SearchLookupHit": {
+        "type": "object",
+        "required": ["id", "sku", "name", "restricted", "marketCode", "locale"],
+        "properties": {
+          "id": { "type": "string", "format": "uuid" },
+          "sku": { "type": "string" },
+          "barcode": { "type": "string", "nullable": true },
+          "name": { "type": "string" },
+          "restricted": { "type": "boolean" },
+          "restrictionReasonCode": { "type": "string", "nullable": true },
+          "marketCode": { "type": "string" },
+          "locale": { "type": "string" }
+        }
+      },
+      "ReindexStartResponse": {
+        "type": "object",
+        "required": ["jobId", "streamPath"],
+        "properties": {
+          "jobId": { "type": "string", "format": "uuid" },
+          "streamPath": { "type": "string" }
+        }
+      },
+      "SearchHealthResponse": {
+        "type": "object",
+        "required": ["indexes", "engineStatus", "enginePingMs"],
+        "properties": {
+          "indexes": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/SearchIndexHealthItem" }
+          },
+          "engineStatus": { "type": "string", "enum": ["available", "unavailable"] },
+          "enginePingMs": { "type": "integer" }
+        }
+      },
+      "SearchIndexHealthItem": {
+        "type": "object",
+        "required": ["name", "docCount", "lagSeconds", "status"],
+        "properties": {
+          "name": { "type": "string" },
+          "docCount": { "type": "integer", "format": "int64" },
+          "lastSuccessAt": { "type": "string", "format": "date-time", "nullable": true },
+          "lagSeconds": { "type": "integer" },
+          "status": { "type": "string", "enum": ["healthy", "lagging"] }
+        }
+      },
+      "ListJobsResponse": {
+        "type": "object",
+        "required": ["items", "total", "page", "pageSize"],
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/ListJobsItem" }
+          },
+          "total": { "type": "integer" },
+          "page": { "type": "integer" },
+          "pageSize": { "type": "integer" }
+        }
+      },
+      "ListJobsItem": {
+        "type": "object",
+        "required": ["jobId", "indexName", "status", "startedByAccountId", "startedAt", "docsWritten"],
+        "properties": {
+          "jobId": { "type": "string", "format": "uuid" },
+          "indexName": { "type": "string" },
+          "status": { "type": "string", "enum": ["pending", "running", "completed", "failed"] },
+          "startedByAccountId": { "type": "string", "format": "uuid" },
+          "startedAt": { "type": "string", "format": "date-time" },
+          "completedAt": { "type": "string", "format": "date-time", "nullable": true },
+          "docsExpected": { "type": "integer", "nullable": true },
+          "docsWritten": { "type": "integer" },
+          "error": { "type": "string", "nullable": true }
+        }
+      }
+    }
+  },
+  "x-outbox-events-consumed": [
+    "catalog.product.published",
+    "catalog.product.archived",
+    "catalog.product.field_updated",
+    "catalog.product.restriction_changed",
+    "product.availability.changed"
+  ],
+  "x-reason-codes": [
+    "search.engine_unavailable",
+    "search.reindex.in_progress",
+    "search.invalid_sort",
+    "search.invalid_status",
+    "search.invalid_locale",
+    "search.invalid_market",
+    "search.market_locale_index_missing",
+    "search.auth_required",
+    "search.no_matches",
+    "search.restricted_market"
+  ]
+}

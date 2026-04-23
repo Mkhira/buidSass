@@ -60,5 +60,8 @@
     <None Update="Modules\Search\Messages\*.icu">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
+    <None Update="Modules\Pricing\Messages\*.icu">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
   </ItemGroup>
 </Project>

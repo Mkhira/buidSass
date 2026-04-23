@@ -8,6 +8,13 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Compile Remove="Identity.Tests\**" />
+    <EmbeddedResource Remove="Identity.Tests\**" />
+    <None Remove="Identity.Tests\**" />
+    <Content Remove="Identity.Tests\**" />
+  </ItemGroup>
+
+  <ItemGroup>
     <PackageReference Include="coverlet.collector" Version="6.0.2" />
     <PackageReference Include="MediatR" Version="12.5.0" />
     <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" Version="9.0.10" />

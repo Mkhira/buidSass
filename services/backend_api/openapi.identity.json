@@ -1,0 +1,1135 @@
+{
+  "openapi": "3.0.1",
+  "info": {
+    "title": "backend_api | v1",
+    "version": "1.0.0"
+  },
+  "servers": [
+    {
+      "url": "http://127.0.0.1:5099/"
+    }
+  ],
+  "paths": {
+    "/v1/customer/identity/register": {
+      "post": {
+        "tags": [
+          "RegisterEndpoint"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RegisterRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/v1/customer/identity/email/confirm": {
+      "post": {
+        "tags": [
+          "ConfirmEmailEndpoint"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ConfirmEmailRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/v1/customer/identity/otp/request": {
+      "post": {
+        "tags": [
+          "RequestOtpEndpoint"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RequestOtpRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/v1/customer/identity/otp/verify": {
+      "post": {
+        "tags": [
+          "VerifyOtpEndpoint"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VerifyOtpRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/v1/customer/identity/sign-in": {
+      "post": {
+        "tags": [
+          "CustomerSignInEndpoint"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CustomerSignInRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/v1/customer/identity/session/refresh": {
+      "post": {
+        "tags": [
+          "RefreshSessionEndpoint"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RefreshSessionRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/v1/customer/identity/sign-out": {
+      "post": {
+        "tags": [
+          "SignOutEndpoint"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SignOutRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/v1/customer/identity/password/reset-request": {
+      "post": {
+        "tags": [
+          "RequestPasswordResetEndpoint"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RequestPasswordResetRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/v1/customer/identity/password/reset-complete": {
+      "post": {
+        "tags": [
+          "CompletePasswordResetEndpoint"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CompletePasswordResetRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/v1/customer/identity/password/change": {
+      "post": {
+        "tags": [
+          "ChangePasswordEndpoint"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChangePasswordRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/v1/customer/identity/sessions": {
+      "get": {
+        "tags": [
+          "ListSessionsEndpoint"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/v1/customer/identity/sessions/{sessionId}": {
+      "delete": {
+        "tags": [
+          "RevokeSessionEndpoint"
+        ],
+        "parameters": [
+          {
+            "name": "sessionId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/v1/customer/identity/me": {
+      "get": {
+        "tags": [
+          "CustomerMeEndpoint"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/v1/customer/identity/locale": {
+      "patch": {
+        "tags": [
+          "SetLocaleEndpoint"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SetLocaleRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/v1/customer/identity/_test/protected": {
+      "get": {
+        "tags": [
+          "backend_api"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/v1/admin/identity/invitation/accept": {
+      "post": {
+        "tags": [
+          "AcceptInvitationEndpoint"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AcceptInvitationRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/v1/admin/identity/mfa/totp/enroll": {
+      "post": {
+        "tags": [
+          "EnrollTotpEndpoint"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EnrollTotpRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/v1/admin/identity/mfa/totp/confirm": {
+      "post": {
+        "tags": [
+          "ConfirmTotpEndpoint"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ConfirmTotpRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/v1/admin/identity/sign-in": {
+      "post": {
+        "tags": [
+          "AdminSignInEndpoint"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AdminSignInRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/v1/admin/identity/mfa/challenge": {
+      "post": {
+        "tags": [
+          "CompleteMfaChallengeEndpoint"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CompleteMfaChallengeRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/v1/admin/identity/mfa/step-up": {
+      "post": {
+        "tags": [
+          "StepUpOtpEndpoint"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StepUpOtpRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/v1/admin/identity/mfa/step-up/confirm": {
+      "post": {
+        "tags": [
+          "CompleteStepUpOtpEndpoint"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CompleteStepUpOtpRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/v1/admin/identity/mfa/totp/rotate": {
+      "post": {
+        "tags": [
+          "RotateTotpEndpoint"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RotateTotpRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/v1/admin/identity/accounts/mfa/reset": {
+      "post": {
+        "tags": [
+          "ResetAdminMfaEndpoint"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ResetAdminMfaRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/v1/admin/identity/accounts/{accountId}/sessions": {
+      "get": {
+        "tags": [
+          "ListAdminSessionsEndpoint"
+        ],
+        "parameters": [
+          {
+            "name": "accountId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/v1/admin/identity/accounts/{accountId}/sessions/{sessionId}": {
+      "delete": {
+        "tags": [
+          "RevokeAdminSessionEndpoint"
+        ],
+        "parameters": [
+          {
+            "name": "accountId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "sessionId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/v1/admin/identity/invitations": {
+      "post": {
+        "tags": [
+          "InviteAdminEndpoint"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InviteAdminRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/v1/admin/identity/invitations/{invitationId}": {
+      "delete": {
+        "tags": [
+          "RevokeInvitationEndpoint"
+        ],
+        "parameters": [
+          {
+            "name": "invitationId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/v1/admin/identity/accounts/{accountId}/role": {
+      "patch": {
+        "tags": [
+          "ChangeAdminRoleEndpoint"
+        ],
+        "parameters": [
+          {
+            "name": "accountId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChangeAdminRoleRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/v1/admin/identity/accounts/{accountId}/mfa/factors": {
+      "get": {
+        "tags": [
+          "ListAdminMfaFactorsEndpoint"
+        ],
+        "parameters": [
+          {
+            "name": "accountId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/v1/admin/identity/me": {
+      "get": {
+        "tags": [
+          "AdminMeEndpoint"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/v1/admin/identity/_test/protected": {
+      "get": {
+        "tags": [
+          "AdminTestProtectedEndpoint"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/v1/admin/identity/_test/step-up-protected": {
+      "get": {
+        "tags": [
+          "AdminStepUpProtectedEndpoint"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "AcceptInvitationRequest": {
+        "required": [
+          "token",
+          "newPassword"
+        ],
+        "type": "object",
+        "properties": {
+          "token": {
+            "type": "string"
+          },
+          "newPassword": {
+            "type": "string"
+          }
+        }
+      },
+      "AdminSignInRequest": {
+        "required": [
+          "email",
+          "password"
+        ],
+        "type": "object",
+        "properties": {
+          "email": {
+            "type": "string"
+          },
+          "password": {
+            "type": "string"
+          }
+        }
+      },
+      "ChangeAdminRoleRequest": {
+        "required": [
+          "roleCode",
+          "marketCode"
+        ],
+        "type": "object",
+        "properties": {
+          "roleCode": {
+            "type": "string"
+          },
+          "marketCode": {
+            "type": "string"
+          }
+        }
+      },
+      "ChangePasswordRequest": {
+        "required": [
+          "currentPassword",
+          "newPassword"
+        ],
+        "type": "object",
+        "properties": {
+          "currentPassword": {
+            "type": "string"
+          },
+          "newPassword": {
+            "type": "string"
+          }
+        }
+      },
+      "CompleteMfaChallengeRequest": {
+        "required": [
+          "challengeId",
+          "kind",
+          "code"
+        ],
+        "type": "object",
+        "properties": {
+          "challengeId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "kind": {
+            "type": "string"
+          },
+          "code": {
+            "type": "string"
+          }
+        }
+      },
+      "CompletePasswordResetRequest": {
+        "required": [
+          "token",
+          "newPassword"
+        ],
+        "type": "object",
+        "properties": {
+          "token": {
+            "type": "string"
+          },
+          "newPassword": {
+            "type": "string"
+          }
+        }
+      },
+      "CompleteStepUpOtpRequest": {
+        "required": [
+          "challengeId",
+          "code"
+        ],
+        "type": "object",
+        "properties": {
+          "challengeId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "code": {
+            "type": "string"
+          }
+        }
+      },
+      "ConfirmEmailRequest": {
+        "required": [
+          "token"
+        ],
+        "type": "object",
+        "properties": {
+          "token": {
+            "type": "string"
+          }
+        }
+      },
+      "ConfirmTotpRequest": {
+        "required": [
+          "partialAuthToken",
+          "factorId",
+          "code"
+        ],
+        "type": "object",
+        "properties": {
+          "partialAuthToken": {
+            "type": "string"
+          },
+          "factorId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "code": {
+            "type": "string"
+          }
+        }
+      },
+      "CustomerSignInRequest": {
+        "required": [
+          "email",
+          "password"
+        ],
+        "type": "object",
+        "properties": {
+          "email": {
+            "type": "string"
+          },
+          "password": {
+            "type": "string"
+          }
+        }
+      },
+      "EnrollTotpRequest": {
+        "required": [
+          "partialAuthToken"
+        ],
+        "type": "object",
+        "properties": {
+          "partialAuthToken": {
+            "type": "string"
+          }
+        }
+      },
+      "InviteAdminRequest": {
+        "required": [
+          "email",
+          "roleCode"
+        ],
+        "type": "object",
+        "properties": {
+          "email": {
+            "type": "string"
+          },
+          "roleCode": {
+            "type": "string"
+          }
+        }
+      },
+      "RefreshSessionRequest": {
+        "required": [
+          "refreshToken"
+        ],
+        "type": "object",
+        "properties": {
+          "refreshToken": {
+            "type": "string"
+          }
+        }
+      },
+      "RegisterRequest": {
+        "required": [
+          "email",
+          "phone",
+          "password",
+          "marketCode",
+          "locale",
+          "displayName"
+        ],
+        "type": "object",
+        "properties": {
+          "email": {
+            "type": "string"
+          },
+          "phone": {
+            "type": "string"
+          },
+          "password": {
+            "type": "string"
+          },
+          "marketCode": {
+            "type": "string"
+          },
+          "locale": {
+            "type": "string"
+          },
+          "displayName": {
+            "type": "string"
+          }
+        }
+      },
+      "RequestOtpRequest": {
+        "required": [
+          "phone",
+          "purpose"
+        ],
+        "type": "object",
+        "properties": {
+          "phone": {
+            "type": "string"
+          },
+          "purpose": {
+            "type": "string"
+          }
+        }
+      },
+      "RequestPasswordResetRequest": {
+        "required": [
+          "email"
+        ],
+        "type": "object",
+        "properties": {
+          "email": {
+            "type": "string"
+          }
+        }
+      },
+      "ResetAdminMfaRequest": {
+        "required": [
+          "accountId"
+        ],
+        "type": "object",
+        "properties": {
+          "accountId": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      },
+      "RotateTotpRequest": {
+        "required": [
+          "factorId"
+        ],
+        "type": "object",
+        "properties": {
+          "factorId": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      },
+      "SetLocaleRequest": {
+        "required": [
+          "locale"
+        ],
+        "type": "object",
+        "properties": {
+          "locale": {
+            "type": "string"
+          }
+        }
+      },
+      "SignOutRequest": {
+        "required": [
+          "refreshToken"
+        ],
+        "type": "object",
+        "properties": {
+          "refreshToken": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "nullable": true
+      },
+      "StepUpOtpRequest": {
+        "required": [
+          "purpose"
+        ],
+        "type": "object",
+        "properties": {
+          "purpose": {
+            "type": "string"
+          }
+        }
+      },
+      "VerifyOtpRequest": {
+        "required": [
+          "challengeId",
+          "code"
+        ],
+        "type": "object",
+        "properties": {
+          "challengeId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "code": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  },
+  "tags": [
+    {
+      "name": "RegisterEndpoint"
+    },
+    {
+      "name": "ConfirmEmailEndpoint"
+    },
+    {
+      "name": "RequestOtpEndpoint"
+    },
+    {
+      "name": "VerifyOtpEndpoint"
+    },
+    {
+      "name": "CustomerSignInEndpoint"
+    },
+    {
+      "name": "RefreshSessionEndpoint"
+    },
+    {
+      "name": "SignOutEndpoint"
+    },
+    {
+      "name": "RequestPasswordResetEndpoint"
+    },
+    {
+      "name": "CompletePasswordResetEndpoint"
+    },
+    {
+      "name": "ChangePasswordEndpoint"
+    },
+    {
+      "name": "ListSessionsEndpoint"
+    },
+    {
+      "name": "RevokeSessionEndpoint"
+    },
+    {
+      "name": "CustomerMeEndpoint"
+    },
+    {
+      "name": "SetLocaleEndpoint"
+    },
+    {
+      "name": "backend_api"
+    },
+    {
+      "name": "AcceptInvitationEndpoint"
+    },
+    {
+      "name": "EnrollTotpEndpoint"
+    },
+    {
+      "name": "ConfirmTotpEndpoint"
+    },
+    {
+      "name": "AdminSignInEndpoint"
+    },
+    {
+      "name": "CompleteMfaChallengeEndpoint"
+    },
+    {
+      "name": "StepUpOtpEndpoint"
+    },
+    {
+      "name": "CompleteStepUpOtpEndpoint"
+    },
+    {
+      "name": "RotateTotpEndpoint"
+    },
+    {
+      "name": "ResetAdminMfaEndpoint"
+    },
+    {
+      "name": "ListAdminSessionsEndpoint"
+    },
+    {
+      "name": "RevokeAdminSessionEndpoint"
+    },
+    {
+      "name": "InviteAdminEndpoint"
+    },
+    {
+      "name": "RevokeInvitationEndpoint"
+    },
+    {
+      "name": "ChangeAdminRoleEndpoint"
+    },
+    {
+      "name": "ListAdminMfaFactorsEndpoint"
+    },
+    {
+      "name": "AdminMeEndpoint"
+    },
+    {
+      "name": "AdminTestProtectedEndpoint"
+    },
+    {
+      "name": "AdminStepUpProtectedEndpoint"
+    }
+  ]
+}

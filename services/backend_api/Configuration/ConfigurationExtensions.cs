@@ -1,4 +1,6 @@
 using Azure.Identity;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Hosting;
 
 namespace BackendApi.Configuration;
 
@@ -25,5 +27,24 @@ public static class ConfigurationExtensions
         }
 
         return builder;
+    }
+
+    public static string ResolveRequiredDefaultConnectionString(
+        this IConfiguration configuration,
+        IHostEnvironment hostEnvironment)
+    {
+        var connectionString = configuration.GetConnectionString("DefaultConnection");
+        if (!string.IsNullOrWhiteSpace(connectionString))
+        {
+            return connectionString;
+        }
+
+        if (hostEnvironment.IsEnvironment("Test"))
+        {
+            return "Host=localhost;Port=5432;Database=dental_commerce_test;Username=dental_api_app;Password=dental_api_app";
+        }
+
+        throw new InvalidOperationException(
+            $"ConnectionStrings:DefaultConnection is required for environment '{hostEnvironment.EnvironmentName}'.");
     }
 }

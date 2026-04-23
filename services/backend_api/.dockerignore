@@ -11,3 +11,10 @@
 **/.vscode
 **/.idea
 **/.DS_Store
+**/*.log
+**/*.log.*
+**/.env
+**/.env.*
+**/coverage
+**/.dockerignore
+**/Dockerfile*

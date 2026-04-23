@@ -1,5 +1,7 @@
 using BackendApi.Configuration;
 using BackendApi.Features.Seeding;
+using BackendApi.Modules.Identity;
+using BackendApi.Modules.Identity.Seeding;
 using BackendApi.Modules.Observability;
 using BackendApi.Modules.Shared;
 using Microsoft.EntityFrameworkCore;
@@ -36,8 +38,7 @@ builder.Services.AddHttpContextAccessor();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddOpenApi();
 
-var connectionString = builder.Configuration.GetConnectionString("DefaultConnection")
-    ?? "Host=localhost;Port=5432;Database=dental_commerce;Username=dental_api_app;Password=dental_api_app";
+var connectionString = builder.Configuration.ResolveRequiredDefaultConnectionString(builder.Environment);
 
 builder.Services.AddDbContext<AppDbContext>(options => options.UseNpgsql(connectionString));
 
@@ -46,6 +47,7 @@ builder.Services.AddAuditLogModule();
 builder.Services.AddStorageModule();
 builder.Services.AddPdfModule();
 builder.Services.AddObservabilityModule();
+builder.Services.AddIdentityModule(builder.Configuration, builder.Environment);
 builder.Services.AddSeeding(builder.Configuration);
 
 var app = builder.Build();
@@ -55,7 +57,13 @@ if (args.Length > 0 && string.Equals(args[0], SeedingCliVerb.Verb, StringCompari
     return await SeedingCliVerb.RunAsync(app, args, CancellationToken.None);
 }
 
+if (args.Length > 0 && string.Equals(args[0], SeedAdminCliCommand.Verb, StringComparison.Ordinal))
+{
+    return await SeedAdminCliCommand.RunAsync(app, args, CancellationToken.None);
+}
+
 app.UseMiddleware<CorrelationIdMiddleware>();
+app.UseIdentityModuleEndpoints();
 
 if (app.Environment.IsDevelopment())
 {

@@ -167,9 +167,18 @@ public sealed class PriceCalculator(
 
         Guid? explanationId = null;
 
-        // Issue mode persists the explanation
+        // Issue mode persists the explanation — but only when a concrete owner is provided.
+        // Calling Issue with neither quotationId nor orderId is a caller bug: we'd create
+        // orphaned preview rows with random IDs that nothing can resolve later.
         if (context.Mode == PricingMode.Issue)
         {
+            if (context.QuotationId is null && context.OrderId is null)
+            {
+                return PriceCalculationOutcome.Fail(
+                    400,
+                    "pricing.issue_requires_owner",
+                    "Issue mode requires either quotationId or orderId.");
+            }
             explanationId = await PersistExplanationAsync(context, marketCode, canonicalBytes, hashBytes, grossMinor, cancellationToken);
         }
 
@@ -268,10 +277,9 @@ public sealed class PriceCalculator(
         await using var scope = scopeFactory.CreateAsyncScope();
         var db = scope.ServiceProvider.GetRequiredService<PricingDbContext>();
 
-        var ownerKind = context.QuotationId is not null ? "quote"
-            : context.OrderId is not null ? "order"
-            : "preview";
-        var ownerId = context.QuotationId ?? context.OrderId ?? Guid.NewGuid();
+        // Issue-mode guard in caller ensures at least one of QuotationId/OrderId is set.
+        var ownerKind = context.QuotationId is not null ? "quote" : "order";
+        var ownerId = context.QuotationId ?? context.OrderId!.Value;
 
         // Idempotency: if a row exists for (ownerKind, ownerId), return it verbatim
         var existing = await db.PriceExplanations

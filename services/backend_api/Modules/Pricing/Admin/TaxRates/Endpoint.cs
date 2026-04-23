@@ -51,6 +51,10 @@ public static class Endpoint
         TaxRateCache cache,
         CancellationToken ct)
     {
+        if (string.IsNullOrWhiteSpace(request.MarketCode) || string.IsNullOrWhiteSpace(request.Kind))
+        {
+            return AdminPricingResponseFactory.Problem(context, 400, "pricing.tax.invalid_rate", "marketCode and kind required", "");
+        }
         if (request.RateBps < 0 || request.RateBps > 100_00)
         {
             return AdminPricingResponseFactory.Problem(context, 400, "pricing.tax.invalid_rate", "Invalid rate", "RateBps must be between 0 and 10000.");

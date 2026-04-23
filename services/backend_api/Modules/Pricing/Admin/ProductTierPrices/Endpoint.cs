@@ -32,10 +32,20 @@ public static class Endpoint
         IAuditEventPublisher audit,
         CancellationToken ct)
     {
+        if (string.IsNullOrWhiteSpace(request.MarketCode))
+        {
+            return AdminPricingResponseFactory.Problem(context, 400, "pricing.tier_price.invalid", "marketCode required", "");
+        }
         var market = request.MarketCode.Trim().ToLowerInvariant();
         if (request.NetMinor < 0)
         {
             return AdminPricingResponseFactory.Problem(context, 400, "pricing.tier_price.invalid", "Net must be >= 0", "");
+        }
+        // Verify the referenced tier exists (no cross-schema FK to catalog.products or b2b_tiers).
+        var tierExists = await db.B2BTiers.AnyAsync(t => t.Id == request.TierId, ct);
+        if (!tierExists)
+        {
+            return AdminPricingResponseFactory.Problem(context, 404, "pricing.tier.not_found", "Unknown tierId", "");
         }
 
         var existing = await db.ProductTierPrices

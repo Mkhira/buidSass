@@ -63,10 +63,24 @@ public static class Endpoint
         PromotionCache cache,
         CancellationToken ct)
     {
+        var kind = request.Kind?.Trim().ToLowerInvariant();
+        if (kind is not ("percent_off" or "amount_off" or "bogo" or "bundle_wrapper"))
+        {
+            return AdminPricingResponseFactory.Problem(context, 400, "pricing.promotion.invalid_kind", "Invalid promotion kind", "kind must be one of: percent_off, amount_off, bogo, bundle_wrapper");
+        }
+        if (string.IsNullOrWhiteSpace(request.Name))
+        {
+            return AdminPricingResponseFactory.Problem(context, 400, "pricing.promotion.invalid", "Name required", "");
+        }
+        if (request.MarketCodes is null || request.MarketCodes.Length == 0)
+        {
+            return AdminPricingResponseFactory.Problem(context, 400, "pricing.promotion.invalid", "At least one marketCode required", "");
+        }
+
         var entity = new Promotion
         {
             Id = Guid.NewGuid(),
-            Kind = request.Kind.Trim().ToLowerInvariant(),
+            Kind = kind,
             Name = request.Name,
             ConfigJson = string.IsNullOrWhiteSpace(request.ConfigJson) ? "{}" : request.ConfigJson,
             AppliesToProductIds = request.AppliesToProductIds,

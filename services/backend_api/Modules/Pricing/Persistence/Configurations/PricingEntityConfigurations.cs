@@ -51,8 +51,7 @@ public sealed class CouponConfiguration : IEntityTypeConfiguration<Coupon>
         builder.Property(x => x.MarketCodes).HasColumnType("citext[]").IsRequired();
         builder.Property(x => x.OwnerId).HasColumnType("citext");
         // Optimistic concurrency is enforced by the unique index on coupon_redemptions
-        // (coupon_id, account_id, order_id) + per-customer-limit check. No physical RowVersion column.
-        builder.Ignore(x => x.RowVersion);
+        // (coupon_id, account_id, order_id) + per-customer-limit check.
     }
 }
 

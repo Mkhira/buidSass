@@ -1,4 +1,3 @@
-using BackendApi.Modules.Pricing.Entities;
 using BackendApi.Modules.Pricing.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
@@ -9,16 +8,21 @@ namespace BackendApi.Modules.Pricing.Primitives.Caches;
 public sealed class TaxRateCache(IServiceScopeFactory scopeFactory, IMemoryCache cache)
 {
     private static readonly TimeSpan Ttl = TimeSpan.FromMinutes(5);
-    private static readonly object LookupLock = new();
+    private static readonly string[] KnownMarkets = ["ksa", "eg"];
+    private static readonly string[] KnownKinds = ["vat"];
+
+    private static string KeyFor(string market, string kind) => $"pricing.tax_rate:{market}:{kind}";
 
     public async Task<TaxRateSnapshot?> GetAsync(string marketCode, string kind, DateTimeOffset effectiveAt, CancellationToken cancellationToken)
     {
         var normalizedMarket = marketCode.Trim().ToLowerInvariant();
         var normalizedKind = kind.Trim().ToLowerInvariant();
-        var cacheKey = $"pricing.tax_rate:{normalizedMarket}:{normalizedKind}";
+        var cacheKey = KeyFor(normalizedMarket, normalizedKind);
 
-        if (cache.TryGetValue<TaxRateSnapshot>(cacheKey, out var cached) && cached is not null
-            && IsEffective(cached, effectiveAt))
+        // Cache is only safe for "now-ish" queries. If the caller passes a historical effectiveAt,
+        // skip the cache and resolve against the effective-window directly (spec 013 returns rely on this).
+        var cacheIsSafe = effectiveAt >= DateTimeOffset.UtcNow - TimeSpan.FromMinutes(5);
+        if (cacheIsSafe && cache.TryGetValue<TaxRateSnapshot>(cacheKey, out var cached) && cached is not null)
         {
             return cached;
         }
@@ -41,7 +45,7 @@ public sealed class TaxRateCache(IServiceScopeFactory scopeFactory, IMemoryCache
         }
 
         var snapshot = new TaxRateSnapshot(row.Id, row.MarketCode, row.Kind, row.RateBps);
-        lock (LookupLock)
+        if (cacheIsSafe)
         {
             cache.Set(cacheKey, snapshot, Ttl);
         }
@@ -52,17 +56,21 @@ public sealed class TaxRateCache(IServiceScopeFactory scopeFactory, IMemoryCache
     {
         var normalizedMarket = marketCode.Trim().ToLowerInvariant();
         var normalizedKind = kind.Trim().ToLowerInvariant();
-        cache.Remove($"pricing.tax_rate:{normalizedMarket}:{normalizedKind}");
+        cache.Remove(KeyFor(normalizedMarket, normalizedKind));
     }
 
+    /// <summary>
+    /// Invalidate every known market × kind combo. Scoped to pricing keys only —
+    /// MUST NOT touch other modules that share the singleton IMemoryCache.
+    /// </summary>
     public void InvalidateAll()
     {
-        // IMemoryCache has no built-in "clear" — compact fully.
-        if (cache is MemoryCache memCache)
+        foreach (var market in KnownMarkets)
         {
-            memCache.Compact(1.0);
+            foreach (var kind in KnownKinds)
+            {
+                cache.Remove(KeyFor(market, kind));
+            }
         }
     }
-
-    private static bool IsEffective(TaxRateSnapshot _, DateTimeOffset __) => true;
 }

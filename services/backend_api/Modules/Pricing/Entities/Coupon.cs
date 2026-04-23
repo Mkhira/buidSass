@@ -14,7 +14,6 @@ public sealed class Coupon
     public string[] MarketCodes { get; set; } = Array.Empty<string>();
     public DateTimeOffset? ValidFrom { get; set; }
     public DateTimeOffset? ValidTo { get; set; }
-    public byte[] RowVersion { get; set; } = Array.Empty<byte>();
     public string? OwnerId { get; set; }
     public Guid? VendorId { get; set; }
     public bool IsActive { get; set; } = true;

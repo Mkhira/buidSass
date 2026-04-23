@@ -40,6 +40,14 @@ public static class Endpoint
 
     private static async Task<IResult> CreateAsync(CreateB2BTierRequest request, HttpContext context, PricingDbContext db, IAuditEventPublisher audit, CancellationToken ct)
     {
+        if (string.IsNullOrWhiteSpace(request.Slug) || string.IsNullOrWhiteSpace(request.Name))
+        {
+            return AdminPricingResponseFactory.Problem(context, 400, "pricing.tier.invalid", "Slug and name required", "");
+        }
+        if (request.DefaultDiscountBps < 0 || request.DefaultDiscountBps > 10_000)
+        {
+            return AdminPricingResponseFactory.Problem(context, 400, "pricing.tier.invalid", "DefaultDiscountBps must be 0–10000", "");
+        }
         var slug = request.Slug.Trim().ToLowerInvariant();
         if (await db.B2BTiers.AnyAsync(t => t.Slug == slug, ct))
         {

@@ -61,6 +61,32 @@ public static class Endpoint
         IAuditEventPublisher audit,
         CancellationToken ct)
     {
+        if (string.IsNullOrWhiteSpace(request.Code))
+        {
+            return AdminPricingResponseFactory.Problem(context, 400, "pricing.coupon.invalid", "Code required", "");
+        }
+        var kind = request.Kind?.Trim().ToLowerInvariant();
+        if (kind is not ("percent" or "amount"))
+        {
+            return AdminPricingResponseFactory.Problem(context, 400, "pricing.coupon.invalid", "Kind must be 'percent' or 'amount'", "");
+        }
+        if (request.Value < 0)
+        {
+            return AdminPricingResponseFactory.Problem(context, 400, "pricing.coupon.invalid", "Value must be >= 0", "");
+        }
+        if (kind == "percent" && request.Value > 10_000)
+        {
+            return AdminPricingResponseFactory.Problem(context, 400, "pricing.coupon.invalid", "Percent value must be 0–10000 basis points", "");
+        }
+        if (request.CapMinor is long cap && cap < 0)
+        {
+            return AdminPricingResponseFactory.Problem(context, 400, "pricing.coupon.invalid", "CapMinor must be >= 0", "");
+        }
+        if (request.MarketCodes is null || request.MarketCodes.Length == 0)
+        {
+            return AdminPricingResponseFactory.Problem(context, 400, "pricing.coupon.invalid", "At least one marketCode required", "");
+        }
+
         var code = request.Code.Trim().ToUpperInvariant();
         if (await db.Coupons.AnyAsync(c => c.Code == code, ct))
         {
@@ -71,7 +97,7 @@ public static class Endpoint
         {
             Id = Guid.NewGuid(),
             Code = code,
-            Kind = request.Kind.Trim().ToLowerInvariant(),
+            Kind = kind,
             Value = request.Value,
             CapMinor = request.CapMinor,
             PerCustomerLimit = request.PerCustomerLimit,

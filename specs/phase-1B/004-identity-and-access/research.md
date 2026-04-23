@@ -186,6 +186,37 @@ Data model file enumerates every state, transition, actor, and failure — satis
 
 ---
 
+## R13 · Permission propagation model (F-29)
+
+**Decision**: **Option A** implemented.
+
+- Access tokens no longer carry a baked `permission` claim set.
+- Tokens carry `permission_version` + `sub` and the evaluator resolves effective permissions from DB on each authorization decision.
+- A short `IMemoryCache` (5 seconds) is used for permission sets keyed by `(account_id, permission_version)`.
+- Role change flows increment `accounts.permission_version` for affected accounts.
+
+**Rationale**: This satisfies FR-028 "next request after propagation" semantics while avoiding long-lived stale authorization from embedded permission claims. The 5-second cache bounds DB load but keeps propagation deterministic through version changes.
+
+**Rejected**: Option B (`needs_refresh` on refresh-token path) was rejected because it leaves stale privilege in active access tokens until refresh, which violates the stricter interpretation of FR-028.
+
+---
+
+## R14 · Verification and reset token lifetimes (F-41)
+
+**Decision**:
+
+- Email-verification challenge TTL is **24 hours** from issuance.
+- Password-reset token TTL is **60 minutes** from issuance.
+
+**Rationale**: Email verification is asynchronous and user latency can span hours; 24h avoids needless re-registration churn while staying bounded. Password reset remains one-shot and sensitive, so 60 minutes balances usability and replay window.
+
+**Rejected**:
+
+- Email verification at 15 minutes — too short for real-world inbox latency.
+- Password reset at 20 minutes — overly strict for multi-device handoff scenarios.
+
+---
+
 ## Open items handed off to `/speckit-tasks`
 
 - Exact EF migration plan (initial migration name, foreign-key cascade behavior per FK) — task-level.

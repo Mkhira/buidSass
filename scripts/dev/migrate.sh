@@ -8,4 +8,5 @@ export ASPNETCORE_ENVIRONMENT=${ASPNETCORE_ENVIRONMENT:-Development}
 export ConnectionStrings__DefaultConnection=${ConnectionStrings__DefaultConnection:-"Host=localhost;Port=5432;Username=dental;Password=dental_dev_pw;Database=dental_commerce_dev"}
 
 dotnet tool restore >/dev/null 2>&1 || true
-dotnet ef database update
+dotnet ef database update --context AppDbContext
+dotnet ef database update --context IdentityDbContext

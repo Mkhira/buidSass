@@ -55,6 +55,8 @@ public static class Endpoint
         Guid? productId,
         Guid? warehouseId,
         string? status,
+        int? page,
+        int? pageSize,
         InventoryDbContext db,
         CancellationToken ct)
     {
@@ -75,12 +77,26 @@ public static class Endpoint
             query = query.Where(x => x.Status == status);
         }
 
+        // Paginate. Warehouses can accumulate thousands of batches over time; returning the full
+        // collection would blow the response budget. Clamp to (1..200), default 50.
+        var effectivePage = page is null or < 1 ? 1 : page.Value;
+        var effectivePageSize = pageSize is null ? 50 : Math.Clamp(pageSize.Value, 1, 200);
+
+        var total = await query.CountAsync(ct);
         var rows = await query
             .OrderBy(x => x.ExpiryDate)
             .ThenBy(x => x.Id)
+            .Skip((effectivePage - 1) * effectivePageSize)
+            .Take(effectivePageSize)
             .ToListAsync(ct);
 
-        return Results.Ok(rows.Select(ToDto));
+        return Results.Ok(new
+        {
+            items = rows.Select(ToDto),
+            page = effectivePage,
+            pageSize = effectivePageSize,
+            total,
+        });
     }
 
     private static async Task<IResult> GetAsync(Guid id, HttpContext context, InventoryDbContext db, CancellationToken ct)

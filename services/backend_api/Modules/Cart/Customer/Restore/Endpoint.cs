@@ -86,13 +86,21 @@ public static class Endpoint
         }
 
         // Cart state committed — now mutate inventory. Releases of the superseded cart first,
-        // then re-reservations on the restored cart. Failures here are recorded on the lines
-        // (StockChanged=true) and a second SaveChanges pushes those flags — if THAT save
-        // races we track created reservations so we can release-compensate.
+        // then re-reservations on the restored cart.
         foreach (var line in existingLines.Where(l => l.ReservationId.HasValue))
         {
-            await inventoryOrchestrator.TryReleaseAsync(
+            var released = await inventoryOrchestrator.TryReleaseAsync(
                 inventoryDb, line.ReservationId!.Value, accountId.Value, "cart.superseded_by_restore", ct);
+            if (!released)
+            {
+                // A failed release means the superseded cart still holds stock. Revalidating
+                // the restored cart against artificially-reduced ATS would lie to the customer,
+                // so surface an explicit conflict and let them retry.
+                return CustomerCartResponseFactory.Problem(
+                    context, 409, "cart.concurrency_conflict",
+                    "Reservation release conflict",
+                    "Could not release a reservation on the superseded cart; retry the restore.");
+            }
         }
 
         var lines = await db.CartLines.Where(l => l.CartId == archived.Id).ToListAsync(ct);
@@ -117,10 +125,16 @@ public static class Endpoint
             line.UpdatedAt = nowUtc;
         }
 
-        try { await db.SaveChangesAsync(ct); }
-        catch (DbUpdateException ex) when (CustomerCartResponseFactory.IsConcurrencyConflict(ex))
+        try
         {
-            // Compensate the reservations we just created since the cart-line updates rolled back.
+            await db.SaveChangesAsync(ct);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            // Any post-reservation save failure must compensate — the reservations we just
+            // created would otherwise leak with no cart-line pointer. Concurrency-shaped
+            // exceptions still map to 409; everything else rethrows so the caller sees the
+            // real error (and the compensation at least prevented stock from leaking).
             foreach (var rid in createdReservations)
             {
                 try
@@ -130,7 +144,11 @@ public static class Endpoint
                 }
                 catch { /* best-effort */ }
             }
-            return CustomerCartResponseFactory.ConcurrencyConflict(context, "Restore race with another cart.");
+            if (ex is DbUpdateException dbEx && CustomerCartResponseFactory.IsConcurrencyConflict(dbEx))
+            {
+                return CustomerCartResponseFactory.ConcurrencyConflict(context, "Restore race with another cart.");
+            }
+            throw;
         }
 
         var ctxInfo = await customerContextResolver.ResolveAsync(accountId, ct);

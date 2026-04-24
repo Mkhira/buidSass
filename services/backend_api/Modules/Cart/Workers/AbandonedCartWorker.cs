@@ -131,15 +131,41 @@ public sealed class AbandonedCartWorker(
 
             if (!claimed) continue;
 
-            await auditPublisher.PublishAsync(new AuditEvent(
-                WorkerActorId,
-                "system",
-                "cart.abandoned",
-                nameof(Entities.Cart),
-                cart.Id,
-                null,
-                new { cart.Id, cart.AccountId, cart.MarketCode, cart.LastTouchedAt },
-                "cart.abandonment.worker"), ct);
+            try
+            {
+                await auditPublisher.PublishAsync(new AuditEvent(
+                    WorkerActorId,
+                    "system",
+                    "cart.abandoned",
+                    nameof(Entities.Cart),
+                    cart.Id,
+                    null,
+                    new { cart.Id, cart.AccountId, cart.MarketCode, cart.LastTouchedAt },
+                    "cart.abandonment.worker"), ct);
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                // The claim is committed but the publish failed — without compensation this cart
+                // would be deduped until the window expires, silently dropping the event. Roll
+                // the claim back by pushing LastEmittedAt below any future dedupeCutoff so the
+                // next tick re-claims + re-emits. Any further failure is logged so operators can
+                // reconcile manually (spec 019 will replace this with a transactional outbox).
+                logger.LogError(ex,
+                    "cart.abandonment.publish_failed cartId={CartId} — rolling back claim so the next tick retries.",
+                    cart.Id);
+                try
+                {
+                    await db.Set<CartAbandonedEmission>()
+                        .Where(e => e.CartId == cart.Id)
+                        .ExecuteUpdateAsync(s => s.SetProperty(e => e.LastEmittedAt, DateTimeOffset.MinValue), ct);
+                }
+                catch (Exception rollbackEx)
+                {
+                    logger.LogError(rollbackEx,
+                        "cart.abandonment.claim_rollback_failed cartId={CartId} — event permanently dropped for this dedupe window.",
+                        cart.Id);
+                }
+            }
         }
     }
 }

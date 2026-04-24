@@ -1,6 +1,7 @@
 using BackendApi.Modules.Cart.Persistence;
 using BackendApi.Modules.Catalog.Persistence;
 using BackendApi.Modules.Inventory.Persistence;
+using BackendApi.Modules.Pricing.Persistence;
 using BackendApi.Modules.Shared;
 using Microsoft.Extensions.Logging;
 
@@ -15,6 +16,7 @@ public sealed class CartLoginMergeHook(
     CartDbContext cartDb,
     CatalogDbContext catalogDb,
     InventoryDbContext inventoryDb,
+    PricingDbContext pricingDb,
     CartResolver resolver,
     CartMerger merger,
     CartViewBuilder viewBuilder,
@@ -39,6 +41,7 @@ public sealed class CartLoginMergeHook(
                 cartDb,
                 catalogDb,
                 inventoryDb,
+                pricingDb,
                 resolver,
                 merger,
                 viewBuilder,

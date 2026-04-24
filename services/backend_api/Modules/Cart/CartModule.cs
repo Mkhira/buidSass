@@ -47,6 +47,7 @@ public static class CartModule
         services.AddSingleton<CartResolver>();
         services.AddSingleton<CartViewBuilder>();
         services.AddScoped<CartInventoryOrchestrator>();
+        services.AddScoped<CartReservationRehydrator>();
         services.AddScoped<CustomerContextResolver>();
 
         // Login-merge hook (FR-003). Scoped so it resolves scoped DbContexts.

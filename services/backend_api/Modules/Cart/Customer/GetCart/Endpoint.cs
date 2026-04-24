@@ -20,9 +20,11 @@ public static class Endpoint
         string? market,
         CartDbContext db,
         CatalogDbContext catalogDb,
+        BackendApi.Modules.Inventory.Persistence.InventoryDbContext inventoryDb,
         CartResolver resolver,
         CartViewBuilder viewBuilder,
         CustomerContextResolver customerContextResolver,
+        CartReservationRehydrator reservationRehydrator,
         CancellationToken ct)
     {
         if (string.IsNullOrWhiteSpace(market))
@@ -54,7 +56,25 @@ public static class Endpoint
         }
 
         cart.LastTouchedAt = nowUtc;
-        await db.SaveChangesAsync(ct);
+
+        // FR-022 / spec edge case 4: attempt re-reservation for any line whose spec-008
+        // reservation has expired or been reaped. Tracked fetch (no AsNoTracking) so the
+        // rehydrator can persist ReservationId / StockChanged on the line rows.
+        var trackedLines = await db.CartLines.Where(l => l.CartId == cart.Id).OrderBy(l => l.AddedAt).ToListAsync(ct);
+        await reservationRehydrator.RehydrateAsync(db, inventoryDb, catalogDb, cart, trackedLines, nowUtc, ct);
+
+        try
+        {
+            await db.SaveChangesAsync(ct);
+        }
+        catch (DbUpdateException ex) when (CustomerCartResponseFactory.IsConcurrencyConflict(ex))
+        {
+            // Another mutation touched the row between our read and the timestamp update —
+            // the view below reloads from DB anyway, so just drop the touch and keep going.
+            // A GET should never surface 5xx because of a cosmetic timestamp race.
+            db.ChangeTracker.Clear();
+            cart = await db.Carts.AsNoTracking().SingleAsync(c => c.Id == cart.Id, ct);
+        }
 
         var lines = await db.CartLines.AsNoTracking().Where(l => l.CartId == cart.Id).OrderBy(l => l.AddedAt).ToListAsync(ct);
         var saved = await db.CartSavedItems.AsNoTracking().Where(s => s.CartId == cart.Id).ToListAsync(ct);

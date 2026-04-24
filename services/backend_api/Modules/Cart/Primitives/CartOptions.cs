@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
 
 namespace BackendApi.Modules.Cart.Primitives;
@@ -6,11 +7,21 @@ public sealed class CartOptions
 {
     public const string SectionName = "Cart";
 
+    /// <summary>
+    /// Well-known default secret — kept as a constant so the validator can reject it outside
+    /// Development/Test. A leaked or unrotated default in prod lets an attacker forge valid
+    /// cart tokens, so this gate is intentionally hard.
+    /// </summary>
+    public const string DefaultTokenSecret = "dev-only-cart-token-secret-change-me";
+
+    /// <summary>Minimum TokenSecret length outside Development/Test to raise the bar on brute-force attempts.</summary>
+    public const int MinProductionTokenSecretLength = 32;
+
     /// <summary>Max distinct lines per cart (defensive bound, spec edge case 1).</summary>
     public int MaxLinesPerCart { get; set; } = 100;
 
     /// <summary>Token secret used for HMAC signing. Required in production.</summary>
-    public string TokenSecret { get; set; } = "dev-only-cart-token-secret-change-me";
+    public string TokenSecret { get; set; } = DefaultTokenSecret;
 
     /// <summary>Token lifetime in days (FR-020).</summary>
     public int TokenLifetimeDays { get; set; } = 30;
@@ -38,7 +49,7 @@ public sealed class CartOptions
 /// those at DI-composition time so operators see the misconfiguration at boot rather than
 /// as silent bad behavior in production.
 /// </summary>
-internal sealed class CartOptionsValidator : IValidateOptions<CartOptions>
+public sealed class CartOptionsValidator(IHostEnvironment hostEnvironment) : IValidateOptions<CartOptions>
 {
     public ValidateOptionsResult Validate(string? name, CartOptions options)
     {
@@ -50,6 +61,27 @@ internal sealed class CartOptionsValidator : IValidateOptions<CartOptions>
         if (options.MaxLinesPerCart <= 0) failures.Add("Cart:MaxLinesPerCart must be positive.");
         if (options.TokenLifetimeDays <= 0) failures.Add("Cart:TokenLifetimeDays must be positive.");
         if (string.IsNullOrWhiteSpace(options.TokenSecret)) failures.Add("Cart:TokenSecret must be set.");
+
+        // Production/Staging MUST NOT ship with the well-known default secret or a short one —
+        // a leaked default would let any caller forge a valid cart_token and hijack any
+        // anonymous cart by hash collision via brute force.
+        var isDev = hostEnvironment.IsDevelopment() || hostEnvironment.IsEnvironment("Test");
+        if (!isDev && !string.IsNullOrWhiteSpace(options.TokenSecret))
+        {
+            if (string.Equals(options.TokenSecret, CartOptions.DefaultTokenSecret, StringComparison.Ordinal))
+            {
+                failures.Add(
+                    $"Cart:TokenSecret is the well-known default in environment '{hostEnvironment.EnvironmentName}'. "
+                    + "Override it via configuration / Key Vault before shipping.");
+            }
+            if (options.TokenSecret.Length < CartOptions.MinProductionTokenSecretLength)
+            {
+                failures.Add(
+                    $"Cart:TokenSecret must be at least {CartOptions.MinProductionTokenSecretLength} chars "
+                    + $"in environment '{hostEnvironment.EnvironmentName}'.");
+            }
+        }
+
         return failures.Count == 0 ? ValidateOptionsResult.Success : ValidateOptionsResult.Fail(failures);
     }
 }

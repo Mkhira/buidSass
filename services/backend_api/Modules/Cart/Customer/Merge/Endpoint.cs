@@ -4,6 +4,7 @@ using BackendApi.Modules.Cart.Persistence;
 using BackendApi.Modules.Cart.Primitives;
 using BackendApi.Modules.Catalog.Persistence;
 using BackendApi.Modules.Inventory.Persistence;
+using BackendApi.Modules.Pricing.Persistence;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.EntityFrameworkCore;
@@ -29,6 +30,7 @@ public static class Endpoint
         CartDbContext db,
         CatalogDbContext catalogDb,
         InventoryDbContext inventoryDb,
+        PricingDbContext pricingDb,
         CartResolver resolver,
         CartMerger merger,
         CartViewBuilder viewBuilder,
@@ -174,10 +176,30 @@ public static class Endpoint
             // Archive the anon cart via the state-machine helper (Principle 24).
             CartStatuses.TryTransition(anonCart, CartStatuses.Merged, "merged", nowUtc);
 
-            // Anon coupon is adopted only if auth side had none (R2).
+            // Anon coupon is adopted only if auth side had none (R2) AND the coupon is still
+            // valid for the authenticated account's market + restriction set (spec edge case 5).
+            // If the coupon no longer applies we drop it silently and surface a merge notice so
+            // the client can explain the gap — doing nothing would leave the auth cart with a
+            // stale coupon code that Pricing would reject on next preview.
             if (string.IsNullOrEmpty(authCart.CouponCode) && !string.IsNullOrEmpty(anonCart.CouponCode))
             {
-                authCart.CouponCode = anonCart.CouponCode;
+                var carryInvalid = await IsCouponInvalidForAsync(
+                    pricingDb, db, anonCart.CouponCode!, authCart.Id, marketCode, nowUtc, ct);
+                if (carryInvalid.Invalid)
+                {
+                    notices.Add(new CartMerger.MergeNotice(
+                        Guid.Empty,
+                        carryInvalid.ReasonCode ?? "cart.coupon.invalid",
+                        RequestedQty: 0,
+                        AppliedQty: 0));
+                    logger.LogInformation(
+                        "cart.merge.coupon_dropped authCartId={AuthCartId} code={Code} reason={Reason}",
+                        authCart.Id, anonCart.CouponCode, carryInvalid.ReasonCode);
+                }
+                else
+                {
+                    authCart.CouponCode = anonCart.CouponCode;
+                }
             }
 
             authCart.LastTouchedAt = nowUtc;
@@ -274,12 +296,52 @@ public static class Endpoint
         }
     }
 
+    /// <summary>
+    /// Re-validates an anonymous-side coupon against the authenticated cart's market +
+    /// restriction set before the merge adopts it (spec edge case 5). Mirrors the gate chain in
+    /// ApplyCoupon so a coupon that would be rejected by a direct POST /coupon is also rejected
+    /// on carry-over. Returns the rejection reason code (or null on pass).
+    /// </summary>
+    internal static async Task<(bool Invalid, string? ReasonCode)> IsCouponInvalidForAsync(
+        PricingDbContext pricingDb,
+        CartDbContext cartDb,
+        string code,
+        Guid cartId,
+        string marketCode,
+        DateTimeOffset nowUtc,
+        CancellationToken ct)
+    {
+        var normalized = code.Trim().ToUpperInvariant();
+        var coupon = await pricingDb.Coupons.AsNoTracking()
+            .SingleOrDefaultAsync(c => c.Code == normalized && c.DeletedAt == null, ct);
+        if (coupon is null || !coupon.IsActive) return (true, "cart.coupon.invalid");
+        if (coupon.ValidFrom is { } vf && nowUtc < vf) return (true, "cart.coupon.expired");
+        if (coupon.ValidTo is { } vt && nowUtc > vt) return (true, "cart.coupon.expired");
+        if (coupon.MarketCodes.Length > 0
+            && !coupon.MarketCodes.Any(m => string.Equals(m, marketCode, StringComparison.OrdinalIgnoreCase)))
+        {
+            return (true, "cart.coupon.invalid");
+        }
+        if (coupon.OverallLimit is { } limit && coupon.UsedCount >= limit)
+        {
+            return (true, "cart.coupon.limit_reached");
+        }
+        if (coupon.ExcludesRestricted)
+        {
+            var hasRestricted = await cartDb.CartLines.AsNoTracking()
+                .Where(l => l.CartId == cartId).AnyAsync(l => l.Restricted, ct);
+            if (hasRestricted) return (true, "cart.coupon.excludes_restricted");
+        }
+        return (false, null);
+    }
+
     private static async Task<IResult> HandleAsync(
         MergeRequest request,
         HttpContext context,
         CartDbContext db,
         CatalogDbContext catalogDb,
         InventoryDbContext inventoryDb,
+        PricingDbContext pricingDb,
         CartResolver resolver,
         CartMerger merger,
         CartViewBuilder viewBuilder,
@@ -303,7 +365,7 @@ public static class Endpoint
 
         var outcome = await ExecuteAsync(
             accountId.Value, request.MarketCode, suppliedToken,
-            db, catalogDb, inventoryDb, resolver, merger, viewBuilder,
+            db, catalogDb, inventoryDb, pricingDb, resolver, merger, viewBuilder,
             inventoryOrchestrator, customerContextResolver, logger,
             DateTimeOffset.UtcNow, ct);
 

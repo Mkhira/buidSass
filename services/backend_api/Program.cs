@@ -6,6 +6,7 @@ using BackendApi.Modules.Identity.Seeding;
 using BackendApi.Modules.Observability;
 using BackendApi.Modules.Pricing;
 using BackendApi.Modules.Search;
+using BackendApi.Modules.Inventory;
 using BackendApi.Modules.Shared;
 using Microsoft.EntityFrameworkCore;
 using Serilog;
@@ -54,6 +55,7 @@ builder.Services.AddIdentityModule(builder.Configuration, builder.Environment);
 builder.Services.AddCatalogModule(builder.Configuration, builder.Environment);
 builder.Services.AddSearchModule(builder.Configuration, builder.Environment);
 builder.Services.AddPricingModule(builder.Configuration, builder.Environment);
+builder.Services.AddInventoryModule(builder.Configuration, builder.Environment);
 builder.Services.AddSeeding(builder.Configuration);
 
 var app = builder.Build();
@@ -73,6 +75,7 @@ app.UseIdentityModuleEndpoints();
 app.UseCatalogModuleEndpoints();
 app.UseSearchModuleEndpoints();
 app.UsePricingModuleEndpoints();
+app.UseInventoryModuleEndpoints();
 
 if (app.Environment.IsDevelopment())
 {

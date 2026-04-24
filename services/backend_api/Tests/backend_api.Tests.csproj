@@ -24,6 +24,11 @@
     <EmbeddedResource Remove="Search.Tests\**" />
     <None Remove="Search.Tests\**" />
     <Content Remove="Search.Tests\**" />
+
+    <Compile Remove="Inventory.Tests\**" />
+    <EmbeddedResource Remove="Inventory.Tests\**" />
+    <None Remove="Inventory.Tests\**" />
+    <Content Remove="Inventory.Tests\**" />
   </ItemGroup>
 
   <ItemGroup>

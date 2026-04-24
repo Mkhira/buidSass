@@ -1,0 +1,12 @@
+inventory.insufficient = Requested quantity exceeds available stock.
+inventory.warehouse_market_mismatch = Product cannot be reserved from this market warehouse.
+inventory.batch_qty_negative = Batch quantity cannot be negative.
+inventory.negative_on_hand_blocked = Operation would produce a negative on-hand quantity.
+inventory.reservation.not_found = Reservation was not found.
+inventory.reservation.expired = Reservation has expired.
+inventory.reservation.already_converted = Reservation has already been converted.
+inventory.batch.duplicate_lot = A batch with this lot number already exists.
+inventory.batch.not_found = Inventory batch was not found.
+inventory.invalid_items = Invalid reservation items payload.
+inventory.invalid_qty = Quantity must be greater than zero.
+inventory.invalid_order_id = Order id is required.

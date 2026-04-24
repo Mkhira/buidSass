@@ -9,7 +9,7 @@ namespace BackendApi.Modules.Identity.Seeding;
 public sealed class IdentityReferenceDataSeeder : ISeeder
 {
     public string Name => "identity.reference-data";
-    public int Version => 1;
+    public int Version => 2;
     public IReadOnlyList<string> DependsOn => [];
 
     public async Task ApplyAsync(SeedContext ctx, CancellationToken ct)
@@ -25,6 +25,7 @@ public sealed class IdentityReferenceDataSeeder : ISeeder
             new Role { Id = Guid.NewGuid(), Code = "catalog.publisher", NameAr = "ناشر الكتالوج", NameEn = "Catalog Publisher", Scope = "platform", System = true },
             new Role { Id = Guid.NewGuid(), Code = "pricing.editor", NameAr = "محرر التسعير", NameEn = "Pricing Editor", Scope = "platform", System = true },
             new Role { Id = Guid.NewGuid(), Code = "pricing.admin", NameAr = "مشرف التسعير", NameEn = "Pricing Admin", Scope = "platform", System = true },
+            new Role { Id = Guid.NewGuid(), Code = "inventory.operator", NameAr = "مشغل المخزون", NameEn = "Inventory Operator", Scope = "platform", System = true },
             new Role { Id = Guid.NewGuid(), Code = "customer.standard", NameAr = "عميل", NameEn = "Customer", Scope = "market", System = true },
             new Role { Id = Guid.NewGuid(), Code = "customer.company_owner", NameAr = "مالك الشركة", NameEn = "Company Owner", Scope = "market", System = true },
         };
@@ -67,6 +68,18 @@ public sealed class IdentityReferenceDataSeeder : ISeeder
             "pricing.tier.write",
             "pricing.explanation.read",
             "pricing.internal.calculate",
+            // Inventory (spec 008)
+            "inventory.stock.read",
+            "inventory.batch.read",
+            "inventory.batch.write",
+            "inventory.movement.read",
+            "inventory.movement.write",
+            "inventory.reservation.read",
+            "inventory.alert.read",
+            "inventory.internal.reserve",
+            "inventory.internal.release",
+            "inventory.internal.convert",
+            "inventory.internal.return",
         }.Select(code => new Permission
         {
             Id = Guid.NewGuid(),
@@ -160,6 +173,16 @@ public sealed class IdentityReferenceDataSeeder : ISeeder
                 "pricing.tier.write",
                 "pricing.explanation.read",
                 "pricing.internal.calculate",
+            ],
+            ["inventory.operator"] =
+            [
+                "inventory.stock.read",
+                "inventory.batch.read",
+                "inventory.batch.write",
+                "inventory.movement.read",
+                "inventory.movement.write",
+                "inventory.reservation.read",
+                "inventory.alert.read",
             ],
         };
 

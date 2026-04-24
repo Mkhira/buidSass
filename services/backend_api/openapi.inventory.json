@@ -1,0 +1,183 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Inventory API",
+    "version": "1.0.0",
+    "description": "Spec 008 inventory surfaces (customer, internal, admin)."
+  },
+  "paths": {
+    "/v1/customer/inventory/availability": {
+      "get": {
+        "summary": "Get availability buckets for products",
+        "parameters": [
+          {
+            "name": "productIds",
+            "in": "query",
+            "required": true,
+            "schema": { "type": "string" }
+          },
+          {
+            "name": "market",
+            "in": "query",
+            "required": true,
+            "schema": { "type": "string" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Bucket list",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "productId": { "type": "string", "format": "uuid" },
+                          "bucket": {
+                            "type": "string",
+                            "enum": ["in_stock", "backorder", "out_of_stock"]
+                          }
+                        },
+                        "required": ["productId", "bucket"]
+                      }
+                    }
+                  },
+                  "required": ["items"]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/internal/inventory/reservations": {
+      "post": {
+        "summary": "Create inventory reservation",
+        "responses": {
+          "200": { "description": "Reservation created" },
+          "409": { "description": "Insufficient inventory" }
+        }
+      }
+    },
+    "/v1/internal/inventory/reservations/{id}": {
+      "delete": {
+        "summary": "Release reservation",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "format": "uuid" }
+          }
+        ],
+        "responses": {
+          "204": { "description": "Released" },
+          "404": { "description": "Not found" }
+        }
+      }
+    },
+    "/v1/internal/inventory/reservations/{id}/convert": {
+      "post": {
+        "summary": "Convert reservation to sale",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "format": "uuid" }
+          }
+        ],
+        "responses": {
+          "200": { "description": "Converted" },
+          "409": { "description": "Conflict" }
+        }
+      }
+    },
+    "/v1/internal/inventory/movements/return": {
+      "post": {
+        "summary": "Post return movement",
+        "responses": {
+          "200": { "description": "Return applied" }
+        }
+      }
+    },
+    "/v1/admin/inventory/batches": {
+      "get": {
+        "summary": "List batches",
+        "responses": {
+          "200": { "description": "Batch list" }
+        }
+      },
+      "post": {
+        "summary": "Create batch receipt",
+        "responses": {
+          "201": { "description": "Created" },
+          "409": { "description": "Duplicate lot" }
+        }
+      }
+    },
+    "/v1/admin/inventory/batches/{id}": {
+      "get": {
+        "summary": "Get batch",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "format": "uuid" }
+          }
+        ],
+        "responses": {
+          "200": { "description": "Batch details" },
+          "404": { "description": "Not found" }
+        }
+      },
+      "patch": {
+        "summary": "Patch batch metadata",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "format": "uuid" }
+          }
+        ],
+        "responses": {
+          "200": { "description": "Updated" },
+          "409": { "description": "Duplicate lot" }
+        }
+      }
+    },
+    "/v1/admin/inventory/movements/adjust": {
+      "post": {
+        "summary": "Post adjustment movement",
+        "responses": {
+          "200": { "description": "Adjusted" },
+          "409": { "description": "Negative on-hand blocked" }
+        }
+      }
+    },
+    "/v1/admin/inventory/movements/transfer": {
+      "post": {
+        "summary": "Post transfer pair",
+        "responses": {
+          "200": { "description": "Transferred" },
+          "409": { "description": "Negative on-hand blocked" }
+        }
+      }
+    },
+    "/v1/admin/inventory/movements/writeoff": {
+      "post": {
+        "summary": "Post writeoff movement",
+        "responses": {
+          "200": { "description": "Written off" },
+          "409": { "description": "Negative on-hand blocked" }
+        }
+      }
+    }
+  }
+}

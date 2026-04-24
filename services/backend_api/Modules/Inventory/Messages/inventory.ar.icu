@@ -1,0 +1,12 @@
+inventory.insufficient = الكمية المطلوبة تتجاوز المخزون المتاح.
+inventory.warehouse_market_mismatch = لا يمكن حجز المنتج من مستودع هذا السوق.
+inventory.batch_qty_negative = لا يمكن أن تكون كمية الدفعة سالبة.
+inventory.negative_on_hand_blocked = العملية ستؤدي إلى كمية مخزون سالبة.
+inventory.reservation.not_found = لم يتم العثور على الحجز.
+inventory.reservation.expired = انتهت صلاحية الحجز.
+inventory.reservation.already_converted = تم تحويل الحجز بالفعل.
+inventory.batch.duplicate_lot = توجد دفعة أخرى بنفس رقم التشغيلة.
+inventory.batch.not_found = لم يتم العثور على دفعة المخزون.
+inventory.invalid_items = حمولة عناصر الحجز غير صالحة.
+inventory.invalid_qty = يجب أن تكون الكمية أكبر من صفر.
+inventory.invalid_order_id = يجب توفير معرف الطلب.

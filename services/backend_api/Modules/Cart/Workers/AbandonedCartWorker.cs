@@ -20,9 +20,6 @@ public sealed class AbandonedCartWorker(
     IOptions<CartOptions> options,
     ILogger<AbandonedCartWorker> logger) : BackgroundService
 {
-    // Workers use a sentinel actor id so AuditEventPublisher.Validate accepts the event.
-    private static readonly Guid WorkerActorId = Guid.Parse("cccccccc-cccc-cccc-cccc-ccccccccccc1");
-
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         while (!stoppingToken.IsCancellationRequested)
@@ -88,18 +85,13 @@ public sealed class AbandonedCartWorker(
             // `LastEmittedAt < dedupeCutoff` predicate commits only one worker's claim per
             // dedupe window. If zero rows matched we try an insert (first-time claim); a
             // concurrent insert loses on the PK and we skip the publish.
-            bool claimed;
             try
             {
                 var rowsUpdated = await db.Set<CartAbandonedEmission>()
                     .Where(e => e.CartId == cart.Id && e.LastEmittedAt < dedupeCutoff)
                     .ExecuteUpdateAsync(s => s.SetProperty(e => e.LastEmittedAt, now), ct);
 
-                if (rowsUpdated == 1)
-                {
-                    claimed = true;
-                }
-                else
+                if (rowsUpdated != 1)
                 {
                     // No existing row past dedupe — insert the first-time claim. PK uniqueness
                     // on CartId makes this atomic; a losing concurrent insert throws 23505.
@@ -110,7 +102,6 @@ public sealed class AbandonedCartWorker(
                         LastEmittedAt = now,
                     });
                     await db.SaveChangesAsync(ct);
-                    claimed = true;
                 }
             }
             catch (DbUpdateException ex) when (CustomerCartResponseFactory.IsConcurrencyConflict(ex))
@@ -122,12 +113,10 @@ public sealed class AbandonedCartWorker(
                 continue;
             }
 
-            if (!claimed) continue;
-
             try
             {
                 await auditPublisher.PublishAsync(new AuditEvent(
-                    WorkerActorId,
+                    CartSystemActors.AbandonmentWorker,
                     "system",
                     "cart.abandoned",
                     nameof(Entities.Cart),

@@ -105,18 +105,21 @@ public static class Endpoint
                     inventoryDb, line.ReservationId!.Value, accountId.Value, "cart.superseded_by_restore", ct);
                 if (!released)
                 {
-                    // Compensate the releases that DID succeed before this one so the
-                    // superseded cart's reservations aren't left half-gone.
-                    await CompensateReleasedAsync(
-                        inventoryDb, catalogDb, inventoryOrchestrator,
+                    // Cart state flip is already durable (line 82). Returning a retryable 409
+                    // would be misleading — the next call would fail because the target is
+                    // already Active. Compensate the earlier releases (re-reserve + persist
+                    // new ids on the superseded cart's lines) and treat the restore as
+                    // authoritative. The one failed release stays attached to its stale
+                    // reservation id; SC-007's reservation-consistency check surfaces it
+                    // for operator reconciliation.
+                    var unrecovered = await CompensateReleasedAsync(
+                        db, inventoryDb, catalogDb, inventoryOrchestrator,
                         releasedReservations, existingActive!, accountId.Value, nowUtc, logger, ct);
                     logger.LogWarning(
-                        "cart.restore.release_failed archivedCartId={ArchivedCartId} reservationId={ReservationId} released_before_failure={ReleasedCount}",
-                        archived.Id, line.ReservationId, releasedReservations.Count);
-                    return CustomerCartResponseFactory.Problem(
-                        context, 409, "cart.concurrency_conflict",
-                        "Reservation release conflict",
-                        "Could not release a reservation on the superseded cart; the prior releases were compensated. Retry.");
+                        "cart.restore.partial_release archivedCartId={ArchivedCartId} failedReservationId={ReservationId} releasedBeforeFailure={ReleasedCount} unrecovered={Unrecovered}",
+                        archived.Id, line.ReservationId, releasedReservations.Count, unrecovered);
+                    releasedReservations.Clear(); // compensation has re-reserved these
+                    break;
                 }
                 releasedReservations.Add((line.ReservationId.Value, line.ProductId, line.Qty));
             }
@@ -156,7 +159,7 @@ public static class Endpoint
                 catch { /* best-effort */ }
             }
             await CompensateReleasedAsync(
-                inventoryDb, catalogDb, inventoryOrchestrator,
+                db, inventoryDb, catalogDb, inventoryOrchestrator,
                 releasedReservations, existingActive!, accountId.Value, nowUtc, logger, ct);
             throw;
         }
@@ -192,11 +195,13 @@ public static class Endpoint
     }
 
     /// <summary>
-    /// Re-reserves reservations we previously released on the superseded cart. Best-effort —
-    /// failures are logged so operators can reconcile, but we don't throw because the caller
-    /// is already on a failure path.
+    /// Re-reserves reservations we previously released on the superseded cart, writes the
+    /// replacement ReservationId onto the matching CartLine, and saves. Logs + returns the
+    /// count of lines that couldn't be re-reserved so the caller can surface it. Failures
+    /// throwing inside the orchestrator are swallowed (operator reconciles via SC-007).
     /// </summary>
-    private static async Task CompensateReleasedAsync(
+    private static async Task<int> CompensateReleasedAsync(
+        CartDbContext cartDb,
         InventoryDbContext inventoryDb,
         CatalogDbContext catalogDb,
         CartInventoryOrchestrator inventoryOrchestrator,
@@ -207,20 +212,63 @@ public static class Endpoint
         ILogger logger,
         CancellationToken ct)
     {
-        foreach (var (_, productId, qty) in releasedReservations)
+        if (releasedReservations.Count == 0) return 0;
+
+        var supersededLines = await cartDb.CartLines
+            .Where(l => l.CartId == supersededCart.Id)
+            .ToListAsync(ct);
+        var unrecoveredLines = 0;
+        foreach (var (oldReservationId, productId, qty) in releasedReservations)
         {
             try
             {
-                await inventoryOrchestrator.TryReserveAsync(
+                var result = await inventoryOrchestrator.TryReserveAsync(
                     inventoryDb, catalogDb, productId, qty,
                     supersededCart.MarketCode, accountId, supersededCart.Id, nowUtc, ct);
+                var targetLine = supersededLines.FirstOrDefault(l => l.ProductId == productId);
+                if (result.IsSuccess && result.ReservationId is { } newRid)
+                {
+                    if (targetLine is not null)
+                    {
+                        targetLine.ReservationId = newRid;
+                        targetLine.UpdatedAt = nowUtc;
+                    }
+                }
+                else
+                {
+                    unrecoveredLines++;
+                    if (targetLine is not null)
+                    {
+                        // Stale pointer now — clear it so the next read doesn't dereference
+                        // a released reservation, and flag StockChanged for UI visibility.
+                        targetLine.ReservationId = null;
+                        targetLine.StockChanged = true;
+                        targetLine.UpdatedAt = nowUtc;
+                    }
+                    logger.LogError(
+                        "cart.restore.compensation_reserve_failed supersededCartId={CartId} productId={ProductId} qty={Qty} reason={Reason}",
+                        supersededCart.Id, productId, qty, result.ReasonCode);
+                }
             }
             catch (Exception ex)
             {
+                unrecoveredLines++;
                 logger.LogError(ex,
-                    "cart.restore.compensation_failed supersededCartId={CartId} productId={ProductId} qty={Qty}",
+                    "cart.restore.compensation_threw supersededCartId={CartId} productId={ProductId} qty={Qty}",
                     supersededCart.Id, productId, qty);
             }
         }
+
+        try
+        {
+            await cartDb.SaveChangesAsync(ct);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex,
+                "cart.restore.compensation_persist_failed supersededCartId={CartId} — superseded cart lines still reference stale reservation ids.",
+                supersededCart.Id);
+        }
+        return unrecoveredLines;
     }
 }

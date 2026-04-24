@@ -427,6 +427,8 @@ namespace BackendApi.Modules.Catalog.Persistence.Migrations
                             t.HasCheckConstraint("CK_products_max_per_order_non_negative", "\"MaxPerOrder\" >= 0");
 
                             t.HasCheckConstraint("CK_products_min_order_qty_non_negative", "\"MinOrderQty\" >= 0");
+
+                            t.HasCheckConstraint("CK_products_qty_bounds_consistent", "\"MaxPerOrder\" = 0 OR \"MaxPerOrder\" >= \"MinOrderQty\"");
                         });
                 });
 

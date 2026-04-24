@@ -70,7 +70,7 @@ public sealed class AbandonedCartWorker(
         var dedupeCutoff = now.AddHours(-opts.AbandonmentDedupeHours);
         var candidates = await (
                 from c in db.Carts
-                where c.Status == "active"
+                where c.Status == CartStatuses.Active
                       && c.AccountId != null
                       && c.LastTouchedAt < idleCutoff
                       && db.CartLines.Any(l => l.CartId == c.Id)
@@ -90,7 +90,7 @@ public sealed class AbandonedCartWorker(
                 .SingleOrDefaultAsync(e => e.CartId == cart.Id, ct);
             if (emission is null)
             {
-                db.Add(new CartAbandonedEmission { CartId = cart.Id, LastEmittedAt = now });
+                db.Add(new CartAbandonedEmission { CartId = cart.Id, MarketCode = cart.MarketCode, LastEmittedAt = now });
             }
             else
             {

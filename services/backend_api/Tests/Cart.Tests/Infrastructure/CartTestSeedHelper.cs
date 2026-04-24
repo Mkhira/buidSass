@@ -65,7 +65,8 @@ public static class CartTestSeedHelper
         CancellationToken ct = default)
     {
         var db = services.GetRequiredService<InventoryDbContext>();
-        var existing = await db.Warehouses.SingleOrDefaultAsync(w => w.Code == code, ct);
+        var existing = await db.Warehouses.SingleOrDefaultAsync(
+            w => w.Code == code && w.MarketCode == marketCode, ct);
         if (existing is not null) return existing.Id;
 
         var warehouse = new Warehouse

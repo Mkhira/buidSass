@@ -28,7 +28,9 @@ public sealed class GetCartContractTests(CartTestFactory factory)
         await CartTestSeedHelper.EnsureTaxRateAsync(seedScope.ServiceProvider, "ksa");
 
         var customerClient = factory.CreateClient();
-        await customerClient.PostAsJsonAsync("/v1/customer/cart/lines", new { marketCode = "ksa", productId, qty = 1 });
+        var createResp = await customerClient.PostAsJsonAsync("/v1/customer/cart/lines", new { marketCode = "ksa", productId, qty = 1 });
+        createResp.IsSuccessStatusCode.Should().BeTrue(
+            because: await createResp.Content.ReadAsStringAsync());
 
         Guid cartId;
         await using (var lookupScope = factory.Services.CreateAsyncScope())

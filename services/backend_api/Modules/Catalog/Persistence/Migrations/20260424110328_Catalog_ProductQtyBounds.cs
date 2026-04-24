@@ -37,6 +37,12 @@ namespace BackendApi.Modules.Catalog.Persistence.Migrations
                 schema: "catalog",
                 table: "products",
                 sql: "\"MinOrderQty\" >= 0");
+
+            migrationBuilder.AddCheckConstraint(
+                name: "CK_products_qty_bounds_consistent",
+                schema: "catalog",
+                table: "products",
+                sql: "\"MaxPerOrder\" = 0 OR \"MaxPerOrder\" >= \"MinOrderQty\"");
         }
 
         /// <inheritdoc />
@@ -49,6 +55,11 @@ namespace BackendApi.Modules.Catalog.Persistence.Migrations
 
             migrationBuilder.DropCheckConstraint(
                 name: "CK_products_min_order_qty_non_negative",
+                schema: "catalog",
+                table: "products");
+
+            migrationBuilder.DropCheckConstraint(
+                name: "CK_products_qty_bounds_consistent",
                 schema: "catalog",
                 table: "products");
 

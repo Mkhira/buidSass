@@ -4,6 +4,8 @@ public sealed class CartLine
 {
     public Guid Id { get; set; }
     public Guid CartId { get; set; }
+    /// <summary>Denormalised from the owning cart for per-market partitioning (ADR-010). Populated from cart.market_code at insert time.</summary>
+    public string MarketCode { get; set; } = string.Empty;
     public Guid ProductId { get; set; }
     public int Qty { get; set; }
     public Guid? ReservationId { get; set; }

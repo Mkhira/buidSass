@@ -59,6 +59,7 @@ public static class Endpoint
             db.CartSavedItems.Add(new CartSavedItem
             {
                 CartId = cart.Id,
+                MarketCode = cart.MarketCode,
                 ProductId = request.ProductId,
                 Qty = line.Qty,
                 SavedAt = nowUtc,
@@ -131,6 +132,7 @@ public static class Endpoint
         {
             Id = Guid.NewGuid(),
             CartId = cart.Id,
+            MarketCode = cart.MarketCode,
             ProductId = productId,
             Qty = saved.Qty,
             ReservationId = reservation.ReservationId,

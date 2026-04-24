@@ -46,10 +46,12 @@ public sealed class CartLineConfiguration : IEntityTypeConfiguration<CartLine>
             tableBuilder.HasCheckConstraint("CK_cart_lines_qty_positive", "\"Qty\" >= 1");
         });
         builder.HasKey(x => x.Id);
+        builder.Property(x => x.MarketCode).HasColumnType("citext").IsRequired();
         builder.Property(x => x.RestrictionReasonCode).HasColumnType("citext");
         builder.Property(x => x.RowVersion).IsRowVersion();
         builder.HasIndex(x => new { x.CartId, x.ProductId }).IsUnique();
         builder.HasIndex(x => x.CartId);
+        builder.HasIndex(x => x.MarketCode);
     }
 }
 
@@ -62,7 +64,9 @@ public sealed class CartSavedItemConfiguration : IEntityTypeConfiguration<CartSa
             t.HasCheckConstraint("CK_cart_saved_items_qty_positive", "\"Qty\" >= 1");
         });
         builder.HasKey(x => new { x.CartId, x.ProductId });
+        builder.Property(x => x.MarketCode).HasColumnType("citext").IsRequired();
         builder.Property(x => x.Qty).HasDefaultValue(1).IsRequired();
+        builder.HasIndex(x => x.MarketCode);
     }
 }
 
@@ -72,6 +76,8 @@ public sealed class CartB2BMetadataConfiguration : IEntityTypeConfiguration<Cart
     {
         builder.ToTable("cart_b2b_metadata", "cart");
         builder.HasKey(x => x.CartId);
+        builder.Property(x => x.MarketCode).HasColumnType("citext").IsRequired();
+        builder.HasIndex(x => x.MarketCode);
     }
 }
 
@@ -81,6 +87,8 @@ public sealed class CartAbandonedEmissionConfiguration : IEntityTypeConfiguratio
     {
         builder.ToTable("cart_abandoned_emissions", "cart");
         builder.HasKey(x => x.CartId);
+        builder.Property(x => x.MarketCode).HasColumnType("citext").IsRequired();
         builder.HasIndex(x => x.LastEmittedAt);
+        builder.HasIndex(x => x.MarketCode);
     }
 }

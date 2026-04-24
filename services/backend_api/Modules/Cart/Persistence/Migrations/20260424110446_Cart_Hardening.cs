@@ -78,6 +78,8 @@ namespace BackendApi.Modules.Cart.Persistence.Migrations
                 schema: "cart",
                 table: "cart_saved_items");
 
+            // Down restores Cart_Initial's NON-unique partial index shape. Up() dropped that
+            // index and created a unique one; Down's job is to undo Up, not to mirror Up.
             migrationBuilder.CreateIndex(
                 name: "IX_carts_token_hash_active",
                 schema: "cart",

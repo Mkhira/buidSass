@@ -30,7 +30,7 @@ public sealed class CartResolver(CartTokenProvider tokenProvider)
         if (accountId is Guid aid)
         {
             cart = await db.Carts
-                .Where(c => c.AccountId == aid && c.MarketCode == normalizedMarket && c.Status == "active")
+                .Where(c => c.AccountId == aid && c.MarketCode == normalizedMarket && c.Status == CartStatuses.Active)
                 .SingleOrDefaultAsync(cancellationToken);
         }
 
@@ -41,7 +41,7 @@ public sealed class CartResolver(CartTokenProvider tokenProvider)
             && _tokenProvider.TryDecode(suppliedToken, nowUtc, out var hash))
         {
             cart = await db.Carts
-                .Where(c => c.CartTokenHash == hash && c.MarketCode == normalizedMarket && c.Status == "active")
+                .Where(c => c.CartTokenHash == hash && c.MarketCode == normalizedMarket && c.Status == CartStatuses.Active)
                 .SingleOrDefaultAsync(cancellationToken);
         }
 
@@ -60,7 +60,7 @@ public sealed class CartResolver(CartTokenProvider tokenProvider)
                 AccountId = accountId,
                 CartTokenHash = tokenHash,
                 MarketCode = normalizedMarket,
-                Status = "active",
+                Status = CartStatuses.Active,
                 LastTouchedAt = nowUtc,
                 CreatedAt = nowUtc,
                 UpdatedAt = nowUtc,
@@ -84,7 +84,7 @@ public sealed class CartResolver(CartTokenProvider tokenProvider)
         if (accountId is Guid aid)
         {
             var cart = await db.Carts
-                .Where(c => c.AccountId == aid && c.MarketCode == normalizedMarket && c.Status == "active")
+                .Where(c => c.AccountId == aid && c.MarketCode == normalizedMarket && c.Status == CartStatuses.Active)
                 .SingleOrDefaultAsync(cancellationToken);
             if (cart is not null) return cart;
         }
@@ -95,7 +95,7 @@ public sealed class CartResolver(CartTokenProvider tokenProvider)
             && _tokenProvider.TryDecode(suppliedToken, nowUtc, out var hash))
         {
             return await db.Carts
-                .Where(c => c.CartTokenHash == hash && c.MarketCode == normalizedMarket && c.Status == "active")
+                .Where(c => c.CartTokenHash == hash && c.MarketCode == normalizedMarket && c.Status == CartStatuses.Active)
                 .SingleOrDefaultAsync(cancellationToken);
         }
         return null;

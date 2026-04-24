@@ -44,7 +44,7 @@ public static class Endpoint
             return Results.Ok(new CartView(
                 Id: Guid.Empty,
                 MarketCode: normalised,
-                Status: "active",
+                Status: CartStatuses.Active,
                 Lines: Array.Empty<CartLineView>(),
                 SavedItems: Array.Empty<CartSavedItemView>(),
                 CouponCode: null,

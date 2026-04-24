@@ -114,10 +114,11 @@ public static class Endpoint
         {
             return CustomerCartResponseFactory.Problem(context, 400, "cart.market_required", "Market required", "");
         }
+        var normalizedMarket = market.Trim().ToLowerInvariant();
         var nowUtc = DateTimeOffset.UtcNow;
         var accountId = await CustomerCartResponseFactory.TryResolveAuthenticatedAccountAsync(context);
         var suppliedToken = GetCart.Endpoint.ResolveToken(context);
-        var cart = await resolver.LookupAsync(db, accountId, suppliedToken, market, nowUtc, ct);
+        var cart = await resolver.LookupAsync(db, accountId, suppliedToken, normalizedMarket, nowUtc, ct);
         if (cart is null)
         {
             return CustomerCartResponseFactory.Problem(context, 404, "cart.not_found", "Cart not found", "");

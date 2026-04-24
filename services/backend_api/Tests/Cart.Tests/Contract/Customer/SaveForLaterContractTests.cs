@@ -65,8 +65,10 @@ public sealed class SaveForLaterContractTests(CartTestFactory factory)
         var client = factory.CreateClient();
         CartCustomerAuthHelper.SetBearer(client, accessToken);
 
-        await client.PostAsJsonAsync("/v1/customer/cart/lines", new { marketCode = "ksa", productId, qty = 3 });
-        await client.PostAsJsonAsync("/v1/customer/cart/saved-items", new { marketCode = "ksa", productId });
+        var addResp = await client.PostAsJsonAsync("/v1/customer/cart/lines", new { marketCode = "ksa", productId, qty = 3 });
+        addResp.StatusCode.Should().Be(HttpStatusCode.OK, because: await addResp.Content.ReadAsStringAsync());
+        var moveResp = await client.PostAsJsonAsync("/v1/customer/cart/saved-items", new { marketCode = "ksa", productId });
+        moveResp.StatusCode.Should().Be(HttpStatusCode.OK, because: await moveResp.Content.ReadAsStringAsync());
 
         var restoreResp = await client.PostAsJsonAsync($"/v1/customer/cart/saved-items/{productId}/restore?market=ksa", new { });
         restoreResp.StatusCode.Should().Be(HttpStatusCode.OK, because: await restoreResp.Content.ReadAsStringAsync());

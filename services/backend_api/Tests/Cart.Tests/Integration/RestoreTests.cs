@@ -56,20 +56,23 @@ public sealed class RestoreTests(CartTestFactory factory)
 
         var (accessToken, accountId) = await CartCustomerAuthHelper.IssueCustomerTokenAsync(factory, "ksa");
 
-        // Plant an archived cart with an ArchivedAt date older than the retention window.
+        // Plant an archived cart with an ArchivedAt date beyond the configured retention window.
+        // Deriving the offset from CartOptions keeps the test stable if the window is tuned.
         await using var seedScope = factory.Services.CreateAsyncScope();
         var db = seedScope.ServiceProvider.GetRequiredService<CartDbContext>();
+        var options = seedScope.ServiceProvider.GetRequiredService<Microsoft.Extensions.Options.IOptions<BackendApi.Modules.Cart.Primitives.CartOptions>>().Value;
+        var expiredAt = DateTimeOffset.UtcNow.AddDays(-(options.ArchivedCartRetentionDays + 1));
         var archived = new BackendApi.Modules.Cart.Entities.Cart
         {
             Id = Guid.NewGuid(),
             AccountId = accountId,
             MarketCode = "ksa",
-            Status = "archived",
-            ArchivedAt = DateTimeOffset.UtcNow.AddDays(-30),
-            ArchivedReason = "market_switched",
-            LastTouchedAt = DateTimeOffset.UtcNow.AddDays(-30),
-            CreatedAt = DateTimeOffset.UtcNow.AddDays(-35),
-            UpdatedAt = DateTimeOffset.UtcNow.AddDays(-30),
+            Status = BackendApi.Modules.Cart.Primitives.CartStatuses.Archived,
+            ArchivedAt = expiredAt,
+            ArchivedReason = "market_switch",
+            LastTouchedAt = expiredAt,
+            CreatedAt = expiredAt.AddDays(-5),
+            UpdatedAt = expiredAt,
             OwnerId = "platform",
         };
         db.Carts.Add(archived);

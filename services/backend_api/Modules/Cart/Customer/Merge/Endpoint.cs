@@ -82,31 +82,57 @@ public static class Endpoint
             var merged = merger.Merge(mergeAnon, mergeAuth);
             notices.AddRange(merged.Notices);
 
+            // Track every reservation side-effect so that if the final cart SaveChanges hits a
+            // 23505 we can compensate — without this, inventoryDb is already committed while the
+            // cart state is rolled back, leaving phantom active reservations (CR #5).
+            var createdReservations = new List<Guid>();
+            var releasedReservations = new List<(Guid ProductId, int Qty)>();
+
             foreach (var mergedLine in merged.Lines)
             {
                 var existing = authLines.SingleOrDefault(l => l.ProductId == mergedLine.ProductId);
+                var anonForProduct = anonLines.SingleOrDefault(l => l.ProductId == mergedLine.ProductId);
 
-                // Release auth's prior reservation BEFORE reserving the new qty (L8). This keeps
-                // stock.Reserved accurate instead of transiently double-counting.
-                Guid? priorReservationId = existing?.ReservationId;
-                if (priorReservationId is { } prId)
+                // CR #4: release BOTH auth + anon reservations for this product before we try to
+                // reserve the merged qty. Otherwise the anon's hold is still counted against ATS,
+                // so `anon:1 + auth:1 → merged:2` fails on stock that's already reserved by the
+                // source cart.
+                Guid? priorAuthReservation = existing?.ReservationId;
+                Guid? priorAnonReservation = anonForProduct?.ReservationId;
+                if (priorAuthReservation is { } prAuth)
                 {
                     await inventoryOrchestrator.TryReleaseAsync(
-                        inventoryDb, prId, accountId, "cart.merge.qty_updated", ct);
+                        inventoryDb, prAuth, accountId, "cart.merge.qty_updated", ct);
+                    releasedReservations.Add((mergedLine.ProductId, existing!.Qty));
+                }
+                if (priorAnonReservation is { } prAnon)
+                {
+                    await inventoryOrchestrator.TryReleaseAsync(
+                        inventoryDb, prAnon, accountId, "cart.merge.anon_claimed", ct);
+                    releasedReservations.Add((mergedLine.ProductId, anonForProduct!.Qty));
                 }
 
                 var reservation = await inventoryOrchestrator.TryReserveAsync(
                     inventoryDb, catalogDb, mergedLine.ProductId, mergedLine.Qty, marketCode, accountId, authCart.Id, nowUtc, ct);
                 if (!reservation.IsSuccess)
                 {
-                    // Restore the auth side's prior reservation so pre-merge state is preserved.
-                    if (existing is not null && priorReservationId is not null)
+                    // Merge failed for this product — do our best to restore the auth side so the
+                    // pre-merge state stays consistent. The anon line stays on its original cart
+                    // for this product (we'll skip its archival below).
+                    if (existing is not null && priorAuthReservation is not null)
                     {
                         var restore = await inventoryOrchestrator.TryReserveAsync(
                             inventoryDb, catalogDb, mergedLine.ProductId, existing.Qty, marketCode, accountId, authCart.Id, nowUtc, ct);
                         if (restore.IsSuccess)
                         {
                             existing.ReservationId = restore.ReservationId;
+                            existing.UpdatedAt = nowUtc;
+                            if (restore.ReservationId is { } rid) createdReservations.Add(rid);
+                        }
+                        else
+                        {
+                            existing.ReservationId = null;
+                            existing.StockChanged = true;
                             existing.UpdatedAt = nowUtc;
                         }
                     }
@@ -121,12 +147,15 @@ public static class Endpoint
                     continue;
                 }
 
+                if (reservation.ReservationId is { } newId) createdReservations.Add(newId);
+
                 if (existing is null)
                 {
                     db.CartLines.Add(new CartLine
                     {
                         Id = Guid.NewGuid(),
                         CartId = authCart.Id,
+                        MarketCode = marketCode,
                         ProductId = mergedLine.ProductId,
                         Qty = mergedLine.Qty,
                         ReservationId = reservation.ReservationId,
@@ -142,36 +171,48 @@ public static class Endpoint
                 }
             }
 
-            // Release any anon-side reservations still dangling (anon lines that weren't
-            // re-reserved on the auth cart because of failure).
-            foreach (var anonLine in anonLines.Where(l => l.ReservationId.HasValue))
-            {
-                await inventoryOrchestrator.TryReleaseAsync(
-                    inventoryDb, anonLine.ReservationId!.Value, accountId, "cart.merge.anon_archived", ct);
-            }
-
-            anonCart.Status = "merged";
-            anonCart.ArchivedAt = nowUtc;
-            anonCart.ArchivedReason = "merged";
-            anonCart.UpdatedAt = nowUtc;
+            // Archive the anon cart via the state-machine helper (Principle 24).
+            CartStatuses.TryTransition(anonCart, CartStatuses.Merged, "merged", nowUtc);
 
             // Anon coupon is adopted only if auth side had none (R2).
             if (string.IsNullOrEmpty(authCart.CouponCode) && !string.IsNullOrEmpty(anonCart.CouponCode))
             {
                 authCart.CouponCode = anonCart.CouponCode;
             }
-        }
 
-        authCart.LastTouchedAt = nowUtc;
-        authCart.UpdatedAt = nowUtc;
-        try
-        {
-            await db.SaveChangesAsync(ct);
+            authCart.LastTouchedAt = nowUtc;
+            authCart.UpdatedAt = nowUtc;
+
+            try
+            {
+                await db.SaveChangesAsync(ct);
+            }
+            catch (DbUpdateException ex) when (CustomerCartResponseFactory.IsConcurrencyConflict(ex))
+            {
+                // CR #5: compensate inventory side effects before surfacing 409. Released holds
+                // need to be re-reserved (best effort); newly-created reservations we drove must
+                // be released so they don't leak once the cart write is rolled back.
+                await CompensateAsync(inventoryDb, catalogDb, inventoryOrchestrator,
+                    createdReservations, releasedReservations,
+                    marketCode, accountId, authCart.Id, nowUtc, logger, ct);
+                db.ChangeTracker.Clear();
+                return new MergeOutcome(null, null, ConflictDetail: "Cart line insert race during merge.");
+            }
         }
-        catch (DbUpdateException ex) when (CustomerCartResponseFactory.IsConcurrencyConflict(ex))
+        else
         {
-            db.ChangeTracker.Clear();
-            return new MergeOutcome(null, null, ConflictDetail: "Cart line insert race during merge.");
+            // No merge to perform — still touch the auth cart timestamp.
+            authCart.LastTouchedAt = nowUtc;
+            authCart.UpdatedAt = nowUtc;
+            try
+            {
+                await db.SaveChangesAsync(ct);
+            }
+            catch (DbUpdateException ex) when (CustomerCartResponseFactory.IsConcurrencyConflict(ex))
+            {
+                db.ChangeTracker.Clear();
+                return new MergeOutcome(null, null, ConflictDetail: "Cart touch race during merge.");
+            }
         }
 
         var ctxInfo = await customerContextResolver.ResolveAsync(accountId, ct);
@@ -185,6 +226,52 @@ public static class Endpoint
             authCart.Id, anonCart?.Id, notices.Count);
 
         return new MergeOutcome(view, notices, null);
+    }
+
+    /// <summary>
+    /// Best-effort compensation after the merge's cart-side write lost a 23505 race. Released
+    /// holds are re-reserved (so the pre-merge state is closer to restored); newly-created
+    /// reservations are released (so they don't leak once the cart write is rolled back).
+    /// Failures inside compensation are logged, not rethrown — surfacing 409 to the caller is
+    /// the primary concern.
+    /// </summary>
+    private static async Task CompensateAsync(
+        InventoryDbContext inventoryDb,
+        CatalogDbContext catalogDb,
+        CartInventoryOrchestrator inventoryOrchestrator,
+        List<Guid> createdReservations,
+        List<(Guid ProductId, int Qty)> releasedReservations,
+        string marketCode,
+        Guid accountId,
+        Guid cartId,
+        DateTimeOffset nowUtc,
+        ILogger logger,
+        CancellationToken ct)
+    {
+        foreach (var rid in createdReservations)
+        {
+            try
+            {
+                await inventoryOrchestrator.TryReleaseAsync(
+                    inventoryDb, rid, accountId, "cart.merge.concurrency_rollback", ct);
+            }
+            catch (Exception ex)
+            {
+                logger.LogWarning(ex, "cart.merge.compensation.release_failed reservationId={ReservationId}", rid);
+            }
+        }
+        foreach (var (productId, qty) in releasedReservations)
+        {
+            try
+            {
+                await inventoryOrchestrator.TryReserveAsync(
+                    inventoryDb, catalogDb, productId, qty, marketCode, accountId, cartId, nowUtc, ct);
+            }
+            catch (Exception ex)
+            {
+                logger.LogWarning(ex, "cart.merge.compensation.reserve_failed productId={ProductId} qty={Qty}", productId, qty);
+            }
+        }
     }
 
     private static async Task<IResult> HandleAsync(

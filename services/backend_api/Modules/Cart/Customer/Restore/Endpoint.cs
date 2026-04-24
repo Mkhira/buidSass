@@ -40,7 +40,7 @@ public static class Endpoint
         {
             return CustomerCartResponseFactory.Problem(context, 404, "cart.restore.not_found", "Archived cart not found", "");
         }
-        if (!string.Equals(archived.Status, "archived", StringComparison.OrdinalIgnoreCase))
+        if (!string.Equals(archived.Status, CartStatuses.Archived, StringComparison.OrdinalIgnoreCase))
         {
             return CustomerCartResponseFactory.Problem(context, 409, "cart.not_archived", "Cart not archived", "");
         }
@@ -57,7 +57,7 @@ public static class Endpoint
         // Partial unique index enforces one active cart per (account, market). Archive any
         // existing active cart in the same market before flipping `archived` back to active.
         var existingActive = await db.Carts.SingleOrDefaultAsync(
-            c => c.AccountId == accountId && c.MarketCode == archived.MarketCode && c.Status == "active", ct);
+            c => c.AccountId == accountId && c.MarketCode == archived.MarketCode && c.Status == CartStatuses.Active, ct);
         if (existingActive is not null)
         {
             var existingLines = await db.CartLines.Where(l => l.CartId == existingActive.Id).ToListAsync(ct);
@@ -66,17 +66,16 @@ public static class Endpoint
                 await inventoryOrchestrator.TryReleaseAsync(
                     inventoryDb, line.ReservationId!.Value, accountId.Value, "cart.superseded_by_restore", ct);
             }
-            existingActive.Status = "archived";
-            existingActive.ArchivedAt = nowUtc;
-            existingActive.ArchivedReason = "admin";
-            existingActive.UpdatedAt = nowUtc;
+            CartStatuses.TryTransition(existingActive, CartStatuses.Archived, "admin", nowUtc);
         }
 
-        archived.Status = "active";
-        archived.ArchivedAt = null;
-        archived.ArchivedReason = null;
+        if (!CartStatuses.TryTransition(archived, CartStatuses.Active, null, nowUtc))
+        {
+            return CustomerCartResponseFactory.Problem(
+                context, 409, "cart.invalid_state_transition",
+                "Invalid state transition", $"Cannot activate cart in status {archived.Status}.");
+        }
         archived.LastTouchedAt = nowUtc;
-        archived.UpdatedAt = nowUtc;
 
         var lines = await db.CartLines.Where(l => l.CartId == archived.Id).ToListAsync(ct);
         foreach (var line in lines)

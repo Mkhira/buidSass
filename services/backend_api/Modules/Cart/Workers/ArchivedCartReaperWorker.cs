@@ -46,7 +46,7 @@ public sealed class ArchivedCartReaperWorker(
 
         var cutoff = DateTimeOffset.UtcNow.AddDays(-options.Value.ArchivedCartRetentionDays);
         var stale = await db.Carts
-            .Where(c => c.Status == "archived" && c.ArchivedAt != null && c.ArchivedAt < cutoff)
+            .Where(c => c.Status == CartStatuses.Archived && c.ArchivedAt != null && c.ArchivedAt < cutoff)
             .Take(500)
             .ToListAsync(ct);
 
@@ -73,8 +73,7 @@ public sealed class ArchivedCartReaperWorker(
         var now = DateTimeOffset.UtcNow;
         foreach (var c in stale)
         {
-            c.Status = "purged";
-            c.UpdatedAt = now;
+            CartStatuses.TryTransition(c, CartStatuses.Purged, c.ArchivedReason, now);
         }
         await db.SaveChangesAsync(ct);
 

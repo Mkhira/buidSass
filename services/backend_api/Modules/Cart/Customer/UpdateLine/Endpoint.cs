@@ -73,23 +73,42 @@ public static class Endpoint
         var priorQty = line.Qty;
         if (priorReservationId is { } prId)
         {
-            await inventoryOrchestrator.TryReleaseAsync(inventoryDb, prId, accountId ?? Guid.Empty, "cart.line.qty_updated", ct);
+            await inventoryOrchestrator.TryReleaseAsync(inventoryDb, prId, CartSystemActors.ResolveActor(accountId), "cart.line.qty_updated", ct);
         }
 
         var reservation = await inventoryOrchestrator.TryReserveAsync(
             inventoryDb, catalogDb, line.ProductId, request.Qty, cart.MarketCode, accountId, cart.Id, nowUtc, ct);
         if (!reservation.IsSuccess)
         {
-            // Re-reserve the prior qty so the cart line stays consistent.
+            // Best-effort rollback: restore the prior reservation so the line stays consistent.
+            // If the rollback itself fails (stock moved, catalog drift, concurrent write), clear
+            // the stale reservation pointer + flag StockChanged so the next read surfaces the
+            // inventory problem rather than the cart silently pointing at released stock.
             if (priorReservationId is not null)
             {
-                var restore = await inventoryOrchestrator.TryReserveAsync(
-                    inventoryDb, catalogDb, line.ProductId, priorQty, cart.MarketCode, accountId, cart.Id, nowUtc, ct);
-                if (restore.IsSuccess)
+                try
                 {
-                    line.ReservationId = restore.ReservationId;
+                    var restore = await inventoryOrchestrator.TryReserveAsync(
+                        inventoryDb, catalogDb, line.ProductId, priorQty, cart.MarketCode, accountId, cart.Id, nowUtc, ct);
+                    if (restore.IsSuccess)
+                    {
+                        line.ReservationId = restore.ReservationId;
+                        line.StockChanged = false;
+                    }
+                    else
+                    {
+                        line.ReservationId = null;
+                        line.StockChanged = true;
+                    }
                     line.UpdatedAt = nowUtc;
-                    await db.SaveChangesAsync(ct);
+                    try { await db.SaveChangesAsync(ct); } catch { /* best-effort */ }
+                }
+                catch
+                {
+                    line.ReservationId = null;
+                    line.StockChanged = true;
+                    line.UpdatedAt = nowUtc;
+                    try { await db.SaveChangesAsync(ct); } catch { /* best-effort */ }
                 }
             }
             return CustomerCartResponseFactory.Problem(
@@ -132,10 +151,11 @@ public static class Endpoint
         {
             return CustomerCartResponseFactory.Problem(context, 400, "cart.market_required", "Market required", "");
         }
+        var normalizedMarket = market.Trim().ToLowerInvariant();
         var nowUtc = DateTimeOffset.UtcNow;
         var accountId = await CustomerCartResponseFactory.TryResolveAuthenticatedAccountAsync(context);
         var suppliedToken = GetCart.Endpoint.ResolveToken(context);
-        var cart = await resolver.LookupAsync(db, accountId, suppliedToken, market, nowUtc, ct);
+        var cart = await resolver.LookupAsync(db, accountId, suppliedToken, normalizedMarket, nowUtc, ct);
         if (cart is null)
         {
             return CustomerCartResponseFactory.Problem(context, 404, "cart.not_found", "Cart not found", "");
@@ -164,7 +184,7 @@ public static class Endpoint
     {
         if (line.ReservationId.HasValue)
         {
-            await inventoryOrchestrator.TryReleaseAsync(inventoryDb, line.ReservationId.Value, accountId ?? Guid.Empty, "cart.line.removed", ct);
+            await inventoryOrchestrator.TryReleaseAsync(inventoryDb, line.ReservationId.Value, CartSystemActors.ResolveActor(accountId), "cart.line.removed", ct);
         }
         db.CartLines.Remove(line);
         cart.LastTouchedAt = nowUtc;

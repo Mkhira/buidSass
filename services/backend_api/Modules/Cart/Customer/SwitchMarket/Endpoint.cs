@@ -58,10 +58,13 @@ public static class Endpoint
                 await inventoryOrchestrator.TryReleaseAsync(
                     inventoryDb, line.ReservationId!.Value, accountId.Value, "cart.market_switched", ct);
             }
-            oldCart.Status = "archived";
-            oldCart.ArchivedAt = nowUtc;
-            oldCart.ArchivedReason = "market_switch";
-            oldCart.UpdatedAt = nowUtc;
+            if (!CartStatuses.TryTransition(oldCart, CartStatuses.Archived, "market_switch", nowUtc))
+            {
+                return CustomerCartResponseFactory.Problem(
+                    context, 409, "cart.invalid_state_transition",
+                    "Invalid state transition", $"Cannot archive cart in status {oldCart.Status}.");
+            }
+            oldCart.LastTouchedAt = nowUtc;
         }
 
         // Create or resolve the new-market cart.

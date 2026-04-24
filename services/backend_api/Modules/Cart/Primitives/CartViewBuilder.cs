@@ -111,10 +111,10 @@ public sealed class CartViewBuilder(
             if (!productById.TryGetValue(line.ProductId, out var product)
                 || product.PriceHintMinorUnits is null
                 || !product.MarketCodes.Any(m => string.Equals(m, cart.MarketCode, StringComparison.OrdinalIgnoreCase))
-                || string.Equals(product.Status, "archived", StringComparison.OrdinalIgnoreCase))
+                || !string.Equals(product.Status, "published", StringComparison.OrdinalIgnoreCase))
             {
-                // product went away / archived / wrong market — skip pricing but leave the line
-                // flagged as unavailable. FR-022.
+                // Any non-`published` product (draft, archived, restricted-away, etc.) is skipped
+                // from pricing and flagged unavailable in the line-view pass below. FR-022.
                 continue;
             }
             var categoryIds = productCategories
@@ -158,6 +158,7 @@ public sealed class CartViewBuilder(
         var lineViews = new List<CartLineView>(lines.Count);
         var hasRestricted = false;
         var hasUnavailable = false;
+        var hasInventoryShortfall = false;
         var hasB2BOnly = false;
         string? firstRestrictionReason = null;
 
@@ -165,15 +166,22 @@ public sealed class CartViewBuilder(
         {
             productById.TryGetValue(line.ProductId, out var product);
             var productExists = product is not null;
-            var productArchived = productExists && string.Equals(product!.Status, "archived", StringComparison.OrdinalIgnoreCase);
+            var productSellable = productExists && string.Equals(product!.Status, "published", StringComparison.OrdinalIgnoreCase);
             var productInMarket = productExists && product!.MarketCodes.Any(m => string.Equals(m, cart.MarketCode, StringComparison.OrdinalIgnoreCase));
-            var unavailable = line.Unavailable || !productExists || productArchived || !productInMarket;
+            var unavailable = line.Unavailable || !productExists || !productSellable || !productInMarket;
             var restricted = line.Restricted || (productExists && product!.Restricted);
             var restrictedReason = line.RestrictionReasonCode
                 ?? (productExists ? product!.RestrictionReasonCode : null);
 
             if (restricted) hasRestricted = true;
             if (unavailable) hasUnavailable = true;
+            // StockChanged means a reservation attempt could not fully satisfy the requested qty
+            // (AddLine / UpdateLine / Restore all set it on failure). Surface that as an
+            // inventory-shortfall signal so the eligibility evaluator can gate checkout.
+            if (line.StockChanged || line.ReservationId is null && !unavailable)
+            {
+                hasInventoryShortfall = true;
+            }
             if (restricted && firstRestrictionReason is null)
             {
                 firstRestrictionReason = restrictedReason;
@@ -225,7 +233,7 @@ public sealed class CartViewBuilder(
             RestrictedReasonCode: firstRestrictionReason,
             CustomerVerifiedForRestriction: customerVerifiedForRestriction,
             HasAnyUnavailableLine: hasUnavailable,
-            HasAnyInventoryShortfall: false,
+            HasAnyInventoryShortfall: hasInventoryShortfall,
             HasAnyB2BOnlyLine: hasB2BOnly,
             CustomerIsB2B: customerIsB2B,
             LineCount: lineViews.Count));

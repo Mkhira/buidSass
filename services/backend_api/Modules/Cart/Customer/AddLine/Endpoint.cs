@@ -112,24 +112,42 @@ public static class Endpoint
             if (priorReservationId is { } prId)
             {
                 await inventoryOrchestrator.TryReleaseAsync(
-                    inventoryDb, prId, accountId ?? Guid.Empty, "cart.line.qty_updated", ct);
+                    inventoryDb, prId, CartSystemActors.ResolveActor(accountId), "cart.line.qty_updated", ct);
             }
 
             var reservation = await inventoryOrchestrator.TryReserveAsync(
                 inventoryDb, catalogDb, request.ProductId, targetQty, marketCode, accountId, cart.Id, nowUtc, ct);
             if (!reservation.IsSuccess)
             {
-                // Restore the prior reservation so the existing line stays consistent.
-                if (priorReservationId is not null && priorQty is { } pq)
+                // Restore the prior reservation so the existing line stays consistent. If the
+                // restore itself fails (catalog drift, stock moved, …) we MUST clear the line's
+                // stale ReservationId — otherwise the cart row points at a reservation that has
+                // already been released and downstream checkout operates on phantom inventory.
+                // Flag StockChanged so the UI surfaces the invalidation (FR-022 / SC-007).
+                if (existingLine is not null && priorReservationId is not null && priorQty is { } pq)
                 {
-                    var restore = await inventoryOrchestrator.TryReserveAsync(
-                        inventoryDb, catalogDb, request.ProductId, pq, marketCode, accountId, cart.Id, nowUtc, ct);
-                    if (restore.IsSuccess && existingLine is not null)
+                    try
                     {
-                        existingLine.ReservationId = restore.ReservationId;
-                        existingLine.UpdatedAt = nowUtc;
-                        await db.SaveChangesAsync(ct);
+                        var restore = await inventoryOrchestrator.TryReserveAsync(
+                            inventoryDb, catalogDb, request.ProductId, pq, marketCode, accountId, cart.Id, nowUtc, ct);
+                        if (restore.IsSuccess)
+                        {
+                            existingLine.ReservationId = restore.ReservationId;
+                            existingLine.StockChanged = false;
+                        }
+                        else
+                        {
+                            existingLine.ReservationId = null;
+                            existingLine.StockChanged = true;
+                        }
                     }
+                    catch
+                    {
+                        existingLine.ReservationId = null;
+                        existingLine.StockChanged = true;
+                    }
+                    existingLine.UpdatedAt = nowUtc;
+                    try { await db.SaveChangesAsync(ct); } catch { /* best-effort */ }
                 }
                 return CustomerCartResponseFactory.Problem(
                     context, reservation.StatusCode, reservation.ReasonCode!, "Reservation failed", reservation.Detail ?? "",
@@ -142,6 +160,7 @@ public static class Endpoint
                 {
                     Id = Guid.NewGuid(),
                     CartId = cart.Id,
+                    MarketCode = marketCode,
                     ProductId = request.ProductId,
                     Qty = request.Qty,
                     ReservationId = reservation.ReservationId,
@@ -174,7 +193,7 @@ public static class Endpoint
                 // and re-reserve on its own attempt.
                 if (reservation.ReservationId is { } rid)
                 {
-                    await inventoryOrchestrator.TryReleaseAsync(inventoryDb, rid, accountId ?? Guid.Empty, "cart.concurrency_retry", ct);
+                    await inventoryOrchestrator.TryReleaseAsync(inventoryDb, rid, CartSystemActors.ResolveActor(accountId), "cart.concurrency_retry", ct);
                 }
                 db.ChangeTracker.Clear();
                 if (attempt == 0) continue;

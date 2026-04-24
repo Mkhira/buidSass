@@ -55,17 +55,16 @@ public static class Endpoint
         }
 
         // Partial unique index enforces one active cart per (account, market). Archive any
-        // existing active cart in the same market before flipping `archived` back to active.
+        // existing active cart in the same market — state-machine flip first, inventory
+        // releases second (so if SaveChanges below throws concurrency we haven't already
+        // mutated stock for the old cart without a record of it in the DB).
         var existingActive = await db.Carts.SingleOrDefaultAsync(
             c => c.AccountId == accountId && c.MarketCode == archived.MarketCode && c.Status == CartStatuses.Active, ct);
+
+        List<Entities.CartLine> existingLines = new();
         if (existingActive is not null)
         {
-            var existingLines = await db.CartLines.Where(l => l.CartId == existingActive.Id).ToListAsync(ct);
-            foreach (var line in existingLines.Where(l => l.ReservationId.HasValue))
-            {
-                await inventoryOrchestrator.TryReleaseAsync(
-                    inventoryDb, line.ReservationId!.Value, accountId.Value, "cart.superseded_by_restore", ct);
-            }
+            existingLines = await db.CartLines.Where(l => l.CartId == existingActive.Id).ToListAsync(ct);
             CartStatuses.TryTransition(existingActive, CartStatuses.Archived, "superseded_by_restore", nowUtc);
         }
 
@@ -77,7 +76,27 @@ public static class Endpoint
         }
         archived.LastTouchedAt = nowUtc;
 
+        // Persist the cart-state transitions BEFORE touching inventory. If SaveChanges fails
+        // (partial-unique-index race, concurrency) we haven't yet released or re-reserved
+        // anything — no compensation to chase.
+        try { await db.SaveChangesAsync(ct); }
+        catch (DbUpdateException ex) when (CustomerCartResponseFactory.IsConcurrencyConflict(ex))
+        {
+            return CustomerCartResponseFactory.ConcurrencyConflict(context, "Restore race with another cart.");
+        }
+
+        // Cart state committed — now mutate inventory. Releases of the superseded cart first,
+        // then re-reservations on the restored cart. Failures here are recorded on the lines
+        // (StockChanged=true) and a second SaveChanges pushes those flags — if THAT save
+        // races we track created reservations so we can release-compensate.
+        foreach (var line in existingLines.Where(l => l.ReservationId.HasValue))
+        {
+            await inventoryOrchestrator.TryReleaseAsync(
+                inventoryDb, line.ReservationId!.Value, accountId.Value, "cart.superseded_by_restore", ct);
+        }
+
         var lines = await db.CartLines.Where(l => l.CartId == archived.Id).ToListAsync(ct);
+        var createdReservations = new List<Guid>();
         foreach (var line in lines)
         {
             var reservation = await inventoryOrchestrator.TryReserveAsync(
@@ -87,6 +106,7 @@ public static class Endpoint
                 line.ReservationId = reservation.ReservationId;
                 line.Unavailable = false;
                 line.StockChanged = false;
+                if (reservation.ReservationId is { } rid) createdReservations.Add(rid);
             }
             else
             {
@@ -100,6 +120,16 @@ public static class Endpoint
         try { await db.SaveChangesAsync(ct); }
         catch (DbUpdateException ex) when (CustomerCartResponseFactory.IsConcurrencyConflict(ex))
         {
+            // Compensate the reservations we just created since the cart-line updates rolled back.
+            foreach (var rid in createdReservations)
+            {
+                try
+                {
+                    await inventoryOrchestrator.TryReleaseAsync(
+                        inventoryDb, rid, accountId.Value, "cart.restore_conflict_rollback", ct);
+                }
+                catch { /* best-effort */ }
+            }
             return CustomerCartResponseFactory.ConcurrencyConflict(context, "Restore race with another cart.");
         }
 

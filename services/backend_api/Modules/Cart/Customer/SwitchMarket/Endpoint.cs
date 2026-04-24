@@ -49,15 +49,11 @@ public static class Endpoint
 
         var nowUtc = DateTimeOffset.UtcNow;
         var oldCart = await resolver.LookupAsync(db, accountId, suppliedToken: null, fromMarket, nowUtc, ct);
+        var releasedReservations = new List<(Guid ReservationId, int Qty, Guid ProductId)>();
         if (oldCart is not null)
         {
-            // Release all reservations + archive (restorable for ArchivedCartRetentionDays).
-            var oldLines = await db.CartLines.Where(l => l.CartId == oldCart.Id).ToListAsync(ct);
-            foreach (var line in oldLines.Where(l => l.ReservationId.HasValue))
-            {
-                await inventoryOrchestrator.TryReleaseAsync(
-                    inventoryDb, line.ReservationId!.Value, accountId.Value, "cart.market_switched", ct);
-            }
+            // Flip the state-machine first so the archive flag persists atomically with the
+            // reservation releases — the transition check is a cheap local assertion.
             if (!CartStatuses.TryTransition(oldCart, CartStatuses.Archived, "market_switch", nowUtc))
             {
                 return CustomerCartResponseFactory.Problem(
@@ -66,12 +62,51 @@ public static class Endpoint
             }
             oldCart.LastTouchedAt = nowUtc;
             oldCart.UpdatedAt = nowUtc;
+
+            // Release reservations; if any release fails, surface a 409 rather than leaving a
+            // partially-switched state. Track successful releases so we can compensate if the
+            // cart save below hits a concurrency conflict.
+            var oldLines = await db.CartLines.Where(l => l.CartId == oldCart.Id).ToListAsync(ct);
+            foreach (var line in oldLines.Where(l => l.ReservationId.HasValue))
+            {
+                var released = await inventoryOrchestrator.TryReleaseAsync(
+                    inventoryDb, line.ReservationId!.Value, accountId.Value, "cart.market_switched", ct);
+                if (!released)
+                {
+                    return CustomerCartResponseFactory.Problem(
+                        context, 409, "cart.concurrency_conflict",
+                        "Reservation release conflict",
+                        "Another actor modified the reservation; retry the market switch.");
+                }
+                releasedReservations.Add((line.ReservationId.Value, line.Qty, line.ProductId));
+            }
         }
 
         // Create or resolve the new-market cart.
         var newResolved = await resolver.ResolveOrCreateAsync(db, accountId, suppliedToken: null, toMarket, nowUtc, ct);
         var newCart = newResolved.Cart;
-        await db.SaveChangesAsync(ct);
+        try
+        {
+            await db.SaveChangesAsync(ct);
+        }
+        catch (DbUpdateException ex) when (CustomerCartResponseFactory.IsConcurrencyConflict(ex))
+        {
+            // Compensate: re-reserve the lines we just released so the old cart stays coherent.
+            foreach (var (_, qty, productId) in releasedReservations)
+            {
+                try
+                {
+                    await inventoryOrchestrator.TryReserveAsync(
+                        inventoryDb, catalogDb, productId, qty, fromMarket, accountId, oldCart!.Id, nowUtc, ct);
+                }
+                catch
+                {
+                    // best-effort — a reconciliation worker will detect the leak
+                }
+            }
+            db.ChangeTracker.Clear();
+            return CustomerCartResponseFactory.ConcurrencyConflict(context, "Cart was switched by another request.");
+        }
 
         var lines = await db.CartLines.AsNoTracking().Where(l => l.CartId == newCart.Id).OrderBy(l => l.AddedAt).ToListAsync(ct);
         var saved = await db.CartSavedItems.AsNoTracking().Where(s => s.CartId == newCart.Id).ToListAsync(ct);

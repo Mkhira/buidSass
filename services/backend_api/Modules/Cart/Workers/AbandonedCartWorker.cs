@@ -90,35 +90,46 @@ public sealed class AbandonedCartWorker(
 
         foreach (var cart in candidates)
         {
-            // CR #11: persist the dedupe marker BEFORE publishing the event. If the publish
-            // fails the marker stays so we don't re-emit; if two workers race on the same cart
-            // the second SaveChanges hits the PK uniqueness on CartAbandonedEmission.CartId (or
-            // ends up as a conditional update of LastEmittedAt past dedupe cutoff) — either way
-            // only one audit row fires per dedupe window.
-            var emission = await db.Set<CartAbandonedEmission>()
-                .SingleOrDefaultAsync(e => e.CartId == cart.Id, ct);
-            if (emission is null)
-            {
-                db.Add(new CartAbandonedEmission { CartId = cart.Id, MarketCode = cart.MarketCode, LastEmittedAt = now });
-            }
-            else
-            {
-                emission.LastEmittedAt = now;
-            }
-
+            // CR pass 3 — atomic claim via conditional update. Previous SELECT+UPDATE could
+            // lose its way between the read and the save; ExecuteUpdateAsync with a
+            // `LastEmittedAt < dedupeCutoff` predicate commits only one worker's claim per
+            // dedupe window. If zero rows matched we try an insert (first-time claim); a
+            // concurrent insert loses on the PK and we skip the publish.
+            bool claimed;
             try
             {
-                await db.SaveChangesAsync(ct);
+                var rowsUpdated = await db.Set<CartAbandonedEmission>()
+                    .Where(e => e.CartId == cart.Id && e.LastEmittedAt < dedupeCutoff)
+                    .ExecuteUpdateAsync(s => s.SetProperty(e => e.LastEmittedAt, now), ct);
+
+                if (rowsUpdated == 1)
+                {
+                    claimed = true;
+                }
+                else
+                {
+                    // No existing row past dedupe — insert the first-time claim. PK uniqueness
+                    // on CartId makes this atomic; a losing concurrent insert throws 23505.
+                    db.Add(new CartAbandonedEmission
+                    {
+                        CartId = cart.Id,
+                        MarketCode = cart.MarketCode,
+                        LastEmittedAt = now,
+                    });
+                    await db.SaveChangesAsync(ct);
+                    claimed = true;
+                }
             }
             catch (DbUpdateException ex) when (CustomerCartResponseFactory.IsConcurrencyConflict(ex))
             {
-                // Another worker claimed this cart first — skip publishing and move on.
                 db.ChangeTracker.Clear();
                 logger.LogInformation(
                     "cart.abandonment.claim_lost cartId={CartId} — another worker owns this dedupe window.",
                     cart.Id);
                 continue;
             }
+
+            if (!claimed) continue;
 
             await auditPublisher.PublishAsync(new AuditEvent(
                 WorkerActorId,

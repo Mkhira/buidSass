@@ -78,8 +78,21 @@ public static class CartTestSeedHelper
             IsActive = true,
         };
         db.Warehouses.Add(warehouse);
-        await db.SaveChangesAsync(ct);
-        return warehouse.Id;
+        try
+        {
+            await db.SaveChangesAsync(ct);
+            return warehouse.Id;
+        }
+        catch (DbUpdateException)
+        {
+            // Race-safe under parallel tests: another caller inserted the same (code, market)
+            // between our SingleOrDefaultAsync and SaveChangesAsync. Re-query and return theirs.
+            db.ChangeTracker.Clear();
+            var concurrent = await db.Warehouses.SingleOrDefaultAsync(
+                w => w.Code == code && w.MarketCode == marketCode, ct);
+            if (concurrent is not null) return concurrent.Id;
+            throw;
+        }
     }
 
     public static async Task UpsertStockAsync(
@@ -173,7 +186,19 @@ public static class CartTestSeedHelper
                 EffectiveTo = null,
                 CreatedAt = DateTimeOffset.UtcNow,
             });
-            await db.SaveChangesAsync(ct);
+            try
+            {
+                await db.SaveChangesAsync(ct);
+            }
+            catch (DbUpdateException)
+            {
+                // Another concurrent test seeded the same (market, vat, open) — accept if it
+                // now exists; otherwise surface the real failure.
+                db.ChangeTracker.Clear();
+                var concurrent = await db.TaxRates.AnyAsync(
+                    r => r.MarketCode == marketCode && r.Kind == "vat" && r.EffectiveTo == null, ct);
+                if (!concurrent) throw;
+            }
         }
         services.GetRequiredService<TaxRateCache>().InvalidateAll();
     }

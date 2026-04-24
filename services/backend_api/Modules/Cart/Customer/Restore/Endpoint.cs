@@ -170,6 +170,8 @@ public static class Endpoint
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
+            // Release the reservations we just created — they'd leak otherwise since the
+            // cart-line updates (which would have pointed at them) got rolled back.
             foreach (var rid in createdReservations)
             {
                 try
@@ -179,11 +181,22 @@ public static class Endpoint
                 }
                 catch { /* best-effort */ }
             }
-            if (ex is DbUpdateException dbEx && CustomerCartResponseFactory.IsConcurrencyConflict(dbEx))
+            // The archive → active state flip committed at the earlier save (line 82) is
+            // durable. A retryable 409 would mislead the caller because the next attempt
+            // would see a non-archived cart and fail at line 43's state check. Instead, log
+            // loud — the lines are StockChanged-flagged in memory but not persisted — and
+            // reload the cart + lines fresh so the response reflects the durable state.
+            logger.LogWarning(ex,
+                "cart.restore.post_reserve_save_failed archivedCartId={ArchivedCartId} — returning degraded view; restored cart is active but line reservation refs weren't persisted.",
+                archived.Id);
+            if (ex is not DbUpdateException dbEx || !CustomerCartResponseFactory.IsConcurrencyConflict(dbEx))
             {
-                return CustomerCartResponseFactory.ConcurrencyConflict(context, "Restore race with another cart.");
+                throw;
             }
-            throw;
+            // Fall through to the response-build below — reload archived so the view
+            // reflects durable DB state (the line updates we tried to persist are gone).
+            db.ChangeTracker.Clear();
+            archived = await db.Carts.AsNoTracking().SingleAsync(c => c.Id == archived.Id, ct);
         }
 
         var ctxInfo = await customerContextResolver.ResolveAsync(accountId, ct);
@@ -218,14 +231,14 @@ public static class Endpoint
             .Where(l => l.CartId == supersededCart.Id)
             .ToListAsync(ct);
         var unrecoveredLines = 0;
-        foreach (var (oldReservationId, productId, qty) in releasedReservations)
+        foreach (var (_, productId, qty) in releasedReservations)
         {
+            var targetLine = supersededLines.FirstOrDefault(l => l.ProductId == productId);
             try
             {
                 var result = await inventoryOrchestrator.TryReserveAsync(
                     inventoryDb, catalogDb, productId, qty,
                     supersededCart.MarketCode, accountId, supersededCart.Id, nowUtc, ct);
-                var targetLine = supersededLines.FirstOrDefault(l => l.ProductId == productId);
                 if (result.IsSuccess && result.ReservationId is { } newRid)
                 {
                     if (targetLine is not null)
@@ -253,6 +266,14 @@ public static class Endpoint
             catch (Exception ex)
             {
                 unrecoveredLines++;
+                // Same stale-pointer hygiene as the !IsSuccess branch — the exception path
+                // must not leave the cart pointing at a reservation we definitely released.
+                if (targetLine is not null)
+                {
+                    targetLine.ReservationId = null;
+                    targetLine.StockChanged = true;
+                    targetLine.UpdatedAt = nowUtc;
+                }
                 logger.LogError(ex,
                     "cart.restore.compensation_threw supersededCartId={CartId} productId={ProductId} qty={Qty}",
                     supersededCart.Id, productId, qty);

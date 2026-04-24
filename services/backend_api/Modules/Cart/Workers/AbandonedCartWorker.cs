@@ -127,11 +127,14 @@ public sealed class AbandonedCartWorker(
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
             {
-                // The claim is committed but the publish failed — without compensation this cart
-                // would be deduped until the window expires, silently dropping the event. Roll
-                // the claim back by pushing LastEmittedAt below any future dedupeCutoff so the
-                // next tick re-claims + re-emits. Any further failure is logged so operators can
-                // reconcile manually (spec 019 will replace this with a transactional outbox).
+                // Best-effort rollback: the claim committed but publish threw. We reset
+                // LastEmittedAt so the next tick retries. Known trade-off: if the audit row
+                // was in fact written and the throw happened afterward (extremely narrow
+                // window — the publisher's SaveChanges IS the last step), the next tick will
+                // publish a duplicate. Spec 019's transactional-outbox replaces this; until
+                // then a duplicate audit row is strictly better than a permanently-dropped
+                // event, since audit log consumers (notifications) are expected to dedupe
+                // on (cart_id, dedupe_window).
                 logger.LogError(ex,
                     "cart.abandonment.publish_failed cartId={CartId} — rolling back claim so the next tick retries.",
                     cart.Id);

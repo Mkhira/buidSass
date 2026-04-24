@@ -44,6 +44,17 @@ public sealed class AbandonedCartWorker(
         var auditPublisher = scope.ServiceProvider.GetRequiredService<IAuditEventPublisher>();
         var opts = options.Value;
 
+        // Defence-in-depth: CartOptionsValidator catches this at startup, but guard here in
+        // case a later hot-reload or test override introduces an invalid window. Returning
+        // early prevents re-emitting every tick or flagging freshly-touched carts as idle.
+        if (opts.AbandonmentIdleMinutes <= 0 || opts.AbandonmentDedupeHours <= 0)
+        {
+            logger.LogError(
+                "cart.abandoned-worker.invalid_options idleMinutes={Idle} dedupeHours={Dedupe} — skipping tick.",
+                opts.AbandonmentIdleMinutes, opts.AbandonmentDedupeHours);
+            return;
+        }
+
         var now = DateTimeOffset.UtcNow;
         var idleCutoff = now.AddMinutes(-opts.AbandonmentIdleMinutes);
 

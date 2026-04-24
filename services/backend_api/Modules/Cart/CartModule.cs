@@ -8,6 +8,7 @@ using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Options;
 using Npgsql;
 
 namespace BackendApi.Modules.Cart;
@@ -38,6 +39,7 @@ public static class CartModule
         });
 
         services.Configure<CartOptions>(configuration.GetSection(CartOptions.SectionName));
+        services.AddSingleton<IValidateOptions<CartOptions>, CartOptionsValidator>();
 
         services.AddSingleton<CartTokenProvider>();
         services.AddSingleton<CartMerger>();

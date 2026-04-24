@@ -101,8 +101,9 @@ public static class Endpoint
         {
             foreach (var line in existingLines.Where(l => l.ReservationId.HasValue))
             {
+                var oldReservationId = line.ReservationId!.Value;
                 var released = await inventoryOrchestrator.TryReleaseAsync(
-                    inventoryDb, line.ReservationId!.Value, accountId.Value, "cart.superseded_by_restore", ct);
+                    inventoryDb, oldReservationId, accountId.Value, "cart.superseded_by_restore", ct);
                 if (!released)
                 {
                     // Cart state flip is already durable (line 82). Returning a retryable 409
@@ -117,11 +118,15 @@ public static class Endpoint
                         releasedReservations, existingActive!, accountId.Value, nowUtc, logger, ct);
                     logger.LogWarning(
                         "cart.restore.partial_release archivedCartId={ArchivedCartId} failedReservationId={ReservationId} releasedBeforeFailure={ReleasedCount} unrecovered={Unrecovered}",
-                        archived.Id, line.ReservationId, releasedReservations.Count, unrecovered);
+                        archived.Id, oldReservationId, releasedReservations.Count, unrecovered);
                     releasedReservations.Clear(); // compensation has re-reserved these
                     break;
                 }
-                releasedReservations.Add((line.ReservationId.Value, line.ProductId, line.Qty));
+                // Clear the superseded cart line's ReservationId so we don't persist a stale
+                // pointer at the next SaveChanges (the line is now archived without a hold).
+                line.ReservationId = null;
+                line.UpdatedAt = nowUtc;
+                releasedReservations.Add((oldReservationId, line.ProductId, line.Qty));
             }
 
             var lines = await db.CartLines.Where(l => l.CartId == archived.Id).ToListAsync(ct);
@@ -149,6 +154,10 @@ public static class Endpoint
         {
             // Mid-loop failure — compensate BOTH sides: release any newly-created reservations
             // on the restored cart AND re-reserve the released ones on the superseded cart.
+            // CRITICAL: clear the EF change tracker first so the compensation's SaveChanges
+            // doesn't also persist our half-written CartLine mutations (they'd otherwise leak
+            // to DB with partial ReservationId / StockChanged state the caller didn't expect).
+            db.ChangeTracker.Clear();
             foreach (var rid in createdReservations)
             {
                 try

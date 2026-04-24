@@ -1,3 +1,5 @@
+using Microsoft.Extensions.Options;
+
 namespace BackendApi.Modules.Cart.Primitives;
 
 public sealed class CartOptions
@@ -28,4 +30,26 @@ public sealed class CartOptions
     public int AbandonmentWorkerIntervalSeconds { get; set; } = 60;
     public int GuestCleanupWorkerIntervalSeconds { get; set; } = 3600;
     public int ArchivedReaperWorkerIntervalSeconds { get; set; } = 3600;
+}
+
+/// <summary>
+/// Start-up validator for CartOptions. Non-positive window/threshold values would let the
+/// abandonment worker re-emit every tick or mis-flag freshly touched carts as idle; reject
+/// those at DI-composition time so operators see the misconfiguration at boot rather than
+/// as silent bad behavior in production.
+/// </summary>
+internal sealed class CartOptionsValidator : IValidateOptions<CartOptions>
+{
+    public ValidateOptionsResult Validate(string? name, CartOptions options)
+    {
+        var failures = new List<string>();
+        if (options.AbandonmentIdleMinutes <= 0) failures.Add("Cart:AbandonmentIdleMinutes must be positive.");
+        if (options.AbandonmentDedupeHours <= 0) failures.Add("Cart:AbandonmentDedupeHours must be positive.");
+        if (options.GuestCartPurgeDays <= 0) failures.Add("Cart:GuestCartPurgeDays must be positive.");
+        if (options.ArchivedCartRetentionDays <= 0) failures.Add("Cart:ArchivedCartRetentionDays must be positive.");
+        if (options.MaxLinesPerCart <= 0) failures.Add("Cart:MaxLinesPerCart must be positive.");
+        if (options.TokenLifetimeDays <= 0) failures.Add("Cart:TokenLifetimeDays must be positive.");
+        if (string.IsNullOrWhiteSpace(options.TokenSecret)) failures.Add("Cart:TokenSecret must be set.");
+        return failures.Count == 0 ? ValidateOptionsResult.Success : ValidateOptionsResult.Fail(failures);
+    }
 }

@@ -6,6 +6,7 @@ using BackendApi.Modules.Inventory.Persistence;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
 namespace BackendApi.Modules.Cart.Customer.Restore;
@@ -30,6 +31,7 @@ public static class Endpoint
         CartInventoryOrchestrator inventoryOrchestrator,
         CustomerContextResolver customerContextResolver,
         IOptions<CartOptions> cartOptions,
+        ILoggerFactory loggerFactory,
         CancellationToken ct)
     {
         var accountId = CustomerCartResponseFactory.ResolveAccountId(context);
@@ -86,43 +88,77 @@ public static class Endpoint
         }
 
         // Cart state committed — now mutate inventory. Releases of the superseded cart first,
-        // then re-reservations on the restored cart.
-        foreach (var line in existingLines.Where(l => l.ReservationId.HasValue))
+        // then re-reservations on the restored cart. Track everything so any mid-flight failure
+        // can compensate (re-reserve released, release newly-reserved). The cart-state flip is
+        // already durable, so on catastrophic failure we prefer a loud log + partial-state 409
+        // over silently masking the inconsistency — operators reconcile via the stock-levels
+        // consistency check (SC-007).
+        var logger = loggerFactory.CreateLogger("Cart.Restore");
+        var releasedReservations = new List<(Guid ReservationId, Guid ProductId, int Qty)>();
+        var createdReservations = new List<Guid>();
+
+        try
         {
-            var released = await inventoryOrchestrator.TryReleaseAsync(
-                inventoryDb, line.ReservationId!.Value, accountId.Value, "cart.superseded_by_restore", ct);
-            if (!released)
+            foreach (var line in existingLines.Where(l => l.ReservationId.HasValue))
             {
-                // A failed release means the superseded cart still holds stock. Revalidating
-                // the restored cart against artificially-reduced ATS would lie to the customer,
-                // so surface an explicit conflict and let them retry.
-                return CustomerCartResponseFactory.Problem(
-                    context, 409, "cart.concurrency_conflict",
-                    "Reservation release conflict",
-                    "Could not release a reservation on the superseded cart; retry the restore.");
+                var released = await inventoryOrchestrator.TryReleaseAsync(
+                    inventoryDb, line.ReservationId!.Value, accountId.Value, "cart.superseded_by_restore", ct);
+                if (!released)
+                {
+                    // Compensate the releases that DID succeed before this one so the
+                    // superseded cart's reservations aren't left half-gone.
+                    await CompensateReleasedAsync(
+                        inventoryDb, catalogDb, inventoryOrchestrator,
+                        releasedReservations, existingActive!, accountId.Value, nowUtc, logger, ct);
+                    logger.LogWarning(
+                        "cart.restore.release_failed archivedCartId={ArchivedCartId} reservationId={ReservationId} released_before_failure={ReleasedCount}",
+                        archived.Id, line.ReservationId, releasedReservations.Count);
+                    return CustomerCartResponseFactory.Problem(
+                        context, 409, "cart.concurrency_conflict",
+                        "Reservation release conflict",
+                        "Could not release a reservation on the superseded cart; the prior releases were compensated. Retry.");
+                }
+                releasedReservations.Add((line.ReservationId.Value, line.ProductId, line.Qty));
+            }
+
+            var lines = await db.CartLines.Where(l => l.CartId == archived.Id).ToListAsync(ct);
+            foreach (var line in lines)
+            {
+                var reservation = await inventoryOrchestrator.TryReserveAsync(
+                    inventoryDb, catalogDb, line.ProductId, line.Qty, archived.MarketCode, accountId, archived.Id, nowUtc, ct);
+                if (reservation.IsSuccess)
+                {
+                    line.ReservationId = reservation.ReservationId;
+                    line.Unavailable = false;
+                    line.StockChanged = false;
+                    if (reservation.ReservationId is { } rid) createdReservations.Add(rid);
+                }
+                else
+                {
+                    line.ReservationId = null;
+                    line.Unavailable = true;
+                    line.StockChanged = true;
+                }
+                line.UpdatedAt = nowUtc;
             }
         }
-
-        var lines = await db.CartLines.Where(l => l.CartId == archived.Id).ToListAsync(ct);
-        var createdReservations = new List<Guid>();
-        foreach (var line in lines)
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
-            var reservation = await inventoryOrchestrator.TryReserveAsync(
-                inventoryDb, catalogDb, line.ProductId, line.Qty, archived.MarketCode, accountId, archived.Id, nowUtc, ct);
-            if (reservation.IsSuccess)
+            // Mid-loop failure — compensate BOTH sides: release any newly-created reservations
+            // on the restored cart AND re-reserve the released ones on the superseded cart.
+            foreach (var rid in createdReservations)
             {
-                line.ReservationId = reservation.ReservationId;
-                line.Unavailable = false;
-                line.StockChanged = false;
-                if (reservation.ReservationId is { } rid) createdReservations.Add(rid);
+                try
+                {
+                    await inventoryOrchestrator.TryReleaseAsync(
+                        inventoryDb, rid, accountId.Value, "cart.restore_reserve_rollback", ct);
+                }
+                catch { /* best-effort */ }
             }
-            else
-            {
-                line.ReservationId = null;
-                line.Unavailable = true;
-                line.StockChanged = true;
-            }
-            line.UpdatedAt = nowUtc;
+            await CompensateReleasedAsync(
+                inventoryDb, catalogDb, inventoryOrchestrator,
+                releasedReservations, existingActive!, accountId.Value, nowUtc, logger, ct);
+            throw;
         }
 
         try
@@ -131,10 +167,6 @@ public static class Endpoint
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
-            // Any post-reservation save failure must compensate — the reservations we just
-            // created would otherwise leak with no cart-line pointer. Concurrency-shaped
-            // exceptions still map to 409; everything else rethrows so the caller sees the
-            // real error (and the compensation at least prevented stock from leaking).
             foreach (var rid in createdReservations)
             {
                 try
@@ -157,5 +189,38 @@ public static class Endpoint
         var cartLines = await db.CartLines.AsNoTracking().Where(l => l.CartId == archived.Id).OrderBy(l => l.AddedAt).ToListAsync(ct);
         var view = await viewBuilder.BuildAsync(archived, cartLines, savedItems, b2b, catalogDb, ctxInfo.VerifiedForRestriction, ctxInfo.IsB2B, nowUtc, ct);
         return Results.Ok(view);
+    }
+
+    /// <summary>
+    /// Re-reserves reservations we previously released on the superseded cart. Best-effort —
+    /// failures are logged so operators can reconcile, but we don't throw because the caller
+    /// is already on a failure path.
+    /// </summary>
+    private static async Task CompensateReleasedAsync(
+        InventoryDbContext inventoryDb,
+        CatalogDbContext catalogDb,
+        CartInventoryOrchestrator inventoryOrchestrator,
+        List<(Guid ReservationId, Guid ProductId, int Qty)> releasedReservations,
+        Entities.Cart supersededCart,
+        Guid accountId,
+        DateTimeOffset nowUtc,
+        ILogger logger,
+        CancellationToken ct)
+    {
+        foreach (var (_, productId, qty) in releasedReservations)
+        {
+            try
+            {
+                await inventoryOrchestrator.TryReserveAsync(
+                    inventoryDb, catalogDb, productId, qty,
+                    supersededCart.MarketCode, accountId, supersededCart.Id, nowUtc, ct);
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex,
+                    "cart.restore.compensation_failed supersededCartId={CartId} productId={ProductId} qty={Qty}",
+                    supersededCart.Id, productId, qty);
+            }
+        }
     }
 }

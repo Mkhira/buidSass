@@ -52,18 +52,11 @@ public sealed class AbandonedCartWorker(
 
         // Step 1: clear stale emissions where the cart resumed after the previous emission.
         // Without this, a resumed cart cannot trigger a second abandonment event in the same
-        // 24h window even though it's a fresh idle episode (FR-010 idle-timer reset).
-        var resumedEmissions = await (
-                from e in db.Set<CartAbandonedEmission>()
-                join c in db.Carts on e.CartId equals c.Id
-                where c.LastTouchedAt > e.LastEmittedAt
-                select e
-            ).ToListAsync(ct);
-        if (resumedEmissions.Count > 0)
-        {
-            db.Set<CartAbandonedEmission>().RemoveRange(resumedEmissions);
-            await db.SaveChangesAsync(ct);
-        }
+        // 24h window even though it's a fresh idle episode (FR-010 idle-timer reset). This
+        // runs as a single set-based DELETE so a long backlog can't blow up worker memory.
+        await db.Set<CartAbandonedEmission>()
+            .Where(e => db.Carts.Any(c => c.Id == e.CartId && c.LastTouchedAt > e.LastEmittedAt))
+            .ExecuteDeleteAsync(ct);
 
         // Step 2: candidate query. Must be (a) active, (b) authenticated (no addressable
         // channel without email — FR-010), (c) idle past cutoff, (d) has ≥1 line, (e) no

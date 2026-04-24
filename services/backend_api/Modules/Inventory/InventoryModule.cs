@@ -7,6 +7,7 @@ using BackendApi.Modules.Inventory.Seeding;
 using BackendApi.Modules.Inventory.Workers;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -34,6 +35,7 @@ public static class InventoryModule
             {
                 options.UseNpgsql(connectionString);
             }
+            options.ConfigureWarnings(w => w.Ignore(CoreEventId.ManyServiceProvidersCreatedWarning));
         });
 
         services.Configure<InventoryOptions>(configuration.GetSection(InventoryOptions.SectionName));

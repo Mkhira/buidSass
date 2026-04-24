@@ -91,7 +91,19 @@ public sealed class ProductConfiguration : IEntityTypeConfiguration<Product>
         builder.Property(x => x.Restricted).HasDefaultValue(false);
         builder.Property(x => x.RestrictionReasonCode).HasColumnType("citext");
         builder.Property(x => x.RestrictionMarkets).HasColumnType("citext[]").HasDefaultValueSql("'{}'::citext[]").IsRequired();
+        builder.Property(x => x.MinOrderQty).HasDefaultValue(0).IsRequired();
+        builder.Property(x => x.MaxPerOrder).HasDefaultValue(0).IsRequired();
         builder.Property(x => x.OwnerId).HasColumnType("citext").HasDefaultValue("platform").IsRequired();
+        builder.ToTable(t =>
+        {
+            t.HasCheckConstraint("CK_products_min_order_qty_non_negative", "\"MinOrderQty\" >= 0");
+            t.HasCheckConstraint("CK_products_max_per_order_non_negative", "\"MaxPerOrder\" >= 0");
+            // MaxPerOrder = 0 is the sentinel for "unbounded"; when set, it must be ≥ MinOrderQty,
+            // otherwise the product becomes unorderable by construction.
+            t.HasCheckConstraint(
+                "CK_products_qty_bounds_consistent",
+                "\"MaxPerOrder\" = 0 OR \"MaxPerOrder\" >= \"MinOrderQty\"");
+        });
         builder.HasIndex(x => x.Sku).IsUnique().HasFilter("\"DeletedAt\" IS NULL");
         builder.HasIndex(x => x.Barcode);
         builder.HasIndex(x => x.BrandId);

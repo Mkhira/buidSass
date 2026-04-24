@@ -83,6 +83,10 @@ public sealed class Product
     public string? RestrictionReasonCode { get; set; }
     public string[] RestrictionMarkets { get; set; } = Array.Empty<string>();
     public long? PriceHintMinorUnits { get; set; }
+    /// <summary>Minimum per-line qty the cart will accept. 0 = no minimum (treated as 1).</summary>
+    public int MinOrderQty { get; set; }
+    /// <summary>Maximum per-line qty. 0 = no cap. Enforced by cart add/update and by merge cap (cart.above_max_qty / cart.merge.qty_capped).</summary>
+    public int MaxPerOrder { get; set; }
     public DateTimeOffset? PublishedAt { get; set; }
     public DateTimeOffset? ArchivedAt { get; set; }
     public string OwnerId { get; set; } = "platform";

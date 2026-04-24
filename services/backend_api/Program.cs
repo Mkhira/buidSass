@@ -7,6 +7,7 @@ using BackendApi.Modules.Observability;
 using BackendApi.Modules.Pricing;
 using BackendApi.Modules.Search;
 using BackendApi.Modules.Inventory;
+using BackendApi.Modules.Cart;
 using BackendApi.Modules.Shared;
 using Microsoft.EntityFrameworkCore;
 using Serilog;
@@ -56,6 +57,7 @@ builder.Services.AddCatalogModule(builder.Configuration, builder.Environment);
 builder.Services.AddSearchModule(builder.Configuration, builder.Environment);
 builder.Services.AddPricingModule(builder.Configuration, builder.Environment);
 builder.Services.AddInventoryModule(builder.Configuration, builder.Environment);
+builder.Services.AddCartModule(builder.Configuration, builder.Environment);
 builder.Services.AddSeeding(builder.Configuration);
 
 var app = builder.Build();
@@ -76,6 +78,7 @@ app.UseCatalogModuleEndpoints();
 app.UseSearchModuleEndpoints();
 app.UsePricingModuleEndpoints();
 app.UseInventoryModuleEndpoints();
+app.UseCartModuleEndpoints();
 
 if (app.Environment.IsDevelopment())
 {

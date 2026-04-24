@@ -5,6 +5,7 @@ public sealed class InventoryReservation
     public Guid Id { get; set; }
     public Guid ProductId { get; set; }
     public Guid WarehouseId { get; set; }
+    public string MarketCode { get; set; } = string.Empty;
     public int Qty { get; set; }
     public Guid? CartId { get; set; }
     public Guid? OrderId { get; set; }

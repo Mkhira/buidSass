@@ -68,6 +68,15 @@ public static class Endpoint
             return AdminInventoryResponseFactory.Problem(context, 400, "inventory.invalid_qty", "Invalid adjustment", "Adjustment delta cannot be zero.");
         }
 
+        var warehouseMarket = await db.Warehouses.AsNoTracking()
+            .Where(w => w.Id == request.WarehouseId)
+            .Select(w => w.MarketCode)
+            .SingleOrDefaultAsync(ct);
+        if (warehouseMarket is null)
+        {
+            return AdminInventoryResponseFactory.Problem(context, 404, "inventory.warehouse.not_found", "Warehouse not found", "The requested warehouse does not exist.");
+        }
+
         var actorId = AdminInventoryResponseFactory.ResolveActorAccountId(context);
         var nowUtc = DateTimeOffset.UtcNow;
 
@@ -181,6 +190,7 @@ public static class Endpoint
         {
             ProductId = request.ProductId,
             WarehouseId = request.WarehouseId,
+            MarketCode = warehouseMarket,
             BatchId = request.BatchId,
             Kind = "adjustment",
             Delta = request.Delta,
@@ -252,6 +262,15 @@ public static class Endpoint
             return AdminInventoryResponseFactory.Problem(context, 400, "inventory.invalid_items", "Invalid transfer warehouses", "Source and destination warehouses must be different.");
         }
 
+        var warehouses = await db.Warehouses.AsNoTracking()
+            .Where(w => w.Id == request.FromWarehouseId || w.Id == request.ToWarehouseId)
+            .ToDictionaryAsync(w => w.Id, w => w.MarketCode, ct);
+        if (!warehouses.TryGetValue(request.FromWarehouseId, out var fromMarket) ||
+            !warehouses.TryGetValue(request.ToWarehouseId, out var toMarket))
+        {
+            return AdminInventoryResponseFactory.Problem(context, 404, "inventory.warehouse.not_found", "Warehouse not found", "Source or destination warehouse does not exist.");
+        }
+
         var actorId = AdminInventoryResponseFactory.ResolveActorAccountId(context);
         var nowUtc = DateTimeOffset.UtcNow;
         var transferId = Guid.NewGuid();
@@ -319,9 +338,12 @@ public static class Endpoint
             db.StockLevels.Add(toStock);
         }
 
-        // If the caller pinned a source batch, lock + decrement it; reject on insufficient qty
-        // or mismatch with the source warehouse. Prevents stock/batch drift across Transfer.
-        InventoryBatch? sourceBatch = null;
+        // Source batch selection: caller-pinned OR FEFO auto-pick. Either way, Transfer MUST
+        // decrement a batch and credit a corresponding destination batch so the invariant
+        // `stock_levels.on_hand == sum(batches.qty_on_hand)` holds and transferred units remain
+        // reservable at the destination via FEFO with the correct expiry date.
+        var todayUtc = DateOnly.FromDateTime(nowUtc.UtcDateTime.Date);
+        InventoryBatch? sourceBatch;
         if (request.BatchId.HasValue && request.BatchId.Value != Guid.Empty)
         {
             sourceBatch = await db.InventoryBatches
@@ -340,11 +362,71 @@ public static class Endpoint
                 await tx.RollbackAsync(ct);
                 return AdminInventoryResponseFactory.Problem(context, 404, "inventory.batch.not_found", "Batch not found", "The requested batch does not exist in the source warehouse.");
             }
-            if (sourceBatch.QtyOnHand < request.Qty)
+        }
+        else
+        {
+            // FEFO-pick a single active, non-expired batch with enough qty. V1 transfer is
+            // single-batch (same policy as reservations). Cross-batch splitting is a spec-011
+            // enhancement.
+            var activeStatus = "active";
+            var candidates = await db.InventoryBatches
+                .FromSqlInterpolated($"""
+                    SELECT *
+                    FROM inventory.inventory_batches
+                    WHERE "ProductId" = {request.ProductId}
+                      AND "WarehouseId" = {request.FromWarehouseId}
+                      AND "Status" = {activeStatus}
+                      AND "ExpiryDate" >= {todayUtc}
+                      AND "QtyOnHand" >= {request.Qty}
+                    ORDER BY "ExpiryDate" ASC, "Id" ASC
+                    LIMIT 1
+                    FOR UPDATE
+                    """)
+                .ToListAsync(ct);
+            sourceBatch = candidates.FirstOrDefault();
+            if (sourceBatch is null)
             {
                 await tx.RollbackAsync(ct);
-                return AdminInventoryResponseFactory.Problem(context, 409, "inventory.batch_qty_negative", "Insufficient batch quantity", "Source batch has less quantity than the requested transfer.");
+                return AdminInventoryResponseFactory.Problem(context, 409, "inventory.batch_qty_negative", "Insufficient batch quantity", "No single active batch at the source warehouse holds the requested qty. Specify batchId explicitly for cross-batch transfers (deferred to spec 011).");
             }
+        }
+
+        if (sourceBatch.QtyOnHand < request.Qty)
+        {
+            await tx.RollbackAsync(ct);
+            return AdminInventoryResponseFactory.Problem(context, 409, "inventory.batch_qty_negative", "Insufficient batch quantity", "Source batch has less quantity than the requested transfer.");
+        }
+
+        // Destination batch: upsert a batch on the target warehouse with the same LotNo +
+        // ExpiryDate so FEFO correctness is preserved end-to-end. Unique index is
+        // (product, warehouse, lot_no) — same lot can live in multiple warehouses.
+        var destBatch = await db.InventoryBatches
+            .FromSqlInterpolated($"""
+                SELECT *
+                FROM inventory.inventory_batches
+                WHERE "ProductId" = {request.ProductId}
+                  AND "WarehouseId" = {request.ToWarehouseId}
+                  AND "LotNo" = {sourceBatch.LotNo}
+                FOR UPDATE
+                """)
+            .SingleOrDefaultAsync(ct);
+        if (destBatch is null)
+        {
+            destBatch = new InventoryBatch
+            {
+                Id = Guid.NewGuid(),
+                ProductId = request.ProductId,
+                WarehouseId = request.ToWarehouseId,
+                MarketCode = toMarket,
+                LotNo = sourceBatch.LotNo,
+                ExpiryDate = sourceBatch.ExpiryDate,
+                QtyOnHand = 0,
+                Status = "active",
+                ReceivedAt = nowUtc,
+                ReceivedByAccountId = actorId == Guid.Empty ? null : actorId,
+                Notes = $"transfer-from-{request.FromWarehouseId:N}",
+            };
+            db.InventoryBatches.Add(destBatch);
         }
 
         var fromBucketBefore = fromStock.BucketCache;
@@ -354,13 +436,16 @@ public static class Endpoint
         var fromAtsAfter = atsCalculator.Compute(fromStock.OnHand, fromStock.Reserved, fromStock.SafetyStock);
         fromStock.BucketCache = bucketMapper.Map(fromAtsAfter);
 
-        if (sourceBatch is not null)
+        sourceBatch.QtyOnHand -= request.Qty;
+        if (sourceBatch.QtyOnHand == 0)
         {
-            sourceBatch.QtyOnHand -= request.Qty;
-            if (sourceBatch.QtyOnHand == 0)
-            {
-                sourceBatch.Status = "depleted";
-            }
+            sourceBatch.Status = "depleted";
+        }
+
+        destBatch.QtyOnHand += request.Qty;
+        if (string.Equals(destBatch.Status, "depleted", StringComparison.OrdinalIgnoreCase))
+        {
+            destBatch.Status = "active";
         }
 
         var toBucketBefore = toStock.BucketCache;
@@ -374,7 +459,8 @@ public static class Endpoint
         {
             ProductId = request.ProductId,
             WarehouseId = request.FromWarehouseId,
-            BatchId = request.BatchId,
+            MarketCode = fromMarket,
+            BatchId = sourceBatch.Id,
             Kind = "transfer_out",
             Delta = -request.Qty,
             Reason = request.Reason,
@@ -388,7 +474,8 @@ public static class Endpoint
         {
             ProductId = request.ProductId,
             WarehouseId = request.ToWarehouseId,
-            BatchId = null,
+            MarketCode = toMarket,
+            BatchId = destBatch.Id,
             Kind = "transfer_in",
             Delta = request.Qty,
             Reason = request.Reason,
@@ -471,6 +558,15 @@ public static class Endpoint
             return AdminInventoryResponseFactory.Problem(context, 400, "inventory.invalid_qty", "Invalid writeoff quantity", "Writeoff quantity must be greater than zero.");
         }
 
+        var warehouseMarket = await db.Warehouses.AsNoTracking()
+            .Where(w => w.Id == request.WarehouseId)
+            .Select(w => w.MarketCode)
+            .SingleOrDefaultAsync(ct);
+        if (warehouseMarket is null)
+        {
+            return AdminInventoryResponseFactory.Problem(context, 404, "inventory.warehouse.not_found", "Warehouse not found", "The requested warehouse does not exist.");
+        }
+
         var actorId = AdminInventoryResponseFactory.ResolveActorAccountId(context);
         var nowUtc = DateTimeOffset.UtcNow;
 
@@ -536,6 +632,7 @@ public static class Endpoint
         {
             ProductId = request.ProductId,
             WarehouseId = request.WarehouseId,
+            MarketCode = warehouseMarket,
             BatchId = request.BatchId,
             Kind = "writeoff",
             Delta = -request.Qty,

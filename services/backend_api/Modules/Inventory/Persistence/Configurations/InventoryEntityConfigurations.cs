@@ -46,11 +46,13 @@ public sealed class InventoryBatchConfiguration : IEntityTypeConfiguration<Inven
             tableBuilder.HasCheckConstraint("CK_inventory_batches_qty_on_hand_non_negative", "\"QtyOnHand\" >= 0");
         });
         builder.HasKey(x => x.Id);
+        builder.Property(x => x.MarketCode).HasColumnType("citext").IsRequired();
         builder.Property(x => x.LotNo).HasColumnType("text").IsRequired();
         builder.Property(x => x.Status).HasColumnType("citext").HasDefaultValue("active").IsRequired();
         builder.Property(x => x.ExpiryDate).HasColumnType("date").IsRequired();
         builder.HasIndex(x => new { x.ProductId, x.WarehouseId, x.LotNo }).IsUnique();
         builder.HasIndex(x => new { x.ProductId, x.WarehouseId, x.ExpiryDate });
+        builder.HasIndex(x => x.MarketCode);
     }
 }
 
@@ -63,8 +65,10 @@ public sealed class InventoryReservationConfiguration : IEntityTypeConfiguration
             tableBuilder.HasCheckConstraint("CK_inventory_reservations_qty_positive", "\"Qty\" > 0");
         });
         builder.HasKey(x => x.Id);
+        builder.Property(x => x.MarketCode).HasColumnType("citext").IsRequired();
         builder.Property(x => x.Status).HasColumnType("citext").HasDefaultValue("active").IsRequired();
         builder.HasIndex(x => new { x.Status, x.ExpiresAt });
+        builder.HasIndex(x => x.MarketCode);
     }
 }
 
@@ -75,9 +79,11 @@ public sealed class InventoryMovementConfiguration : IEntityTypeConfiguration<In
         builder.ToTable("inventory_movements", "inventory");
         builder.HasKey(x => x.Id);
         builder.Property(x => x.Id).UseIdentityByDefaultColumn();
+        builder.Property(x => x.MarketCode).HasColumnType("citext").IsRequired();
         builder.Property(x => x.Kind).HasColumnType("citext").IsRequired();
         builder.Property(x => x.SourceKind).HasColumnType("citext");
         builder.HasIndex(x => new { x.ProductId, x.WarehouseId, x.OccurredAt });
+        builder.HasIndex(x => x.MarketCode);
     }
 }
 

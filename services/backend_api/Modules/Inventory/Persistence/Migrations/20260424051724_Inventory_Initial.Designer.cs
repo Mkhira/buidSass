@@ -12,7 +12,7 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace BackendApi.Modules.Inventory.Persistence.Migrations
 {
     [DbContext(typeof(InventoryDbContext))]
-    [Migration("20260423225526_Inventory_Initial")]
+    [Migration("20260424051724_Inventory_Initial")]
     partial class Inventory_Initial
     {
         /// <inheritdoc />
@@ -40,6 +40,10 @@ namespace BackendApi.Modules.Inventory.Persistence.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
+                    b.Property<string>("MarketCode")
+                        .IsRequired()
+                        .HasColumnType("citext");
+
                     b.Property<string>("Notes")
                         .HasColumnType("text");
 
@@ -65,6 +69,8 @@ namespace BackendApi.Modules.Inventory.Persistence.Migrations
                         .HasColumnType("uuid");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("MarketCode");
 
                     b.HasIndex("ProductId", "WarehouseId", "ExpiryDate");
 
@@ -98,6 +104,10 @@ namespace BackendApi.Modules.Inventory.Persistence.Migrations
                         .IsRequired()
                         .HasColumnType("citext");
 
+                    b.Property<string>("MarketCode")
+                        .IsRequired()
+                        .HasColumnType("citext");
+
                     b.Property<DateTimeOffset>("OccurredAt")
                         .HasColumnType("timestamp with time zone");
 
@@ -117,6 +127,8 @@ namespace BackendApi.Modules.Inventory.Persistence.Migrations
                         .HasColumnType("uuid");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("MarketCode");
 
                     b.HasIndex("ProductId", "WarehouseId", "OccurredAt");
 
@@ -144,6 +156,10 @@ namespace BackendApi.Modules.Inventory.Persistence.Migrations
                     b.Property<DateTimeOffset>("ExpiresAt")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<string>("MarketCode")
+                        .IsRequired()
+                        .HasColumnType("citext");
+
                     b.Property<Guid?>("OrderId")
                         .HasColumnType("uuid");
 
@@ -169,6 +185,8 @@ namespace BackendApi.Modules.Inventory.Persistence.Migrations
                         .HasColumnType("uuid");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("MarketCode");
 
                     b.HasIndex("Status", "ExpiresAt");
 

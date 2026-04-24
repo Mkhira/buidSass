@@ -24,6 +24,12 @@ public sealed class TransferContractTests(InventoryTestFactory factory)
         await InventoryTestSeedHelper.UpsertStockAsync(seedScope.ServiceProvider, productId, fromWarehouseId, onHand: 10, reserved: 0, safetyStock: 0, bucketCache: "in_stock");
         await InventoryTestSeedHelper.UpsertStockAsync(seedScope.ServiceProvider, productId, toWarehouseId, onHand: 0, reserved: 0, safetyStock: 0, bucketCache: "out_of_stock");
 
+        // Transfer now requires a source batch (FEFO pick) so the destination batch can be
+        // mirrored and FEFO integrity is preserved across warehouses.
+        await InventoryTestSeedHelper.AddBatchAsync(
+            seedScope.ServiceProvider, productId, fromWarehouseId, "LOT-TR-001",
+            DateOnly.FromDateTime(DateTime.UtcNow.Date.AddYears(1)), qtyOnHand: 10);
+
         var (token, _) = await InventoryAdminAuthHelper.IssueAdminTokenAsync(factory, ["inventory.movement.write", "inventory.movement.read"]);
         var client = factory.CreateClient();
         InventoryAdminAuthHelper.SetBearer(client, token);

@@ -43,6 +43,16 @@ public static class Handler
                 return new Result(false, 400, "inventory.invalid_items", "Each return item must include productId, warehouseId, and qty > 0.", null);
             }
 
+            var warehouseMarket = await db.Warehouses.AsNoTracking()
+                .Where(w => w.Id == item.WarehouseId)
+                .Select(w => w.MarketCode)
+                .SingleOrDefaultAsync(cancellationToken);
+            if (warehouseMarket is null)
+            {
+                await tx.RollbackAsync(cancellationToken);
+                return new Result(false, 404, "inventory.warehouse.not_found", "Warehouse not found", null);
+            }
+
             var stock = await db.StockLevels
                 .FromSqlInterpolated($"""
                     SELECT *
@@ -69,6 +79,7 @@ public static class Handler
                 db.StockLevels.Add(stock);
             }
 
+            var todayUtc = DateOnly.FromDateTime(nowUtc.UtcDateTime.Date);
             InventoryBatch? batch = null;
             if (item.BatchId.HasValue && item.BatchId.Value != Guid.Empty)
             {
@@ -91,18 +102,29 @@ public static class Handler
                     await tx.RollbackAsync(cancellationToken);
                     return new Result(false, 404, "inventory.batch.not_found", "Referenced return batch does not exist for this product and warehouse.", null);
                 }
+
+                // Do NOT reactivate an expired batch. Returning stock into an expired lot would
+                // flip Status back to "active" while keeping the past ExpiryDate — making already-
+                // expired units reservable on the next FEFO pick. Route returned qty to a fresh
+                // restock batch instead.
+                if (string.Equals(batch.Status, "expired", StringComparison.OrdinalIgnoreCase)
+                    || batch.ExpiryDate < todayUtc)
+                {
+                    batch = null;
+                }
             }
 
             if (batch is null)
             {
-                // No batch provided → create a synthetic restock batch. Use the full orderId + a
-                // per-batch GUID suffix to guarantee lot_no uniqueness across concurrent returns
-                // that reference the same order (two items in one call, or partial returns).
+                // No usable batch provided → create a synthetic restock batch. Use the full
+                // orderId + a per-batch GUID suffix to guarantee lot_no uniqueness across
+                // concurrent returns that reference the same order.
                 batch = new InventoryBatch
                 {
                     Id = Guid.NewGuid(),
                     ProductId = item.ProductId,
                     WarehouseId = item.WarehouseId,
+                    MarketCode = warehouseMarket,
                     LotNo = $"RESTOCK-{request.OrderId:N}-{Guid.NewGuid():N}",
                     ExpiryDate = DateOnly.FromDateTime(nowUtc.UtcDateTime.Date.AddYears(3)),
                     QtyOnHand = 0,
@@ -121,7 +143,9 @@ public static class Handler
             stock.BucketCache = bucketMapper.Map(atsAfter);
 
             batch.QtyOnHand += item.Qty;
-            if (!string.Equals(batch.Status, "active", StringComparison.OrdinalIgnoreCase))
+            // Only reactivate a `depleted` batch; never flip an `expired` batch back to active
+            // (guarded above — expired batches are routed to a fresh restock batch).
+            if (string.Equals(batch.Status, "depleted", StringComparison.OrdinalIgnoreCase))
             {
                 batch.Status = "active";
             }
@@ -138,6 +162,7 @@ public static class Handler
             {
                 ProductId = item.ProductId,
                 WarehouseId = item.WarehouseId,
+                MarketCode = warehouseMarket,
                 BatchId = batch.Id,
                 Kind = "return",
                 Delta = item.Qty,

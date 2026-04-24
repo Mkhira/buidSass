@@ -128,11 +128,16 @@ public static class InventoryTestSeedHelper
         CancellationToken ct = default)
     {
         var db = services.GetRequiredService<InventoryDbContext>();
+        var marketCode = await db.Warehouses
+            .Where(w => w.Id == warehouseId)
+            .Select(w => w.MarketCode)
+            .SingleAsync(ct);
         var batch = new InventoryBatch
         {
             Id = Guid.NewGuid(),
             ProductId = productId,
             WarehouseId = warehouseId,
+            MarketCode = marketCode,
             LotNo = lotNo,
             ExpiryDate = expiryDate,
             QtyOnHand = qtyOnHand,

@@ -108,6 +108,10 @@ public static class Handler
         }
 
         var activeStatus = "active";
+        // Exclude already-expired batches from FEFO. The expiry-writeoff worker runs on a
+        // schedule, so a batch can pass its expiry date before the next tick; without this
+        // predicate the cart could reserve expired stock.
+        var todayUtc = DateOnly.FromDateTime(nowUtc.UtcDateTime.Date);
         var pickedBatch = await inventoryDb.InventoryBatches
             .FromSqlInterpolated($"""
                 SELECT *
@@ -115,6 +119,7 @@ public static class Handler
                 WHERE "ProductId" = {item.ProductId}
                   AND "WarehouseId" = {warehouse.Id}
                   AND "Status" = {activeStatus}
+                  AND "ExpiryDate" >= {todayUtc}
                   AND "QtyOnHand" > 0
                 ORDER BY "ExpiryDate" ASC, "Id" ASC
                 LIMIT 1
@@ -177,6 +182,7 @@ public static class Handler
             Id = reservationId,
             ProductId = item.ProductId,
             WarehouseId = warehouse.Id,
+            MarketCode = marketCode,
             Qty = item.Qty,
             CartId = request.CartId,
             OrderId = null,

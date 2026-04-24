@@ -26,6 +26,7 @@ namespace BackendApi.Modules.Inventory.Persistence.Migrations
                     Id = table.Column<Guid>(type: "uuid", nullable: false),
                     ProductId = table.Column<Guid>(type: "uuid", nullable: false),
                     WarehouseId = table.Column<Guid>(type: "uuid", nullable: false),
+                    MarketCode = table.Column<string>(type: "citext", nullable: false),
                     LotNo = table.Column<string>(type: "text", nullable: false),
                     ExpiryDate = table.Column<DateOnly>(type: "date", nullable: false),
                     QtyOnHand = table.Column<int>(type: "integer", nullable: false),
@@ -49,6 +50,7 @@ namespace BackendApi.Modules.Inventory.Persistence.Migrations
                         .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
                     ProductId = table.Column<Guid>(type: "uuid", nullable: false),
                     WarehouseId = table.Column<Guid>(type: "uuid", nullable: false),
+                    MarketCode = table.Column<string>(type: "citext", nullable: false),
                     BatchId = table.Column<Guid>(type: "uuid", nullable: true),
                     Kind = table.Column<string>(type: "citext", nullable: false),
                     Delta = table.Column<int>(type: "integer", nullable: false),
@@ -71,6 +73,7 @@ namespace BackendApi.Modules.Inventory.Persistence.Migrations
                     Id = table.Column<Guid>(type: "uuid", nullable: false),
                     ProductId = table.Column<Guid>(type: "uuid", nullable: false),
                     WarehouseId = table.Column<Guid>(type: "uuid", nullable: false),
+                    MarketCode = table.Column<string>(type: "citext", nullable: false),
                     Qty = table.Column<int>(type: "integer", nullable: false),
                     CartId = table.Column<Guid>(type: "uuid", nullable: true),
                     OrderId = table.Column<Guid>(type: "uuid", nullable: true),
@@ -145,6 +148,12 @@ namespace BackendApi.Modules.Inventory.Persistence.Migrations
                 });
 
             migrationBuilder.CreateIndex(
+                name: "IX_inventory_batches_MarketCode",
+                schema: "inventory",
+                table: "inventory_batches",
+                column: "MarketCode");
+
+            migrationBuilder.CreateIndex(
                 name: "IX_inventory_batches_ProductId_WarehouseId_ExpiryDate",
                 schema: "inventory",
                 table: "inventory_batches",
@@ -158,10 +167,22 @@ namespace BackendApi.Modules.Inventory.Persistence.Migrations
                 unique: true);
 
             migrationBuilder.CreateIndex(
+                name: "IX_inventory_movements_MarketCode",
+                schema: "inventory",
+                table: "inventory_movements",
+                column: "MarketCode");
+
+            migrationBuilder.CreateIndex(
                 name: "IX_inventory_movements_ProductId_WarehouseId_OccurredAt",
                 schema: "inventory",
                 table: "inventory_movements",
                 columns: new[] { "ProductId", "WarehouseId", "OccurredAt" });
+
+            migrationBuilder.CreateIndex(
+                name: "IX_inventory_reservations_MarketCode",
+                schema: "inventory",
+                table: "inventory_reservations",
+                column: "MarketCode");
 
             migrationBuilder.CreateIndex(
                 name: "IX_inventory_reservations_Status_ExpiresAt",

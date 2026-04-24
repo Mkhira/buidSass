@@ -100,9 +100,20 @@ public static class Handler
                     SELECT *
                     FROM inventory.inventory_batches
                     WHERE "Id" = {reservation.PickedBatchId.Value}
+                      AND "ProductId" = {reservation.ProductId}
+                      AND "WarehouseId" = {reservation.WarehouseId}
                     FOR UPDATE
                     """)
                 .SingleOrDefaultAsync(cancellationToken);
+
+            // If the pinned batch was adjusted / written off / reassigned between reservation and
+            // convert, reject rather than silently clamp the decrement below. Preserves the
+            // invariant `stock.OnHand == sum(active_batches.QtyOnHand)`.
+            if (batch is null || batch.QtyOnHand < reservation.Qty)
+            {
+                await tx.RollbackAsync(cancellationToken);
+                return BuildInsufficient(reservation.ProductId, reservation.Qty);
+            }
         }
 
         var before = new
@@ -142,7 +153,8 @@ public static class Handler
 
         if (batch is not null)
         {
-            batch.QtyOnHand = Math.Max(0, batch.QtyOnHand - reservation.Qty);
+            // Validated above to have at least reservation.Qty — decrement directly (no clamp).
+            batch.QtyOnHand -= reservation.Qty;
             if (batch.QtyOnHand == 0)
             {
                 batch.Status = "depleted";
@@ -157,6 +169,7 @@ public static class Handler
         {
             ProductId = reservation.ProductId,
             WarehouseId = reservation.WarehouseId,
+            MarketCode = reservation.MarketCode,
             BatchId = reservation.PickedBatchId,
             Kind = "sale",
             Delta = -reservation.Qty,

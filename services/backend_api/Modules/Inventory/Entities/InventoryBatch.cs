@@ -5,6 +5,7 @@ public sealed class InventoryBatch
     public Guid Id { get; set; }
     public Guid ProductId { get; set; }
     public Guid WarehouseId { get; set; }
+    public string MarketCode { get; set; } = string.Empty;
     public string LotNo { get; set; } = string.Empty;
     public DateOnly ExpiryDate { get; set; }
     public int QtyOnHand { get; set; }

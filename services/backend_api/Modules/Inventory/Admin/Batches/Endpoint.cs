@@ -139,9 +139,14 @@ public static class Endpoint
                 "Batch quantity cannot be negative.");
         }
 
-        // Validate warehouse exists. Cross-schema FK to inventory.warehouses isn't modeled
-        // (catalog products also aren't FK-tied to pricing). Enforce at write time.
-        if (!await db.Warehouses.AnyAsync(w => w.Id == request.WarehouseId, ct))
+        // Validate warehouse exists + resolve its market. Cross-schema FK to inventory.warehouses
+        // isn't modeled (catalog products also aren't FK-tied to pricing); enforce at write time.
+        var warehouseMarket = await db.Warehouses
+            .AsNoTracking()
+            .Where(w => w.Id == request.WarehouseId)
+            .Select(w => w.MarketCode)
+            .SingleOrDefaultAsync(ct);
+        if (warehouseMarket is null)
         {
             return AdminInventoryResponseFactory.Problem(
                 context,
@@ -187,6 +192,7 @@ public static class Endpoint
             Id = Guid.NewGuid(),
             ProductId = request.ProductId,
             WarehouseId = request.WarehouseId,
+            MarketCode = warehouseMarket,
             LotNo = request.LotNo.Trim(),
             ExpiryDate = request.ExpiryDate,
             QtyOnHand = request.Qty,
@@ -215,6 +221,7 @@ public static class Endpoint
         {
             ProductId = request.ProductId,
             WarehouseId = request.WarehouseId,
+            MarketCode = warehouseMarket,
             BatchId = batch.Id,
             Kind = "receipt",
             Delta = request.Qty,

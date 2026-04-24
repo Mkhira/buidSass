@@ -150,6 +150,7 @@ public sealed class ExpiryWriteoffWorker(
             {
                 ProductId = batch.ProductId,
                 WarehouseId = batch.WarehouseId,
+                MarketCode = batch.MarketCode,
                 BatchId = batch.Id,
                 Kind = "writeoff",
                 Delta = -stockDelta,

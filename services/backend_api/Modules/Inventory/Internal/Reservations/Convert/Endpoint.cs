@@ -32,12 +32,23 @@ public static class Endpoint
         ILoggerFactory loggerFactory,
         CancellationToken cancellationToken)
     {
-        // Fall back to the caller's JWT sub if AccountId wasn't supplied — ensures audit trail
-        // (Principle 25) fires even for trusted internal callers that omit the body field.
+        // Fall back to the caller's JWT sub if AccountId wasn't supplied.
+        // Principle 25: every mutation must have an actor. If neither source resolves, refuse to
+        // persist an orphaned sale movement with ActorAccountId=null.
         var jwtSub = AdminInventoryResponseFactory.ResolveActorAccountId(context);
-        var effectiveRequest = request.AccountId is { } supplied && supplied != Guid.Empty
-            ? request
-            : request with { AccountId = jwtSub == Guid.Empty ? null : jwtSub };
+        var resolvedAccountId = (request.AccountId is { } supplied && supplied != Guid.Empty)
+            ? supplied
+            : jwtSub;
+        if (resolvedAccountId == Guid.Empty)
+        {
+            return AdminInventoryResponseFactory.Problem(
+                context,
+                400,
+                "inventory.actor_required",
+                "Actor required",
+                "Convert requires either request.accountId or an authenticated JWT sub claim.");
+        }
+        var effectiveRequest = request with { AccountId = resolvedAccountId };
 
         var result = await Handler.HandleAsync(
             id,

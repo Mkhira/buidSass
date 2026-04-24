@@ -74,7 +74,7 @@ public static class Endpoint
         cart.LastTouchedAt = nowUtc;
         cart.UpdatedAt = nowUtc;
         try { await db.SaveChangesAsync(ct); }
-        catch (DbUpdateConcurrencyException)
+        catch (DbUpdateException ex) when (CustomerCartResponseFactory.IsConcurrencyConflict(ex))
         {
             return CustomerCartResponseFactory.ConcurrencyConflict(context, "Cart was modified by another request.");
         }

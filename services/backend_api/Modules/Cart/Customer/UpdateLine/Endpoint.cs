@@ -5,6 +5,7 @@ using BackendApi.Modules.Catalog.Persistence;
 using BackendApi.Modules.Inventory.Persistence;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 
 namespace BackendApi.Modules.Cart.Customer.UpdateLine;
 
@@ -30,16 +31,22 @@ public static class Endpoint
         CartViewBuilder viewBuilder,
         CartInventoryOrchestrator inventoryOrchestrator,
         CustomerContextResolver customerContextResolver,
+        ILoggerFactory loggerFactory,
         CancellationToken ct)
     {
         if (request.Qty < 0)
         {
             return CustomerCartResponseFactory.Problem(context, 400, "cart.below_min_qty", "Qty must be >= 0", "Use qty=0 to remove.");
         }
+        if (string.IsNullOrWhiteSpace(request.MarketCode))
+        {
+            return CustomerCartResponseFactory.Problem(context, 400, "cart.market_required", "Market required", "");
+        }
+        var normalizedMarket = request.MarketCode.Trim().ToLowerInvariant();
         var nowUtc = DateTimeOffset.UtcNow;
         var accountId = await CustomerCartResponseFactory.TryResolveAuthenticatedAccountAsync(context);
         var suppliedToken = GetCart.Endpoint.ResolveToken(context);
-        var cart = await resolver.LookupAsync(db, accountId, suppliedToken, request.MarketCode, nowUtc, ct);
+        var cart = await resolver.LookupAsync(db, accountId, suppliedToken, normalizedMarket, nowUtc, ct);
         if (cart is null)
         {
             return CustomerCartResponseFactory.Problem(context, 404, "cart.not_found", "Cart not found", "");
@@ -101,14 +108,38 @@ public static class Endpoint
                         line.StockChanged = true;
                     }
                     line.UpdatedAt = nowUtc;
-                    try { await db.SaveChangesAsync(ct); } catch { /* best-effort */ }
+                    try
+                    {
+                        await db.SaveChangesAsync(ct);
+                    }
+                    catch (DbUpdateException persistEx)
+                    {
+                        // Rollback persistence failed — the line now has a transient in-memory
+                        // state that won't reach the DB. Log loud so the operator can reconcile.
+                        loggerFactory.CreateLogger("Cart.UpdateLine").LogError(
+                            persistEx,
+                            "cart.updateline.rollback_persist_failed cartId={CartId} productId={ProductId} lineId={LineId}",
+                            cart.Id, line.ProductId, line.Id);
+                    }
                 }
                 catch
                 {
                     line.ReservationId = null;
                     line.StockChanged = true;
                     line.UpdatedAt = nowUtc;
-                    try { await db.SaveChangesAsync(ct); } catch { /* best-effort */ }
+                    try
+                    {
+                        await db.SaveChangesAsync(ct);
+                    }
+                    catch (DbUpdateException persistEx)
+                    {
+                        // Rollback persistence failed — the line now has a transient in-memory
+                        // state that won't reach the DB. Log loud so the operator can reconcile.
+                        loggerFactory.CreateLogger("Cart.UpdateLine").LogError(
+                            persistEx,
+                            "cart.updateline.rollback_persist_failed cartId={CartId} productId={ProductId} lineId={LineId}",
+                            cart.Id, line.ProductId, line.Id);
+                    }
                 }
             }
             return CustomerCartResponseFactory.Problem(
@@ -128,6 +159,23 @@ public static class Endpoint
         }
         catch (DbUpdateConcurrencyException)
         {
+            // CR #7: best-effort compensation — release the reservation we just created so it
+            // doesn't leak once the cart row is rolled back by the conflict. If compensation
+            // itself fails we still surface the 409 (the original caller's signal is the
+            // important one), but log so an operator can reconcile.
+            if (reservation.ReservationId is { } newRid)
+            {
+                try
+                {
+                    await inventoryOrchestrator.TryReleaseAsync(
+                        inventoryDb, newRid, CartSystemActors.ResolveActor(accountId),
+                        "cart.line.qty_update_conflict_rollback", ct);
+                }
+                catch
+                {
+                    // swallow — 409 response + worker reconciliation is the fallback here
+                }
+            }
             return CustomerCartResponseFactory.ConcurrencyConflict(context, "Cart line was modified by another request.");
         }
 

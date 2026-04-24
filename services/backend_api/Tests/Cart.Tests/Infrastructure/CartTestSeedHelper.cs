@@ -159,7 +159,8 @@ public static class CartTestSeedHelper
         CancellationToken ct = default)
     {
         var db = services.GetRequiredService<PricingDbContext>();
-        var existing = await db.TaxRates.AnyAsync(r => r.MarketCode == marketCode && r.EffectiveTo == null, ct);
+        var existing = await db.TaxRates.AnyAsync(
+            r => r.MarketCode == marketCode && r.Kind == "vat" && r.EffectiveTo == null, ct);
         if (!existing)
         {
             db.TaxRates.Add(new TaxRate

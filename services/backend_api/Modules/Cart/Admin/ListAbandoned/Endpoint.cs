@@ -39,6 +39,15 @@ public static class Endpoint
         var cutoff = nowUtc.AddMinutes(-cartOptions.Value.AbandonmentIdleMinutes);
         var effectivePageSize = Math.Clamp(pageSize ?? 50, 1, 500);
         var effectivePage = Math.Max(page ?? 1, 1);
+        // Guard pagination arithmetic: page * pageSize can overflow Int32 once page is in the
+        // millions, which `.Skip()` then misinterprets as a negative offset.
+        var offset = ((long)effectivePage - 1) * effectivePageSize;
+        if (offset > int.MaxValue)
+        {
+            return AdminCartResponseFactory.Problem(
+                context, 400, "cart.pagination_out_of_range",
+                "Pagination out of range", "Requested page is too large.");
+        }
 
         var query = db.Carts.AsNoTracking()
             .Where(c => c.Status == CartStatuses.Active && c.LastTouchedAt < cutoff && c.AccountId != null);
@@ -60,7 +69,7 @@ public static class Endpoint
 
         var carts = await query
             .OrderBy(c => c.LastTouchedAt)
-            .Skip((effectivePage - 1) * effectivePageSize)
+            .Skip((int)offset)
             .Take(effectivePageSize)
             .Select(c => new
             {

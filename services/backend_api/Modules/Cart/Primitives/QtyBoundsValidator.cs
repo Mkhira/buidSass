@@ -24,6 +24,15 @@ public static class QtyBoundsValidator
         {
             return new Result(false, "cart.above_max_qty", $"qty exceeds the cart's hard ceiling of {HardCeiling}.");
         }
+        // Defence-in-depth: the catalog CHECK constraint already rejects min > max, but if an
+        // inconsistent row sneaks through (migration rollback, manual SQL, etc.) surface it
+        // BEFORE the per-qty branches so the caller gets the real reason, not a misleading
+        // below-min/above-max.
+        if (product.MaxPerOrder > 0 && product.MinOrderQty > product.MaxPerOrder)
+        {
+            return new Result(false, "cart.invalid_qty_bounds",
+                $"Product qty bounds are inconsistent (min={product.MinOrderQty}, max={product.MaxPerOrder}).");
+        }
         if (product.MinOrderQty > 0 && qty < product.MinOrderQty)
         {
             return new Result(false, "cart.below_min_qty",
@@ -33,14 +42,6 @@ public static class QtyBoundsValidator
         {
             return new Result(false, "cart.above_max_qty",
                 $"Product caps per-order quantity at {product.MaxPerOrder}.");
-        }
-        // Defence-in-depth: the catalog CHECK constraint already rejects min > max, but if an
-        // inconsistent row sneaks through (migration rollback, manual SQL, etc.) the cart layer
-        // must still surface a coherent error rather than quietly succeed.
-        if (product.MaxPerOrder > 0 && product.MinOrderQty > product.MaxPerOrder)
-        {
-            return new Result(false, "cart.invalid_qty_bounds",
-                $"Product qty bounds are inconsistent (min={product.MinOrderQty}, max={product.MaxPerOrder}).");
         }
         return new Result(true, null, null);
     }

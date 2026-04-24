@@ -1,4 +1,5 @@
 using BackendApi.Modules.AuditLog;
+using BackendApi.Modules.Cart.Customer.Common;
 using BackendApi.Modules.Cart.Entities;
 using BackendApi.Modules.Cart.Persistence;
 using BackendApi.Modules.Cart.Primitives;
@@ -79,6 +80,9 @@ public sealed class AbandonedCartWorker(
                     .Select(e => (DateTimeOffset?)e.LastEmittedAt)
                     .FirstOrDefault()
                 where lastEmit == null || lastEmit < dedupeCutoff
+                // Deterministic ordering prevents starvation — oldest-idle first — and gives
+                // concurrent workers a stable claim order so their 23505 races stay bounded.
+                orderby c.LastTouchedAt, c.Id
                 select c
             ).Take(200).ToListAsync(ct);
 
@@ -86,6 +90,11 @@ public sealed class AbandonedCartWorker(
 
         foreach (var cart in candidates)
         {
+            // CR #11: persist the dedupe marker BEFORE publishing the event. If the publish
+            // fails the marker stays so we don't re-emit; if two workers race on the same cart
+            // the second SaveChanges hits the PK uniqueness on CartAbandonedEmission.CartId (or
+            // ends up as a conditional update of LastEmittedAt past dedupe cutoff) — either way
+            // only one audit row fires per dedupe window.
             var emission = await db.Set<CartAbandonedEmission>()
                 .SingleOrDefaultAsync(e => e.CartId == cart.Id, ct);
             if (emission is null)
@@ -95,6 +104,20 @@ public sealed class AbandonedCartWorker(
             else
             {
                 emission.LastEmittedAt = now;
+            }
+
+            try
+            {
+                await db.SaveChangesAsync(ct);
+            }
+            catch (DbUpdateException ex) when (CustomerCartResponseFactory.IsConcurrencyConflict(ex))
+            {
+                // Another worker claimed this cart first — skip publishing and move on.
+                db.ChangeTracker.Clear();
+                logger.LogInformation(
+                    "cart.abandonment.claim_lost cartId={CartId} — another worker owns this dedupe window.",
+                    cart.Id);
+                continue;
             }
 
             await auditPublisher.PublishAsync(new AuditEvent(
@@ -107,7 +130,5 @@ public sealed class AbandonedCartWorker(
                 new { cart.Id, cart.AccountId, cart.MarketCode, cart.LastTouchedAt },
                 "cart.abandonment.worker"), ct);
         }
-
-        await db.SaveChangesAsync(ct);
     }
 }

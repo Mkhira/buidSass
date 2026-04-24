@@ -65,6 +65,7 @@ public static class Endpoint
                     "Invalid state transition", $"Cannot archive cart in status {oldCart.Status}.");
             }
             oldCart.LastTouchedAt = nowUtc;
+            oldCart.UpdatedAt = nowUtc;
         }
 
         // Create or resolve the new-market cart.

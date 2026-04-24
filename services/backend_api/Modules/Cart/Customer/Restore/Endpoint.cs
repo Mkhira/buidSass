@@ -66,7 +66,7 @@ public static class Endpoint
                 await inventoryOrchestrator.TryReleaseAsync(
                     inventoryDb, line.ReservationId!.Value, accountId.Value, "cart.superseded_by_restore", ct);
             }
-            CartStatuses.TryTransition(existingActive, CartStatuses.Archived, "admin", nowUtc);
+            CartStatuses.TryTransition(existingActive, CartStatuses.Archived, "superseded_by_restore", nowUtc);
         }
 
         if (!CartStatuses.TryTransition(archived, CartStatuses.Active, null, nowUtc))

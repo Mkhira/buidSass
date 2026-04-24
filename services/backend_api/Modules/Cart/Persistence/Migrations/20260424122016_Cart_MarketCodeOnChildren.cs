@@ -42,6 +42,34 @@ namespace BackendApi.Modules.Cart.Persistence.Migrations
                 nullable: false,
                 defaultValue: "");
 
+            // Backfill child MarketCode from the owning cart so rows persisted under the prior
+            // schema don't end up as blank-market ('') entries that partition-scoped queries miss.
+            // Runs after AddColumn — all four tables have the column present + a (possibly empty)
+            // default at this point, and the parent cart.carts.MarketCode is already non-null.
+            migrationBuilder.Sql(@"
+                UPDATE cart.cart_saved_items s
+                SET ""MarketCode"" = c.""MarketCode""
+                FROM cart.carts c
+                WHERE s.""CartId"" = c.""Id"" AND s.""MarketCode"" = '';");
+
+            migrationBuilder.Sql(@"
+                UPDATE cart.cart_lines l
+                SET ""MarketCode"" = c.""MarketCode""
+                FROM cart.carts c
+                WHERE l.""CartId"" = c.""Id"" AND l.""MarketCode"" = '';");
+
+            migrationBuilder.Sql(@"
+                UPDATE cart.cart_b2b_metadata b
+                SET ""MarketCode"" = c.""MarketCode""
+                FROM cart.carts c
+                WHERE b.""CartId"" = c.""Id"" AND b.""MarketCode"" = '';");
+
+            migrationBuilder.Sql(@"
+                UPDATE cart.cart_abandoned_emissions e
+                SET ""MarketCode"" = c.""MarketCode""
+                FROM cart.carts c
+                WHERE e.""CartId"" = c.""Id"" AND e.""MarketCode"" = '';");
+
             migrationBuilder.CreateIndex(
                 name: "IX_cart_saved_items_MarketCode",
                 schema: "cart",

@@ -6,6 +6,7 @@ using BackendApi.Modules.Pricing.Primitives.Caches;
 using BackendApi.Modules.Pricing.Seeding;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -36,6 +37,7 @@ public static class PricingModule
                 options.UseNpgsql(connectionString);
             }
             options.AddInterceptors(provider.GetRequiredService<Persistence.ImmutablePriceExplanationInterceptor>());
+            options.ConfigureWarnings(w => w.Ignore(CoreEventId.ManyServiceProvidersCreatedWarning));
         });
 
         services.AddMemoryCache();

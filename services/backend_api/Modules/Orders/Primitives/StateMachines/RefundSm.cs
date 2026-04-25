@@ -17,16 +17,23 @@ public static class RefundSm
         None, Requested, Partial, Full,
     };
 
-    public static bool IsValidTransition(string from, string to) => (from, to) switch
+    public static bool IsValidTransition(string from, string to)
     {
-        (None, Requested) => true,                        // spec 013 return submitted
-        (Requested, None) => true,                        // return rejected with no other open RMA
-        (Requested, Partial) => true,                     // partial refund issued
-        (Requested, Full) => true,                        // full refund issued
-        (Partial, Full) => true,                          // subsequent refund covers remainder
-        (Partial, Partial) => true,                       // additional partial refund (idempotent self)
-        // Idempotent self-transitions tolerate duplicate dispatcher deliveries.
-        (var f, var t) when string.Equals(f, t, StringComparison.OrdinalIgnoreCase) => true,
-        _ => false,
-    };
+        // CR review round 1: normalize at the boundary so explicit tuple arms behave
+        // consistently with the case-insensitive `All` set. A caller passing "REQUESTED" /
+        // "FULL" is now accepted (was previously rejected by the case-sensitive switch).
+        var f = from?.ToLowerInvariant() ?? string.Empty;
+        var t = to?.ToLowerInvariant() ?? string.Empty;
+        return (f, t) switch
+        {
+            (None, Requested) => true,                    // spec 013 return submitted
+            (Requested, None) => true,                    // return rejected with no other open RMA
+            (Requested, Partial) => true,                 // partial refund issued
+            (Requested, Full) => true,                    // full refund issued
+            (Partial, Full) => true,                      // subsequent refund covers remainder
+            // Idempotent self-transition absorbs duplicate dispatcher deliveries.
+            (var ff, var tt) when ff == tt => true,
+            _ => false,
+        };
+    }
 }

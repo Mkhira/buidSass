@@ -124,8 +124,21 @@ public static class Endpoint
                 break;
             case "refund.completed":
             case "refund.manual_confirmed":
+                // CR review round 1 (Critical): a refund event is only meaningful once payment
+                // has been captured. Without this guard an authorized / pending_* order could
+                // emit payment.refunded and advance refund_state — leaving the four state
+                // machines out of sync. Reject 409 so the dispatcher can investigate.
+                if (!string.Equals(order.PaymentState, PaymentSm.Captured, StringComparison.OrdinalIgnoreCase)
+                    && !string.Equals(order.PaymentState, PaymentSm.PartiallyRefunded, StringComparison.OrdinalIgnoreCase)
+                    && !string.Equals(order.PaymentState, PaymentSm.Refunded, StringComparison.OrdinalIgnoreCase))
+                {
+                    await tx.RollbackAsync(ct);
+                    return Problem(context, 409, "order.refund.payment_not_captured",
+                        $"Refund event '{body.EventType}' is not valid for payment state '{order.PaymentState}'.");
+                }
                 if (body.RefundId is null || body.RefundedAmountMinor < 0)
                 {
+                    await tx.RollbackAsync(ct);
                     return Problem(context, 400, "order.refund.invalid_request",
                         "refundId and non-negative refundedAmountMinor are required for refund events");
                 }

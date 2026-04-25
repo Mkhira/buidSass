@@ -40,39 +40,72 @@ public sealed class CreateFromQuotationHandler(
         Guid? actorAccountId,
         CancellationToken ct)
     {
-        var quotation = await db.Quotations.Include(q => q.Lines).FirstOrDefaultAsync(q => q.Id == quotationId, ct);
-        if (quotation is null)
+        // Read the quotation OUTSIDE the lock-holding tx so we can pre-warm the order-number
+        // sequence (its cold path issues `CREATE SEQUENCE`, which would abort our tx if it
+        // ran inside). The conversion is still single-winner because the inner FOR UPDATE
+        // tx re-reads + re-validates after acquiring the row lock.
+        var preview = await db.Quotations.AsNoTracking()
+            .FirstOrDefaultAsync(q => q.Id == quotationId, ct);
+        if (preview is null)
         {
             return new CreateFromQuotationResult(false, null, null, "order.quote.not_found", "Quotation not found.");
         }
-        if (!string.Equals(quotation.Status, Quotation.StatusActive, StringComparison.OrdinalIgnoreCase))
+        var nowUtc = DateTimeOffset.UtcNow;
+        var orderNumber = await sequencer.NextAsync(preview.MarketCode, nowUtc, ct);
+
+        // CR review round 1 (Critical): make conversion single-winner. Without a row-level
+        // lock, two parallel accept/convert calls can both read the quote as `active` with
+        // ConvertedOrderId IS NULL, mint two order_numbers, and persist both — duplicate
+        // orders against one quote. SELECT 1 ... FOR UPDATE inside an explicit tx serialises
+        // the conversion path; the loser falls through the ConvertedOrderId-is-not-null
+        // idempotent branch after the first commits.
+        await using var tx = await db.Database.BeginTransactionAsync(ct);
+        var locked = await db.Database.ExecuteSqlInterpolatedAsync(
+            $"SELECT 1 FROM orders.quotations WHERE \"Id\" = {quotationId} FOR UPDATE", ct);
+        if (locked == 0)
         {
-            return new CreateFromQuotationResult(false, null, null, "order.quote.invalid_status",
-                $"Quotation status is '{quotation.Status}'; only 'active' quotes can be converted.");
+            await tx.RollbackAsync(ct);
+            return new CreateFromQuotationResult(false, null, null, "order.quote.not_found", "Quotation not found.");
         }
-        if (quotation.ValidUntil <= DateTimeOffset.UtcNow)
+        var quotation = await db.Quotations.Include(q => q.Lines).FirstOrDefaultAsync(q => q.Id == quotationId, ct);
+        if (quotation is null)
         {
-            return new CreateFromQuotationResult(false, null, null, "order.quote.expired", "Quotation has expired.");
+            await tx.RollbackAsync(ct);
+            return new CreateFromQuotationResult(false, null, null, "order.quote.not_found", "Quotation not found.");
         }
         if (quotation.ConvertedOrderId is not null)
         {
-            // Idempotent — return existing.
+            // Idempotent — return existing. Checked BEFORE the active-status check so the
+            // serialised "loser" of a race finds the converted state and replays the prior
+            // result rather than failing on order.quote.invalid_status.
             var existing = await db.Orders.AsNoTracking()
                 .FirstOrDefaultAsync(o => o.Id == quotation.ConvertedOrderId, ct);
+            await tx.RollbackAsync(ct);
             return existing is not null
                 ? new CreateFromQuotationResult(true, existing.Id, existing.OrderNumber, null, null)
                 : new CreateFromQuotationResult(false, null, null, "order.quote.integrity_fail",
                     "Quotation references a missing order.");
         }
+        if (!string.Equals(quotation.Status, Quotation.StatusActive, StringComparison.OrdinalIgnoreCase))
+        {
+            await tx.RollbackAsync(ct);
+            return new CreateFromQuotationResult(false, null, null, "order.quote.invalid_status",
+                $"Quotation status is '{quotation.Status}'; only 'active' quotes can be converted.");
+        }
+        if (quotation.ValidUntil <= DateTimeOffset.UtcNow)
+        {
+            await tx.RollbackAsync(ct);
+            return new CreateFromQuotationResult(false, null, null, "order.quote.expired", "Quotation has expired.");
+        }
         if (quotation.Lines.Count == 0)
         {
+            await tx.RollbackAsync(ct);
             return new CreateFromQuotationResult(false, null, null, "order.quote.empty",
                 "Quotation has no lines.");
         }
 
-        var nowUtc = DateTimeOffset.UtcNow;
         // Pre-allocated order id — distinct from checkout's path, but kept consistent with
-        // the catalog snapshot pattern.
+        // the catalog snapshot pattern. nowUtc + orderNumber were warmed above the tx.
         var orderId = Guid.NewGuid();
 
         // Compute totals from the quotation lines (already snapshotted at quote-time).
@@ -80,8 +113,6 @@ public sealed class CreateFromQuotationHandler(
         var lineTaxTotal = quotation.Lines.Sum(l => l.LineTaxMinor);
         var lineDiscountTotal = quotation.Lines.Sum(l => l.LineDiscountMinor);
         var grand = quotation.Lines.Sum(l => l.LineTotalMinor);
-
-        var orderNumber = await sequencer.NextAsync(quotation.MarketCode, nowUtc, ct);
 
         var order = new Order
         {
@@ -184,6 +215,7 @@ public sealed class CreateFromQuotationHandler(
         });
 
         await db.SaveChangesAsync(ct);
+        await tx.CommitAsync(ct);
 
         try
         {

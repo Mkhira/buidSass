@@ -5,7 +5,7 @@ DoD version: 1.0 (`docs/dod.md`). Constitution version: 1.0.0.
 ## Universal Core
 
 - [x] **UC-1** — Acceptance scenarios pass.
-  - 105 tests in `Tests/Orders.Tests/` (63 unit + 42 integration/contract).
+  - 112 tests in `Tests/Orders.Tests/` (63 unit + 49 integration/contract).
   - All 8 user-stories from `spec.md` exercised by integration or contract tests.
 - [ ] **UC-2** — Lint + format CI gates green.
   - Local `dotnet build` clean (0 errors). CI `lint-format` runs on PR open.
@@ -60,8 +60,8 @@ Workers (`OutboxDispatcher`, `QuotationExpiryWorker`, `PaymentFailedRecoveryWork
 | Surface | Count | Status |
 |---|---|---|
 | Unit (`Tests/Orders.Tests/Unit/`) | 63 | ✅ pass |
-| Integration (`Tests/Orders.Tests/Integration/`) | 42 (incl. 26 contract tests) | ✅ pass (Docker required) |
-| **Total** | **105** | **✅ pass** |
+| Integration (`Tests/Orders.Tests/Integration/`) | 49 (incl. 26 contract tests + 7 deep-review regression tests) | ✅ pass (Docker required) |
+| **Total** | **112** | **✅ pass** |
 
 ## Constitution gate snapshot (from `plan.md`)
 

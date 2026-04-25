@@ -23,6 +23,7 @@ public static class Endpoint
         HttpContext context,
         CheckoutDbContext db,
         IEnumerable<IPaymentGateway> gateways,
+        CheckoutAuditEmitter audit,
         ILoggerFactory loggerFactory,
         CancellationToken ct)
     {
@@ -95,6 +96,12 @@ public static class Endpoint
                     "checkout.webhook.duplicate providerId={ProviderId} eventId={EventId} alreadyHandled={Handled}",
                     providerId, providerEventId, existing?.HandledAt is not null);
                 await tx.RollbackAsync(ct);
+                // FR-015: audit the deduped delivery (uses the existing row id when known so
+                // operators can correlate; falls back to the rejected `record` id otherwise).
+                if (existing is not null)
+                {
+                    await audit.EmitWebhookAsync(existing, CheckoutAuditActions.WebhookDeduped, ct);
+                }
                 return Results.StatusCode(200);
             }
             record = existing;
@@ -109,6 +116,12 @@ public static class Endpoint
             .Where(a => a.ProviderId == providerId && a.ProviderTxnId == translation.ProviderTxnId)
             .OrderByDescending(a => a.CreatedAt)
             .FirstOrDefaultAsync(ct);
+        // CR review on PR #31 round 2: track whether the attempt actually transitioned.
+        // `record.HandledAt` is set even on invalid / no-op deliveries (so retries stop), but
+        // we must only emit a payment.<state> audit row on a REAL transition — otherwise we
+        // duplicate prior audit rows AND can throw post-commit when the unchanged state is
+        // `initiated` (which `ForAttemptState` correctly rejects).
+        var attemptTransitioned = false;
         if (attempt is not null)
         {
             // CR review on PR #30 round 2: route through the state-machine helper so a late /
@@ -116,7 +129,8 @@ public static class Endpoint
             // captured -> declined). Invalid transitions are logged + ignored, but we still
             // 200 to the provider so they stop retrying.
             var nowUtc = DateTimeOffset.UtcNow;
-            if (PaymentAttemptStates.TryTransition(attempt, translation.MappedAttemptState, nowUtc))
+            attemptTransitioned = PaymentAttemptStates.TryTransition(attempt, translation.MappedAttemptState, nowUtc);
+            if (attemptTransitioned)
             {
                 attempt.ErrorCode = translation.ErrorCode;
                 attempt.ErrorMessage = translation.ErrorMessage;
@@ -142,6 +156,19 @@ public static class Endpoint
         }
         await db.SaveChangesAsync(ct);
         await tx.CommitAsync(ct);
+
+        // FR-015: emit AFTER commit. Two rows: webhook.received (always) + payment.<state>
+        // ONLY when the attempt actually transitioned (no-op / out-of-order deliveries don't
+        // re-emit prior audit rows).
+        await audit.EmitWebhookAsync(record, CheckoutAuditActions.WebhookReceived, ct);
+        if (attempt is not null && attemptTransitioned)
+        {
+            await audit.EmitPaymentTransitionAsync(attempt,
+                CheckoutAuditActions.ForAttemptState(attempt.State),
+                actorAccountId: CheckoutSystemActors.Webhook,
+                actorRole: CheckoutAuditEmitter.SystemRole,
+                reason: $"webhook providerEventId={providerEventId}", ct);
+        }
         return Results.StatusCode(200);
     }
 }

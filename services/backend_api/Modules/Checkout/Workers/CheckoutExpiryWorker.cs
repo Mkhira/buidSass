@@ -44,6 +44,7 @@ public sealed class CheckoutExpiryWorker(
         var inventoryDb = scope.ServiceProvider.GetRequiredService<InventoryDbContext>();
         var cartInventoryOrchestrator = scope.ServiceProvider.GetRequiredService<CartInventoryOrchestrator>();
         var cartDb = scope.ServiceProvider.GetRequiredService<BackendApi.Modules.Cart.Persistence.CartDbContext>();
+        var audit = scope.ServiceProvider.GetRequiredService<CheckoutAuditEmitter>();
 
         var nowUtc = DateTimeOffset.UtcNow;
         var expirable = new[] {
@@ -82,6 +83,18 @@ public sealed class CheckoutExpiryWorker(
         }
 
         await db.SaveChangesAsync(ct);
+
+        // FR-015: audit each expiry transition. Emit AFTER persist so we don't audit a row
+        // whose write rolled back. Worker actor id is the platform-level expiry id.
+        foreach (var session in candidates)
+        {
+            await audit.EmitSessionTransitionAsync(session,
+                CheckoutAuditActions.SessionExpired,
+                actorAccountId: CheckoutSystemActors.ExpiryWorker,
+                actorRole: CheckoutAuditEmitter.SystemRole,
+                reason: "ttl_elapsed", ct);
+        }
+
         logger.LogInformation("checkout.expiry-worker.expired count={Count}", candidates.Count);
         return candidates.Count;
     }

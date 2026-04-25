@@ -23,6 +23,7 @@ public static class Endpoint
         HttpContext context,
         CheckoutDbContext db,
         CartTokenProvider cartTokenProvider,
+        CheckoutAuditEmitter audit,
         CancellationToken ct)
     {
         if (string.IsNullOrWhiteSpace(request?.ProviderId) || string.IsNullOrWhiteSpace(request?.MethodCode))
@@ -53,10 +54,15 @@ public static class Endpoint
             return CustomerCheckoutResponseFactory.Problem(context, 404, "checkout.shipping.quote_expired", "Shipping quote expired or unknown", "Re-request quotes.");
         }
 
+        // CR review on PR #31: snapshot the actual transition intent BEFORE mutating so a
+        // re-select (already in ShippingSelected/PaymentSelected) doesn't emit a duplicate
+        // transition audit event.
+        var transitionedToShippingSelected = session.State == CheckoutStates.Addressed;
+
         session.ShippingProviderId = quote.ProviderId;
         session.ShippingMethodCode = quote.MethodCode;
         session.ShippingFeeMinor = quote.FeeMinor;
-        if (session.State == CheckoutStates.Addressed)
+        if (transitionedToShippingSelected)
         {
             CheckoutStates.TryTransition(session, CheckoutStates.ShippingSelected, nowUtc);
         }
@@ -69,6 +75,16 @@ public static class Endpoint
         catch (DbUpdateException ex) when (CustomerCheckoutResponseFactory.IsConcurrencyConflict(ex))
         {
             return CustomerCheckoutResponseFactory.Problem(context, 409, "checkout.concurrency_conflict", "Concurrency conflict", "Retry.");
+        }
+
+        // FR-015: audit ONLY the actual Addressed → ShippingSelected transition. Guest =
+        // customer (the cart-token holder is still an end user, not the platform).
+        if (transitionedToShippingSelected)
+        {
+            await audit.EmitSessionTransitionAsync(
+                session, CheckoutAuditActions.SessionShippingSelected, accountId,
+                CheckoutAuditEmitter.CustomerRole,
+                reason: $"provider={quote.ProviderId} method={quote.MethodCode}", ct);
         }
         return Results.Ok(new { sessionId = session.Id, state = session.State });
     }

@@ -46,9 +46,10 @@ public sealed class AdminForceExpireTests(CheckoutTestFactory factory)
         var session = await checkoutDb.Sessions.AsNoTracking().SingleAsync(s => s.Id == sessionId);
         session.State.Should().Be(CheckoutStates.Expired);
 
+        // FR-015 vocabulary: `checkout.session.admin_expired` (was `checkout.admin_expired`).
         var auditDb = assertScope.ServiceProvider.GetRequiredService<AppDbContext>();
         var audit = await auditDb.AuditLogEntries.AsNoTracking()
-            .Where(a => a.Action == "checkout.admin_expired" && a.EntityId == sessionId).ToListAsync();
+            .Where(a => a.Action == "checkout.session.admin_expired" && a.EntityId == sessionId).ToListAsync();
         audit.Should().ContainSingle();
     }
 }

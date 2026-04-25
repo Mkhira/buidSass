@@ -27,6 +27,7 @@ public static class Endpoint
         CartDbContext cartDb,
         CartTokenProvider cartTokenProvider,
         IOptions<CheckoutOptions> options,
+        CheckoutAuditEmitter audit,
         CancellationToken ct)
     {
         if (string.IsNullOrWhiteSpace(request.MarketCode))
@@ -99,6 +100,13 @@ public static class Endpoint
         {
             return CustomerCheckoutResponseFactory.Problem(context, 409, "checkout.concurrency_conflict", "Concurrency conflict", "Retry.");
         }
+
+        // FR-015: every state transition writes an audit row. Guest sessions (anon cart token)
+        // are still customer-initiated — `system` role is reserved for worker / webhook actors.
+        await audit.EmitSessionTransitionAsync(
+            session, CheckoutAuditActions.SessionCreated, accountId,
+            CheckoutAuditEmitter.CustomerRole,
+            reason: $"market={marketCode}", ct);
 
         return Results.Ok(new
         {

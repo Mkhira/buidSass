@@ -65,7 +65,9 @@ public sealed class SagaCompensationTests(CheckoutTestFactory factory)
         resp.StatusCode.Should().Be(HttpStatusCode.InternalServerError);
         (await resp.Content.ReadAsStringAsync()).Should().Contain("checkout.order_create_failed");
 
-        // Session must be failed, attempt must be voided.
+        // Session must be failed; attempt must be voided OR refunded depending on whether the
+        // stub captured synchronously. CR review on PR #30 round 2: capture-sync compensation
+        // refunds; pre-capture compensation voids.
         await using var verifyScope = factory.Services.CreateAsyncScope();
         var db = verifyScope.ServiceProvider.GetRequiredService<CheckoutDbContext>();
         var session = await db.Sessions.AsNoTracking().SingleAsync(s => s.Id == sessionId);
@@ -76,8 +78,9 @@ public sealed class SagaCompensationTests(CheckoutTestFactory factory)
             .Where(a => a.SessionId == sessionId)
             .OrderByDescending(a => a.CreatedAt)
             .FirstAsync();
-        attempt.State.Should().Be(PaymentAttemptStates.Voided,
-            because: "card authorization must be voided when downstream order creation fails");
+        attempt.State.Should().BeOneOf(
+            new[] { PaymentAttemptStates.Voided, PaymentAttemptStates.Refunded },
+            because: "card authorization must be voided (pre-capture) or refunded (post-capture) when order creation fails");
     }
 
     private static async Task<Guid> WalkToPaymentSelectedAsync(HttpClient client, Guid cartId)

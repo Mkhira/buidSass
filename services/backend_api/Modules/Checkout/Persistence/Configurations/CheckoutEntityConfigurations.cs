@@ -48,7 +48,7 @@ public sealed class PaymentAttemptConfiguration : IEntityTypeConfiguration<Payme
         {
             t.HasCheckConstraint(
                 "CK_checkout_payment_attempts_state_enum",
-                "\"State\" IN ('initiated','authorized','captured','declined','voided','failed','pending_webhook')");
+                "\"State\" IN ('initiated','authorized','captured','declined','voided','failed','refunded','pending_webhook')");
             t.HasCheckConstraint(
                 "CK_checkout_payment_attempts_amount_non_negative",
                 "\"AmountMinor\" >= 0");
@@ -104,8 +104,11 @@ public sealed class IdempotencyResultConfiguration : IEntityTypeConfiguration<Id
     public void Configure(EntityTypeBuilder<IdempotencyResult> builder)
     {
         builder.ToTable("idempotency_results", "checkout");
-        builder.HasKey(x => x.IdempotencyKey);
+        // Composite PK so the same client-supplied key cannot collide across accounts
+        // (CR review PR #30 round 2). Submit requires auth (FR-019), so AccountId is always set.
+        builder.HasKey(x => new { x.AccountId, x.IdempotencyKey });
         builder.Property(x => x.IdempotencyKey).HasMaxLength(128);
+        builder.Property(x => x.AccountId).IsRequired();
         builder.Property(x => x.ResponseJson).HasColumnType("jsonb").HasDefaultValueSql("'{}'::jsonb");
         builder.HasIndex(x => x.ExpiresAt);
     }

@@ -53,11 +53,28 @@ public static class CheckoutSessionLoader
             }
 
             // Token verified — only now safe to bind the session to the authed caller.
+            // CR review on PR #30 round 2: the claim is now atomic. Two concurrent callers
+            // holding the same valid token race the conditional UPDATE — only the one that
+            // matches `AccountId IS NULL AND CartTokenHash = @hash` wins; the loser falls
+            // through to a fresh load and sees the bound session under the winner.
             if (accountId is not null)
             {
-                session.AccountId = accountId;
-                session.CartTokenHash = null;
-                session.UpdatedAt = DateTimeOffset.UtcNow;
+                var claimNow = DateTimeOffset.UtcNow;
+                var rows = await db.Sessions
+                    .Where(s => s.Id == session.Id && s.AccountId == null && s.CartTokenHash == hash)
+                    .ExecuteUpdateAsync(setters => setters
+                        .SetProperty(s => s.AccountId, accountId)
+                        .SetProperty(s => s.CartTokenHash, (byte[]?)null)
+                        .SetProperty(s => s.UpdatedAt, claimNow), ct);
+                // Reload the row so the caller sees the durable state regardless of who won.
+                session = await db.Sessions.SingleAsync(s => s.Id == session.Id, ct);
+                if (rows == 0 && session.AccountId != accountId)
+                {
+                    // Lost the race AND the session ended up bound to someone else — refuse.
+                    return new LoadResult(null,
+                        CustomerCheckoutResponseFactory.Problem(context, 403, "checkout.session.not_owned",
+                            "Session was claimed by another caller", ""));
+                }
             }
         }
 

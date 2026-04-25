@@ -48,7 +48,7 @@ public sealed class IdempotencyStore(CheckoutDbContext db, IOptions<CheckoutOpti
     /// </summary>
     public async Task<ClaimResult> TryClaimAsync(
         string key,
-        Guid? accountId,
+        Guid accountId,
         string normalizedBody,
         CancellationToken ct)
     {
@@ -76,9 +76,10 @@ public sealed class IdempotencyStore(CheckoutDbContext db, IOptions<CheckoutOpti
             db.Entry(placeholder).State = EntityState.Detached;
         }
 
-        // Lost the race — re-read the existing row to decide what to tell the caller.
+        // Lost the race — re-read the existing row scoped to (AccountId, Key) so a different
+        // account can't ever read or mutate this caller's claim.
         var existing = await db.IdempotencyResults.AsNoTracking()
-            .SingleOrDefaultAsync(e => e.IdempotencyKey == key, ct);
+            .SingleOrDefaultAsync(e => e.AccountId == accountId && e.IdempotencyKey == key, ct);
         if (existing is null)
         {
             // Extremely narrow window: the conflicting row was deleted (TTL purge) between the
@@ -120,7 +121,7 @@ public sealed class IdempotencyStore(CheckoutDbContext db, IOptions<CheckoutOpti
     /// </summary>
     public async Task PersistAsync(
         string key,
-        Guid? accountId,
+        Guid accountId,
         string normalizedBody,
         int responseStatus,
         string responseJson,
@@ -129,12 +130,11 @@ public sealed class IdempotencyStore(CheckoutDbContext db, IOptions<CheckoutOpti
         var fingerprint = ComputeFingerprint(normalizedBody);
         var now = DateTimeOffset.UtcNow;
         var rows = await db.IdempotencyResults
-            .Where(e => e.IdempotencyKey == key)
+            .Where(e => e.AccountId == accountId && e.IdempotencyKey == key)
             .ExecuteUpdateAsync(s => s
                 .SetProperty(e => e.ResponseStatus, responseStatus)
                 .SetProperty(e => e.ResponseJson, responseJson)
                 .SetProperty(e => e.RequestFingerprint, fingerprint)
-                .SetProperty(e => e.AccountId, accountId)
                 .SetProperty(e => e.ExpiresAt, now.AddMinutes(options.Value.IdempotencyTtlMinutes)), ct);
         if (rows == 0)
         {
@@ -160,10 +160,10 @@ public sealed class IdempotencyStore(CheckoutDbContext db, IOptions<CheckoutOpti
     }
 
     /// <summary>Release a claim that the caller was unable to complete (e.g., handler threw mid-flight).</summary>
-    public async Task ReleaseClaimAsync(string key, CancellationToken ct)
+    public async Task ReleaseClaimAsync(string key, Guid accountId, CancellationToken ct)
     {
         await db.IdempotencyResults
-            .Where(e => e.IdempotencyKey == key && e.ResponseStatus == PendingResponseStatus)
+            .Where(e => e.AccountId == accountId && e.IdempotencyKey == key && e.ResponseStatus == PendingResponseStatus)
             .ExecuteDeleteAsync(ct);
     }
 

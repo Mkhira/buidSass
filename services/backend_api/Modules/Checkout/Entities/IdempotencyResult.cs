@@ -8,7 +8,12 @@ namespace BackendApi.Modules.Checkout.Entities;
 public sealed class IdempotencyResult
 {
     public string IdempotencyKey { get; set; } = string.Empty;
-    public Guid? AccountId { get; set; }
+    /// <summary>
+    /// Composite-PK component. Submit requires auth (FR-019) so this is always set; scoping
+    /// by (AccountId, IdempotencyKey) prevents two different accounts from colliding on the
+    /// same caller-generated key — CR review on PR #30 round 2.
+    /// </summary>
+    public Guid AccountId { get; set; }
     public byte[] RequestFingerprint { get; set; } = Array.Empty<byte>();
     public int ResponseStatus { get; set; }
     public string ResponseJson { get; set; } = "{}";

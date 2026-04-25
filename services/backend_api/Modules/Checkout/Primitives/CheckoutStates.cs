@@ -70,5 +70,46 @@ public static class PaymentAttemptStates
     public const string Declined = "declined";
     public const string Voided = "voided";
     public const string Failed = "failed";
+    public const string Refunded = "refunded";
     public const string PendingWebhook = "pending_webhook";
+
+    /// <summary>
+    /// Allowed PaymentAttempt transitions per spec 010 data-model.md. CR review on PR #30
+    /// round 2 — webhooks must route through this helper so a late / out-of-order delivery
+    /// can't silently move a terminal attempt backward.
+    /// </summary>
+    public static bool IsValidTransition(string from, string to) => (from, to) switch
+    {
+        (Initiated, Authorized) => true,
+        (Initiated, Captured) => true,            // CapturedSynchronously path
+        (Initiated, PendingWebhook) => true,
+        (Initiated, Declined) => true,
+        (Initiated, Failed) => true,
+        (Initiated, Voided) => true,              // saga compensation pre-capture
+        (Authorized, Captured) => true,
+        (Authorized, Voided) => true,
+        (Authorized, Failed) => true,
+        (Authorized, PendingWebhook) => true,
+        (Captured, Refunded) => true,
+        (PendingWebhook, Authorized) => true,
+        (PendingWebhook, Captured) => true,
+        (PendingWebhook, Declined) => true,
+        (PendingWebhook, Failed) => true,
+        (PendingWebhook, Voided) => true,
+        // Idempotent self-transitions tolerate retried webhooks landing the same state twice.
+        (var f, var t) when f == t => true,
+        _ => false,
+    };
+
+    /// <summary>
+    /// Apply a transition iff it's allowed. Returns false to let the caller log + skip rather
+    /// than throwing (webhooks always 200 to avoid provider retry storms).
+    /// </summary>
+    public static bool TryTransition(BackendApi.Modules.Checkout.Entities.PaymentAttempt attempt, string target, DateTimeOffset nowUtc)
+    {
+        if (!IsValidTransition(attempt.State, target)) return false;
+        attempt.State = target;
+        attempt.UpdatedAt = nowUtc;
+        return true;
+    }
 }

@@ -335,7 +335,9 @@ public static class Endpoint
         var coupon = await pricingDb.Coupons.AsNoTracking()
             .SingleOrDefaultAsync(c => c.Code == normalized && c.DeletedAt == null, ct);
         if (coupon is null || !coupon.IsActive) return (true, "cart.coupon.invalid");
-        if (coupon.ValidFrom is { } vf && nowUtc < vf) return (true, "cart.coupon.expired");
+        // CR review on PR #30 round 2: distinct reason for "starts later" so the client UI
+        // can render "valid from {date}" instead of a misleading "expired" message.
+        if (coupon.ValidFrom is { } vf && nowUtc < vf) return (true, "cart.coupon.not_yet_valid");
         if (coupon.ValidTo is { } vt && nowUtc > vt) return (true, "cart.coupon.expired");
         if (coupon.MarketCodes.Length > 0
             && !coupon.MarketCodes.Any(m => string.Equals(m, marketCode, StringComparison.OrdinalIgnoreCase)))
@@ -348,8 +350,17 @@ public static class Endpoint
         }
         if (coupon.ExcludesRestricted)
         {
-            var hasRestricted = await cartDb.CartLines.AsNoTracking()
-                .Where(l => l.CartId == cartId).AnyAsync(l => l.Restricted, ct);
+            // CR review on PR #30 round 2: also scan the EF change tracker so a merge that
+            // just brought restricted lines into the auth cart (still uncommitted) is caught
+            // BEFORE we adopt the coupon. Persisted-only check missed mid-merge state.
+            var hasRestrictedTracked = cartDb.ChangeTracker
+                .Entries<BackendApi.Modules.Cart.Entities.CartLine>()
+                .Any(e => e.Entity.CartId == cartId
+                    && e.Entity.Restricted
+                    && e.State != Microsoft.EntityFrameworkCore.EntityState.Deleted);
+            var hasRestricted = hasRestrictedTracked
+                || await cartDb.CartLines.AsNoTracking()
+                    .Where(l => l.CartId == cartId).AnyAsync(l => l.Restricted, ct);
             if (hasRestricted) return (true, "cart.coupon.excludes_restricted");
         }
         return (false, null);

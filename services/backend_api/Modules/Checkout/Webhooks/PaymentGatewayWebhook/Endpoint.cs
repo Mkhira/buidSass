@@ -1,5 +1,6 @@
 using BackendApi.Modules.Checkout.Entities;
 using BackendApi.Modules.Checkout.Persistence;
+using BackendApi.Modules.Checkout.Primitives;
 using BackendApi.Modules.Checkout.Primitives.Payment;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.EntityFrameworkCore;
@@ -110,11 +111,25 @@ public static class Endpoint
             .FirstOrDefaultAsync(ct);
         if (attempt is not null)
         {
-            attempt.State = translation.MappedAttemptState;
-            attempt.ErrorCode = translation.ErrorCode;
-            attempt.ErrorMessage = translation.ErrorMessage;
-            attempt.UpdatedAt = DateTimeOffset.UtcNow;
-            record.HandledAt = attempt.UpdatedAt;
+            // CR review on PR #30 round 2: route through the state-machine helper so a late /
+            // out-of-order webhook can't move a terminal attempt backwards (e.g.,
+            // captured -> declined). Invalid transitions are logged + ignored, but we still
+            // 200 to the provider so they stop retrying.
+            var nowUtc = DateTimeOffset.UtcNow;
+            if (PaymentAttemptStates.TryTransition(attempt, translation.MappedAttemptState, nowUtc))
+            {
+                attempt.ErrorCode = translation.ErrorCode;
+                attempt.ErrorMessage = translation.ErrorMessage;
+                record.HandledAt = nowUtc;
+            }
+            else
+            {
+                logger.LogWarning(
+                    "checkout.webhook.invalid_transition providerId={ProviderId} eventId={EventId} from={From} to={To}",
+                    providerId, providerEventId, attempt.State, translation.MappedAttemptState);
+                // Mark the event handled so retries stop; operator surface for invalid edges.
+                record.HandledAt = nowUtc;
+            }
         }
         else
         {

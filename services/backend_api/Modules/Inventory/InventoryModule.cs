@@ -49,6 +49,11 @@ public static class InventoryModule
 
         services.AddScoped<ISeeder, InventoryBootstrapSeeder>();
 
+        // Spec 011 round-2 (Major) — shared seam Orders calls instead of static-importing
+        // Inventory's Internal.Reservations.Convert.Handler / Internal.Movements.Return.Handler.
+        services.AddScoped<BackendApi.Modules.Shared.IReservationConverter,
+            Internal.Reservations.Convert.InventoryReservationConverter>();
+
         return services;
     }
 

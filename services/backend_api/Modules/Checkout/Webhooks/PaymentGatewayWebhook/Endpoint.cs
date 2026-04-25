@@ -2,6 +2,7 @@ using BackendApi.Modules.Checkout.Entities;
 using BackendApi.Modules.Checkout.Persistence;
 using BackendApi.Modules.Checkout.Primitives;
 using BackendApi.Modules.Checkout.Primitives.Payment;
+using BackendApi.Modules.Shared;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
@@ -24,6 +25,7 @@ public static class Endpoint
         CheckoutDbContext db,
         IEnumerable<IPaymentGateway> gateways,
         CheckoutAuditEmitter audit,
+        IOrderPaymentStateHook orderPaymentHook,
         ILoggerFactory loggerFactory,
         CancellationToken ct)
     {
@@ -168,6 +170,28 @@ public static class Endpoint
                 actorAccountId: CheckoutSystemActors.Webhook,
                 actorRole: CheckoutAuditEmitter.SystemRole,
                 reason: $"webhook providerEventId={providerEventId}", ct);
+
+            // Spec 011 F1: advance the corresponding Order's payment_state. Failures here are
+            // logged but never roll back the attempt commit — the orders module's own logging
+            // surfaces the discrepancy for reconciliation.
+            try
+            {
+                await orderPaymentHook.AdvanceFromAttemptAsync(
+                    new OrderPaymentAdvanceRequest(
+                        ProviderId: providerId,
+                        ProviderTxnId: translation.ProviderTxnId,
+                        MappedAttemptState: attempt.State,
+                        ErrorCode: attempt.ErrorCode,
+                        ErrorMessage: attempt.ErrorMessage,
+                        ProviderEventId: providerEventId),
+                    ct);
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                logger.LogError(ex,
+                    "checkout.webhook.order_advance_failed providerId={ProviderId} txnId={TxnId}",
+                    providerId, translation.ProviderTxnId);
+            }
         }
         return Results.StatusCode(200);
     }

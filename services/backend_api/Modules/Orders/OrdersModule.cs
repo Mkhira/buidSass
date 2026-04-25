@@ -37,6 +37,7 @@ public static class OrdersModule
         });
 
         services.AddScoped<OrderNumberSequencer>();
+        services.AddScoped<QuoteNumberSequencer>();
         services.AddScoped<CancellationPolicy>();
         services.AddSingleton<ReturnEligibilityEvaluator>();
         services.AddSingleton<BackendApi.Modules.Observability.OrdersMetrics>();

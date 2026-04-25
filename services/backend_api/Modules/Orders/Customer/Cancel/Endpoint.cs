@@ -1,4 +1,8 @@
 using System.Text.Json;
+using BackendApi.Modules.AuditLog;
+using BackendApi.Modules.Inventory.Internal.Movements.Return;
+using BackendApi.Modules.Inventory.Persistence;
+using BackendApi.Modules.Inventory.Primitives;
 using BackendApi.Modules.Orders.Customer.Common;
 using BackendApi.Modules.Orders.Entities;
 using BackendApi.Modules.Orders.Persistence;
@@ -7,6 +11,7 @@ using BackendApi.Modules.Orders.Primitives.StateMachines;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 
 namespace BackendApi.Modules.Orders.Customer.Cancel;
 
@@ -30,6 +35,12 @@ public static class Endpoint
         HttpContext context,
         OrdersDbContext db,
         CancellationPolicy policy,
+        InventoryDbContext inventoryDb,
+        AtsCalculator atsCalculator,
+        BucketMapper bucketMapper,
+        AvailabilityEventEmitter availabilityEventEmitter,
+        IAuditEventPublisher auditEventPublisher,
+        ILoggerFactory loggerFactory,
         CancellationToken ct)
     {
         var accountId = CustomerOrdersResponseFactory.ResolveAccountId(context);
@@ -111,6 +122,20 @@ public static class Endpoint
             return CustomerOrdersResponseFactory.Problem(context, 409, "order.concurrency_conflict", "Concurrent modification", "");
         }
 
+        // B5 fix: spec 011 US 2 — "*when* cancel fires, *then* … reservations release."
+        // For the synchronous-cancel path (authorized / pending payment) we post a return
+        // movement against every prior `kind='sale'` movement for this order so the on-hand
+        // stock is restored. Best-effort: a failure here doesn't roll back the order
+        // cancellation (the customer-facing intent is honoured), but emits an outbox event
+        // so ops can reconcile.
+        if (!capturedPayment)
+        {
+            await ReleaseInventoryAsync(
+                order, accountId.Value, db, inventoryDb,
+                atsCalculator, bucketMapper, availabilityEventEmitter, auditEventPublisher,
+                loggerFactory.CreateLogger("Orders.Cancel.InventoryRelease"), ct);
+        }
+
         return Results.Ok(new
         {
             orderId = order.Id,
@@ -118,6 +143,84 @@ public static class Endpoint
             paymentState = order.PaymentState,
             fulfillmentState = order.FulfillmentState,
         });
+    }
+
+    private static async Task ReleaseInventoryAsync(
+        Order order,
+        Guid actorAccountId,
+        OrdersDbContext ordersDb,
+        InventoryDbContext inventoryDb,
+        AtsCalculator atsCalculator,
+        BucketMapper bucketMapper,
+        AvailabilityEventEmitter availabilityEventEmitter,
+        IAuditEventPublisher auditEventPublisher,
+        ILogger logger,
+        CancellationToken ct)
+    {
+        try
+        {
+            // Sum the prior sale movements per (product, warehouse, batch). Spec 008's Convert
+            // handler stamps SourceKind='order' + SourceId=orderId; that's our back-reference.
+            var saleRows = await inventoryDb.InventoryMovements.AsNoTracking()
+                .Where(m => m.SourceKind == "order" && m.SourceId == order.Id && m.Kind == "sale")
+                .Select(m => new { m.ProductId, m.WarehouseId, m.BatchId, m.Delta })
+                .ToListAsync(ct);
+            if (saleRows.Count == 0)
+            {
+                logger.LogInformation(
+                    "orders.cancel.inventory_release.no_sales orderId={OrderId} — nothing to reverse.", order.Id);
+                return;
+            }
+            // Sale movements have negative delta; the return submits the absolute value.
+            var items = saleRows
+                .GroupBy(r => (r.ProductId, r.WarehouseId, r.BatchId))
+                .Select(g => new ReturnMovementItem(
+                    ProductId: g.Key.ProductId,
+                    WarehouseId: g.Key.WarehouseId,
+                    BatchId: g.Key.BatchId,
+                    Qty: -g.Sum(x => x.Delta)))
+                .Where(i => i.Qty > 0)
+                .ToArray();
+            if (items.Length == 0) return;
+
+            var result = await Handler.HandleAsync(
+                new ReturnMovementRequest(
+                    OrderId: order.Id,
+                    AccountId: actorAccountId,
+                    ReasonCode: "orders.cancelled",
+                    Items: items),
+                inventoryDb,
+                atsCalculator,
+                bucketMapper,
+                availabilityEventEmitter,
+                auditEventPublisher,
+                actorAccountId,
+                ct);
+            if (!result.IsSuccess)
+            {
+                logger.LogWarning(
+                    "orders.cancel.inventory_release.failed orderId={OrderId} reason={Reason}",
+                    order.Id, result.ReasonCode);
+                ordersDb.Outbox.Add(new OrdersOutboxEntry
+                {
+                    EventType = "fulfillment.inventory_release_failed",
+                    AggregateId = order.Id,
+                    PayloadJson = JsonSerializer.Serialize(new { orderId = order.Id, reason = result.ReasonCode }),
+                    CommittedAt = DateTimeOffset.UtcNow,
+                });
+                await ordersDb.SaveChangesAsync(ct);
+            }
+            else
+            {
+                logger.LogInformation(
+                    "orders.cancel.inventory_release.ok orderId={OrderId} movements={Count}",
+                    order.Id, items.Length);
+            }
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            logger.LogError(ex, "orders.cancel.inventory_release.threw orderId={OrderId}", order.Id);
+        }
     }
 
     private static OrderStateTransition NewTransition(Guid orderId, string machine, string from, string to, Guid? actor, string trigger, string? reason, DateTimeOffset nowUtc) =>

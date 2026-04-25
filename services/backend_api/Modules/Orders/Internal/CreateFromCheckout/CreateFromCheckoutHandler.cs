@@ -352,9 +352,14 @@ public sealed class CreateFromCheckoutHandler(
 
     /// <summary>
     /// Initial domain payment-state from the checkout-supplied method. For sync card payments
-    /// we mirror spec 010's <c>StubOrderFromCheckoutHandler</c> which assumed synchronous
-    /// capture. The webhook (Phase F1) advances Authorized→Captured for real authorize-only
-    /// flows; PaymentSm self-transitions absorb duplicates.
+    /// • bank_transfer → PendingBankTransfer (admin reconciles via E8).
+    /// • cod → PendingCod (admin/carrier reconciles via FR-026).
+    /// • Anything else → Captured (matches the contract's <c>"captured"</c> wire value Submit
+    ///   relays back to the customer). The "really only authorize, capture comes via webhook"
+    ///   distinction needs an explicit field on <c>OrderFromCheckoutRequest</c> — Submit
+    ///   currently only conveys the txn id, not the PaymentAttempt state. Extending that
+    ///   contract is a Modules/Shared change tracked separately; the webhook hook's idempotent
+    ///   self-transition already absorbs duplicate captured deliveries either way.
     /// </summary>
     private static string ResolveInitialPaymentState(string paymentMethod)
     {

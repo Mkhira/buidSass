@@ -90,13 +90,21 @@ public static class Endpoint
             });
         }
 
-        // Sync latest shipment.
-        var latest = await db.Shipments.Where(s => s.OrderId == id)
-            .OrderByDescending(s => s.CreatedAt).FirstOrDefaultAsync(ct);
-        if (latest is not null)
+        // B2 fix: spec R4 — "one order may produce N shipments". Previously this endpoint
+        // marked the LATEST shipment delivered (bug: a backorder split into 2 shipments would
+        // flip the order to delivered after the first arrival). Mark every non-terminal
+        // shipment delivered so the per-shipment audit trail mirrors the order-level state.
+        var shipments = await db.Shipments.Where(s => s.OrderId == id).ToListAsync(ct);
+        foreach (var shipment in shipments)
         {
-            latest.State = Shipment.StateDelivered;
-            latest.DeliveredAt = nowUtc;
+            if (string.Equals(shipment.State, Shipment.StateDelivered, StringComparison.OrdinalIgnoreCase)
+                || string.Equals(shipment.State, Shipment.StateReturned, StringComparison.OrdinalIgnoreCase)
+                || string.Equals(shipment.State, Shipment.StateFailed, StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+            shipment.State = Shipment.StateDelivered;
+            shipment.DeliveredAt = nowUtc;
         }
 
         await db.SaveChangesAsync(ct);

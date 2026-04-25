@@ -46,6 +46,7 @@ public static class Endpoint
         CreateQuotationRequest body,
         HttpContext context,
         OrdersDbContext db,
+        BackendApi.Modules.Orders.Primitives.QuoteNumberSequencer sequencer,
         IAuditEventPublisher auditPublisher,
         CancellationToken ct)
     {
@@ -67,13 +68,14 @@ public static class Endpoint
         }
 
         var nowUtc = DateTimeOffset.UtcNow;
+        // B6 fix: was a 6-char hex Guid slice (non-sequential, not finance-ops friendly).
+        // QuoteNumberSequencer produces ORD-style QUO-{market}-{yyyymm}-{seq6} via per-month
+        // Postgres sequences mirroring OrderNumberSequencer.
+        var quoteNumber = await sequencer.NextAsync(body.MarketCode, nowUtc, ct);
         var quote = new Quotation
         {
             Id = Guid.NewGuid(),
-            // Quote number format mirrors order number (research R3 / data-model.md §6).
-            // For MVP we stamp a deterministic suffix; spec follow-up wires a dedicated
-            // QuoteNumberSequencer parallel to OrderNumberSequencer.
-            QuoteNumber = $"QUO-{body.MarketCode.ToUpperInvariant()}-{nowUtc:yyyyMM}-{Guid.NewGuid().ToString("N")[..6].ToUpperInvariant()}",
+            QuoteNumber = quoteNumber,
             AccountId = body.AccountId,
             MarketCode = body.MarketCode,
             Status = Quotation.StatusDraft,

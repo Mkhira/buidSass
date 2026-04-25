@@ -60,10 +60,27 @@ public static class Endpoint
             return Problem(context, 400, "order.refund.invalid_request", "eventType is required");
         }
 
+        // B3 fix: lock the order row for the duration of the transaction so concurrent
+        // refund.completed deliveries serialise. Without this, two parallel refund events
+        // would each read the same `cumulativeBefore` and both pass the over-refund guard,
+        // resulting in a refund total > captured. SELECT FOR UPDATE is acquired inside an
+        // explicit transaction the caller commits.
+        await using var tx = await db.Database.BeginTransactionAsync(ct);
+        // Acquire a row-level write lock so concurrent advance-refund-state calls serialise
+        // on the cumulative-refund check below. Issued as a side-effect query (1 = exists)
+        // because FromSqlInterpolated SELECT * does not pull the xmin row-version system column.
+        var locked = await db.Database.ExecuteSqlInterpolatedAsync(
+            $"SELECT 1 FROM orders.orders WHERE \"Id\" = {id} FOR UPDATE", ct);
+        if (locked == 0)
+        {
+            await tx.RollbackAsync(ct);
+            return Problem(context, 404, "order.not_found", "Order not found");
+        }
         var order = await db.Orders.Include(o => o.Lines)
             .FirstOrDefaultAsync(o => o.Id == id, ct);
         if (order is null)
         {
+            await tx.RollbackAsync(ct);
             return Problem(context, 404, "order.not_found", "Order not found");
         }
 
@@ -76,6 +93,7 @@ public static class Endpoint
                 && t.Reason == idempotencyKey, ct);
         if (alreadySeen)
         {
+            await tx.RollbackAsync(ct);
             return Results.Ok(new
             {
                 orderId = order.Id,
@@ -119,23 +137,28 @@ public static class Endpoint
                         var line = order.Lines.FirstOrDefault(l => l.Id == d.OrderLineId);
                         if (line is null)
                         {
+                            await tx.RollbackAsync(ct);
                             return Problem(context, 404, "order.refund.line_not_found",
                                 $"OrderLine {d.OrderLineId} not found on order {order.Id}");
                         }
                         var newReturned = line.ReturnedQty + d.DeltaQty;
                         if (newReturned + line.CancelledQty > line.Qty)
                         {
+                            await tx.RollbackAsync(ct);
                             return Problem(context, 409, "order.line.returned_qty_exceeds_delivered",
                                 $"Line {line.Id}: returned ({newReturned}) + cancelled ({line.CancelledQty}) > qty ({line.Qty})");
                         }
                         line.ReturnedQty = newReturned;
                     }
                 }
-                // Cumulative refund vs captured total — over-refund guard.
+                // Cumulative refund vs captured total — over-refund guard. Reads the prior
+                // transitions inside the same FOR UPDATE-locked tx so concurrent advance calls
+                // serialise.
                 var cumulativeBefore = await SumPriorRefundsAsync(db, id, ct);
                 var cumulativeAfter = cumulativeBefore + body.RefundedAmountMinor;
                 if (cumulativeAfter > order.GrandTotalMinor)
                 {
+                    await tx.RollbackAsync(ct);
                     return Problem(context, 409, "order.refund.over_refund_blocked",
                         $"Cumulative refund {cumulativeAfter} would exceed captured total {order.GrandTotalMinor}");
                 }
@@ -160,12 +183,14 @@ public static class Endpoint
                 }
                 break;
             default:
+                await tx.RollbackAsync(ct);
                 return Problem(context, 400, "order.refund.invalid_event",
                     $"Unknown eventType '{body.EventType}'");
         }
 
         if (targetRefund is null)
         {
+            await tx.RollbackAsync(ct);
             return Results.Ok(new
             {
                 orderId = order.Id,
@@ -179,6 +204,7 @@ public static class Endpoint
             logger.LogWarning(
                 "orders.advance_refund_state.invalid_transition orderId={OrderId} from={From} to={To}",
                 order.Id, fromRefund, targetRefund);
+            await tx.RollbackAsync(ct);
             return Problem(context, 409, "order.state.illegal_transition",
                 $"Refund state transition {fromRefund} → {targetRefund} is not allowed");
         }
@@ -220,6 +246,7 @@ public static class Endpoint
         }
 
         await db.SaveChangesAsync(ct);
+        await tx.CommitAsync(ct);
 
         return Results.Ok(new
         {

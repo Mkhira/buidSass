@@ -39,6 +39,15 @@ public static class Endpoint
             await context.Response.WriteAsync($"Only format=csv is supported (got '{format}').", ct);
             return;
         }
+        // B7 fix: defend against unbounded / inverted ranges. An open-ended export is fine
+        // (no `from`/`to` → entire history); a from > to query was previously accepted and
+        // returned an empty result, masking caller bugs.
+        if (from is not null && to is not null && from > to)
+        {
+            context.Response.StatusCode = 400;
+            await context.Response.WriteAsync("`from` must be on or before `to`.", ct);
+            return;
+        }
 
         // Stream-friendly query: anonymous projection avoids change-tracking overhead.
         var q = db.Orders.AsNoTracking()

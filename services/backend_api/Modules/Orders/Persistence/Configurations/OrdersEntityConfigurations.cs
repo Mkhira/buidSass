@@ -50,6 +50,14 @@ public sealed class OrderConfiguration : IEntityTypeConfiguration<Order>
         builder.HasIndex(x => x.PaymentState).HasDatabaseName("IX_orders_orders_payment_state");
         builder.HasIndex(x => x.FulfillmentState).HasDatabaseName("IX_orders_orders_fulfillment_state");
         builder.HasIndex(x => x.CheckoutSessionId).HasDatabaseName("IX_orders_orders_checkout_session");
+        // B8 fix: webhook hook routes by (PaymentProviderId, PaymentProviderTxnId) — two
+        // orders sharing the same pair would route to one arbitrarily. Filtered unique index
+        // on rows where both columns are populated. Postgres treats NULLs as distinct, but
+        // EF's HasFilter is more explicit + cheaper for the query planner.
+        builder.HasIndex(x => new { x.PaymentProviderId, x.PaymentProviderTxnId })
+            .IsUnique()
+            .HasFilter("\"PaymentProviderId\" IS NOT NULL AND \"PaymentProviderTxnId\" IS NOT NULL")
+            .HasDatabaseName("IX_orders_orders_payment_provider_txn_unique");
     }
 }
 

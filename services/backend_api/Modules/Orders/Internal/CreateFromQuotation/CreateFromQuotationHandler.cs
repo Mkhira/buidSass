@@ -89,7 +89,11 @@ public sealed class CreateFromQuotationHandler(
             OrderNumber = orderNumber,
             AccountId = quotation.AccountId,
             MarketCode = quotation.MarketCode,
-            Currency = "SAR", // pricing.price_explanations would carry currency; fallback to KSA default — fixed in spec 013 wiring follow-up.
+            // B1 fix: was hardcoded "SAR" — broke EG quotations. MarketCurrency is the temporary
+            // single source of truth until a market-config service ships. Pricing's explanation
+            // row IS the canonical currency for checkout-originated orders; quotations don't
+            // re-read it, so this map covers them.
+            Currency = MarketCurrency.Resolve(quotation.MarketCode),
             SubtotalMinor = subtotal,
             DiscountMinor = lineDiscountTotal,
             TaxMinor = lineTaxTotal,

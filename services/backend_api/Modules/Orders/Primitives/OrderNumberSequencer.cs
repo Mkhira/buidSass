@@ -38,8 +38,9 @@ public sealed class OrderNumberSequencer(OrdersDbContext db)
         catch (PostgresException ex) when (ex.SqlState == "42P01") // undefined_table (sequence not found)
         {
             // Cold path: create sequence under advisory lock to serialise concurrent first-use.
-            await using var conn = (NpgsqlConnection)db.Database.GetDbConnection();
-            // EnsureOpen() is required when sharing the DbContext's connection.
+            // CR review: do NOT `await using` the DbContext-owned connection — disposing it
+            // here invalidates the DbContext for any subsequent operations on the same context.
+            var conn = (NpgsqlConnection)db.Database.GetDbConnection();
             if (conn.State != System.Data.ConnectionState.Open)
             {
                 await conn.OpenAsync(ct);
@@ -80,12 +81,13 @@ public sealed class OrderNumberSequencer(OrdersDbContext db)
 
     private static async Task<long> ExecuteScalarLongAsync(OrdersDbContext db, string sql, CancellationToken ct)
     {
-        await using var cmd = db.Database.GetDbConnection().CreateCommand();
-        cmd.CommandText = sql;
-        if (cmd.Connection!.State != System.Data.ConnectionState.Open)
+        var conn = db.Database.GetDbConnection();
+        if (conn.State != System.Data.ConnectionState.Open)
         {
-            await cmd.Connection.OpenAsync(ct);
+            await conn.OpenAsync(ct);
         }
+        await using var cmd = conn.CreateCommand();
+        cmd.CommandText = sql;
         var raw = await cmd.ExecuteScalarAsync(ct);
         return Convert.ToInt64(raw, System.Globalization.CultureInfo.InvariantCulture);
     }

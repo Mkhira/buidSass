@@ -1,0 +1,319 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Orders API",
+    "version": "1.0.0",
+    "description": "Spec 011 orders v1 surfaces — customer, admin, internal. Four independent state machines (order/payment/fulfillment/refund) per Principle 17."
+  },
+  "paths": {
+    "/v1/customer/orders": {
+      "get": {
+        "summary": "List the authenticated customer's orders",
+        "parameters": [
+          { "name": "status", "in": "query", "schema": { "type": "string" } },
+          { "name": "market", "in": "query", "schema": { "type": "string" } },
+          { "name": "from", "in": "query", "schema": { "type": "string", "format": "date-time" } },
+          { "name": "to", "in": "query", "schema": { "type": "string", "format": "date-time" } },
+          { "name": "page", "in": "query", "schema": { "type": "integer" } },
+          { "name": "pageSize", "in": "query", "schema": { "type": "integer" } }
+        ],
+        "responses": {
+          "200": { "description": "Paginated order list" },
+          "401": { "description": "Auth required (orders.requires_auth)" }
+        }
+      }
+    },
+    "/v1/customer/orders/{id}": {
+      "get": {
+        "summary": "Customer order detail incl. lines/shipments/timeline/return-eligibility",
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }],
+        "responses": {
+          "200": { "description": "Order detail" },
+          "401": { "description": "Auth required" },
+          "404": { "description": "Not found / cross-account access (order.not_found)" }
+        }
+      }
+    },
+    "/v1/customer/orders/{id}/cancel": {
+      "post": {
+        "summary": "Cancel an eligible order (FR-004, FR-022)",
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": { "type": "object", "properties": { "reason": { "type": "string" } } }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Cancelled or cancellation_pending" },
+          "400": { "description": "order.cancel.window_expired" },
+          "404": { "description": "order.not_found" },
+          "409": { "description": "order.cancel.shipment_exists | order.cancel.policy_denied" }
+        }
+      }
+    },
+    "/v1/customer/orders/{id}/reorder": {
+      "post": {
+        "summary": "Seed a new cart from a past order (FR-021)",
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }],
+        "responses": {
+          "200": { "description": "{ cartId, addedLineCount, skippedLines[] }" },
+          "400": { "description": "order.reorder.no_eligible_lines" }
+        }
+      }
+    },
+    "/v1/customer/orders/{id}/return-eligibility": {
+      "get": {
+        "summary": "Per-market return eligibility window (FR-009, SC-009)",
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }],
+        "responses": { "200": { "description": "{ eligible, daysRemaining?, reasonCode? }" } }
+      }
+    },
+    "/v1/customer/quotations": {
+      "get": {
+        "summary": "List the customer's quotations (FR-011)",
+        "parameters": [{ "name": "status", "in": "query", "schema": { "type": "string" } }],
+        "responses": { "200": { "description": "Paginated quotation list" } }
+      }
+    },
+    "/v1/customer/quotations/{id}": {
+      "get": {
+        "summary": "Customer quotation detail",
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }],
+        "responses": { "200": { "description": "Quotation + lines" }, "404": { "description": "order.quote.not_found" } }
+      }
+    },
+    "/v1/customer/quotations/{id}/accept": {
+      "post": {
+        "summary": "Accept a quotation; creates an order at the stored price (FR-012, SC-006)",
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }],
+        "responses": {
+          "200": { "description": "{ orderId, orderNumber }" },
+          "400": { "description": "order.quote.expired | order.quote.empty" },
+          "409": { "description": "order.quote.invalid_status" },
+          "500": { "description": "order.quote.integrity_fail" }
+        }
+      }
+    },
+    "/v1/customer/quotations/{id}/reject": {
+      "post": {
+        "summary": "Reject an active quotation",
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }],
+        "responses": { "200": { "description": "Rejected" }, "409": { "description": "order.quote.invalid_status" } }
+      }
+    },
+    "/v1/admin/orders": {
+      "get": {
+        "summary": "Admin list with filters (FR-010)",
+        "responses": { "200": { "description": "Paginated list" }, "403": { "description": "Missing orders.read" } }
+      }
+    },
+    "/v1/admin/orders/{id}": {
+      "get": {
+        "summary": "Admin order detail",
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }],
+        "responses": { "200": { "description": "Order detail" }, "404": { "description": "order.not_found" } }
+      }
+    },
+    "/v1/admin/orders/{id}/audit": {
+      "get": {
+        "summary": "Full transition trail + admin mutations (FR-023)",
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }],
+        "responses": { "200": { "description": "Transitions + admin actions" } }
+      }
+    },
+    "/v1/admin/orders/{id}/fulfillment/start-picking": {
+      "post": {
+        "summary": "Fulfillment: start picking (FR-005)",
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }],
+        "responses": { "200": { "description": "fulfillmentState=picking" }, "409": { "description": "order.fulfillment.not_ready" } }
+      }
+    },
+    "/v1/admin/orders/{id}/fulfillment/mark-packed": {
+      "post": {
+        "summary": "Fulfillment: mark packed",
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }],
+        "responses": { "200": { "description": "fulfillmentState=packed" }, "409": { "description": "order.fulfillment.not_ready" } }
+      }
+    },
+    "/v1/admin/orders/{id}/fulfillment/create-shipment": {
+      "post": {
+        "summary": "Create a shipment row (FR-006); one order may have N shipments",
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["providerId", "methodCode"],
+                "properties": {
+                  "providerId": { "type": "string" },
+                  "methodCode": { "type": "string" },
+                  "trackingNumber": { "type": "string" },
+                  "carrierLabelUrl": { "type": "string" },
+                  "etaFrom": { "type": "string", "format": "date-time" },
+                  "etaTo": { "type": "string", "format": "date-time" }
+                }
+              }
+            }
+          }
+        },
+        "responses": { "200": { "description": "{ shipmentId, orderId, state }" } }
+      }
+    },
+    "/v1/admin/orders/{id}/fulfillment/mark-handed-to-carrier": {
+      "post": {
+        "summary": "Fulfillment: handed to carrier",
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }],
+        "responses": { "200": { "description": "fulfillmentState=handed_to_carrier" }, "409": { "description": "order.fulfillment.no_shipment | order.fulfillment.not_ready" } }
+      }
+    },
+    "/v1/admin/orders/{id}/fulfillment/mark-delivered": {
+      "post": {
+        "summary": "Mark delivered; for COD orders also captures payment (FR-026, SC-008)",
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }],
+        "responses": { "200": { "description": "fulfillmentState=delivered, paymentCaptured?" } }
+      }
+    },
+    "/v1/admin/orders/{id}/payments/confirm-bank-transfer": {
+      "post": {
+        "summary": "Bank transfer reconciliation (FR-025): pending_bank_transfer → captured",
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["reference", "receivedAt"],
+                "properties": {
+                  "reference": { "type": "string" },
+                  "receivedAt": { "type": "string", "format": "date-time" }
+                }
+              }
+            }
+          }
+        },
+        "responses": { "200": { "description": "paymentState=captured" }, "409": { "description": "order.payment.not_in_pending_bank_transfer" } }
+      }
+    },
+    "/v1/admin/orders/{id}/payments/force-state": {
+      "post": {
+        "summary": "High-privilege payment-state override (FR-008, SC-010)",
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["toState", "reason"],
+                "properties": {
+                  "toState": { "type": "string" },
+                  "reason": { "type": "string" }
+                }
+              }
+            }
+          }
+        },
+        "responses": { "200": { "description": "Forced" }, "400": { "description": "order.state.illegal_transition" } }
+      }
+    },
+    "/v1/admin/orders/export": {
+      "get": {
+        "summary": "Streaming finance CSV with line-level tax + discount (FR-010, SC-007)",
+        "parameters": [
+          { "name": "market", "in": "query", "schema": { "type": "string" } },
+          { "name": "from", "in": "query", "schema": { "type": "string", "format": "date-time" } },
+          { "name": "to", "in": "query", "schema": { "type": "string", "format": "date-time" } },
+          { "name": "format", "in": "query", "schema": { "type": "string", "enum": ["csv"] } }
+        ],
+        "responses": {
+          "200": {
+            "description": "CSV stream",
+            "content": { "text/csv": {} }
+          }
+        }
+      }
+    },
+    "/v1/admin/quotations": {
+      "post": {
+        "summary": "Create draft quotation (FR-011)",
+        "responses": { "200": { "description": "{ quotationId, quoteNumber, status: draft }" } }
+      }
+    },
+    "/v1/admin/quotations/{id}/send": {
+      "post": {
+        "summary": "Activate + deliver a draft quotation",
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }],
+        "responses": { "200": { "description": "status=active" }, "409": { "description": "order.quote.invalid_status" } }
+      }
+    },
+    "/v1/admin/quotations/{id}/expire": {
+      "post": {
+        "summary": "Manually expire a quotation",
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }],
+        "responses": { "200": { "description": "status=expired" } }
+      }
+    },
+    "/v1/admin/quotations/{id}/convert": {
+      "post": {
+        "summary": "Admin converts a quotation to an order on the customer's behalf (FR-011)",
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }],
+        "responses": { "200": { "description": "{ orderId, orderNumber }" } }
+      }
+    },
+    "/v1/internal/orders/{id}/advance-refund-state": {
+      "post": {
+        "summary": "Refund-state seam invoked by spec 013's returns dispatcher (FR-016)",
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["eventType"],
+                "properties": {
+                  "eventType": {
+                    "type": "string",
+                    "enum": ["return.submitted", "return.rejected", "refund.completed", "refund.manual_confirmed"]
+                  },
+                  "returnRequestId": { "type": "string", "format": "uuid" },
+                  "refundId": { "type": "string", "format": "uuid" },
+                  "refundedAmountMinor": { "type": "integer", "format": "int64" },
+                  "returnedLineQtys": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "orderLineId": { "type": "string", "format": "uuid" },
+                        "deltaQty": { "type": "integer" }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Advanced (or no-op / deduped)" },
+          "409": { "description": "order.refund.over_refund_blocked | order.line.returned_qty_exceeds_delivered | order.state.illegal_transition" }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "ProblemDetails": {
+        "type": "object",
+        "properties": {
+          "type": { "type": "string", "format": "uri" },
+          "title": { "type": "string" },
+          "status": { "type": "integer" },
+          "detail": { "type": "string" },
+          "reasonCode": { "type": "string" }
+        }
+      }
+    }
+  }
+}

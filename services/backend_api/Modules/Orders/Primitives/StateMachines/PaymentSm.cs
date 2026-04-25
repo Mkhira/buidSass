@@ -12,6 +12,7 @@ public static class PaymentSm
     public const string Captured = "captured";
     public const string PendingCod = "pending_cod";
     public const string PendingBankTransfer = "pending_bank_transfer";
+    public const string PendingBnpl = "pending_bnpl";
     public const string Failed = "failed";
     public const string Voided = "voided";
     public const string Refunded = "refunded";
@@ -19,7 +20,8 @@ public static class PaymentSm
 
     public static readonly IReadOnlySet<string> All = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
     {
-        Authorized, Captured, PendingCod, PendingBankTransfer, Failed, Voided, Refunded, PartiallyRefunded,
+        Authorized, Captured, PendingCod, PendingBankTransfer, PendingBnpl,
+        Failed, Voided, Refunded, PartiallyRefunded,
     };
 
     public static bool IsValidTransition(string from, string to) => (from, to) switch
@@ -35,6 +37,9 @@ public static class PaymentSm
         (PendingCod, Failed) => true,                     // delivery failure
         (PendingBankTransfer, Captured) => true,          // admin confirm (FR-025)
         (PendingBankTransfer, Failed) => true,            // timeout / admin reject
+        (PendingBnpl, Captured) => true,                  // BNPL provider authorize → capture
+        (PendingBnpl, Failed) => true,                    // BNPL declined / abandoned
+        (PendingBnpl, Voided) => true,                    // customer cancel pre-capture
         // Idempotent self-transitions tolerate duplicate webhook deliveries (SC-005).
         (var f, var t) when string.Equals(f, t, StringComparison.OrdinalIgnoreCase) => true,
         _ => false,
@@ -49,5 +54,6 @@ public static class PaymentSm
     /// <summary>True if the state is pending external confirmation (no money in yet).</summary>
     public static bool IsPending(string state) =>
         string.Equals(state, PendingCod, StringComparison.OrdinalIgnoreCase)
-        || string.Equals(state, PendingBankTransfer, StringComparison.OrdinalIgnoreCase);
+        || string.Equals(state, PendingBankTransfer, StringComparison.OrdinalIgnoreCase)
+        || string.Equals(state, PendingBnpl, StringComparison.OrdinalIgnoreCase);
 }

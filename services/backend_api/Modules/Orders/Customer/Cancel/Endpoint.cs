@@ -1,13 +1,11 @@
 using System.Text.Json;
-using BackendApi.Modules.AuditLog;
-using BackendApi.Modules.Inventory.Internal.Movements.Return;
 using BackendApi.Modules.Inventory.Persistence;
-using BackendApi.Modules.Inventory.Primitives;
 using BackendApi.Modules.Orders.Customer.Common;
 using BackendApi.Modules.Orders.Entities;
 using BackendApi.Modules.Orders.Persistence;
 using BackendApi.Modules.Orders.Primitives;
 using BackendApi.Modules.Orders.Primitives.StateMachines;
+using BackendApi.Modules.Shared;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.EntityFrameworkCore;
@@ -36,10 +34,7 @@ public static class Endpoint
         OrdersDbContext db,
         CancellationPolicy policy,
         InventoryDbContext inventoryDb,
-        AtsCalculator atsCalculator,
-        BucketMapper bucketMapper,
-        AvailabilityEventEmitter availabilityEventEmitter,
-        IAuditEventPublisher auditEventPublisher,
+        IReservationConverter reservationConverter,
         ILoggerFactory loggerFactory,
         CancellationToken ct)
     {
@@ -131,8 +126,7 @@ public static class Endpoint
         if (!capturedPayment)
         {
             await ReleaseInventoryAsync(
-                order, accountId.Value, db, inventoryDb,
-                atsCalculator, bucketMapper, availabilityEventEmitter, auditEventPublisher,
+                order, accountId.Value, db, inventoryDb, reservationConverter,
                 loggerFactory.CreateLogger("Orders.Cancel.InventoryRelease"), ct);
         }
 
@@ -150,10 +144,7 @@ public static class Endpoint
         Guid actorAccountId,
         OrdersDbContext ordersDb,
         InventoryDbContext inventoryDb,
-        AtsCalculator atsCalculator,
-        BucketMapper bucketMapper,
-        AvailabilityEventEmitter availabilityEventEmitter,
-        IAuditEventPublisher auditEventPublisher,
+        IReservationConverter reservationConverter,
         ILogger logger,
         CancellationToken ct)
     {
@@ -161,6 +152,8 @@ public static class Endpoint
         {
             // Sum the prior sale movements per (product, warehouse, batch). Spec 008's Convert
             // handler stamps SourceKind='order' + SourceId=orderId; that's our back-reference.
+            // Cross-schema READ-only via the inventory DbContext is acceptable per ADR
+            // (research R12); the return is posted via the IReservationConverter shared seam.
             var saleRows = await inventoryDb.InventoryMovements.AsNoTracking()
                 .Where(m => m.SourceKind == "order" && m.SourceId == order.Id && m.Kind == "sale")
                 .Select(m => new { m.ProductId, m.WarehouseId, m.BatchId, m.Delta })
@@ -174,7 +167,7 @@ public static class Endpoint
             // Sale movements have negative delta; the return submits the absolute value.
             var items = saleRows
                 .GroupBy(r => (r.ProductId, r.WarehouseId, r.BatchId))
-                .Select(g => new ReturnMovementItem(
+                .Select(g => new ReservationReturnLine(
                     ProductId: g.Key.ProductId,
                     WarehouseId: g.Key.WarehouseId,
                     BatchId: g.Key.BatchId,
@@ -183,19 +176,8 @@ public static class Endpoint
                 .ToArray();
             if (items.Length == 0) return;
 
-            var result = await Handler.HandleAsync(
-                new ReturnMovementRequest(
-                    OrderId: order.Id,
-                    AccountId: actorAccountId,
-                    ReasonCode: "orders.cancelled",
-                    Items: items),
-                inventoryDb,
-                atsCalculator,
-                bucketMapper,
-                availabilityEventEmitter,
-                auditEventPublisher,
-                actorAccountId,
-                ct);
+            var result = await reservationConverter.PostReturnAsync(
+                order.Id, actorAccountId, items, "orders.cancelled", ct);
             if (!result.IsSuccess)
             {
                 logger.LogWarning(

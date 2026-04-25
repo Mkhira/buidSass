@@ -1,8 +1,5 @@
 using System.Text.Json;
-using BackendApi.Modules.AuditLog;
 using BackendApi.Modules.Catalog.Persistence;
-using BackendApi.Modules.Inventory.Persistence;
-using BackendApi.Modules.Inventory.Primitives;
 using BackendApi.Modules.Observability;
 using BackendApi.Modules.Orders.Entities;
 using BackendApi.Modules.Orders.Persistence;
@@ -28,13 +25,8 @@ namespace BackendApi.Modules.Orders.Internal.CreateFromCheckout;
 public sealed class CreateFromCheckoutHandler(
     OrdersDbContext ordersDb,
     CatalogDbContext catalogDb,
-    InventoryDbContext inventoryDb,
     OrderNumberSequencer sequencer,
-    AtsCalculator atsCalculator,
-    BucketMapper bucketMapper,
-    ReorderAlertEmitter reorderAlertEmitter,
-    AvailabilityEventEmitter availabilityEventEmitter,
-    IAuditEventPublisher auditEventPublisher,
+    IReservationConverter reservationConverter,
     ILogger<CreateFromCheckoutHandler> logger) : IOrderFromCheckoutHandler
 {
     public async Task<OrderFromCheckoutResult> CreateAsync(OrderFromCheckoutRequest request, CancellationToken cancellationToken)
@@ -261,6 +253,9 @@ public sealed class CreateFromCheckoutHandler(
         var convertedAll = await ConvertReservationsAsync(order, cancellationToken);
         if (!convertedAll)
         {
+            // CR review round 2 (Minor): single timestamp for the degrade path so the
+            // transition row and the outbox event share a `committed_at` ordering invariant.
+            var degradeNow = DateTimeOffset.UtcNow;
             order.FulfillmentState = FulfillmentSm.AwaitingStock;
             ordersDb.StateTransitions.Add(new OrderStateTransition
             {
@@ -271,14 +266,14 @@ public sealed class CreateFromCheckoutHandler(
                 ActorAccountId = null,
                 Trigger = "system.inventory_convert_partial",
                 Reason = "one_or_more_reservations_failed_to_convert",
-                OccurredAt = DateTimeOffset.UtcNow,
+                OccurredAt = degradeNow,
             });
             ordersDb.Outbox.Add(new OrdersOutboxEntry
             {
                 EventType = "fulfillment.awaiting_stock",
                 AggregateId = order.Id,
                 PayloadJson = JsonSerializer.Serialize(new { orderId = order.Id, orderNumber = order.OrderNumber }),
-                CommittedAt = DateTimeOffset.UtcNow,
+                CommittedAt = degradeNow,
             });
             try { await ordersDb.SaveChangesAsync(cancellationToken); }
             catch (Exception saveEx)
@@ -313,18 +308,12 @@ public sealed class CreateFromCheckoutHandler(
             }
             try
             {
-                var convertResult = await BackendApi.Modules.Inventory.Internal.Reservations.Convert.Handler.HandleAsync(
+                // CR review round 2 (Major): route through Modules/Shared seam instead of
+                // taking a static dependency on Inventory's per-slice handler types.
+                var convertResult = await reservationConverter.ConvertAsync(
                     reservationId,
-                    new BackendApi.Modules.Inventory.Internal.Reservations.Convert.ConvertReservationRequest(
-                        OrderId: order.Id,
-                        AccountId: order.AccountId),
-                    inventoryDb,
-                    atsCalculator,
-                    bucketMapper,
-                    reorderAlertEmitter,
-                    availabilityEventEmitter,
-                    auditEventPublisher,
-                    logger,
+                    order.Id,
+                    order.AccountId,
                     ct);
                 if (!convertResult.IsSuccess)
                 {
@@ -375,6 +364,12 @@ public sealed class CreateFromCheckoutHandler(
         if (string.Equals(paymentMethod, "cod", StringComparison.OrdinalIgnoreCase))
         {
             return PaymentSm.PendingCod;
+        }
+        // CR review round 2 (Major): BNPL is a pending-authorization flow per Principle 13;
+        // the provider's webhook captures later. Don't default to Captured.
+        if (string.Equals(paymentMethod, "bnpl", StringComparison.OrdinalIgnoreCase))
+        {
+            return PaymentSm.PendingBnpl;
         }
         return PaymentSm.Captured;
     }

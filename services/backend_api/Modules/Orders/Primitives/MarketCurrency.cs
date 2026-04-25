@@ -17,8 +17,26 @@ public static class MarketCurrency
             ["EG"] = "EGP",
         };
 
-    public static string Resolve(string marketCode) =>
-        Map.TryGetValue(marketCode?.Trim() ?? string.Empty, out var currency)
-            ? currency
-            : DefaultCurrency;
+    /// <summary>
+    /// Resolve a market code → currency. CR review round 2 (Major): fail closed on unknown
+    /// non-empty codes so a typo can't silently mint orders in the wrong currency. Empty /
+    /// whitespace input still falls back to the platform default (KSA = SAR), matching the
+    /// "no market specified yet" pre-checkout state.
+    /// </summary>
+    public static string Resolve(string marketCode)
+    {
+        var normalized = (marketCode ?? string.Empty).Trim();
+        if (normalized.Length == 0)
+        {
+            return DefaultCurrency;
+        }
+        if (Map.TryGetValue(normalized, out var currency))
+        {
+            return currency;
+        }
+        throw new ArgumentOutOfRangeException(
+            nameof(marketCode),
+            normalized,
+            "Unsupported market code for currency resolution.");
+    }
 }

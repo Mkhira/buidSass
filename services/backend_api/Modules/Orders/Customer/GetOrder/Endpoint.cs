@@ -67,8 +67,8 @@ public static class Endpoint
             taxMinor = order.TaxMinor,
             shippingMinor = order.ShippingMinor,
             currency = order.Currency,
-            shippingAddress = System.Text.Json.JsonDocument.Parse(order.ShippingAddressJson).RootElement,
-            billingAddress = System.Text.Json.JsonDocument.Parse(order.BillingAddressJson).RootElement,
+            shippingAddress = BackendApi.Modules.Orders.Primitives.AddressJson.Parse(order.ShippingAddressJson),
+            billingAddress = BackendApi.Modules.Orders.Primitives.AddressJson.Parse(order.BillingAddressJson),
             lines = order.Lines.Select(l => new
             {
                 lineId = l.Id,

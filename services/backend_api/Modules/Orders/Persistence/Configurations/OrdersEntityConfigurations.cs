@@ -14,7 +14,7 @@ public sealed class OrderConfiguration : IEntityTypeConfiguration<Order>
             t.HasCheckConstraint("CK_orders_orders_order_state_enum",
                 "\"OrderState\" IN ('placed','cancellation_pending','cancelled')");
             t.HasCheckConstraint("CK_orders_orders_payment_state_enum",
-                "\"PaymentState\" IN ('authorized','captured','pending_cod','pending_bank_transfer','failed','voided','refunded','partially_refunded')");
+                "\"PaymentState\" IN ('authorized','captured','pending_cod','pending_bank_transfer','pending_bnpl','failed','voided','refunded','partially_refunded')");
             t.HasCheckConstraint("CK_orders_orders_fulfillment_state_enum",
                 "\"FulfillmentState\" IN ('not_started','awaiting_stock','picking','packed','handed_to_carrier','delivered','cancelled')");
             t.HasCheckConstraint("CK_orders_orders_refund_state_enum",

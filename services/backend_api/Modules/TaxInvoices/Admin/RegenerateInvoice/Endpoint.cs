@@ -59,14 +59,19 @@ public static class Endpoint
         db.RenderJobs.Add(new InvoiceRenderJob
         {
             InvoiceId = invoice.Id,
+            MarketCode = invoice.MarketCode,
             State = InvoiceRenderJob.StateQueued,
             NextAttemptAt = nowUtc,
             CreatedAt = nowUtc,
         });
+        // CR Major fix — emit `invoice.regenerate_queued` (a request event) at this stage.
+        // The terminal `invoice.regenerated` event is the worker's responsibility once the
+        // new PDF lands.
         db.Outbox.Add(new InvoicesOutboxEntry
         {
-            EventType = "invoice.regenerated",
+            EventType = "invoice.regenerate_queued",
             AggregateId = invoice.Id,
+            MarketCode = invoice.MarketCode,
             PayloadJson = JsonSerializer.Serialize(new
             {
                 invoiceId = invoice.Id,
@@ -78,6 +83,8 @@ public static class Endpoint
         });
         await db.SaveChangesAsync(ct);
 
+        // CR Major fix — audit on regenerate is NOT optional. Surface 500 on failure so
+        // the operator retries instead of leaving a silent gap in the compliance trail.
         try
         {
             await auditPublisher.PublishAsync(new AuditEvent(
@@ -90,7 +97,12 @@ public static class Endpoint
                 AfterState: new { state = invoice.State, queuedAt = nowUtc },
                 Reason: body.Reason), ct);
         }
-        catch { /* audit best-effort */ }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            return AdminInvoiceResponseFactory.Problem(context, 500, "invoice.regenerate.audit_failed",
+                "Audit emission failed; regenerate aborted (re-run when audit publisher is healthy).",
+                ex.GetType().Name);
+        }
 
         return Results.Ok(new
         {

@@ -30,7 +30,10 @@ public static class Endpoint
         {
             return Results.Json(new { error = "from must be on or before to" }, statusCode: 400);
         }
-        var p = Math.Max(1, page ?? 1);
+        // CR Major fix — guard against integer overflow in `(p - 1) * ps`. With pageSize 200
+        // a `page` over ~10M overflows int32 silently and Skip throws OverflowException
+        // deep in EF. Cap page at 100k.
+        var p = Math.Clamp(page ?? 1, 1, 100_000);
         var ps = Math.Clamp(pageSize ?? 20, 1, 200);
         var q = db.Invoices.AsNoTracking().AsQueryable();
         if (!string.IsNullOrWhiteSpace(market)) q = q.Where(i => i.MarketCode == market);

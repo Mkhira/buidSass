@@ -61,6 +61,7 @@ public static class Endpoint
         {
             EventType = "invoice.resend_requested",
             AggregateId = invoice.Id,
+            MarketCode = invoice.MarketCode,
             PayloadJson = JsonSerializer.Serialize(new
             {
                 invoiceId = invoice.Id,
@@ -73,6 +74,7 @@ public static class Endpoint
         });
         await db.SaveChangesAsync(ct);
 
+        // CR Major fix — audit on admin resend is NOT optional. Surface 500 on failure.
         try
         {
             await auditPublisher.PublishAsync(new AuditEvent(
@@ -85,7 +87,12 @@ public static class Endpoint
                 AfterState: new { channel, invoiceNumber = invoice.InvoiceNumber },
                 Reason: null), ct);
         }
-        catch { /* audit best-effort */ }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            return AdminInvoiceResponseFactory.Problem(context, 500, "invoice.resend.audit_failed",
+                "Audit emission failed; resend aborted (re-run when audit publisher is healthy).",
+                ex.GetType().Name);
+        }
 
         return Results.Ok(new { invoiceId = invoice.Id, channel, invoiceNumber = invoice.InvoiceNumber });
     }

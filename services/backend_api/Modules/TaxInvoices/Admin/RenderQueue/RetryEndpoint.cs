@@ -29,6 +29,27 @@ public static class RetryEndpoint
         {
             return AdminInvoiceResponseFactory.Problem(context, 404, "render_job.not_found", "Render job not found", "");
         }
+        // CR Major fix — refuse to re-queue 'done' (would silently overwrite the immutable PDF
+        // — research R5) or 'rendering' (would race a worker mid-flight). Admins regenerating
+        // an issued PDF must use Admin/RegenerateInvoice (audited, preserves invoice number).
+        if (string.Equals(job.State, InvoiceRenderJob.StateDone, StringComparison.OrdinalIgnoreCase))
+        {
+            return AdminInvoiceResponseFactory.Problem(context, 409, "render_job.already_done",
+                "Render job is already done; use Admin/RegenerateInvoice instead (preserves the invoice number, audited).",
+                "");
+        }
+        if (string.Equals(job.State, InvoiceRenderJob.StateRendering, StringComparison.OrdinalIgnoreCase))
+        {
+            return AdminInvoiceResponseFactory.Problem(context, 409, "render_job.rendering",
+                "Render job is in flight; wait for the worker to finish before forcing a retry.",
+                "");
+        }
+        if (!string.Equals(job.State, InvoiceRenderJob.StateFailed, StringComparison.OrdinalIgnoreCase)
+            && !string.Equals(job.State, InvoiceRenderJob.StateQueued, StringComparison.OrdinalIgnoreCase))
+        {
+            return AdminInvoiceResponseFactory.Problem(context, 409, "render_job.invalid_state",
+                $"Render job state '{job.State}' is not retry-eligible.", "");
+        }
         // Reset to queued so the worker picks it up immediately. Attempts counter is preserved.
         job.State = InvoiceRenderJob.StateQueued;
         job.NextAttemptAt = DateTimeOffset.UtcNow;

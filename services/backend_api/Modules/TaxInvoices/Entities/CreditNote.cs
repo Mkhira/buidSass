@@ -12,6 +12,8 @@ public sealed class CreditNote
     public Guid Id { get; set; }
     public string CreditNoteNumber { get; set; } = string.Empty;
     public Guid InvoiceId { get; set; }
+    /// <summary>Per-market partitioning (Principle 5 / ADR-010) — denormalised from the parent invoice.</summary>
+    public string MarketCode { get; set; } = string.Empty;
     public Guid? RefundId { get; set; }
     public DateTimeOffset IssuedAt { get; set; }
     public long SubtotalMinor { get; set; }

@@ -59,10 +59,14 @@ public sealed class InvoiceRenderWorker(
         // second worker's flip would still see 'queued' until our SaveChanges lands), but
         // wrapping in BeginTransactionAsync makes the contract explicit + audit-friendly.
         await using var claimTx = await db.Database.BeginTransactionAsync(ct);
+        // CR Major fix — also include 'rendering' rows past their NextAttemptAt so a worker
+        // crash can't strand a job. Healthy workers extend NextAttemptAt forward when
+        // claiming; a 'rendering' row whose NextAttemptAt is in the past means the prior
+        // worker crashed before completing.
         var jobs = await db.RenderJobs
             .FromSqlInterpolated($"""
                 SELECT * FROM invoices.invoice_render_jobs
-                WHERE "State" IN ('queued','failed')
+                WHERE "State" IN ('queued','failed','rendering')
                   AND "NextAttemptAt" <= {nowUtc}
                   AND "Attempts" < {InvoiceRenderJob.MaxAttempts}
                 ORDER BY "NextAttemptAt"
@@ -79,6 +83,9 @@ public sealed class InvoiceRenderWorker(
         {
             job.State = InvoiceRenderJob.StateRendering;
             job.Attempts += 1;
+            // Heartbeat: push NextAttemptAt forward so a parallel worker won't immediately
+            // reclaim. Crashed workers leave the timestamp in the past.
+            job.NextAttemptAt = nowUtc.AddSeconds(60);
         }
         await db.SaveChangesAsync(ct);
         await claimTx.CommitAsync(ct);

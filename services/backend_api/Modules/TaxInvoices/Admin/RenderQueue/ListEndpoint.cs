@@ -20,17 +20,21 @@ public static class ListEndpoint
     private static async Task<IResult> HandleAsync(InvoicesDbContext db, CancellationToken ct)
     {
         var rows = await db.RenderJobs.AsNoTracking()
-            .Where(j => j.State == "queued" || j.State == "failed")
+            .Where(j => j.State == "queued" || j.State == "failed" || j.State == "rendering")
             .OrderBy(j => j.NextAttemptAt)
             .Select(j => new
             {
                 jobId = j.Id,
                 invoiceId = j.InvoiceId,
                 creditNoteId = j.CreditNoteId,
+                market = j.MarketCode,
                 state = j.State,
                 attempts = j.Attempts,
                 nextAttemptAt = j.NextAttemptAt,
-                lastError = j.LastError,
+                // CR Major fix — never expose raw `lastError` strings. Worker may stamp DB
+                // connection messages or stack-frame fragments; admin UI sees a redacted
+                // summary only. Operators with DB access can inspect the full string.
+                lastErrorClass = j.LastError == null ? null : j.LastError.Substring(0, Math.Min(80, j.LastError.Length)),
             })
             .Take(200)
             .ToListAsync(ct);

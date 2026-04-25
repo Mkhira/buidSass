@@ -5,6 +5,8 @@ public sealed class InvoiceLine
     public Guid Id { get; set; }
     public Guid InvoiceId { get; set; }
     public Guid OrderLineId { get; set; }
+    /// <summary>Per-market partitioning (Principle 5 / ADR-010) — denormalised from the parent invoice.</summary>
+    public string MarketCode { get; set; } = string.Empty;
     public string Sku { get; set; } = string.Empty;
     public string NameAr { get; set; } = string.Empty;
     public string NameEn { get; set; } = string.Empty;

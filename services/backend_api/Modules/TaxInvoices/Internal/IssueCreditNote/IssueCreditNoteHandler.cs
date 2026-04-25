@@ -56,60 +56,102 @@ public sealed class IssueCreditNoteHandler(
                 "reasonCode is required.");
         }
 
+        // Pre-read invoice (no lock) to learn its market for the sequencer warmup. The lock-
+        // acquiring re-read happens INSIDE the tx below; if the invoice id was wrong we'll
+        // bail on the locked read with the same `invoice.not_found` reason.
+        var preview = await invoicesDb.Invoices.AsNoTracking()
+            .Where(i => i.Id == request.InvoiceId)
+            .Select(i => new { i.MarketCode })
+            .FirstOrDefaultAsync(ct);
+        if (preview is null)
+        {
+            return new IssueCreditNoteResult(false, null, null, "invoice.not_found",
+                "Original invoice not found.");
+        }
+        // Warm the credit-note number sequence BEFORE opening the FOR UPDATE tx — the cold
+        // path issues CREATE SEQUENCE which would abort our locked tx on first-use of a new
+        // (market, yyyymm). Spec 011 hit the identical issue with quotations.
+        var nowUtcEarly = DateTimeOffset.UtcNow;
+        var creditNoteNumberPreallocated = await sequencer.NextAsync(preview.MarketCode, nowUtcEarly, ct);
+
+        // CR1 fix — cumulative refund check + insert MUST be in one transaction with a
+        // row-level lock on the invoice. Without it, two refundIds for the same invoice could
+        // each pass the snapshot check and over-credit.
+        await using var tx = await invoicesDb.Database.BeginTransactionAsync(ct);
+
         // Idempotency: refundId is unique across the table.
         var existing = await invoicesDb.CreditNotes.AsNoTracking()
             .FirstOrDefaultAsync(c => c.RefundId == request.RefundId, ct);
         if (existing is not null)
         {
+            await tx.RollbackAsync(ct);
             logger.LogInformation(
                 "invoices.credit_note.idempotent_hit refundId={RefundId} creditNoteNumber={Number}",
                 request.RefundId, existing.CreditNoteNumber);
             return new IssueCreditNoteResult(true, existing.Id, existing.CreditNoteNumber, null, null);
         }
 
+        var locked = await invoicesDb.Database.ExecuteSqlInterpolatedAsync(
+            $"SELECT 1 FROM invoices.invoices WHERE \"Id\" = {request.InvoiceId} FOR UPDATE", ct);
+        if (locked == 0)
+        {
+            await tx.RollbackAsync(ct);
+            return new IssueCreditNoteResult(false, null, null, "invoice.not_found",
+                "Original invoice not found.");
+        }
         var invoice = await invoicesDb.Invoices.AsNoTracking()
             .Include(i => i.Lines)
             .FirstOrDefaultAsync(i => i.Id == request.InvoiceId, ct);
         if (invoice is null)
         {
+            await tx.RollbackAsync(ct);
             return new IssueCreditNoteResult(false, null, null, "invoice.not_found",
                 "Original invoice not found.");
         }
 
-        // B2 fix — cumulative refund check requires summing prior credit notes against THIS
-        // invoice. Without this, two partial refunds could each individually pass the
-        // line-vs-original check but together exceed the invoice grand total.
+        // CR1 — cumulative refund total against this invoice (read inside FOR UPDATE tx).
         var priorRefundedTotal = await invoicesDb.CreditNotes.AsNoTracking()
             .Where(c => c.InvoiceId == invoice.Id)
             .SumAsync(c => (long?)c.GrandTotalMinor, ct) ?? 0L;
 
-        // B3 fix — sum prior credited qty PER ORIGINAL LINE so a third partial credit can't
-        // sneak past the per-line check. Done in one bulk query rather than per-line round trips.
+        // CR1 / B3 — sum prior credited qty PER ORIGINAL LINE.
         var priorCreditedByLine = await invoicesDb.CreditNoteLines.AsNoTracking()
             .Where(cnl => invoice.Lines.Select(l => l.Id).Contains(cnl.InvoiceLineId))
             .GroupBy(cnl => cnl.InvoiceLineId)
             .Select(g => new { LineId = g.Key, TotalQty = g.Sum(x => x.Qty) })
             .ToDictionaryAsync(x => x.LineId, x => x.TotalQty, ct);
 
+        // CR2 fix — aggregate duplicate InvoiceLineId entries in the SAME request before
+        // running the per-line check. Without this, payload `[{lineA,2},{lineA,2}]` validates
+        // each entry independently against the prior-credited snapshot and bypasses the
+        // line-qty cap.
+        var aggregatedRequest = request.Lines
+            .GroupBy(l => l.InvoiceLineId)
+            .Select(g => new CreditNoteLineInput(g.Key, g.Sum(x => x.Qty)))
+            .ToList();
+
         // Validate and snapshot the credited lines from the original invoice (preserves tax rate).
         var creditNoteLines = new List<CreditNoteLine>();
         long subtotal = 0, discount = 0, tax = 0, grand = 0;
-        foreach (var input in request.Lines)
+        foreach (var input in aggregatedRequest)
         {
             if (input.Qty <= 0)
             {
+                await tx.RollbackAsync(ct);
                 return new IssueCreditNoteResult(false, null, null, "credit_note.invalid_request",
                     $"Line {input.InvoiceLineId} qty must be positive.");
             }
             var originLine = invoice.Lines.FirstOrDefault(l => l.Id == input.InvoiceLineId);
             if (originLine is null)
             {
+                await tx.RollbackAsync(ct);
                 return new IssueCreditNoteResult(false, null, null, "credit_note.line_not_found",
                     $"Invoice line {input.InvoiceLineId} not found on invoice {invoice.Id}.");
             }
             var priorCreditedQty = priorCreditedByLine.GetValueOrDefault(originLine.Id, 0);
             if (priorCreditedQty + input.Qty > originLine.Qty)
             {
+                await tx.RollbackAsync(ct);
                 return new IssueCreditNoteResult(false, null, null, "credit_note.line_exceeds_invoice",
                     $"Credited qty {priorCreditedQty + input.Qty} exceeds invoice line qty {originLine.Qty} (prior {priorCreditedQty} + this {input.Qty}).");
             }
@@ -131,6 +173,7 @@ public sealed class IssueCreditNoteHandler(
             {
                 Id = Guid.NewGuid(),
                 InvoiceLineId = originLine.Id,
+                MarketCode = invoice.MarketCode,
                 Sku = originLine.Sku,
                 NameAr = originLine.NameAr,
                 NameEn = originLine.NameEn,
@@ -142,10 +185,10 @@ public sealed class IssueCreditNoteHandler(
                 TaxRateBp = originLine.TaxRateBp,
             });
         }
-        // B2 fix — cumulative refund total (existing prior + this) cannot exceed the original
-        // invoice grand total.
+        // CR1 / B2 — cumulative refund total cannot exceed the original invoice grand total.
         if (priorRefundedTotal + grand > invoice.GrandTotalMinor)
         {
+            await tx.RollbackAsync(ct);
             return new IssueCreditNoteResult(false, null, null, "credit_note.line_exceeds_invoice",
                 $"Cumulative credit-note total {priorRefundedTotal + grand} (prior {priorRefundedTotal} + this {grand}) "
                 + $"exceeds invoice grand total {invoice.GrandTotalMinor}.");
@@ -155,16 +198,18 @@ public sealed class IssueCreditNoteHandler(
         try { template = await templateResolver.LoadAsync(invoice.MarketCode, ct); }
         catch (InvalidOperationException ex)
         {
+            await tx.RollbackAsync(ct);
             return new IssueCreditNoteResult(false, null, null, "invoice.template.missing", ex.Message);
         }
 
         var nowUtc = DateTimeOffset.UtcNow;
-        var creditNoteNumber = await sequencer.NextAsync(invoice.MarketCode, nowUtc, ct);
+        // creditNoteNumber was preallocated above the tx (sequencer cold-path safety).
         var creditNote = new CreditNote
         {
             Id = Guid.NewGuid(),
-            CreditNoteNumber = creditNoteNumber,
+            CreditNoteNumber = creditNoteNumberPreallocated,
             InvoiceId = invoice.Id,
+            MarketCode = invoice.MarketCode,
             RefundId = request.RefundId,
             IssuedAt = nowUtc,
             SubtotalMinor = subtotal,
@@ -184,6 +229,7 @@ public sealed class IssueCreditNoteHandler(
         invoicesDb.RenderJobs.Add(new InvoiceRenderJob
         {
             CreditNoteId = creditNote.Id,
+            MarketCode = invoice.MarketCode,
             State = InvoiceRenderJob.StateQueued,
             NextAttemptAt = nowUtc,
             CreatedAt = nowUtc,
@@ -192,6 +238,7 @@ public sealed class IssueCreditNoteHandler(
         {
             EventType = "credit_note.issued",
             AggregateId = creditNote.Id,
+            MarketCode = invoice.MarketCode,
             PayloadJson = JsonSerializer.Serialize(new
             {
                 creditNoteId = creditNote.Id,
@@ -209,9 +256,11 @@ public sealed class IssueCreditNoteHandler(
         try
         {
             await invoicesDb.SaveChangesAsync(ct);
+            await tx.CommitAsync(ct);
         }
         catch (DbUpdateException ex) when (ex.InnerException is Npgsql.PostgresException pg && pg.SqlState == "23505")
         {
+            await tx.RollbackAsync(ct);
             var raced = await invoicesDb.CreditNotes.AsNoTracking()
                 .FirstOrDefaultAsync(c => c.RefundId == request.RefundId, ct);
             if (raced is not null)
@@ -224,7 +273,7 @@ public sealed class IssueCreditNoteHandler(
         metrics.IncrementCreditNoteIssued(invoice.MarketCode);
         logger.LogInformation(
             "invoices.credit_note.issued invoiceId={InvoiceId} creditNoteNumber={Number} refundId={RefundId}",
-            invoice.Id, creditNoteNumber, request.RefundId);
+            invoice.Id, creditNoteNumberPreallocated, request.RefundId);
         return new IssueCreditNoteResult(true, creditNote.Id, creditNote.CreditNoteNumber, null, null);
     }
 }

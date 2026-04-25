@@ -16,6 +16,8 @@ public sealed class InvoiceRenderJob
     public long Id { get; set; }
     public Guid? InvoiceId { get; set; }
     public Guid? CreditNoteId { get; set; }
+    /// <summary>Per-market partitioning (Principle 5 / ADR-010) — denormalised from the target.</summary>
+    public string MarketCode { get; set; } = string.Empty;
     public string State { get; set; } = StateQueued;
     public int Attempts { get; set; }
     public DateTimeOffset NextAttemptAt { get; set; }

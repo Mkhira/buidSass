@@ -89,11 +89,17 @@ public sealed class IssueOnCaptureHandler(
             .Where(a => a.Id == order.AccountId)
             .Select(a => new { a.DisplayName, a.EmailDisplay })
             .FirstOrDefaultAsync(ct);
+        // CR Major fix — store the fields the renderer reads at top level. Earlier shape
+        // nested billing under `address` and named the PO `poNumber`; the render model expects
+        // top-level `orderNumber` + `buyerVatNumber`. The renderer's reader is permissive (it
+        // ignores keys it doesn't know), so emitting both shapes here is forward-compatible.
         var billToBlock = JsonSerializer.Serialize(new
         {
             name = account?.DisplayName ?? "Customer",
             email = account?.EmailDisplay,
+            orderNumber = order.OrderNumber,
             poNumber = order.B2bPoNumber,
+            buyerVatNumber = (string?)null, // populated when spec 004 surfaces business profile
             address = TryParseJson(order.BillingAddressJson),
         });
         var sellerBlock = JsonSerializer.Serialize(new
@@ -105,13 +111,14 @@ public sealed class IssueOnCaptureHandler(
             addressEn = template.SellerAddressEn,
         });
 
+        var market = order.MarketCode;
         var invoice = new Invoice
         {
             Id = Guid.NewGuid(),
             InvoiceNumber = invoiceNumber,
             OrderId = order.Id,
             AccountId = order.AccountId,
-            MarketCode = order.MarketCode,
+            MarketCode = market,
             Currency = order.Currency,
             IssuedAt = nowUtc,
             PriceExplanationId = order.PriceExplanationId,
@@ -138,6 +145,7 @@ public sealed class IssueOnCaptureHandler(
                 Id = Guid.NewGuid(),
                 InvoiceId = invoice.Id,
                 OrderLineId = ol.Id,
+                MarketCode = market,
                 Sku = ol.Sku,
                 NameAr = ol.NameAr,
                 NameEn = ol.NameEn,
@@ -155,6 +163,7 @@ public sealed class IssueOnCaptureHandler(
         invoicesDb.RenderJobs.Add(new InvoiceRenderJob
         {
             InvoiceId = invoice.Id,
+            MarketCode = market,
             State = InvoiceRenderJob.StateQueued,
             Attempts = 0,
             NextAttemptAt = nowUtc,
@@ -164,6 +173,7 @@ public sealed class IssueOnCaptureHandler(
         {
             EventType = "invoice.issued",
             AggregateId = invoice.Id,
+            MarketCode = market,
             PayloadJson = JsonSerializer.Serialize(new
             {
                 invoiceId = invoice.Id,

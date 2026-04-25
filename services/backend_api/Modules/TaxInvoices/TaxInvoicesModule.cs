@@ -43,7 +43,15 @@ public static class TaxInvoicesModule
         services.AddScoped<Rendering.HtmlTemplateRenderer>();
         services.AddScoped<Rendering.PdfExporter>();
         services.AddScoped<Rendering.ZatcaQrEmbedder>();
-        services.AddScoped<Rendering.IInvoiceBlobStore, Rendering.LocalFsInvoiceBlobStore>();
+        // CR Major fix — LocalFs is dev/test/staging only. Production MUST register the Azure
+        // Blob implementation (research R10) so the residency wiring per ADR-010 holds.
+        if (hostEnvironment.IsDevelopment() || hostEnvironment.IsEnvironment("Test")
+            || hostEnvironment.IsStaging())
+        {
+            services.AddScoped<Rendering.IInvoiceBlobStore, Rendering.LocalFsInvoiceBlobStore>();
+        }
+        // Production: no IInvoiceBlobStore registered until the Azure adapter is wired —
+        // workers fail fast at first invoice issuance, which is the desired behaviour.
 
         // Issuance handlers (Phase D).
         services.AddScoped<Internal.IssueOnCapture.IssueOnCaptureHandler>();

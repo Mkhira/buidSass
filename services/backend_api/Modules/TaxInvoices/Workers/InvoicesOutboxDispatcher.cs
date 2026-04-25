@@ -42,12 +42,24 @@ public sealed class InvoicesOutboxDispatcher(
     {
         await using var scope = services.CreateAsyncScope();
         var db = scope.ServiceProvider.GetRequiredService<InvoicesDbContext>();
+        // CR Major fix — concurrent dispatcher replicas could each select the same pending
+        // rows and double-publish. Claim with FOR UPDATE SKIP LOCKED inside an explicit tx;
+        // the lock holds until commit so a peer's SELECT skips the rows we're working on.
+        await using var tx = await db.Database.BeginTransactionAsync(ct);
         var pending = await db.Outbox
-            .Where(e => e.DispatchedAt == null)
-            .OrderBy(e => e.CommittedAt)
-            .Take(BatchSize)
+            .FromSqlInterpolated($"""
+                SELECT * FROM invoices.invoices_outbox
+                WHERE "DispatchedAt" IS NULL
+                ORDER BY "CommittedAt"
+                LIMIT {BatchSize}
+                FOR UPDATE SKIP LOCKED
+                """)
             .ToListAsync(ct);
-        if (pending.Count == 0) return 0;
+        if (pending.Count == 0)
+        {
+            await tx.RollbackAsync(ct);
+            return 0;
+        }
         var nowUtc = DateTimeOffset.UtcNow;
         foreach (var entry in pending)
         {
@@ -57,6 +69,7 @@ public sealed class InvoicesOutboxDispatcher(
             entry.DispatchedAt = nowUtc;
         }
         await db.SaveChangesAsync(ct);
+        await tx.CommitAsync(ct);
         return pending.Count;
     }
 }

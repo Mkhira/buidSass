@@ -14,9 +14,12 @@ public interface IPaymentGateway
     bool Supports(string marketCode, string paymentMethod);
 
     Task<AuthorizeOutcome> AuthorizeAsync(AuthorizeRequest request, CancellationToken ct);
-    Task<CaptureOutcome> CaptureAsync(Guid providerTxnId, long amountMinor, CancellationToken ct);
-    Task<VoidOutcome> VoidAsync(Guid providerTxnId, string reason, CancellationToken ct);
-    Task<RefundOutcome> RefundAsync(Guid providerTxnId, long amountMinor, string reason, CancellationToken ct);
+    // CR review on PR #30 round 3: providerTxnId is `string` (matches AuthorizeOutcome +
+    // the `text` DB column). Real providers return id formats like Stripe `pi_...` or HyperPay
+    // `8a82944a...` that aren't GUIDs — forcing Guid here silently dropped compensation.
+    Task<CaptureOutcome> CaptureAsync(string providerTxnId, long amountMinor, CancellationToken ct);
+    Task<VoidOutcome> VoidAsync(string providerTxnId, string reason, CancellationToken ct);
+    Task<RefundOutcome> RefundAsync(string providerTxnId, long amountMinor, string reason, CancellationToken ct);
 
     /// <summary>
     /// Verify + interpret an inbound webhook. Returning a non-null result means the handler

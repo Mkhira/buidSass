@@ -33,13 +33,13 @@ public sealed class StubPaymentGateway : IPaymentGateway
             Kind: AuthorizeResultKind.CapturedSynchronously));
     }
 
-    public Task<CaptureOutcome> CaptureAsync(Guid providerTxnId, long amountMinor, CancellationToken ct)
+    public Task<CaptureOutcome> CaptureAsync(string providerTxnId, long amountMinor, CancellationToken ct)
         => Task.FromResult(new CaptureOutcome(true));
 
-    public Task<VoidOutcome> VoidAsync(Guid providerTxnId, string reason, CancellationToken ct)
+    public Task<VoidOutcome> VoidAsync(string providerTxnId, string reason, CancellationToken ct)
         => Task.FromResult(new VoidOutcome(true));
 
-    public Task<RefundOutcome> RefundAsync(Guid providerTxnId, long amountMinor, string reason, CancellationToken ct)
+    public Task<RefundOutcome> RefundAsync(string providerTxnId, long amountMinor, string reason, CancellationToken ct)
         => Task.FromResult(new RefundOutcome(true));
 
     public Task<WebhookTranslation?> HandleWebhookAsync(WebhookEnvelope envelope, CancellationToken ct)

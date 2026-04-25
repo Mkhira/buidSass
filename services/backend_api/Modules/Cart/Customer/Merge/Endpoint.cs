@@ -70,12 +70,18 @@ public static class Endpoint
             var anonLines = await db.CartLines.AsNoTracking().Where(l => l.CartId == anonCart.Id).ToListAsync(ct);
             var authLines = await db.CartLines.Where(l => l.CartId == authCart.Id).ToListAsync(ct);
 
-            // Pull max_per_order from catalog for every participating product.
+            // Pull max_per_order + restriction snapshot from catalog for every participating
+            // product. CR review PR #30 round 3: merged CartLines must carry the restricted
+            // flag so the eligibility evaluator + checkout restriction gate see them; the
+            // previous merge wrote `Restricted = false` regardless of the product.
             var productIds = anonLines.Select(l => l.ProductId).Concat(authLines.Select(l => l.ProductId)).Distinct().ToArray();
-            var productCaps = await catalogDb.Products.AsNoTracking()
+            var productMeta = await catalogDb.Products.AsNoTracking()
                 .Where(p => productIds.Contains(p.Id))
-                .Select(p => new { p.Id, p.MaxPerOrder })
-                .ToDictionaryAsync(x => x.Id, x => x.MaxPerOrder, ct);
+                .Select(p => new { p.Id, p.MaxPerOrder, p.Restricted, p.RestrictionReasonCode })
+                .ToListAsync(ct);
+            var productCaps = productMeta.ToDictionary(x => x.Id, x => x.MaxPerOrder);
+            var productRestriction = productMeta.ToDictionary(
+                x => x.Id, x => (x.Restricted, x.RestrictionReasonCode));
 
             var mergeAnon = anonLines.Select(l => new CartMerger.MergeLine(
                 l.ProductId, l.Qty, productCaps.GetValueOrDefault(l.ProductId, 0))).ToList();
@@ -155,6 +161,9 @@ public static class Endpoint
 
                 if (reservation.ReservationId is { } newId) createdReservations.Add(newId);
 
+                var (productRestricted, productRestrictionCode) =
+                    productRestriction.TryGetValue(mergedLine.ProductId, out var rs)
+                        ? rs : (false, (string?)null);
                 if (existing is null)
                 {
                     db.CartLines.Add(new CartLine
@@ -165,6 +174,8 @@ public static class Endpoint
                         ProductId = mergedLine.ProductId,
                         Qty = mergedLine.Qty,
                         ReservationId = reservation.ReservationId,
+                        Restricted = productRestricted,
+                        RestrictionReasonCode = productRestrictionCode,
                         AddedAt = nowUtc,
                         UpdatedAt = nowUtc,
                     });
@@ -173,6 +184,8 @@ public static class Endpoint
                 {
                     existing.Qty = mergedLine.Qty;
                     existing.ReservationId = reservation.ReservationId;
+                    existing.Restricted = productRestricted;
+                    existing.RestrictionReasonCode = productRestrictionCode;
                     existing.UpdatedAt = nowUtc;
                 }
             }

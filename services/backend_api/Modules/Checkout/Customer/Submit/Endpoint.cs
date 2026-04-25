@@ -69,7 +69,9 @@ public static class Endpoint
         {
             sessionId,
             providerToken = request?.ProviderToken ?? "",
-            accepted = request?.AcceptedTotalMinor ?? 0,
+            // CR review PR #30 round 3: keep the null-vs-0 distinction so a zero-grand-total
+            // checkout doesn't make `null` and `0` collapse to the same fingerprint.
+            accepted = request?.AcceptedTotalMinor,
         });
 
         // Atomic claim — see IdempotencyStore docstring. Two concurrent first-use submits
@@ -271,10 +273,16 @@ public static class Endpoint
                         ? PaymentAttemptStates.Authorized
                         : PaymentAttemptStates.PendingWebhook;
                 PaymentAttemptStates.TryTransition(attempt, authorizedTarget, DateTimeOffset.UtcNow);
+                // CR review on PR #30 round 3: persist the authorization (with provider txn id
+                // + state) BEFORE the next external call. A crash between Authorize and the
+                // order handler used to leave the DB with no record of the txn id, making
+                // reconciliation/compensation impossible.
+                await db.SaveChangesAsync(ct);
             }
             else
             {
                 PaymentAttemptStates.TryTransition(attempt, PaymentAttemptStates.PendingWebhook, DateTimeOffset.UtcNow);
+                await db.SaveChangesAsync(ct);
             }
 
             // Hand off to orders (spec 011 — today a stub). On failure we must compensate the
@@ -329,14 +337,16 @@ public static class Endpoint
                 // CR review on PR #30 round 2: branch compensation by attempt state. A void
                 // only releases an uncaptured authorization; if the gateway captured
                 // synchronously we MUST refund or the customer stays charged.
-                if (!isAsyncMethod && !string.IsNullOrEmpty(providerTxnId)
-                    && Guid.TryParse(providerTxnId, out var providerTxn))
+                // CR review on PR #30 round 3: providerTxnId is the raw string the gateway
+                // returned — no Guid.TryParse gate (real provider ids are not GUIDs). If we
+                // have any non-empty txn id, compensation runs.
+                if (!isAsyncMethod && !string.IsNullOrEmpty(providerTxnId))
                 {
                     if (string.Equals(attempt.State, PaymentAttemptStates.Captured, StringComparison.OrdinalIgnoreCase))
                     {
                         try
                         {
-                            await paymentGateway.RefundAsync(providerTxn, grandTotalMinor, "checkout.order_create_failed", ct);
+                            await paymentGateway.RefundAsync(providerTxnId, grandTotalMinor, "checkout.order_create_failed", ct);
                             PaymentAttemptStates.TryTransition(attempt, PaymentAttemptStates.Refunded, DateTimeOffset.UtcNow);
                         }
                         catch (Exception refundEx)
@@ -349,7 +359,7 @@ public static class Endpoint
                     }
                     else
                     {
-                        try { await paymentGateway.VoidAsync(providerTxn, "checkout.order_create_failed", ct); }
+                        try { await paymentGateway.VoidAsync(providerTxnId, "checkout.order_create_failed", ct); }
                         catch (Exception voidEx)
                         {
                             loggerFactory.CreateLogger("Checkout.Submit").LogWarning(voidEx,

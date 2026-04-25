@@ -162,11 +162,35 @@ public sealed class InvoiceRenderWorker(
         var sha = Convert.ToHexString(SHA256.HashData(pdfBytes)).ToLowerInvariant();
         var key = blobStore.ResolveInvoiceKey(invoice.MarketCode, invoice.IssuedAt, invoice.InvoiceNumber);
         await blobStore.PutAsync(key, pdfBytes, "application/pdf", ct);
+        // CR R2 Major fix — emit the terminal `invoice.regenerated` event when a regenerate
+        // job finishes. Detection: the invoice already had a PdfBlobKey from a prior render
+        // (RenderAttempts > 0). Spec 019 listens for `invoice.regenerated` to send the
+        // re-issue notification; without this emission the regenerate flow was open-ended.
+        var isRegenerate = invoice.RenderAttempts > 0;
+        var prevSha = invoice.PdfSha256;
         invoice.PdfBlobKey = key;
         invoice.PdfSha256 = sha;
         invoice.State = Invoice.StateRendered;
         invoice.RenderAttempts += 1;
         invoice.LastError = null;
+        if (isRegenerate)
+        {
+            db.Outbox.Add(new InvoicesOutboxEntry
+            {
+                EventType = "invoice.regenerated",
+                AggregateId = invoice.Id,
+                MarketCode = invoice.MarketCode,
+                PayloadJson = System.Text.Json.JsonSerializer.Serialize(new
+                {
+                    invoiceId = invoice.Id,
+                    invoiceNumber = invoice.InvoiceNumber,
+                    previousSha256 = prevSha,
+                    newSha256 = sha,
+                    blobKey = key,
+                }),
+                CommittedAt = DateTimeOffset.UtcNow,
+            });
+        }
         invoice.UpdatedAt = DateTimeOffset.UtcNow;
     }
 

@@ -114,12 +114,24 @@ public sealed class IssueCreditNoteHandler(
             .Where(c => c.InvoiceId == invoice.Id)
             .SumAsync(c => (long?)c.GrandTotalMinor, ct) ?? 0L;
 
-        // CR1 / B3 — sum prior credited qty PER ORIGINAL LINE.
+        // CR1 / B3 — sum prior credited qty + monetary amounts PER ORIGINAL LINE. The
+        // monetary sums (R2 Major fix) let the FINAL credit reclaim any rounding remainder
+        // that earlier partial credits floored away — a Qty=3 / LineDiscountMinor=1 line
+        // credited as 1+1+1 would produce 0+0+0 discount under the old re-rounded math, so
+        // the third partial would fail the cumulative-vs-original check even though the
+        // customer is crediting the entire original quantity.
         var priorCreditedByLine = await invoicesDb.CreditNoteLines.AsNoTracking()
             .Where(cnl => invoice.Lines.Select(l => l.Id).Contains(cnl.InvoiceLineId))
             .GroupBy(cnl => cnl.InvoiceLineId)
-            .Select(g => new { LineId = g.Key, TotalQty = g.Sum(x => x.Qty) })
-            .ToDictionaryAsync(x => x.LineId, x => x.TotalQty, ct);
+            .Select(g => new
+            {
+                LineId = g.Key,
+                TotalQty = g.Sum(x => x.Qty),
+                TotalDiscountMinor = g.Sum(x => x.LineDiscountMinor),
+                TotalTaxMinor = g.Sum(x => x.LineTaxMinor),
+                TotalLineTotalMinor = g.Sum(x => x.LineTotalMinor),
+            })
+            .ToDictionaryAsync(x => x.LineId, x => x, ct);
 
         // CR2 fix — aggregate duplicate InvoiceLineId entries in the SAME request before
         // running the per-line check. Without this, payload `[{lineA,2},{lineA,2}]` validates
@@ -148,21 +160,35 @@ public sealed class IssueCreditNoteHandler(
                 return new IssueCreditNoteResult(false, null, null, "credit_note.line_not_found",
                     $"Invoice line {input.InvoiceLineId} not found on invoice {invoice.Id}.");
             }
-            var priorCreditedQty = priorCreditedByLine.GetValueOrDefault(originLine.Id, 0);
+            var prior = priorCreditedByLine.GetValueOrDefault(originLine.Id);
+            var priorCreditedQty = prior?.TotalQty ?? 0;
             if (priorCreditedQty + input.Qty > originLine.Qty)
             {
                 await tx.RollbackAsync(ct);
                 return new IssueCreditNoteResult(false, null, null, "credit_note.line_exceeds_invoice",
                     $"Credited qty {priorCreditedQty + input.Qty} exceeds invoice line qty {originLine.Qty} (prior {priorCreditedQty} + this {input.Qty}).");
             }
-            // Pro-rate amounts by qty using the original tax rate. UnitPriceMinor × Qty is a
-            // long; the discount/tax pro-rate uses decimal to avoid integer truncation, then
-            // rounds back to minor units.
-            var ratio = (decimal)input.Qty / originLine.Qty;
+            // R2 Major fix — preserve rounding remainders across partial credits. For the
+            // FINAL credit (priorCreditedQty + input.Qty == originLine.Qty), allocate the
+            // exact leftover so the sum reconciles to the original line totals. Earlier
+            // credits floor the per-unit pro-rate; the final one inherits whatever rounding
+            // remainder is left.
             var lineSubtotal = (long)originLine.UnitPriceMinor * input.Qty;
-            var lineDiscount = (long)Math.Round(originLine.LineDiscountMinor * ratio);
-            var lineTax = (long)Math.Round(originLine.LineTaxMinor * ratio);
-            var lineTotal = lineSubtotal - lineDiscount + lineTax;
+            long lineDiscount, lineTax, lineTotal;
+            var isFinalCredit = priorCreditedQty + input.Qty == originLine.Qty;
+            if (isFinalCredit)
+            {
+                lineDiscount = originLine.LineDiscountMinor - (prior?.TotalDiscountMinor ?? 0);
+                lineTax = originLine.LineTaxMinor - (prior?.TotalTaxMinor ?? 0);
+                lineTotal = originLine.LineTotalMinor - (prior?.TotalLineTotalMinor ?? 0);
+            }
+            else
+            {
+                // Floor the per-unit pro-rate so leftover lands on the final credit.
+                lineDiscount = originLine.LineDiscountMinor * input.Qty / originLine.Qty;
+                lineTax = originLine.LineTaxMinor * input.Qty / originLine.Qty;
+                lineTotal = lineSubtotal - lineDiscount + lineTax;
+            }
 
             subtotal += lineSubtotal;
             discount += lineDiscount;

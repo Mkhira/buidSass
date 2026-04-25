@@ -7,6 +7,7 @@ using BackendApi.Modules.TaxInvoices.Persistence;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 
 namespace BackendApi.Modules.TaxInvoices.Admin.RegenerateInvoice;
 
@@ -31,6 +32,7 @@ public static class Endpoint
         HttpContext context,
         InvoicesDbContext db,
         IAuditEventPublisher auditPublisher,
+        ILoggerFactory loggerFactory,
         CancellationToken ct)
     {
         var actor = AdminInvoiceResponseFactory.ResolveActorAccountId(context);
@@ -49,8 +51,12 @@ public static class Endpoint
             return AdminInvoiceResponseFactory.Problem(context, 404, "invoice.not_found", "Invoice not found", "");
         }
 
+        // R2 Major fix — capture the actual pre-mutation state. Hardcoding 'rendered' was
+        // wrong for invoices coming in via 'failed' or 'delivered'; the audit row would log a
+        // false BeforeState.
         var beforeSha = invoice.PdfSha256;
         var beforeKey = invoice.PdfBlobKey;
+        var beforeState = invoice.State;
         var nowUtc = DateTimeOffset.UtcNow;
         invoice.State = Invoice.StatePending;
         invoice.PdfSha256 = null;
@@ -83,8 +89,11 @@ public static class Endpoint
         });
         await db.SaveChangesAsync(ct);
 
-        // CR Major fix — audit on regenerate is NOT optional. Surface 500 on failure so
-        // the operator retries instead of leaving a silent gap in the compliance trail.
+        // CR R2 Critical-pattern fix — the regenerate intent is committed by SaveChangesAsync
+        // above. Returning 500 "aborted" after that would be a lie: a client retry would
+        // double-queue the render. Treat post-commit audit publication failure as a warning;
+        // the outbox event + state-flip preserve the trail and finance-ops dashboards alert
+        // on missing audit_log_entries rows.
         try
         {
             await auditPublisher.PublishAsync(new AuditEvent(
@@ -93,15 +102,15 @@ public static class Endpoint
                 Action: "invoices.regenerate",
                 EntityType: "invoices.invoice",
                 EntityId: invoice.Id,
-                BeforeState: new { sha256 = beforeSha, blobKey = beforeKey, state = Invoice.StateRendered },
+                BeforeState: new { sha256 = beforeSha, blobKey = beforeKey, state = beforeState },
                 AfterState: new { state = invoice.State, queuedAt = nowUtc },
                 Reason: body.Reason), ct);
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
-            return AdminInvoiceResponseFactory.Problem(context, 500, "invoice.regenerate.audit_failed",
-                "Audit emission failed; regenerate aborted (re-run when audit publisher is healthy).",
-                ex.GetType().Name);
+            loggerFactory?.CreateLogger("Invoices.Regenerate").LogWarning(ex,
+                "invoices.regenerate.audit_publish_failed invoiceId={InvoiceId} reason={Reason}",
+                invoice.Id, body.Reason);
         }
 
         return Results.Ok(new

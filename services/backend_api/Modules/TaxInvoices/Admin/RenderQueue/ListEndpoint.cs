@@ -31,10 +31,14 @@ public static class ListEndpoint
                 state = j.State,
                 attempts = j.Attempts,
                 nextAttemptAt = j.NextAttemptAt,
-                // CR Major fix — never expose raw `lastError` strings. Worker may stamp DB
-                // connection messages or stack-frame fragments; admin UI sees a redacted
-                // summary only. Operators with DB access can inspect the full string.
-                lastErrorClass = j.LastError == null ? null : j.LastError.Substring(0, Math.Min(80, j.LastError.Length)),
+                // CR R2 Major fix — taking the first 80 chars still leaks message content
+                // (DB hostnames, paths, stack-frame fragments). The worker stamps
+                // `ExceptionType: message`; project ONLY the type token before the colon so
+                // the admin UI sees a category, not user/system data. Operators with DB
+                // access can inspect the full string out-of-band.
+                lastErrorClass = j.LastError == null
+                    ? null
+                    : j.LastError.Split(':', 2, StringSplitOptions.TrimEntries)[0],
             })
             .Take(200)
             .ToListAsync(ct);

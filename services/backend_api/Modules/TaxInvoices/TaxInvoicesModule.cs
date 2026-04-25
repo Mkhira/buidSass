@@ -43,15 +43,28 @@ public static class TaxInvoicesModule
         services.AddScoped<Rendering.HtmlTemplateRenderer>();
         services.AddScoped<Rendering.PdfExporter>();
         services.AddScoped<Rendering.ZatcaQrEmbedder>();
-        // CR Major fix — LocalFs is dev/test/staging only. Production MUST register the Azure
-        // Blob implementation (research R10) so the residency wiring per ADR-010 holds.
+        // LocalFs is dev/test/staging only. Production MUST register the Azure Blob
+        // implementation (research R10) so the residency wiring per ADR-010 holds.
         if (hostEnvironment.IsDevelopment() || hostEnvironment.IsEnvironment("Test")
             || hostEnvironment.IsStaging())
         {
             services.AddScoped<Rendering.IInvoiceBlobStore, Rendering.LocalFsInvoiceBlobStore>();
         }
-        // Production: no IInvoiceBlobStore registered until the Azure adapter is wired —
-        // workers fail fast at first invoice issuance, which is the desired behaviour.
+        // CR R2 Major fix — fail-fast at startup in production if no IInvoiceBlobStore is
+        // wired. Without this guard the app would happily accept payment.captured events,
+        // persist invoices, and queue render jobs that never resolve a blob store; the only
+        // sign of trouble would be the worker logs hours later. Throwing here makes the
+        // misconfiguration loud at process boot.
+        if (hostEnvironment.IsProduction())
+        {
+            var hasBlobStore = services.Any(d => d.ServiceType == typeof(Rendering.IInvoiceBlobStore));
+            if (!hasBlobStore)
+            {
+                throw new InvalidOperationException(
+                    "TaxInvoicesModule requires an IInvoiceBlobStore registration in production. "
+                    + "Wire the Azure Blob adapter (research R10 / ADR-010) before AddTaxInvoicesModule.");
+            }
+        }
 
         // Issuance handlers (Phase D).
         services.AddScoped<Internal.IssueOnCapture.IssueOnCaptureHandler>();

@@ -7,6 +7,7 @@ using BackendApi.Modules.TaxInvoices.Persistence;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 
 namespace BackendApi.Modules.TaxInvoices.Admin.ResendInvoice;
 
@@ -30,6 +31,7 @@ public static class Endpoint
         HttpContext context,
         InvoicesDbContext db,
         IAuditEventPublisher auditPublisher,
+        ILoggerFactory loggerFactory,
         CancellationToken ct)
     {
         var actor = AdminInvoiceResponseFactory.ResolveActorAccountId(context);
@@ -74,7 +76,13 @@ public static class Endpoint
         });
         await db.SaveChangesAsync(ct);
 
-        // CR Major fix — audit on admin resend is NOT optional. Surface 500 on failure.
+        // CR R2 Critical fix — the resend intent is already committed via SaveChangesAsync
+        // above. Returning 500 "aborted" after that would be a lie: a client retry would
+        // enqueue a duplicate `invoice.resend_requested` event. Treat post-commit audit
+        // publication failure as a warning (the state-machine trail is preserved by the
+        // outbox row + spec 003's eventual-consistency replay path). The admin audit gap
+        // surfaces as a missing entry in the audit_log_entries query, which finance-ops
+        // dashboards already alert on.
         try
         {
             await auditPublisher.PublishAsync(new AuditEvent(
@@ -89,9 +97,9 @@ public static class Endpoint
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
-            return AdminInvoiceResponseFactory.Problem(context, 500, "invoice.resend.audit_failed",
-                "Audit emission failed; resend aborted (re-run when audit publisher is healthy).",
-                ex.GetType().Name);
+            loggerFactory?.CreateLogger("Invoices.Resend").LogWarning(ex,
+                "invoices.resend.audit_publish_failed invoiceId={InvoiceId} channel={Channel}",
+                invoice.Id, channel);
         }
 
         return Results.Ok(new { invoiceId = invoice.Id, channel, invoiceNumber = invoice.InvoiceNumber });

@@ -101,7 +101,13 @@ public static class Endpoint
             }),
             transitions = transitions.Select(t => new
             {
-                t.Machine, t.FromState, t.ToState, t.OccurredAt, t.ActorAccountId, t.Trigger, t.Reason,
+                t.Machine,
+                t.FromState,
+                t.ToState,
+                t.OccurredAt,
+                t.ActorAccountId,
+                t.Trigger,
+                t.Reason,
             }),
         });
     }

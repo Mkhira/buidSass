@@ -49,9 +49,17 @@ public static class Endpoint
             .Take(ps)
             .Select(o => new
             {
-                o.Id, o.OrderNumber, o.PlacedAt, o.GrandTotalMinor, o.Currency,
-                o.AccountId, o.MarketCode,
-                o.OrderState, o.PaymentState, o.FulfillmentState, o.RefundState,
+                o.Id,
+                o.OrderNumber,
+                o.PlacedAt,
+                o.GrandTotalMinor,
+                o.Currency,
+                o.AccountId,
+                o.MarketCode,
+                o.OrderState,
+                o.PaymentState,
+                o.FulfillmentState,
+                o.RefundState,
             })
             .ToListAsync(ct);
 

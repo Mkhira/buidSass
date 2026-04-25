@@ -14,7 +14,7 @@ public static class MarketCurrency
         new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
         {
             ["KSA"] = "SAR",
-            ["EG"]  = "EGP",
+            ["EG"] = "EGP",
         };
 
     public static string Resolve(string marketCode) =>

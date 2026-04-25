@@ -87,7 +87,12 @@ public sealed class CreateFromCheckoutHandler(
             .Where(p => productIds.Contains(p.Id))
             .Select(p => new
             {
-                p.Id, p.Sku, p.NameAr, p.NameEn, p.AttributesJson, p.Restricted,
+                p.Id,
+                p.Sku,
+                p.NameAr,
+                p.NameEn,
+                p.AttributesJson,
+                p.Restricted,
             })
             .ToDictionaryAsync(p => p.Id, cancellationToken);
 

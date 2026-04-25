@@ -9,6 +9,7 @@ using BackendApi.Modules.Search;
 using BackendApi.Modules.Inventory;
 using BackendApi.Modules.Cart;
 using BackendApi.Modules.Checkout;
+using BackendApi.Modules.Orders;
 using BackendApi.Modules.Shared;
 using Microsoft.EntityFrameworkCore;
 using Serilog;
@@ -60,6 +61,7 @@ builder.Services.AddPricingModule(builder.Configuration, builder.Environment);
 builder.Services.AddInventoryModule(builder.Configuration, builder.Environment);
 builder.Services.AddCartModule(builder.Configuration, builder.Environment);
 builder.Services.AddCheckoutModule(builder.Configuration, builder.Environment);
+builder.Services.AddOrdersModule(builder.Configuration, builder.Environment);
 builder.Services.AddSeeding(builder.Configuration);
 
 var app = builder.Build();
@@ -82,6 +84,7 @@ app.UsePricingModuleEndpoints();
 app.UseInventoryModuleEndpoints();
 app.UseCartModuleEndpoints();
 app.UseCheckoutModuleEndpoints();
+app.UseOrdersModuleEndpoints();
 
 if (app.Environment.IsDevelopment())
 {

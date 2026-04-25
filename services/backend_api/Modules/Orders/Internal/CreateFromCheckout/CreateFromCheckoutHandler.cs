@@ -3,6 +3,7 @@ using BackendApi.Modules.AuditLog;
 using BackendApi.Modules.Catalog.Persistence;
 using BackendApi.Modules.Inventory.Persistence;
 using BackendApi.Modules.Inventory.Primitives;
+using BackendApi.Modules.Observability;
 using BackendApi.Modules.Orders.Entities;
 using BackendApi.Modules.Orders.Persistence;
 using BackendApi.Modules.Orders.Primitives;
@@ -38,6 +39,13 @@ public sealed class CreateFromCheckoutHandler(
 {
     public async Task<OrderFromCheckoutResult> CreateAsync(OrderFromCheckoutRequest request, CancellationToken cancellationToken)
     {
+        // I2 — explicit span links the checkout.confirm trace to order.placed. Tagged with
+        // market + sessionId so trace explorers can filter quickly.
+        using var activity = OrdersTracing.Source.StartActivity("orders.create_from_checkout");
+        activity?.SetTag("orders.market", request.MarketCode);
+        activity?.SetTag("orders.session_id", request.SessionId);
+        activity?.SetTag("orders.payment_method", request.PaymentMethod);
+
         if (request.PreallocatedOrderId == Guid.Empty)
         {
             return Failure("orders.create.preallocated_id_missing", "Pre-allocated order id is required.");
@@ -274,6 +282,10 @@ public sealed class CreateFromCheckoutHandler(
                     "orders.create.awaiting_stock_persist_failed orderId={OrderId}", order.Id);
             }
         }
+
+        activity?.SetTag("orders.order_id", order.Id);
+        activity?.SetTag("orders.order_number", order.OrderNumber);
+        activity?.SetTag("orders.outcome", "success");
 
         logger.LogInformation(
             "orders.create.success orderId={OrderId} orderNumber={OrderNumber} paymentState={PaymentState}",

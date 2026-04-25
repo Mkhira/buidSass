@@ -1,6 +1,18 @@
+using System.Diagnostics;
 using System.Diagnostics.Metrics;
 
 namespace BackendApi.Modules.Observability;
+
+/// <summary>
+/// I2 — explicit ActivitySource for orders flows. Attached to <c>orders.create_from_checkout</c>
+/// and <c>orders.outbox.dispatch</c> spans so traces show the parent
+/// <c>checkout.confirm → order.placed</c> link clearly.
+/// </summary>
+public static class OrdersTracing
+{
+    public const string ActivitySourceName = "DentalCommerce.Orders";
+    public static readonly ActivitySource Source = new(ActivitySourceName);
+}
 
 /// <summary>
 /// I1 — orders module metrics. Mirrors <see cref="InventoryMetrics"/> / <see cref="SearchMetrics"/>

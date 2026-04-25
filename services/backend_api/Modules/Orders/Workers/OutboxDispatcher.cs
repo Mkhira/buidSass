@@ -1,3 +1,4 @@
+using BackendApi.Modules.Observability;
 using BackendApi.Modules.Orders.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
@@ -47,6 +48,7 @@ public sealed class OutboxDispatcher(
 
     private async Task<int> DispatchBatchAsync(CancellationToken ct)
     {
+        using var activity = OrdersTracing.Source.StartActivity("orders.outbox.dispatch");
         await using var scope = services.CreateAsyncScope();
         var db = scope.ServiceProvider.GetRequiredService<OrdersDbContext>();
         var pending = await db.Outbox
@@ -56,6 +58,7 @@ public sealed class OutboxDispatcher(
             .ToListAsync(ct);
         if (pending.Count == 0) return 0;
 
+        activity?.SetTag("orders.outbox.batch_size", pending.Count);
         var nowUtc = DateTimeOffset.UtcNow;
         foreach (var entry in pending)
         {

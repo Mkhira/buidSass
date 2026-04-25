@@ -47,18 +47,19 @@ public static class Endpoint
             })
             .ToListAsync(ct);
 
-        // Spec 003 audit_log_entries: cross-schema read (research R12 — same monolith DB).
+        // Spec 003 audit_log_entries lives in the public schema (default monolith DB). Read
+        // is cross-module — research R12 documents this as the AppDbContext seam.
         var auditEntries = await appDb.Database
             .SqlQueryRaw<AuditRow>(
                 """
                 SELECT "Id" AS Id, "ActorId" AS ActorId, "ActorRole" AS ActorRole,
                        "Action" AS Action, "EntityType" AS EntityType, "EntityId" AS EntityId,
-                       "BeforeJson" AS BeforeJson, "AfterJson" AS AfterJson,
+                       "BeforeState" AS BeforeJson, "AfterState" AS AfterJson,
                        "Reason" AS Reason, "OccurredAt" AS OccurredAt
-                FROM audit.audit_log_entries
-                WHERE "EntityType" = 'orders.order' AND "EntityId" = {0}::text
+                FROM audit_log_entries
+                WHERE "EntityType" = 'orders.order' AND "EntityId" = {0}
                 ORDER BY "OccurredAt"
-                """, id.ToString())
+                """, id)
             .ToListAsync(ct);
 
         return Results.Ok(new
@@ -71,6 +72,6 @@ public static class Endpoint
     }
 
     private sealed record AuditRow(
-        long Id, Guid ActorId, string ActorRole, string Action, string EntityType, string EntityId,
+        Guid Id, Guid ActorId, string ActorRole, string Action, string EntityType, Guid EntityId,
         string? BeforeJson, string? AfterJson, string? Reason, DateTimeOffset OccurredAt);
 }

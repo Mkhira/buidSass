@@ -60,6 +60,9 @@ public static class CheckoutModule
             services.AddSingleton<Primitives.Payment.IPaymentGateway, Primitives.Payment.StubPaymentGateway>();
             services.AddSingleton<Primitives.Shipping.IShippingProvider, Primitives.Shipping.StubShippingProvider>();
             services.AddScoped<BackendApi.Modules.Shared.IOrderFromCheckoutHandler, Primitives.StubOrderFromCheckoutHandler>();
+            // Spec 011 F1 — no-op order payment-state hook for Dev/Test. Orders' real handler
+            // overrides this when AddOrdersModule is called (LAST registration wins).
+            services.AddScoped<BackendApi.Modules.Shared.IOrderPaymentStateHook, Primitives.StubOrderPaymentStateHook>();
         }
 
         if (!hostEnvironment.IsEnvironment("Test"))

@@ -47,6 +47,12 @@ public static class OrdersModule
         services.AddScoped<BackendApi.Modules.Shared.IOrderFromCheckoutHandler,
             Internal.CreateFromCheckout.CreateFromCheckoutHandler>();
 
+        // Spec 011 F1 — Checkout's payment-gateway webhook calls this seam after advancing a
+        // PaymentAttempt; it advances the corresponding Order's payment_state and emits
+        // payment.captured (FR-015) for spec 012's invoice issuance.
+        services.AddScoped<BackendApi.Modules.Shared.IOrderPaymentStateHook,
+            Internal.PaymentWebhookAdvance.PaymentWebhookAdvanceHandler>();
+
         if (!hostEnvironment.IsEnvironment("Test"))
         {
             services.AddHostedService<Workers.OutboxDispatcher>();

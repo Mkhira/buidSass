@@ -47,6 +47,7 @@ public static class Endpoint
         IdempotencyStore idempotencyStore,
         IOrderFromCheckoutHandler orderHandler,
         CheckoutMetrics metrics,
+        CheckoutAuditEmitter audit,
         ILoggerFactory loggerFactory,
         CancellationToken ct)
     {
@@ -214,6 +215,10 @@ public static class Endpoint
             {
                 return CustomerCheckoutResponseFactory.Problem(context, 409, "checkout.concurrency_conflict", "Concurrent submit", "");
             }
+            // FR-015: audit submitted transition (just before any external side effects).
+            await audit.EmitSessionTransitionAsync(
+                session, CheckoutAuditActions.SessionSubmitted, accountId, CheckoutAuditEmitter.CustomerRole,
+                reason: $"method={method} amount={grandTotalMinor}", ct);
 
             // Bank transfer + COD skip the gateway — the order is created in pending state.
             var isAsyncMethod = string.Equals(method, PaymentMethodCatalog.BankTransfer, StringComparison.OrdinalIgnoreCase)
@@ -245,6 +250,11 @@ public static class Endpoint
                         "checkout.submit.gateway_threw sessionId={SessionId}", session.Id);
                     metrics.IncrementOutcome(session.MarketCode, "failed");
                     metrics.RecordSubmitDuration(stopwatch.Elapsed.TotalMilliseconds, session.MarketCode, "failed");
+                    // FR-015: audit payment.failed + session.failed (followed by retry-back to payment_selected).
+                    await audit.EmitPaymentTransitionAsync(attempt,
+                        CheckoutAuditActions.ForAttemptState(attempt.State), accountId, "gateway_threw", ct);
+                    await audit.EmitSessionTransitionAsync(session,
+                        CheckoutAuditActions.SessionFailed, accountId, CheckoutAuditEmitter.SystemRole, "gateway_threw", ct);
                     return CustomerCheckoutResponseFactory.Problem(context, 502, "checkout.payment.gateway_threw",
                         "Payment gateway error", "Retry the submit; the payment was not authorized.");
                 }
@@ -262,6 +272,11 @@ public static class Endpoint
                     await db.SaveChangesAsync(ct);
                     metrics.IncrementOutcome(session.MarketCode, "declined");
                     metrics.RecordSubmitDuration(stopwatch.Elapsed.TotalMilliseconds, session.MarketCode, "declined");
+                    // FR-015: audit payment.declined + session.failed.
+                    await audit.EmitPaymentTransitionAsync(attempt,
+                        CheckoutAuditActions.ForAttemptState(attempt.State), accountId, authorize.ErrorCode, ct);
+                    await audit.EmitSessionTransitionAsync(session,
+                        CheckoutAuditActions.SessionFailed, accountId, CheckoutAuditEmitter.SystemRole, authorize.ErrorCode, ct);
                     return CustomerCheckoutResponseFactory.Problem(context, 402, "checkout.payment.declined",
                         "Payment declined", authorize.ErrorMessage ?? "Try a different payment method.");
                 }
@@ -278,11 +293,19 @@ public static class Endpoint
                 // order handler used to leave the DB with no record of the txn id, making
                 // reconciliation/compensation impossible.
                 await db.SaveChangesAsync(ct);
+                // FR-015: audit the authorization outcome (authorized | captured | pending_webhook).
+                await audit.EmitPaymentTransitionAsync(attempt,
+                    CheckoutAuditActions.ForAttemptState(attempt.State), accountId,
+                    reason: $"providerTxnId={providerTxnId}", ct);
             }
             else
             {
                 PaymentAttemptStates.TryTransition(attempt, PaymentAttemptStates.PendingWebhook, DateTimeOffset.UtcNow);
                 await db.SaveChangesAsync(ct);
+                // Bank-transfer / COD path: pending webhook (admin reconciliation).
+                await audit.EmitPaymentTransitionAsync(attempt,
+                    CheckoutAuditActions.PaymentPendingWebhook, accountId,
+                    reason: $"async_method={method}", ct);
             }
 
             // Hand off to orders (spec 011 — today a stub). On failure we must compensate the
@@ -377,6 +400,17 @@ public static class Endpoint
                     session.Id, orderResult.ErrorCode);
                 metrics.IncrementOutcome(session.MarketCode, "failed");
                 metrics.RecordSubmitDuration(stopwatch.Elapsed.TotalMilliseconds, session.MarketCode, "failed");
+                // FR-015: audit the compensation transition (refunded | voided) + session.failed.
+                if (!isAsyncMethod && !string.IsNullOrEmpty(providerTxnId)
+                    && (attempt.State == PaymentAttemptStates.Refunded || attempt.State == PaymentAttemptStates.Voided))
+                {
+                    await audit.EmitPaymentTransitionAsync(attempt,
+                        CheckoutAuditActions.ForAttemptState(attempt.State), accountId,
+                        reason: $"order_create_failed:{orderResult.ErrorCode}", ct);
+                }
+                await audit.EmitSessionTransitionAsync(session,
+                    CheckoutAuditActions.SessionFailed, accountId, CheckoutAuditEmitter.SystemRole,
+                    reason: orderResult.ErrorCode, ct);
                 return CustomerCheckoutResponseFactory.Problem(context, 500, "checkout.order_create_failed",
                     "Order creation failed", orderResult.ErrorMessage ?? "Operator will refund any captured payment.");
             }
@@ -436,6 +470,11 @@ public static class Endpoint
             claimFinalized = true;
             metrics.IncrementOutcome(session.MarketCode, "confirmed");
             metrics.RecordSubmitDuration(stopwatch.Elapsed.TotalMilliseconds, session.MarketCode, "confirmed");
+            // FR-015: audit confirmed transition. Outside the scope so an audit-publisher hiccup
+            // can't roll back the customer-visible confirmation; SafeEmitAsync swallows on throw.
+            await audit.EmitSessionTransitionAsync(session,
+                CheckoutAuditActions.SessionConfirmed, accountId, CheckoutAuditEmitter.SystemRole,
+                reason: $"orderId={orderResult.OrderId}", ct);
             return Results.Json(response, statusCode: 200);
         }
         finally

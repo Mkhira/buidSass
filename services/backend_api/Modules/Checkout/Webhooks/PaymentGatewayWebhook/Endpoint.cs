@@ -23,6 +23,7 @@ public static class Endpoint
         HttpContext context,
         CheckoutDbContext db,
         IEnumerable<IPaymentGateway> gateways,
+        CheckoutAuditEmitter audit,
         ILoggerFactory loggerFactory,
         CancellationToken ct)
     {
@@ -95,6 +96,12 @@ public static class Endpoint
                     "checkout.webhook.duplicate providerId={ProviderId} eventId={EventId} alreadyHandled={Handled}",
                     providerId, providerEventId, existing?.HandledAt is not null);
                 await tx.RollbackAsync(ct);
+                // FR-015: audit the deduped delivery (uses the existing row id when known so
+                // operators can correlate; falls back to the rejected `record` id otherwise).
+                if (existing is not null)
+                {
+                    await audit.EmitWebhookAsync(existing, CheckoutAuditActions.WebhookDeduped, ct);
+                }
                 return Results.StatusCode(200);
             }
             record = existing;
@@ -142,6 +149,17 @@ public static class Endpoint
         }
         await db.SaveChangesAsync(ct);
         await tx.CommitAsync(ct);
+
+        // FR-015: emit AFTER commit. Two rows: webhook.received (always) + payment.<state>
+        // when an attempt was matched and transitioned by translation.
+        await audit.EmitWebhookAsync(record, CheckoutAuditActions.WebhookReceived, ct);
+        if (attempt is not null && record.HandledAt is not null)
+        {
+            await audit.EmitPaymentTransitionAsync(attempt,
+                CheckoutAuditActions.ForAttemptState(attempt.State),
+                actorAccountId: CheckoutSystemActors.Webhook,
+                reason: $"webhook providerEventId={providerEventId}", ct);
+        }
         return Results.StatusCode(200);
     }
 }

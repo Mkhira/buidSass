@@ -30,6 +30,7 @@ public static class Endpoint
         PaymentMethodCatalog methodCatalog,
         PricingDbContext pricingDb,
         CatalogDbContext catalogDb,
+        CheckoutAuditEmitter audit,
         CancellationToken ct)
     {
         if (string.IsNullOrWhiteSpace(request?.Method))
@@ -103,6 +104,15 @@ public static class Endpoint
         catch (DbUpdateException ex) when (CustomerCheckoutResponseFactory.IsConcurrencyConflict(ex))
         {
             return CustomerCheckoutResponseFactory.Problem(context, 409, "checkout.concurrency_conflict", "Concurrency conflict", "Retry.");
+        }
+
+        // FR-015: audit payment_selected (only on the actual transition).
+        if (session.State == CheckoutStates.PaymentSelected)
+        {
+            await audit.EmitSessionTransitionAsync(
+                session, CheckoutAuditActions.SessionPaymentSelected, accountId,
+                accountId is null ? CheckoutAuditEmitter.SystemRole : CheckoutAuditEmitter.CustomerRole,
+                reason: $"method={method}", ct);
         }
         return Results.Ok(new { sessionId = session.Id, state = session.State, paymentMethod = session.PaymentMethod });
     }

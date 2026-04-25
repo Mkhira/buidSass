@@ -42,6 +42,7 @@ public static class CheckoutModule
         services.AddSingleton<Primitives.PaymentMethodCatalog>();
         services.AddSingleton<Primitives.DriftDetector>();
         services.AddScoped<Primitives.IdempotencyStore>();
+        services.AddScoped<Primitives.CheckoutAuditEmitter>();
 
         // Stub gateway / shipping / order-handler are ONLY safe in Development + Test. In any
         // other environment we register NOTHING — DI will then throw at first endpoint

@@ -23,6 +23,7 @@ public static class Endpoint
         HttpContext context,
         CheckoutDbContext db,
         CartTokenProvider cartTokenProvider,
+        CheckoutAuditEmitter audit,
         CancellationToken ct)
     {
         if (string.IsNullOrWhiteSpace(request?.ProviderId) || string.IsNullOrWhiteSpace(request?.MethodCode))
@@ -69,6 +70,15 @@ public static class Endpoint
         catch (DbUpdateException ex) when (CustomerCheckoutResponseFactory.IsConcurrencyConflict(ex))
         {
             return CustomerCheckoutResponseFactory.Problem(context, 409, "checkout.concurrency_conflict", "Concurrency conflict", "Retry.");
+        }
+
+        // FR-015: audit shipping_selected (only on the actual transition, not idempotent re-selects).
+        if (session.State == CheckoutStates.ShippingSelected)
+        {
+            await audit.EmitSessionTransitionAsync(
+                session, CheckoutAuditActions.SessionShippingSelected, accountId,
+                accountId is null ? CheckoutAuditEmitter.SystemRole : CheckoutAuditEmitter.CustomerRole,
+                reason: $"provider={quote.ProviderId} method={quote.MethodCode}", ct);
         }
         return Results.Ok(new { sessionId = session.Id, state = session.State });
     }

@@ -24,6 +24,7 @@ public static class Endpoint
         HttpContext context,
         CheckoutDbContext db,
         CartTokenProvider cartTokenProvider,
+        CheckoutAuditEmitter audit,
         CancellationToken ct)
     {
         if (request is null || request.Shipping is null || !request.Shipping.IsMinimallyValid())
@@ -72,6 +73,15 @@ public static class Endpoint
         catch (DbUpdateException ex) when (CustomerCheckoutResponseFactory.IsConcurrencyConflict(ex))
         {
             return CustomerCheckoutResponseFactory.Problem(context, 409, "checkout.concurrency_conflict", "Concurrency conflict", "Retry.");
+        }
+
+        // FR-015: audit the addressed transition.
+        if (session.State == CheckoutStates.Addressed)
+        {
+            await audit.EmitSessionTransitionAsync(
+                session, CheckoutAuditActions.SessionAddressed, accountId,
+                accountId is null ? CheckoutAuditEmitter.SystemRole : CheckoutAuditEmitter.CustomerRole,
+                reason: addressChanged ? "address_changed" : "address_set", ct);
         }
         return Results.Ok(new { sessionId = session.Id, state = session.State, expiresAt = session.ExpiresAt });
     }

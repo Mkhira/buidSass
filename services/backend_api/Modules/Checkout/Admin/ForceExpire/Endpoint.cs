@@ -28,7 +28,7 @@ public static class Endpoint
         ForceExpireRequest? request,
         HttpContext context,
         CheckoutDbContext db,
-        IAuditEventPublisher auditEventPublisher,
+        CheckoutAuditEmitter audit,
         CancellationToken ct)
     {
         var actorId = AdminCheckoutResponseFactory.ResolveActorAccountId(context);
@@ -50,16 +50,13 @@ public static class Endpoint
         session.FailureReasonCode = request?.Reason ?? "checkout.admin_expired";
         await db.SaveChangesAsync(ct);
 
-        // SC-009: audit row with actor + reason.
-        await auditEventPublisher.PublishAsync(new AuditEvent(
-            actorId,
-            "admin",
-            "checkout.admin_expired",
-            nameof(Entities.CheckoutSession),
-            session.Id,
-            null,
-            new { sessionId = session.Id, reason = session.FailureReasonCode, session.CartId, session.AccountId },
-            "checkout.admin.expire"), ct);
+        // SC-009 + FR-015: audit row with admin actor + reason. Routed through the centralised
+        // emitter so the action vocabulary stays consistent with customer-side transitions.
+        await audit.EmitSessionTransitionAsync(
+            session, CheckoutAuditActions.SessionAdminExpired,
+            actorAccountId: actorId,
+            actorRole: CheckoutAuditEmitter.AdminRole,
+            reason: session.FailureReasonCode, ct);
 
         return Results.Ok(new { sessionId = session.Id, state = session.State, expiredAt = session.ExpiredAt });
     }

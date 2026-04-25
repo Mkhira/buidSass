@@ -36,7 +36,7 @@ public static class Endpoint
     {
         if (request.Qty < 0)
         {
-            return CustomerCartResponseFactory.Problem(context, 400, "cart.below_min_qty", "Qty must be >= 0", "Use qty=0 to remove.");
+            return CustomerCartResponseFactory.Problem(context, 400, "cart.invalid_qty", "Qty must be >= 0", "Use qty=0 to remove.");
         }
         if (string.IsNullOrWhiteSpace(request.MarketCode))
         {

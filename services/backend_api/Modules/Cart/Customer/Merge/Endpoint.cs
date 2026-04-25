@@ -4,6 +4,7 @@ using BackendApi.Modules.Cart.Persistence;
 using BackendApi.Modules.Cart.Primitives;
 using BackendApi.Modules.Catalog.Persistence;
 using BackendApi.Modules.Inventory.Persistence;
+using BackendApi.Modules.Pricing.Persistence;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.EntityFrameworkCore;
@@ -29,6 +30,7 @@ public static class Endpoint
         CartDbContext db,
         CatalogDbContext catalogDb,
         InventoryDbContext inventoryDb,
+        PricingDbContext pricingDb,
         CartResolver resolver,
         CartMerger merger,
         CartViewBuilder viewBuilder,
@@ -68,12 +70,18 @@ public static class Endpoint
             var anonLines = await db.CartLines.AsNoTracking().Where(l => l.CartId == anonCart.Id).ToListAsync(ct);
             var authLines = await db.CartLines.Where(l => l.CartId == authCart.Id).ToListAsync(ct);
 
-            // Pull max_per_order from catalog for every participating product.
+            // Pull max_per_order + restriction snapshot from catalog for every participating
+            // product. CR review PR #30 round 3: merged CartLines must carry the restricted
+            // flag so the eligibility evaluator + checkout restriction gate see them; the
+            // previous merge wrote `Restricted = false` regardless of the product.
             var productIds = anonLines.Select(l => l.ProductId).Concat(authLines.Select(l => l.ProductId)).Distinct().ToArray();
-            var productCaps = await catalogDb.Products.AsNoTracking()
+            var productMeta = await catalogDb.Products.AsNoTracking()
                 .Where(p => productIds.Contains(p.Id))
-                .Select(p => new { p.Id, p.MaxPerOrder })
-                .ToDictionaryAsync(x => x.Id, x => x.MaxPerOrder, ct);
+                .Select(p => new { p.Id, p.MaxPerOrder, p.Restricted, p.RestrictionReasonCode })
+                .ToListAsync(ct);
+            var productCaps = productMeta.ToDictionary(x => x.Id, x => x.MaxPerOrder);
+            var productRestriction = productMeta.ToDictionary(
+                x => x.Id, x => (x.Restricted, x.RestrictionReasonCode));
 
             var mergeAnon = anonLines.Select(l => new CartMerger.MergeLine(
                 l.ProductId, l.Qty, productCaps.GetValueOrDefault(l.ProductId, 0))).ToList();
@@ -86,7 +94,10 @@ public static class Endpoint
             // 23505 we can compensate — without this, inventoryDb is already committed while the
             // cart state is rolled back, leaving phantom active reservations (CR #5).
             var createdReservations = new List<Guid>();
-            var releasedReservations = new List<(Guid ProductId, int Qty)>();
+            // CR review on PR #30: tuple now carries the source cart id so a 23505 rollback
+            // re-reserves each released hold against its ORIGINAL cart, not always authCart.
+            var releasedReservations = new List<(Guid ProductId, int Qty, Guid SourceCartId)>();
+            var anyLineSkipped = false;
 
             foreach (var mergedLine in merged.Lines)
             {
@@ -103,19 +114,20 @@ public static class Endpoint
                 {
                     await inventoryOrchestrator.TryReleaseAsync(
                         inventoryDb, prAuth, accountId, "cart.merge.qty_updated", ct);
-                    releasedReservations.Add((mergedLine.ProductId, existing!.Qty));
+                    releasedReservations.Add((mergedLine.ProductId, existing!.Qty, authCart.Id));
                 }
                 if (priorAnonReservation is { } prAnon)
                 {
                     await inventoryOrchestrator.TryReleaseAsync(
                         inventoryDb, prAnon, accountId, "cart.merge.anon_claimed", ct);
-                    releasedReservations.Add((mergedLine.ProductId, anonForProduct!.Qty));
+                    releasedReservations.Add((mergedLine.ProductId, anonForProduct!.Qty, anonCart.Id));
                 }
 
                 var reservation = await inventoryOrchestrator.TryReserveAsync(
                     inventoryDb, catalogDb, mergedLine.ProductId, mergedLine.Qty, marketCode, accountId, authCart.Id, nowUtc, ct);
                 if (!reservation.IsSuccess)
                 {
+                    anyLineSkipped = true;
                     // Merge failed for this product — do our best to restore the auth side so the
                     // pre-merge state stays consistent. The anon line stays on its original cart
                     // for this product (we'll skip its archival below).
@@ -149,6 +161,9 @@ public static class Endpoint
 
                 if (reservation.ReservationId is { } newId) createdReservations.Add(newId);
 
+                var (productRestricted, productRestrictionCode) =
+                    productRestriction.TryGetValue(mergedLine.ProductId, out var rs)
+                        ? rs : (false, (string?)null);
                 if (existing is null)
                 {
                     db.CartLines.Add(new CartLine
@@ -159,6 +174,8 @@ public static class Endpoint
                         ProductId = mergedLine.ProductId,
                         Qty = mergedLine.Qty,
                         ReservationId = reservation.ReservationId,
+                        Restricted = productRestricted,
+                        RestrictionReasonCode = productRestrictionCode,
                         AddedAt = nowUtc,
                         UpdatedAt = nowUtc,
                     });
@@ -167,17 +184,51 @@ public static class Endpoint
                 {
                     existing.Qty = mergedLine.Qty;
                     existing.ReservationId = reservation.ReservationId;
+                    existing.Restricted = productRestricted;
+                    existing.RestrictionReasonCode = productRestrictionCode;
                     existing.UpdatedAt = nowUtc;
                 }
             }
 
-            // Archive the anon cart via the state-machine helper (Principle 24).
-            CartStatuses.TryTransition(anonCart, CartStatuses.Merged, "merged", nowUtc);
-
-            // Anon coupon is adopted only if auth side had none (R2).
-            if (string.IsNullOrEmpty(authCart.CouponCode) && !string.IsNullOrEmpty(anonCart.CouponCode))
+            // CR review on PR #30: only mark anon as merged when EVERY line was successfully
+            // moved. If any product was left behind in the reservation-failure path, the anon
+            // cart stays Active so the customer can still reach those items — otherwise the
+            // skipped lines would become unreachable.
+            if (!anyLineSkipped)
             {
-                authCart.CouponCode = anonCart.CouponCode;
+                CartStatuses.TryTransition(anonCart, CartStatuses.Merged, "merged", nowUtc);
+            }
+            else
+            {
+                logger.LogInformation(
+                    "cart.merge.partial_anon_retained anonCartId={AnonCartId} authCartId={AuthCartId}",
+                    anonCart.Id, authCart.Id);
+            }
+
+            // Anon coupon is adopted only if auth side had none (R2) AND the coupon is still
+            // valid for the authenticated account's market + restriction set (spec edge case 5).
+            // If the coupon no longer applies we drop it silently and surface a merge notice so
+            // the client can explain the gap — doing nothing would leave the auth cart with a
+            // stale coupon code that Pricing would reject on next preview.
+            if (string.IsNullOrWhiteSpace(authCart.CouponCode) && !string.IsNullOrWhiteSpace(anonCart.CouponCode))
+            {
+                var carryInvalid = await IsCouponInvalidForAsync(
+                    pricingDb, db, anonCart.CouponCode!, authCart.Id, marketCode, nowUtc, ct);
+                if (carryInvalid.Invalid)
+                {
+                    notices.Add(new CartMerger.MergeNotice(
+                        Guid.Empty,
+                        carryInvalid.ReasonCode ?? "cart.coupon.invalid",
+                        RequestedQty: 0,
+                        AppliedQty: 0));
+                    logger.LogInformation(
+                        "cart.merge.coupon_dropped authCartId={AuthCartId} code={Code} reason={Reason}",
+                        authCart.Id, anonCart.CouponCode, carryInvalid.ReasonCode);
+                }
+                else
+                {
+                    authCart.CouponCode = anonCart.CouponCode;
+                }
             }
 
             authCart.LastTouchedAt = nowUtc;
@@ -194,7 +245,7 @@ public static class Endpoint
                 // be released so they don't leak once the cart write is rolled back.
                 await CompensateAsync(inventoryDb, catalogDb, inventoryOrchestrator,
                     createdReservations, releasedReservations,
-                    marketCode, accountId, authCart.Id, nowUtc, logger, ct);
+                    marketCode, accountId, nowUtc, logger, ct);
                 db.ChangeTracker.Clear();
                 return new MergeOutcome(null, null, ConflictDetail: "Cart line insert race during merge.");
             }
@@ -240,10 +291,9 @@ public static class Endpoint
         CatalogDbContext catalogDb,
         CartInventoryOrchestrator inventoryOrchestrator,
         List<Guid> createdReservations,
-        List<(Guid ProductId, int Qty)> releasedReservations,
+        List<(Guid ProductId, int Qty, Guid SourceCartId)> releasedReservations,
         string marketCode,
         Guid accountId,
-        Guid cartId,
         DateTimeOffset nowUtc,
         ILogger logger,
         CancellationToken ct)
@@ -260,18 +310,73 @@ public static class Endpoint
                 logger.LogWarning(ex, "cart.merge.compensation.release_failed reservationId={ReservationId}", rid);
             }
         }
-        foreach (var (productId, qty) in releasedReservations)
+        // CR review on PR #30: re-reserve each released hold against ITS ORIGINAL cart, not the
+        // auth cart. Otherwise an anon-side hold would be restored against the wrong cart and
+        // the original anon line would remain unreserved post-rollback.
+        foreach (var (productId, qty, sourceCartId) in releasedReservations)
         {
             try
             {
                 await inventoryOrchestrator.TryReserveAsync(
-                    inventoryDb, catalogDb, productId, qty, marketCode, accountId, cartId, nowUtc, ct);
+                    inventoryDb, catalogDb, productId, qty, marketCode, accountId, sourceCartId, nowUtc, ct);
             }
             catch (Exception ex)
             {
-                logger.LogWarning(ex, "cart.merge.compensation.reserve_failed productId={ProductId} qty={Qty}", productId, qty);
+                logger.LogWarning(ex,
+                    "cart.merge.compensation.reserve_failed productId={ProductId} qty={Qty} sourceCartId={SourceCartId}",
+                    productId, qty, sourceCartId);
             }
         }
+    }
+
+    /// <summary>
+    /// Re-validates an anonymous-side coupon against the authenticated cart's market +
+    /// restriction set before the merge adopts it (spec edge case 5). Mirrors the gate chain in
+    /// ApplyCoupon so a coupon that would be rejected by a direct POST /coupon is also rejected
+    /// on carry-over. Returns the rejection reason code (or null on pass).
+    /// </summary>
+    internal static async Task<(bool Invalid, string? ReasonCode)> IsCouponInvalidForAsync(
+        PricingDbContext pricingDb,
+        CartDbContext cartDb,
+        string code,
+        Guid cartId,
+        string marketCode,
+        DateTimeOffset nowUtc,
+        CancellationToken ct)
+    {
+        var normalized = code.Trim().ToUpperInvariant();
+        var coupon = await pricingDb.Coupons.AsNoTracking()
+            .SingleOrDefaultAsync(c => c.Code == normalized && c.DeletedAt == null, ct);
+        if (coupon is null || !coupon.IsActive) return (true, "cart.coupon.invalid");
+        // CR review on PR #30 round 2: distinct reason for "starts later" so the client UI
+        // can render "valid from {date}" instead of a misleading "expired" message.
+        if (coupon.ValidFrom is { } vf && nowUtc < vf) return (true, "cart.coupon.not_yet_valid");
+        if (coupon.ValidTo is { } vt && nowUtc > vt) return (true, "cart.coupon.expired");
+        if (coupon.MarketCodes.Length > 0
+            && !coupon.MarketCodes.Any(m => string.Equals(m, marketCode, StringComparison.OrdinalIgnoreCase)))
+        {
+            return (true, "cart.coupon.invalid");
+        }
+        if (coupon.OverallLimit is { } limit && coupon.UsedCount >= limit)
+        {
+            return (true, "cart.coupon.limit_reached");
+        }
+        if (coupon.ExcludesRestricted)
+        {
+            // CR review on PR #30 round 2: also scan the EF change tracker so a merge that
+            // just brought restricted lines into the auth cart (still uncommitted) is caught
+            // BEFORE we adopt the coupon. Persisted-only check missed mid-merge state.
+            var hasRestrictedTracked = cartDb.ChangeTracker
+                .Entries<BackendApi.Modules.Cart.Entities.CartLine>()
+                .Any(e => e.Entity.CartId == cartId
+                    && e.Entity.Restricted
+                    && e.State != Microsoft.EntityFrameworkCore.EntityState.Deleted);
+            var hasRestricted = hasRestrictedTracked
+                || await cartDb.CartLines.AsNoTracking()
+                    .Where(l => l.CartId == cartId).AnyAsync(l => l.Restricted, ct);
+            if (hasRestricted) return (true, "cart.coupon.excludes_restricted");
+        }
+        return (false, null);
     }
 
     private static async Task<IResult> HandleAsync(
@@ -280,6 +385,7 @@ public static class Endpoint
         CartDbContext db,
         CatalogDbContext catalogDb,
         InventoryDbContext inventoryDb,
+        PricingDbContext pricingDb,
         CartResolver resolver,
         CartMerger merger,
         CartViewBuilder viewBuilder,
@@ -303,7 +409,7 @@ public static class Endpoint
 
         var outcome = await ExecuteAsync(
             accountId.Value, request.MarketCode, suppliedToken,
-            db, catalogDb, inventoryDb, resolver, merger, viewBuilder,
+            db, catalogDb, inventoryDb, pricingDb, resolver, merger, viewBuilder,
             inventoryOrchestrator, customerContextResolver, logger,
             DateTimeOffset.UtcNow, ct);
 

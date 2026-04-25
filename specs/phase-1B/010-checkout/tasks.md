@@ -71,7 +71,6 @@ description: "Dependency-ordered tasks for spec 010 — checkout"
 **Totals**: 38 tasks across 13 phases. MVP = Phases 1 + 2 + 3 + 4 + 5 + 6 + 7.
 
 ## Deferred for follow-up PR
-- **T014** (1000-concurrent oversell integration test) — heavy test, depends on container + scheduler headroom; tracked for a dedicated perf run.
 - **T019** (100-row restricted-gate sweep) — current single-row contract test already covers the gate semantics; bulk sweep is coverage amplification.
 - **T036** (AR editorial pass) — ICU keys in place; native-speaker pass booked separately.
 - **T037** (OpenAPI regen + diff) — run as part of the shared CI regen workflow.

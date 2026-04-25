@@ -66,15 +66,24 @@ public sealed class AuditEmissionTests(CheckoutTestFactory factory)
         rows.Should().Contain("checkout.session.submitted");
         rows.Should().Contain("checkout.session.confirmed");
 
-        // Payment attempt audit row uses the attempt id, not the session id, but it's
-        // tied to the same SessionId so we can find it via the entity-type filter.
+        // Payment attempt audit row uses the attempt id, not the session id. CR review on
+        // PR #31: scope strictly to THIS session's attempts so the assertion is not
+        // satisfied by a leftover row from another fixture.
+        var checkoutDb = verify.ServiceProvider.GetRequiredService<BackendApi.Modules.Checkout.Persistence.CheckoutDbContext>();
+        var attemptIds = await checkoutDb.PaymentAttempts.AsNoTracking()
+            .Where(a => a.SessionId == sessionId)
+            .Select(a => a.Id)
+            .ToListAsync();
+        attemptIds.Should().NotBeEmpty(because: "Submit must have created at least one payment attempt");
+
         var paymentRows = await auditDb.AuditLogEntries.AsNoTracking()
             .Where(a => a.EntityType == "PaymentAttempt"
+                     && attemptIds.Contains(a.EntityId)
                      && (a.Action == "checkout.payment.captured"
                       || a.Action == "checkout.payment.authorized"
                       || a.Action == "checkout.payment.pending_webhook"))
             .CountAsync();
         paymentRows.Should().BeGreaterThan(0,
-            because: "the authorize-success path emits a payment.<state> audit row");
+            because: "the authorize-success path emits a payment.<state> audit row for this session's attempt");
     }
 }

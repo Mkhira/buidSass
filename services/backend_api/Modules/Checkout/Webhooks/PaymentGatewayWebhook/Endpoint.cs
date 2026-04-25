@@ -158,6 +158,7 @@ public static class Endpoint
             await audit.EmitPaymentTransitionAsync(attempt,
                 CheckoutAuditActions.ForAttemptState(attempt.State),
                 actorAccountId: CheckoutSystemActors.Webhook,
+                actorRole: CheckoutAuditEmitter.SystemRole,
                 reason: $"webhook providerEventId={providerEventId}", ct);
         }
         return Results.StatusCode(200);

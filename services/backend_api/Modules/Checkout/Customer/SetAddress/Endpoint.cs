@@ -43,6 +43,14 @@ public static class Endpoint
             || !JsonDocument.Parse(session.ShippingAddressJson).RootElement.ToString()
                 .Equals(JsonSerializer.Serialize(request.Shipping), StringComparison.Ordinal);
 
+        // CR review on PR #31: capture transition intent BEFORE mutating state so the audit
+        // emit doesn't fire on no-op re-saves while already in `Addressed`. Two real-transition
+        // shapes: (a) first entry from Init, (b) re-entry triggered by an address change while
+        // already past Addressed (we walk back to Addressed in the block below).
+        var enteredAddressedFromInit = session.State == CheckoutStates.Init;
+        var reenteredAddressed = addressChanged
+            && session.State is CheckoutStates.ShippingSelected or CheckoutStates.PaymentSelected;
+
         if (addressChanged)
         {
             session.ShippingProviderId = null;
@@ -75,13 +83,13 @@ public static class Endpoint
             return CustomerCheckoutResponseFactory.Problem(context, 409, "checkout.concurrency_conflict", "Concurrency conflict", "Retry.");
         }
 
-        // FR-015: audit the addressed transition.
-        if (session.State == CheckoutStates.Addressed)
+        // FR-015: audit ONLY on a real transition into Addressed; guest = customer.
+        if (enteredAddressedFromInit || reenteredAddressed)
         {
             await audit.EmitSessionTransitionAsync(
                 session, CheckoutAuditActions.SessionAddressed, accountId,
-                accountId is null ? CheckoutAuditEmitter.SystemRole : CheckoutAuditEmitter.CustomerRole,
-                reason: addressChanged ? "address_changed" : "address_set", ct);
+                CheckoutAuditEmitter.CustomerRole,
+                reason: enteredAddressedFromInit ? "address_set" : "address_changed", ct);
         }
         return Results.Ok(new { sessionId = session.Id, state = session.State, expiresAt = session.ExpiresAt });
     }

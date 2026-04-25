@@ -60,13 +60,14 @@ public sealed class CheckoutAuditEmitter(
         PaymentAttempt attempt,
         string action,
         Guid? actorAccountId,
+        string actorRole,
         string? reason,
         CancellationToken ct)
     {
         var actor = actorAccountId ?? CheckoutSystemActors.AuditFallback;
         return SafeEmitAsync(new AuditEvent(
             ActorId: actor,
-            ActorRole: ActorSystem,
+            ActorRole: actorRole,
             Action: action,
             EntityType: nameof(PaymentAttempt),
             EntityId: attempt.Id,
@@ -159,12 +160,17 @@ public static class CheckoutAuditActions
     public const string PaymentDeclined = "checkout.payment.declined";
     public const string PaymentVoided = "checkout.payment.voided";
     public const string PaymentRefunded = "checkout.payment.refunded";
+    public const string PaymentFailed = "checkout.payment.failed";
     public const string PaymentPendingWebhook = "checkout.payment.pending_webhook";
 
     public const string WebhookReceived = "checkout.webhook.received";
     public const string WebhookDeduped = "checkout.webhook.deduped";
 
-    /// <summary>Map a PaymentAttemptStates value to the matching audit action.</summary>
+    /// <summary>
+    /// Map a PaymentAttemptStates value to the matching audit action. CR review on PR #31:
+    /// every supported state is enumerated explicitly; an unknown state throws so a typo
+    /// can't silently mint a brand-new audit action and fork the vocabulary.
+    /// </summary>
     public static string ForAttemptState(string attemptState) => attemptState switch
     {
         PaymentAttemptStates.Authorized => PaymentAuthorized,
@@ -172,7 +178,13 @@ public static class CheckoutAuditActions
         PaymentAttemptStates.Declined => PaymentDeclined,
         PaymentAttemptStates.Voided => PaymentVoided,
         PaymentAttemptStates.Refunded => PaymentRefunded,
+        PaymentAttemptStates.Failed => PaymentFailed,
         PaymentAttemptStates.PendingWebhook => PaymentPendingWebhook,
-        _ => $"checkout.payment.{attemptState}",
+        // Initiated is the placeholder before the first real transition — we never audit it
+        // standalone, but reject loudly if a caller asks for it instead of silently forging.
+        PaymentAttemptStates.Initiated => throw new InvalidOperationException(
+            "PaymentAttemptStates.Initiated is the placeholder state and has no audit action."),
+        _ => throw new InvalidOperationException(
+            $"Unknown payment attempt state '{attemptState}' — refusing to mint a new audit action."),
     };
 }

@@ -89,9 +89,13 @@ public static class Endpoint
             }
         }
 
+        // CR review on PR #31: snapshot the actual transition intent BEFORE mutating so a
+        // method swap (already in PaymentSelected) doesn't emit a duplicate transition audit.
+        var transitionedToPaymentSelected = session.State == CheckoutStates.ShippingSelected;
+
         session.PaymentMethod = method;
         var nowUtc = DateTimeOffset.UtcNow;
-        if (session.State == CheckoutStates.ShippingSelected)
+        if (transitionedToPaymentSelected)
         {
             CheckoutStates.TryTransition(session, CheckoutStates.PaymentSelected, nowUtc);
         }
@@ -106,12 +110,12 @@ public static class Endpoint
             return CustomerCheckoutResponseFactory.Problem(context, 409, "checkout.concurrency_conflict", "Concurrency conflict", "Retry.");
         }
 
-        // FR-015: audit payment_selected (only on the actual transition).
-        if (session.State == CheckoutStates.PaymentSelected)
+        // FR-015: audit ONLY the actual ShippingSelected → PaymentSelected transition.
+        if (transitionedToPaymentSelected)
         {
             await audit.EmitSessionTransitionAsync(
                 session, CheckoutAuditActions.SessionPaymentSelected, accountId,
-                accountId is null ? CheckoutAuditEmitter.SystemRole : CheckoutAuditEmitter.CustomerRole,
+                CheckoutAuditEmitter.CustomerRole,
                 reason: $"method={method}", ct);
         }
         return Results.Ok(new { sessionId = session.Id, state = session.State, paymentMethod = session.PaymentMethod });

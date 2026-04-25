@@ -243,6 +243,16 @@ public static class Endpoint
                     attempt.ErrorCode = "checkout.payment.gateway_threw";
                     attempt.ErrorMessage = ex.GetType().Name;
                     CheckoutStates.TryTransition(session, CheckoutStates.Failed, DateTimeOffset.UtcNow);
+                    // CR review on PR #31 round 2: emit `session.failed` BEFORE walking the
+                    // session back to payment_selected so the audit row captures the failed
+                    // state, not the retry state. Customer-initiated submit → role=customer.
+                    var failedSnapshotGw = session;
+                    await audit.EmitPaymentTransitionAsync(attempt,
+                        CheckoutAuditActions.ForAttemptState(attempt.State), accountId,
+                        CheckoutAuditEmitter.CustomerRole, "gateway_threw", ct);
+                    await audit.EmitSessionTransitionAsync(failedSnapshotGw,
+                        CheckoutAuditActions.SessionFailed, accountId,
+                        CheckoutAuditEmitter.CustomerRole, "gateway_threw", ct);
                     CheckoutStates.TryTransition(session, CheckoutStates.PaymentSelected, DateTimeOffset.UtcNow);
                     session.FailureReasonCode = "checkout.payment.gateway_threw";
                     await db.SaveChangesAsync(ct);
@@ -250,11 +260,6 @@ public static class Endpoint
                         "checkout.submit.gateway_threw sessionId={SessionId}", session.Id);
                     metrics.IncrementOutcome(session.MarketCode, "failed");
                     metrics.RecordSubmitDuration(stopwatch.Elapsed.TotalMilliseconds, session.MarketCode, "failed");
-                    // FR-015: audit payment.failed + session.failed (followed by retry-back to payment_selected).
-                    await audit.EmitPaymentTransitionAsync(attempt,
-                        CheckoutAuditActions.ForAttemptState(attempt.State), accountId, CheckoutAuditEmitter.SystemRole, "gateway_threw", ct);
-                    await audit.EmitSessionTransitionAsync(session,
-                        CheckoutAuditActions.SessionFailed, accountId, CheckoutAuditEmitter.SystemRole, "gateway_threw", ct);
                     return CustomerCheckoutResponseFactory.Problem(context, 502, "checkout.payment.gateway_threw",
                         "Payment gateway error", "Retry the submit; the payment was not authorized.");
                 }
@@ -267,16 +272,20 @@ public static class Endpoint
                     attempt.ErrorMessage = authorize.ErrorMessage;
                     // FR-022: payment failure returns session to payment_selected; reservations intact.
                     CheckoutStates.TryTransition(session, CheckoutStates.Failed, DateTimeOffset.UtcNow);
+                    // CR review on PR #31 round 2: emit `session.failed` BEFORE walking back
+                    // to payment_selected so the audit captures the failed state. Customer
+                    // submit → role=customer.
+                    await audit.EmitPaymentTransitionAsync(attempt,
+                        CheckoutAuditActions.ForAttemptState(attempt.State), accountId,
+                        CheckoutAuditEmitter.CustomerRole, authorize.ErrorCode, ct);
+                    await audit.EmitSessionTransitionAsync(session,
+                        CheckoutAuditActions.SessionFailed, accountId,
+                        CheckoutAuditEmitter.CustomerRole, authorize.ErrorCode, ct);
                     CheckoutStates.TryTransition(session, CheckoutStates.PaymentSelected, DateTimeOffset.UtcNow);
                     session.FailureReasonCode = "checkout.payment.declined";
                     await db.SaveChangesAsync(ct);
                     metrics.IncrementOutcome(session.MarketCode, "declined");
                     metrics.RecordSubmitDuration(stopwatch.Elapsed.TotalMilliseconds, session.MarketCode, "declined");
-                    // FR-015: audit payment.declined + session.failed.
-                    await audit.EmitPaymentTransitionAsync(attempt,
-                        CheckoutAuditActions.ForAttemptState(attempt.State), accountId, CheckoutAuditEmitter.SystemRole, authorize.ErrorCode, ct);
-                    await audit.EmitSessionTransitionAsync(session,
-                        CheckoutAuditActions.SessionFailed, accountId, CheckoutAuditEmitter.SystemRole, authorize.ErrorCode, ct);
                     return CustomerCheckoutResponseFactory.Problem(context, 402, "checkout.payment.declined",
                         "Payment declined", authorize.ErrorMessage ?? "Try a different payment method.");
                 }
@@ -406,16 +415,19 @@ public static class Endpoint
                 metrics.RecordSubmitDuration(stopwatch.Elapsed.TotalMilliseconds, session.MarketCode, "failed");
                 // FR-015: audit the compensation transition (refunded | voided) + session.failed.
                 // Compensation is platform-driven (saga rollback); actor role = system.
+                // CR review on PR #31 round 2: this entire block runs inside the customer's
+                // /submit request — actor role is `customer`, not `system`. (The void/refund
+                // is platform-driven internally, but the audit trail tracks the request actor.)
                 if (!isAsyncMethod && !string.IsNullOrEmpty(providerTxnId)
                     && (attempt.State == PaymentAttemptStates.Refunded || attempt.State == PaymentAttemptStates.Voided))
                 {
                     await audit.EmitPaymentTransitionAsync(attempt,
                         CheckoutAuditActions.ForAttemptState(attempt.State), accountId,
-                        CheckoutAuditEmitter.SystemRole,
+                        CheckoutAuditEmitter.CustomerRole,
                         reason: $"order_create_failed:{orderResult.ErrorCode}", ct);
                 }
                 await audit.EmitSessionTransitionAsync(session,
-                    CheckoutAuditActions.SessionFailed, accountId, CheckoutAuditEmitter.SystemRole,
+                    CheckoutAuditActions.SessionFailed, accountId, CheckoutAuditEmitter.CustomerRole,
                     reason: orderResult.ErrorCode, ct);
                 return CustomerCheckoutResponseFactory.Problem(context, 500, "checkout.order_create_failed",
                     "Order creation failed", orderResult.ErrorMessage ?? "Operator will refund any captured payment.");
@@ -479,7 +491,7 @@ public static class Endpoint
             // FR-015: audit confirmed transition. Outside the scope so an audit-publisher hiccup
             // can't roll back the customer-visible confirmation; SafeEmitAsync swallows on throw.
             await audit.EmitSessionTransitionAsync(session,
-                CheckoutAuditActions.SessionConfirmed, accountId, CheckoutAuditEmitter.SystemRole,
+                CheckoutAuditActions.SessionConfirmed, accountId, CheckoutAuditEmitter.CustomerRole,
                 reason: $"orderId={orderResult.OrderId}", ct);
             return Results.Json(response, statusCode: 200);
         }

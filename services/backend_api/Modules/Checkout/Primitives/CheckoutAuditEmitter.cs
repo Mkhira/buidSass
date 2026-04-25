@@ -93,7 +93,9 @@ public sealed class CheckoutAuditEmitter(
         CancellationToken ct)
     {
         return SafeEmitAsync(new AuditEvent(
-            ActorId: CheckoutSystemActors.AuditFallback,
+            // Use the dedicated webhook actor id so audit pivots can isolate webhook-driven
+            // mutations from worker / customer / admin activity (CR review PR #31 round 2).
+            ActorId: CheckoutSystemActors.Webhook,
             ActorRole: ActorSystem,
             Action: action,
             EntityType: nameof(PaymentWebhookEvent),

@@ -210,7 +210,7 @@ public static class Endpoint
             // If the coupon no longer applies we drop it silently and surface a merge notice so
             // the client can explain the gap — doing nothing would leave the auth cart with a
             // stale coupon code that Pricing would reject on next preview.
-            if (string.IsNullOrEmpty(authCart.CouponCode) && !string.IsNullOrEmpty(anonCart.CouponCode))
+            if (string.IsNullOrWhiteSpace(authCart.CouponCode) && !string.IsNullOrWhiteSpace(anonCart.CouponCode))
             {
                 var carryInvalid = await IsCouponInvalidForAsync(
                     pricingDb, db, anonCart.CouponCode!, authCart.Id, marketCode, nowUtc, ct);

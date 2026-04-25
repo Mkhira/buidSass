@@ -14,6 +14,12 @@ public sealed class StubShippingProvider : IShippingProvider
 
     public Task<IReadOnlyList<ShippingQuoteOffer>> QuoteAsync(QuoteRequest request, CancellationToken ct)
     {
+        // CR review on PR #30: fail closed when the caller forgets to gate on Supports() — the
+        // stub used to return EGP quotes for any market, hiding misuse during integration work.
+        if (!Supports(request.MarketCode))
+        {
+            return Task.FromResult<IReadOnlyList<ShippingQuoteOffer>>(Array.Empty<ShippingQuoteOffer>());
+        }
         var currency = string.Equals(request.MarketCode, "ksa", StringComparison.OrdinalIgnoreCase) ? "SAR" : "EGP";
         IReadOnlyList<ShippingQuoteOffer> offers = new[]
         {

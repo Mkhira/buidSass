@@ -42,6 +42,7 @@ public static class Endpoint
 
         var items = await query
             .OrderByDescending(s => s.LastTouchedAt)
+            .ThenByDescending(s => s.Id)
             .Skip((int)offset)
             .Take(effectivePageSize)
             .Select(s => new

@@ -37,7 +37,10 @@ public sealed class ShippingQuotesContractTests(CheckoutTestFactory factory)
         resp.StatusCode.Should().Be(HttpStatusCode.OK);
         var quotes = (await resp.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("quotes");
         quotes.GetArrayLength().Should().BeGreaterThan(0);
-        quotes[0].GetProperty("feeMinor").GetInt64().Should().BeGreaterThan(0);
+        quotes[0].GetProperty("providerId").GetString().Should().NotBeNullOrWhiteSpace();
+        quotes[0].GetProperty("methodCode").GetString().Should().NotBeNullOrWhiteSpace();
+        // Free-shipping or pickup quotes are legitimate — only require non-negative fee.
+        quotes[0].GetProperty("feeMinor").GetInt64().Should().BeGreaterThanOrEqualTo(0);
     }
 
     [Fact]

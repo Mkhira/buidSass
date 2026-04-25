@@ -41,19 +41,23 @@ public static class CheckoutSessionLoader
         }
         else if (session.CartTokenHash is { } hash)
         {
-            // Guest session — if caller is now authed, claim the session; otherwise require the token.
-            if (accountId is not null)
-            {
-                session.AccountId = accountId;
-                session.CartTokenHash = null;
-                session.UpdatedAt = DateTimeOffset.UtcNow;
-            }
-            else if (string.IsNullOrWhiteSpace(suppliedCartToken)
+            // Guest session: token proof is REQUIRED before we trust the caller, even if they
+            // arrive authenticated. Without this guard any logged-in user who learns a guest
+            // sessionId could claim it just by hitting the loader (CR review on PR #30).
+            if (string.IsNullOrWhiteSpace(suppliedCartToken)
                 || !cartTokenProvider.TryDecode(suppliedCartToken, DateTimeOffset.UtcNow, out var suppliedHash)
                 || !hash.AsSpan().SequenceEqual(suppliedHash))
             {
                 return new LoadResult(null,
                     CustomerCheckoutResponseFactory.Problem(context, 403, "checkout.session.not_owned", "Session token mismatch", ""));
+            }
+
+            // Token verified — only now safe to bind the session to the authed caller.
+            if (accountId is not null)
+            {
+                session.AccountId = accountId;
+                session.CartTokenHash = null;
+                session.UpdatedAt = DateTimeOffset.UtcNow;
             }
         }
 

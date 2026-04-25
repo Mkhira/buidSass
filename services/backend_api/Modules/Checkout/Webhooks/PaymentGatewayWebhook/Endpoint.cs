@@ -56,7 +56,13 @@ public static class Endpoint
             return Results.StatusCode(200);
         }
 
-        // SC-007 dedup: try insert; unique (provider_id, provider_event_id) makes duplicates 23505.
+        // SC-007 dedup + atomic apply: insert the dedup row AND mutate the matching attempt
+        // in one transaction. Without this, an insert that succeeded but failed to commit the
+        // attempt state (process crash, transient error) leaves a `HandledAt is null` row that
+        // the provider's retry would short-circuit at 23505 — losing the state mutation forever.
+        // CR review on PR #30: the duplicate path now resumes processing if HandledAt is null.
+        await using var tx = await db.Database.BeginTransactionAsync(ct);
+
         var record = new PaymentWebhookEvent
         {
             Id = Guid.NewGuid(),
@@ -67,15 +73,37 @@ public static class Endpoint
             ReceivedAt = DateTimeOffset.UtcNow,
             RawPayload = rawPayload,
         };
+
+        var resumeExisting = false;
         db.PaymentWebhookEvents.Add(record);
-        try { await db.SaveChangesAsync(ct); }
+        try
+        {
+            await db.SaveChangesAsync(ct);
+        }
         catch (DbUpdateException ex) when (ex.InnerException is Npgsql.PostgresException pg && pg.SqlState == "23505")
         {
-            logger.LogInformation("checkout.webhook.duplicate providerId={ProviderId} eventId={EventId}", providerId, providerEventId);
-            return Results.StatusCode(200);
+            // Duplicate provider event id. If the prior delivery completed (HandledAt set), skip;
+            // otherwise pick up where the previous handler left off so the attempt mutation is
+            // not silently lost.
+            db.Entry(record).State = EntityState.Detached;
+            var existing = await db.PaymentWebhookEvents
+                .SingleOrDefaultAsync(e => e.ProviderId == providerId && e.ProviderEventId == providerEventId, ct);
+            if (existing is null || existing.HandledAt is not null)
+            {
+                logger.LogInformation(
+                    "checkout.webhook.duplicate providerId={ProviderId} eventId={EventId} alreadyHandled={Handled}",
+                    providerId, providerEventId, existing?.HandledAt is not null);
+                await tx.RollbackAsync(ct);
+                return Results.StatusCode(200);
+            }
+            record = existing;
+            resumeExisting = true;
+            logger.LogInformation(
+                "checkout.webhook.resume providerId={ProviderId} eventId={EventId}",
+                providerId, providerEventId);
         }
 
-        // Update the matching attempt.
+        // Update the matching attempt + stamp HandledAt — same transaction as the dedup row.
         var attempt = await db.PaymentAttempts
             .Where(a => a.ProviderId == providerId && a.ProviderTxnId == translation.ProviderTxnId)
             .OrderByDescending(a => a.CreatedAt)
@@ -87,8 +115,18 @@ public static class Endpoint
             attempt.ErrorMessage = translation.ErrorMessage;
             attempt.UpdatedAt = DateTimeOffset.UtcNow;
             record.HandledAt = attempt.UpdatedAt;
-            await db.SaveChangesAsync(ct);
         }
+        else
+        {
+            // No matching attempt: still mark the event handled so a retry doesn't repeat the
+            // lookup forever. Operator reconciliation handles the orphan case.
+            record.HandledAt = DateTimeOffset.UtcNow;
+            logger.LogWarning(
+                "checkout.webhook.no_matching_attempt providerId={ProviderId} txnId={TxnId} resumeExisting={Resume}",
+                providerId, translation.ProviderTxnId, resumeExisting);
+        }
+        await db.SaveChangesAsync(ct);
+        await tx.CommitAsync(ct);
         return Results.StatusCode(200);
     }
 }

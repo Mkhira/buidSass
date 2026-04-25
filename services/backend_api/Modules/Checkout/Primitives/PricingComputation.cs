@@ -73,10 +73,25 @@ public static class PricingComputation
             .Where(pc => productIds.Contains(pc.ProductId))
             .ToListAsync(ct);
 
+        var currency = PricingConstants.ResolveCurrency(session.MarketCode);
         var pricingLines = new List<PricingContextLine>(lines.Count);
         foreach (var l in lines)
         {
-            if (!byId.TryGetValue(l.ProductId, out var product) || product.PriceHintMinorUnits is null) continue;
+            // CR review on PR #30: silently skipping lines whose product is missing or has no
+            // price hint lets Submit succeed with a partial cart. Treat both as a hard pricing
+            // failure so the caller surfaces the gap to the customer instead of dropping items.
+            if (!byId.TryGetValue(l.ProductId, out var product))
+            {
+                var fallback = new DriftDetector.PricingSnapshot(0, 0, 0, 0, currency, session.CouponCode, Array.Empty<DriftDetector.LineSnapshot>());
+                return new Outcome(fallback, Array.Empty<PriceLine>(), null,
+                    $"pricing.line_product_missing:{l.ProductId}");
+            }
+            if (product.PriceHintMinorUnits is null)
+            {
+                var fallback = new DriftDetector.PricingSnapshot(0, 0, 0, 0, currency, session.CouponCode, Array.Empty<DriftDetector.LineSnapshot>());
+                return new Outcome(fallback, Array.Empty<PriceLine>(), null,
+                    $"pricing.line_unpriceable:{l.ProductId}");
+            }
             var cats = productCategories.Where(pc => pc.ProductId == l.ProductId).Select(pc => pc.CategoryId).ToArray();
             pricingLines.Add(new PricingContextLine(
                 ProductId: l.ProductId,
@@ -86,7 +101,6 @@ public static class PricingComputation
                 CategoryIds: cats));
         }
 
-        var currency = PricingConstants.ResolveCurrency(session.MarketCode);
         if (pricingLines.Count == 0)
         {
             var empty = new DriftDetector.PricingSnapshot(0, 0, 0, 0, currency, session.CouponCode, Array.Empty<DriftDetector.LineSnapshot>());

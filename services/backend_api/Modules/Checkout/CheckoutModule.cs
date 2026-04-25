@@ -41,11 +41,34 @@ public static class CheckoutModule
         services.AddSingleton<BackendApi.Modules.Observability.CheckoutMetrics>();
         services.AddSingleton<Primitives.PaymentMethodCatalog>();
         services.AddSingleton<Primitives.DriftDetector>();
-        services.AddSingleton<Primitives.Payment.IPaymentGateway, Primitives.Payment.StubPaymentGateway>();
-        services.AddSingleton<Primitives.Shipping.IShippingProvider, Primitives.Shipping.StubShippingProvider>();
         services.AddScoped<Primitives.IdempotencyStore>();
-        // Stub order handler — spec 011 replaces this registration with its real implementation.
-        services.AddScoped<BackendApi.Modules.Shared.IOrderFromCheckoutHandler, Primitives.StubOrderFromCheckoutHandler>();
+
+        // Stub gateway / shipping / order-handler are ONLY safe in Development + Test. In any
+        // other environment, registering them would silently let checkout finalize fake
+        // payments / shipments — release blocker (CR review on PR #30). When real provider
+        // modules are introduced (ADR-007 / ADR-008 / spec 011), they register over this gate.
+        var allowStubs = hostEnvironment.IsDevelopment() || hostEnvironment.IsEnvironment("Test");
+        if (allowStubs)
+        {
+            services.AddSingleton<Primitives.Payment.IPaymentGateway, Primitives.Payment.StubPaymentGateway>();
+            services.AddSingleton<Primitives.Shipping.IShippingProvider, Primitives.Shipping.StubShippingProvider>();
+            services.AddScoped<BackendApi.Modules.Shared.IOrderFromCheckoutHandler, Primitives.StubOrderFromCheckoutHandler>();
+        }
+        else
+        {
+            // Sentinel registrations — startup succeeds, but resolving any of these in a
+            // non-dev host throws loudly so the operator sees the missing wiring at first
+            // request rather than silently confirming fake checkouts.
+            services.AddSingleton<Primitives.Payment.IPaymentGateway>(_ =>
+                throw new InvalidOperationException(
+                    "IPaymentGateway has no real implementation registered. Register a provider before using Checkout outside Development/Test."));
+            services.AddSingleton<Primitives.Shipping.IShippingProvider>(_ =>
+                throw new InvalidOperationException(
+                    "IShippingProvider has no real implementation registered. Register a carrier before using Checkout outside Development/Test."));
+            services.AddScoped<BackendApi.Modules.Shared.IOrderFromCheckoutHandler>(_ =>
+                throw new InvalidOperationException(
+                    "IOrderFromCheckoutHandler has no real implementation registered. Spec 011's order handler must register over the stub before this environment ships."));
+        }
 
         if (!hostEnvironment.IsEnvironment("Test"))
         {

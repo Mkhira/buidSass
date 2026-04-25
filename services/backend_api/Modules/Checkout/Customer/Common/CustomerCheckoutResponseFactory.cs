@@ -25,11 +25,15 @@ public static class CustomerCheckoutResponseFactory
             Type = $"https://errors.dental-commerce/checkout/{reasonCode}",
             Instance = context.Request.Path,
         };
-        problem.Extensions["reasonCode"] = reasonCode;
         if (extensions is not null)
         {
-            foreach (var (k, v) in extensions) problem.Extensions[k] = v;
+            foreach (var (k, v) in extensions)
+            {
+                if (string.Equals(k, "reasonCode", StringComparison.OrdinalIgnoreCase)) continue;
+                problem.Extensions[k] = v;
+            }
         }
+        problem.Extensions["reasonCode"] = reasonCode;
         return Results.Json(problem, statusCode: statusCode, contentType: "application/problem+json");
     }
 

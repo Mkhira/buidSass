@@ -72,21 +72,34 @@ public static class Endpoint
             accepted = request?.AcceptedTotalMinor ?? 0,
         });
 
-        var idempotencyLookup = await idempotencyStore.LookupAsync(idempotencyKey, normalizedBody, ct);
-        if (idempotencyLookup.Outcome == IdempotencyStore.LookupOutcome.Hit)
+        // Atomic claim — see IdempotencyStore docstring. Two concurrent first-use submits
+        // with the same key only have one "Claimed" winner; the rest see InProgress / Hit /
+        // BodyMismatch deterministically.
+        var claim = await idempotencyStore.TryClaimAsync(idempotencyKey, accountId, normalizedBody, ct);
+        if (claim.Outcome == IdempotencyStore.ClaimOutcome.Hit)
         {
             metrics.IncrementOutcome("unknown", "idempotent_hit");
             metrics.RecordSubmitDuration(stopwatch.Elapsed.TotalMilliseconds, "unknown", "idempotent_hit");
             return Results.Json(
-                JsonSerializer.Deserialize<JsonElement>(idempotencyLookup.Cached!.ResponseJson),
-                statusCode: idempotencyLookup.Cached.ResponseStatus);
+                JsonSerializer.Deserialize<JsonElement>(claim.Cached!.ResponseJson),
+                statusCode: claim.Cached.ResponseStatus);
         }
-        if (idempotencyLookup.Outcome == IdempotencyStore.LookupOutcome.KeyReuseWithDifferentBody)
+        if (claim.Outcome == IdempotencyStore.ClaimOutcome.KeyReuseWithDifferentBody)
         {
             return CustomerCheckoutResponseFactory.Problem(context, 422, "checkout.idempotency_body_mismatch",
                 "Idempotency-Key reused with a different body", "");
         }
+        if (claim.Outcome == IdempotencyStore.ClaimOutcome.InProgress)
+        {
+            return CustomerCheckoutResponseFactory.Problem(context, 409, "checkout.in_progress",
+                "Submit already in flight for this idempotency key", "Retry shortly.");
+        }
 
+        // We own the claim. Any exit that doesn't call PersistAsync MUST release the
+        // placeholder so a subsequent retry isn't blocked by a stale 5-min TTL.
+        var claimFinalized = false;
+        try
+        {
         var load = await CheckoutSessionLoader.LoadAsync(db, context, sessionId, accountId, suppliedCartToken: null, cartTokenProvider, ct);
         if (load.Problem is not null) return load.Problem;
         var session = load.Session!;
@@ -296,8 +309,6 @@ public static class Endpoint
         // Consume the cart (FR-023) — transition to `merged` so a fresh cart is created lazily.
         var cart = await cartDb.Carts.SingleAsync(c => c.Id == session.CartId, ct);
         BackendApi.Modules.Cart.Primitives.CartStatuses.TryTransition(cart, BackendApi.Modules.Cart.Primitives.CartStatuses.Merged, "checkout.submitted", DateTimeOffset.UtcNow);
-        await cartDb.SaveChangesAsync(ct);
-        await db.SaveChangesAsync(ct);
 
         var response = new
         {
@@ -322,9 +333,38 @@ public static class Endpoint
             },
         };
         var responseJson = JsonSerializer.Serialize(response);
-        await idempotencyStore.PersistAsync(idempotencyKey, accountId, normalizedBody, 200, responseJson, ct);
+
+        // CR review on PR #30: cart consumption + session confirmation + idempotency persist
+        // are now ONE atomic unit. Without this, a process crash between steps would leave a
+        // confirmed payment / created order with a stale checkout session AND no cached replay
+        // for the customer's retry. TransactionScope.ReadCommitted spans both DbContexts since
+        // they share the same NpgsqlDataSource (CheckoutTestFactory + production wiring).
+        using (var scope = new System.Transactions.TransactionScope(
+            System.Transactions.TransactionScopeOption.Required,
+            new System.Transactions.TransactionOptions
+            {
+                IsolationLevel = System.Transactions.IsolationLevel.ReadCommitted,
+                Timeout = TimeSpan.FromSeconds(30),
+            },
+            System.Transactions.TransactionScopeAsyncFlowOption.Enabled))
+        {
+            await cartDb.SaveChangesAsync(ct);
+            await db.SaveChangesAsync(ct);
+            await idempotencyStore.PersistAsync(idempotencyKey, accountId, normalizedBody, 200, responseJson, ct);
+            scope.Complete();
+        }
+        claimFinalized = true;
         metrics.IncrementOutcome(session.MarketCode, "confirmed");
         metrics.RecordSubmitDuration(stopwatch.Elapsed.TotalMilliseconds, session.MarketCode, "confirmed");
         return Results.Json(response, statusCode: 200);
+        }
+        finally
+        {
+            if (!claimFinalized)
+            {
+                try { await idempotencyStore.ReleaseClaimAsync(idempotencyKey, ct); }
+                catch { /* best-effort cleanup; TTL purges placeholder eventually anyway */ }
+            }
+        }
     }
 }

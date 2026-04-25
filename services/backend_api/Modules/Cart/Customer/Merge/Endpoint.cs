@@ -88,7 +88,10 @@ public static class Endpoint
             // 23505 we can compensate — without this, inventoryDb is already committed while the
             // cart state is rolled back, leaving phantom active reservations (CR #5).
             var createdReservations = new List<Guid>();
-            var releasedReservations = new List<(Guid ProductId, int Qty)>();
+            // CR review on PR #30: tuple now carries the source cart id so a 23505 rollback
+            // re-reserves each released hold against its ORIGINAL cart, not always authCart.
+            var releasedReservations = new List<(Guid ProductId, int Qty, Guid SourceCartId)>();
+            var anyLineSkipped = false;
 
             foreach (var mergedLine in merged.Lines)
             {
@@ -105,19 +108,20 @@ public static class Endpoint
                 {
                     await inventoryOrchestrator.TryReleaseAsync(
                         inventoryDb, prAuth, accountId, "cart.merge.qty_updated", ct);
-                    releasedReservations.Add((mergedLine.ProductId, existing!.Qty));
+                    releasedReservations.Add((mergedLine.ProductId, existing!.Qty, authCart.Id));
                 }
                 if (priorAnonReservation is { } prAnon)
                 {
                     await inventoryOrchestrator.TryReleaseAsync(
                         inventoryDb, prAnon, accountId, "cart.merge.anon_claimed", ct);
-                    releasedReservations.Add((mergedLine.ProductId, anonForProduct!.Qty));
+                    releasedReservations.Add((mergedLine.ProductId, anonForProduct!.Qty, anonCart.Id));
                 }
 
                 var reservation = await inventoryOrchestrator.TryReserveAsync(
                     inventoryDb, catalogDb, mergedLine.ProductId, mergedLine.Qty, marketCode, accountId, authCart.Id, nowUtc, ct);
                 if (!reservation.IsSuccess)
                 {
+                    anyLineSkipped = true;
                     // Merge failed for this product — do our best to restore the auth side so the
                     // pre-merge state stays consistent. The anon line stays on its original cart
                     // for this product (we'll skip its archival below).
@@ -173,8 +177,20 @@ public static class Endpoint
                 }
             }
 
-            // Archive the anon cart via the state-machine helper (Principle 24).
-            CartStatuses.TryTransition(anonCart, CartStatuses.Merged, "merged", nowUtc);
+            // CR review on PR #30: only mark anon as merged when EVERY line was successfully
+            // moved. If any product was left behind in the reservation-failure path, the anon
+            // cart stays Active so the customer can still reach those items — otherwise the
+            // skipped lines would become unreachable.
+            if (!anyLineSkipped)
+            {
+                CartStatuses.TryTransition(anonCart, CartStatuses.Merged, "merged", nowUtc);
+            }
+            else
+            {
+                logger.LogInformation(
+                    "cart.merge.partial_anon_retained anonCartId={AnonCartId} authCartId={AuthCartId}",
+                    anonCart.Id, authCart.Id);
+            }
 
             // Anon coupon is adopted only if auth side had none (R2) AND the coupon is still
             // valid for the authenticated account's market + restriction set (spec edge case 5).
@@ -216,7 +232,7 @@ public static class Endpoint
                 // be released so they don't leak once the cart write is rolled back.
                 await CompensateAsync(inventoryDb, catalogDb, inventoryOrchestrator,
                     createdReservations, releasedReservations,
-                    marketCode, accountId, authCart.Id, nowUtc, logger, ct);
+                    marketCode, accountId, nowUtc, logger, ct);
                 db.ChangeTracker.Clear();
                 return new MergeOutcome(null, null, ConflictDetail: "Cart line insert race during merge.");
             }
@@ -262,10 +278,9 @@ public static class Endpoint
         CatalogDbContext catalogDb,
         CartInventoryOrchestrator inventoryOrchestrator,
         List<Guid> createdReservations,
-        List<(Guid ProductId, int Qty)> releasedReservations,
+        List<(Guid ProductId, int Qty, Guid SourceCartId)> releasedReservations,
         string marketCode,
         Guid accountId,
-        Guid cartId,
         DateTimeOffset nowUtc,
         ILogger logger,
         CancellationToken ct)
@@ -282,16 +297,21 @@ public static class Endpoint
                 logger.LogWarning(ex, "cart.merge.compensation.release_failed reservationId={ReservationId}", rid);
             }
         }
-        foreach (var (productId, qty) in releasedReservations)
+        // CR review on PR #30: re-reserve each released hold against ITS ORIGINAL cart, not the
+        // auth cart. Otherwise an anon-side hold would be restored against the wrong cart and
+        // the original anon line would remain unreserved post-rollback.
+        foreach (var (productId, qty, sourceCartId) in releasedReservations)
         {
             try
             {
                 await inventoryOrchestrator.TryReserveAsync(
-                    inventoryDb, catalogDb, productId, qty, marketCode, accountId, cartId, nowUtc, ct);
+                    inventoryDb, catalogDb, productId, qty, marketCode, accountId, sourceCartId, nowUtc, ct);
             }
             catch (Exception ex)
             {
-                logger.LogWarning(ex, "cart.merge.compensation.reserve_failed productId={ProductId} qty={Qty}", productId, qty);
+                logger.LogWarning(ex,
+                    "cart.merge.compensation.reserve_failed productId={ProductId} qty={Qty} sourceCartId={SourceCartId}",
+                    productId, qty, sourceCartId);
             }
         }
     }

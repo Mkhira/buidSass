@@ -39,6 +39,8 @@ public static class OrdersModule
         services.AddScoped<OrderNumberSequencer>();
         services.AddScoped<CancellationPolicy>();
         services.AddSingleton<ReturnEligibilityEvaluator>();
+        services.AddSingleton<BackendApi.Modules.Observability.OrdersMetrics>();
+        services.AddScoped<Internal.CreateFromQuotation.CreateFromQuotationHandler>();
 
         // Spec 010 → 011 seam. Replaces StubOrderFromCheckoutHandler — Checkout's submit slice
         // resolves IOrderFromCheckoutHandler via DI, and the LAST registration wins. Spec 010
@@ -56,6 +58,8 @@ public static class OrdersModule
         if (!hostEnvironment.IsEnvironment("Test"))
         {
             services.AddHostedService<Workers.OutboxDispatcher>();
+            services.AddHostedService<Workers.QuotationExpiryWorker>();
+            services.AddHostedService<Workers.PaymentFailedRecoveryWorker>();
         }
 
         return services;
@@ -67,15 +71,36 @@ public static class OrdersModule
         Customer.ListOrders.Endpoint.MapListOrdersEndpoint(customer);
         Customer.GetOrder.Endpoint.MapGetOrderEndpoint(customer);
         Customer.Cancel.Endpoint.MapCancelEndpoint(customer);
+        Customer.Reorder.Endpoint.MapReorderEndpoint(customer);
+        Customer.ReturnEligibility.Endpoint.MapReturnEligibilityEndpoint(customer);
+
+        var customerQuotes = app.MapGroup("/v1/customer/quotations");
+        Customer.Quotations.ListQuotations.Endpoint.MapCustomerListQuotationsEndpoint(customerQuotes);
+        Customer.Quotations.GetQuotation.Endpoint.MapCustomerGetQuotationEndpoint(customerQuotes);
+        Customer.Quotations.AcceptQuotation.Endpoint.MapCustomerAcceptQuotationEndpoint(customerQuotes);
+        Customer.Quotations.RejectQuotation.Endpoint.MapCustomerRejectQuotationEndpoint(customerQuotes);
 
         var admin = app.MapGroup("/v1/admin/orders");
         Admin.ListOrders.Endpoint.MapAdminListOrdersEndpoint(admin);
         Admin.GetOrder.Endpoint.MapAdminGetOrderEndpoint(admin);
+        Admin.GetAudit.Endpoint.MapAdminGetAuditEndpoint(admin);
         Admin.Fulfillment.StartPicking.Endpoint.MapStartPickingEndpoint(admin);
         Admin.Fulfillment.MarkPacked.Endpoint.MapMarkPackedEndpoint(admin);
         Admin.Fulfillment.CreateShipment.Endpoint.MapCreateShipmentEndpoint(admin);
         Admin.Fulfillment.MarkHandedToCarrier.Endpoint.MapMarkHandedToCarrierEndpoint(admin);
         Admin.Fulfillment.MarkDelivered.Endpoint.MapMarkDeliveredEndpoint(admin);
+        Admin.Payments.ConfirmBankTransfer.Endpoint.MapAdminConfirmBankTransferEndpoint(admin);
+        Admin.Payments.ForceState.Endpoint.MapAdminForceStateEndpoint(admin);
+        Admin.FinanceExport.Endpoint.MapAdminFinanceExportEndpoint(admin);
+
+        var adminQuotes = app.MapGroup("/v1/admin/quotations");
+        Admin.Quotations.CreateQuotation.Endpoint.MapAdminCreateQuotationEndpoint(adminQuotes);
+        Admin.Quotations.SendQuotation.Endpoint.MapAdminSendQuotationEndpoint(adminQuotes);
+        Admin.Quotations.ExpireQuotation.Endpoint.MapAdminExpireQuotationEndpoint(adminQuotes);
+        Admin.Quotations.ConvertQuotation.Endpoint.MapAdminConvertQuotationEndpoint(adminQuotes);
+
+        var internalOrders = app.MapGroup("/v1/internal/orders");
+        Internal.AdvanceRefundState.Endpoint.MapAdvanceRefundStateEndpoint(internalOrders);
         return app;
     }
 }

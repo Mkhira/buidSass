@@ -29,9 +29,17 @@ public sealed class ReturnsOutboxDispatchService(
     public async Task<int> DispatchOnceAsync(CancellationToken ct)
     {
         var nowUtc = DateTimeOffset.UtcNow;
+        // CR Major round 4: exclude parked rows. The previous query treated
+        // `NextAttemptAt == null` as runnable, but the failure-handler below sets it to
+        // null to PARK rows that hit MaxAttempts — so parked rows were being re-picked
+        // forever. Now we gate on (a) DispatchedAt is null AND (b) DispatchAttempts is
+        // under the cap AND (c) NextAttemptAt is either still null AND attempts==0
+        // (never tried) OR is in the past (backoff elapsed).
         var pending = await db.Outbox
             .Where(e => e.DispatchedAt == null
-                && (e.NextAttemptAt == null || e.NextAttemptAt <= nowUtc))
+                && e.DispatchAttempts < MaxAttempts
+                && ((e.NextAttemptAt == null && e.DispatchAttempts == 0)
+                    || (e.NextAttemptAt != null && e.NextAttemptAt <= nowUtc)))
             .OrderBy(e => e.CommittedAt)
             .Take(BatchSize)
             .ToListAsync(ct);
@@ -53,10 +61,10 @@ public sealed class ReturnsOutboxDispatchService(
                 logger.LogError(ex,
                     "returns.outbox.dispatch_failed id={Id} type={Type} attempt={Attempt}",
                     entry.Id, entry.EventType, entry.DispatchAttempts);
-                if (entry.DispatchAttempts >= MaxAttempts)
-                {
-                    entry.NextAttemptAt = null;
-                }
+                // No need to null NextAttemptAt to park — the polling query's
+                // DispatchAttempts < MaxAttempts predicate already excludes exhausted rows.
+                // Keeping NextAttemptAt populated preserves observability into when the
+                // last retry was scheduled.
             }
         }
         await db.SaveChangesAsync(ct);

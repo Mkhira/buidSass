@@ -34,6 +34,31 @@
     <EmbeddedResource Remove="Returns.Tests\**" />
     <None Remove="Returns.Tests\**" />
     <Content Remove="Returns.Tests\**" />
+
+    <Compile Remove="Cart.Tests\**" />
+    <EmbeddedResource Remove="Cart.Tests\**" />
+    <None Remove="Cart.Tests\**" />
+    <Content Remove="Cart.Tests\**" />
+
+    <Compile Remove="Checkout.Tests\**" />
+    <EmbeddedResource Remove="Checkout.Tests\**" />
+    <None Remove="Checkout.Tests\**" />
+    <Content Remove="Checkout.Tests\**" />
+
+    <Compile Remove="Orders.Tests\**" />
+    <EmbeddedResource Remove="Orders.Tests\**" />
+    <None Remove="Orders.Tests\**" />
+    <Content Remove="Orders.Tests\**" />
+
+    <Compile Remove="Pricing.Tests\**" />
+    <EmbeddedResource Remove="Pricing.Tests\**" />
+    <None Remove="Pricing.Tests\**" />
+    <Content Remove="Pricing.Tests\**" />
+
+    <Compile Remove="TaxInvoices.Tests\**" />
+    <EmbeddedResource Remove="TaxInvoices.Tests\**" />
+    <None Remove="TaxInvoices.Tests\**" />
+    <Content Remove="TaxInvoices.Tests\**" />
   </ItemGroup>
 
   <ItemGroup>

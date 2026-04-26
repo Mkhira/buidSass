@@ -61,12 +61,32 @@ public sealed class AuditEventPublisherTests
             await using var scope = provider.CreateAsyncScope();
 
             var publisher = scope.ServiceProvider.GetRequiredService<IAuditEventPublisher>();
-            await Assert.ThrowsAsync<NpgsqlException>(() => publisher.PublishAsync(auditEvent, CancellationToken.None));
+            // EF Core's RelationalConnection wraps the underlying Npgsql failure in
+            // InvalidOperationException ("An exception has been raised that is likely due to a
+            // transient failure"). The contract being asserted is "DB outage propagates as a
+            // database-level exception" — verify that by walking the InnerException chain.
+            var thrown = await Assert.ThrowsAnyAsync<Exception>(
+                () => publisher.PublishAsync(auditEvent, CancellationToken.None));
+            Assert.True(
+                ContainsNpgsqlException(thrown),
+                $"Expected an NpgsqlException in the exception chain, got {thrown.GetType().FullName}: {thrown.Message}");
         }
         finally
         {
             await _fixture.UnpauseAsync();
         }
+    }
+
+    private static bool ContainsNpgsqlException(Exception? ex)
+    {
+        for (var current = ex; current is not null; current = current.InnerException)
+        {
+            if (current is NpgsqlException)
+            {
+                return true;
+            }
+        }
+        return false;
     }
 
     private static AuditEvent CreateValidEvent()

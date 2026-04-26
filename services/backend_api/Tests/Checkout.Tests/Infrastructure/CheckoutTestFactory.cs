@@ -4,6 +4,7 @@ using BackendApi.Modules.Catalog.Persistence;
 using BackendApi.Modules.Checkout.Persistence;
 using BackendApi.Modules.Identity.Persistence;
 using BackendApi.Modules.Inventory.Persistence;
+using BackendApi.Modules.Orders.Persistence;
 using BackendApi.Modules.Pricing.Persistence;
 using BackendApi.Modules.Pricing.Primitives.Caches;
 using BackendApi.Modules.Shared;
@@ -210,6 +211,7 @@ public sealed class CheckoutTestFactory : WebApplicationFactory<Program>, IAsync
         await scope.ServiceProvider.GetRequiredService<InventoryDbContext>().Database.MigrateAsync();
         await scope.ServiceProvider.GetRequiredService<CartDbContext>().Database.MigrateAsync();
         await scope.ServiceProvider.GetRequiredService<CheckoutDbContext>().Database.MigrateAsync();
+        await scope.ServiceProvider.GetRequiredService<OrdersDbContext>().Database.MigrateAsync();
     }
 
     private static string CreatePrivateKeyPem()

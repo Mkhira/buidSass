@@ -70,106 +70,106 @@ public sealed class ReturnsOutboxDispatchService(
         switch (eventType)
         {
             case "return.submitted":
-            {
-                var orderId = payload.RootElement.GetProperty("orderId").GetGuid();
-                var returnId = payload.RootElement.GetProperty("returnRequestId").GetGuid();
-                var advance = await orderRefundAdvancer.AdvanceAsync(new OrderRefundStateAdvanceRequest(
-                    OrderId: orderId,
-                    EventType: "return.submitted",
-                    ReturnRequestId: returnId,
-                    RefundId: null,
-                    RefundedAmountMinor: 0,
-                    ReturnedLineQtys: null), ct);
-                if (!advance.IsSuccess)
                 {
-                    throw new InvalidOperationException(
-                        $"orders.advance failed: {advance.ErrorCode} {advance.ErrorMessage}");
-                }
-                break;
-            }
-            case "return.rejected":
-            {
-                var orderId = payload.RootElement.GetProperty("orderId").GetGuid();
-                var returnId = payload.RootElement.GetProperty("returnRequestId").GetGuid();
-                var openOthers = await db.ReturnRequests.AsNoTracking()
-                    .AnyAsync(r => r.OrderId == orderId
-                        && r.Id != returnId
-                        && r.State != Primitives.ReturnStateMachine.Rejected
-                        && r.State != Primitives.ReturnStateMachine.Refunded, ct);
-                if (openOthers)
-                {
-                    logger.LogInformation("returns.outbox.rejected.other_open_rma orderId={Order}", orderId);
-                    break;
-                }
-                var advance = await orderRefundAdvancer.AdvanceAsync(new OrderRefundStateAdvanceRequest(
-                    OrderId: orderId,
-                    EventType: "return.rejected",
-                    ReturnRequestId: returnId,
-                    RefundId: null,
-                    RefundedAmountMinor: 0,
-                    ReturnedLineQtys: null), ct);
-                if (!advance.IsSuccess)
-                {
-                    throw new InvalidOperationException(
-                        $"orders.advance failed: {advance.ErrorCode} {advance.ErrorMessage}");
-                }
-                break;
-            }
-            case "refund.completed":
-            case "refund.manual_confirmed":
-            {
-                var orderId = payload.RootElement.GetProperty("orderId").GetGuid();
-                var returnId = payload.RootElement.GetProperty("returnRequestId").GetGuid();
-                var refundId = payload.RootElement.GetProperty("refundId").GetGuid();
-                var amountMinor = payload.RootElement.GetProperty("amountMinor").GetInt64();
-                var deltas = new List<OrderRefundReturnedLine>();
-                if (payload.RootElement.TryGetProperty("lines", out var lineEl)
-                    && lineEl.ValueKind == JsonValueKind.Array)
-                {
-                    var returnLines = await db.ReturnLines.AsNoTracking()
-                        .Where(rl => rl.ReturnRequestId == returnId)
-                        .ToDictionaryAsync(rl => rl.Id, rl => rl.OrderLineId, ct);
-                    foreach (var l in lineEl.EnumerateArray())
-                    {
-                        var rlId = l.GetProperty("returnLineId").GetGuid();
-                        var qty = l.GetProperty("qty").GetInt32();
-                        if (returnLines.TryGetValue(rlId, out var orderLineId) && qty > 0)
-                        {
-                            deltas.Add(new OrderRefundReturnedLine(orderLineId, qty));
-                        }
-                    }
-                }
-                var creditLines = deltas
-                    .GroupBy(d => d.OrderLineId)
-                    .Select(g => new CreditNoteIssueLine(g.Key, g.Sum(x => x.DeltaQty)))
-                    .ToList();
-                if (creditLines.Count > 0)
-                {
-                    var cn = await creditNoteIssuer.IssueForRefundAsync(new CreditNoteIssueRequest(
+                    var orderId = payload.RootElement.GetProperty("orderId").GetGuid();
+                    var returnId = payload.RootElement.GetProperty("returnRequestId").GetGuid();
+                    var advance = await orderRefundAdvancer.AdvanceAsync(new OrderRefundStateAdvanceRequest(
                         OrderId: orderId,
-                        RefundId: refundId,
-                        ReasonCode: $"return.{eventType}",
-                        Lines: creditLines), ct);
-                    if (!cn.IsSuccess)
+                        EventType: "return.submitted",
+                        ReturnRequestId: returnId,
+                        RefundId: null,
+                        RefundedAmountMinor: 0,
+                        ReturnedLineQtys: null), ct);
+                    if (!advance.IsSuccess)
                     {
                         throw new InvalidOperationException(
-                            $"invoices.credit_note failed: {cn.ErrorCode} {cn.ErrorMessage}");
+                            $"orders.advance failed: {advance.ErrorCode} {advance.ErrorMessage}");
                     }
+                    break;
                 }
-                var advance = await orderRefundAdvancer.AdvanceAsync(new OrderRefundStateAdvanceRequest(
-                    OrderId: orderId,
-                    EventType: eventType,
-                    ReturnRequestId: returnId,
-                    RefundId: refundId,
-                    RefundedAmountMinor: amountMinor,
-                    ReturnedLineQtys: deltas), ct);
-                if (!advance.IsSuccess)
+            case "return.rejected":
                 {
-                    throw new InvalidOperationException(
-                        $"orders.advance failed: {advance.ErrorCode} {advance.ErrorMessage}");
+                    var orderId = payload.RootElement.GetProperty("orderId").GetGuid();
+                    var returnId = payload.RootElement.GetProperty("returnRequestId").GetGuid();
+                    var openOthers = await db.ReturnRequests.AsNoTracking()
+                        .AnyAsync(r => r.OrderId == orderId
+                            && r.Id != returnId
+                            && r.State != Primitives.ReturnStateMachine.Rejected
+                            && r.State != Primitives.ReturnStateMachine.Refunded, ct);
+                    if (openOthers)
+                    {
+                        logger.LogInformation("returns.outbox.rejected.other_open_rma orderId={Order}", orderId);
+                        break;
+                    }
+                    var advance = await orderRefundAdvancer.AdvanceAsync(new OrderRefundStateAdvanceRequest(
+                        OrderId: orderId,
+                        EventType: "return.rejected",
+                        ReturnRequestId: returnId,
+                        RefundId: null,
+                        RefundedAmountMinor: 0,
+                        ReturnedLineQtys: null), ct);
+                    if (!advance.IsSuccess)
+                    {
+                        throw new InvalidOperationException(
+                            $"orders.advance failed: {advance.ErrorCode} {advance.ErrorMessage}");
+                    }
+                    break;
                 }
-                break;
-            }
+            case "refund.completed":
+            case "refund.manual_confirmed":
+                {
+                    var orderId = payload.RootElement.GetProperty("orderId").GetGuid();
+                    var returnId = payload.RootElement.GetProperty("returnRequestId").GetGuid();
+                    var refundId = payload.RootElement.GetProperty("refundId").GetGuid();
+                    var amountMinor = payload.RootElement.GetProperty("amountMinor").GetInt64();
+                    var deltas = new List<OrderRefundReturnedLine>();
+                    if (payload.RootElement.TryGetProperty("lines", out var lineEl)
+                        && lineEl.ValueKind == JsonValueKind.Array)
+                    {
+                        var returnLines = await db.ReturnLines.AsNoTracking()
+                            .Where(rl => rl.ReturnRequestId == returnId)
+                            .ToDictionaryAsync(rl => rl.Id, rl => rl.OrderLineId, ct);
+                        foreach (var l in lineEl.EnumerateArray())
+                        {
+                            var rlId = l.GetProperty("returnLineId").GetGuid();
+                            var qty = l.GetProperty("qty").GetInt32();
+                            if (returnLines.TryGetValue(rlId, out var orderLineId) && qty > 0)
+                            {
+                                deltas.Add(new OrderRefundReturnedLine(orderLineId, qty));
+                            }
+                        }
+                    }
+                    var creditLines = deltas
+                        .GroupBy(d => d.OrderLineId)
+                        .Select(g => new CreditNoteIssueLine(g.Key, g.Sum(x => x.DeltaQty)))
+                        .ToList();
+                    if (creditLines.Count > 0)
+                    {
+                        var cn = await creditNoteIssuer.IssueForRefundAsync(new CreditNoteIssueRequest(
+                            OrderId: orderId,
+                            RefundId: refundId,
+                            ReasonCode: $"return.{eventType}",
+                            Lines: creditLines), ct);
+                        if (!cn.IsSuccess)
+                        {
+                            throw new InvalidOperationException(
+                                $"invoices.credit_note failed: {cn.ErrorCode} {cn.ErrorMessage}");
+                        }
+                    }
+                    var advance = await orderRefundAdvancer.AdvanceAsync(new OrderRefundStateAdvanceRequest(
+                        OrderId: orderId,
+                        EventType: eventType,
+                        ReturnRequestId: returnId,
+                        RefundId: refundId,
+                        RefundedAmountMinor: amountMinor,
+                        ReturnedLineQtys: deltas), ct);
+                    if (!advance.IsSuccess)
+                    {
+                        throw new InvalidOperationException(
+                            $"orders.advance failed: {advance.ErrorCode} {advance.ErrorMessage}");
+                    }
+                    break;
+                }
             default:
                 logger.LogInformation(
                     "returns.outbox.dispatched id={Id} type={Type} aggregate={AggregateId}",

@@ -116,6 +116,21 @@ public static class Endpoint
             }
         }
 
+        // CR Critical round 5: every received line MUST have an inspection entry.
+        // Without this guard, a line with ReceivedQty>0 omitted from body.Lines would be
+        // defaulted to sellable=0/defective=0 below — silently writing off the received
+        // units while the request transitions to `inspected`. Fail fast instead.
+        var requestedIds = requested.Select(x => x.Id).ToHashSet();
+        foreach (var rl in r.Lines.Where(l => (l.ReceivedQty ?? 0) > 0))
+        {
+            if (!requestedIds.Contains(rl.Id))
+            {
+                await tx.RollbackAsync(ct);
+                return ReturnsResponseFactory.Problem(context, 400, "inspection.missing_line",
+                    $"ReturnLine {rl.Id} has receivedQty {rl.ReceivedQty} and must have an inspection entry.");
+            }
+        }
+
         var disc = string.Join("|", requested.OrderBy(x => x.Id).Select(x => $"{x.Id}=s{x.Sellable}d{x.Defective}"));
         const string Trigger = "admin.inspect";
         if (await AdminMutation.WasAlreadyApplied(db, r.Id, Trigger, disc, ct))

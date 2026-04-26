@@ -74,12 +74,10 @@ public static class Endpoint
         var sha = Convert.ToHexString(SHA256.HashData(bytes)).ToLowerInvariant();
         ms.Position = 0;
 
-        // Resolve market from the JWT — falls back to KSA when absent. The market only affects
-        // the storage residency partition (ADR-010), not validation.
-        var marketClaim = context.User.FindFirst("market")?.Value;
-        var market = string.Equals(marketClaim, "EG", StringComparison.OrdinalIgnoreCase)
-            ? MarketCode.EG
-            : MarketCode.KSA;
+        // CR Nit round 5: use the shared resolver so market-claim semantics stay
+        // consistent across all Returns endpoints (customer + admin).
+        var resolvedCode = ReturnsResponseFactory.ResolveMarketCode(context);
+        var market = resolvedCode == "EG" ? MarketCode.EG : MarketCode.KSA;
 
         StoredFileResult stored;
         try

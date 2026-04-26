@@ -57,7 +57,14 @@ public sealed class AdvanceRefundStateService(OrdersDbContext db, ILoggerFactory
             return AdvanceOutcome.Fail(404, "order.not_found", "Order not found");
         }
 
-        var idempotencyKey = $"event={eventType} returnRequestId={returnRequestId} refundId={refundId}";
+        // CR Critical round 5: normalize the event type ONCE up front. The switch was
+        // case-insensitive but idempotencyKey, persisted Trigger, and SumPriorRefundsAsync
+        // all used the raw eventType — so "refund.completed" and "REFUND.COMPLETED" got
+        // different idempotency keys AND the prior-refund sum filter missed mixed-case
+        // rows, reopening the over-refund path. All downstream code paths now use
+        // normalizedEventType.
+        var normalizedEventType = (eventType ?? string.Empty).Trim().ToLowerInvariant();
+        var idempotencyKey = $"event={normalizedEventType} returnRequestId={returnRequestId} refundId={refundId}";
         var alreadySeen = await db.StateTransitions
             .AnyAsync(t => t.OrderId == orderId
                 && t.Machine == OrderStateTransition.MachineRefund
@@ -73,7 +80,7 @@ public sealed class AdvanceRefundStateService(OrdersDbContext db, ILoggerFactory
         string? targetRefund = null;
         string? paymentEvent = null;
 
-        switch (eventType.ToLowerInvariant())
+        switch (normalizedEventType)
         {
             case "return.submitted":
                 if (string.Equals(order.RefundState, RefundSm.None, StringComparison.OrdinalIgnoreCase))
@@ -95,7 +102,7 @@ public sealed class AdvanceRefundStateService(OrdersDbContext db, ILoggerFactory
                 {
                     await tx.RollbackAsync(ct);
                     return AdvanceOutcome.Fail(409, "order.refund.payment_not_captured",
-                        $"Refund event '{eventType}' is not valid for payment state '{order.PaymentState}'.");
+                        $"Refund event '{normalizedEventType}' is not valid for payment state '{order.PaymentState}'.");
                 }
                 if (refundId is null || refundedAmountMinor < 0)
                 {
@@ -163,7 +170,7 @@ public sealed class AdvanceRefundStateService(OrdersDbContext db, ILoggerFactory
             default:
                 await tx.RollbackAsync(ct);
                 return AdvanceOutcome.Fail(400, "order.refund.invalid_event",
-                    $"Unknown eventType '{eventType}'");
+                    $"Unknown eventType '{normalizedEventType}'");
         }
 
         if (targetRefund is null)
@@ -191,7 +198,7 @@ public sealed class AdvanceRefundStateService(OrdersDbContext db, ILoggerFactory
             FromState = fromRefund,
             ToState = targetRefund,
             ActorAccountId = null,
-            Trigger = $"returns.{eventType}",
+            Trigger = $"returns.{normalizedEventType}",
             Reason = idempotencyKey,
             ContextJson = JsonSerializer.Serialize(new
             {

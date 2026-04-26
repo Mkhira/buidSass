@@ -34,4 +34,19 @@ public static class ReturnsResponseFactory
             ?? context.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
         return Guid.TryParse(sub, out var id) ? id : null;
     }
+
+    /// <summary>
+    /// Resolves the market claim with consistent fallback across all Returns endpoints.
+    /// Checks <c>market_code</c> first (admin convention), falls back to <c>market</c>
+    /// (customer convention), then to a default of <c>"KSA"</c>. Comparison is case-
+    /// insensitive; the returned value is always uppercase canonical (e.g. "KSA", "EG").
+    /// </summary>
+    public static string ResolveMarketCode(HttpContext context)
+    {
+        var raw = context.User.FindFirst("market_code")?.Value
+            ?? context.User.FindFirst("market")?.Value;
+        if (string.IsNullOrWhiteSpace(raw)) return "KSA";
+        var trimmed = raw.Trim().ToUpperInvariant();
+        return trimmed == "EG" ? "EG" : "KSA";
+    }
 }

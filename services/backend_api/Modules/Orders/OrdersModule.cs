@@ -43,6 +43,12 @@ public static class OrdersModule
         services.AddSingleton<BackendApi.Modules.Observability.OrdersMetrics>();
         services.AddScoped<Internal.CreateFromQuotation.CreateFromQuotationHandler>();
 
+        // Spec 011 ↔ spec 013 refund-state seam — single source of truth used by both the public
+        // HTTP endpoint and the in-process adapter.
+        services.AddScoped<Internal.AdvanceRefundState.AdvanceRefundStateService>();
+        services.AddScoped<BackendApi.Modules.Shared.IOrderRefundStateAdvancer,
+            Internal.AdvanceRefundState.OrderRefundStateAdvancerAdapter>();
+
         // Spec 010 → 011 seam. Replaces StubOrderFromCheckoutHandler — Checkout's submit slice
         // resolves IOrderFromCheckoutHandler via DI, and the LAST registration wins. Spec 010
         // still registers its stub gated on Development/Test; this registration is unconditional

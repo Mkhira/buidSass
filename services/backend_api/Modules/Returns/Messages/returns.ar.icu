@@ -1,0 +1,38 @@
+return.not_found = لم يتم العثور على طلب الإرجاع.
+return.invalid_request = طلب الإرجاع غير صالح.
+return.requires_auth = يُرجى تسجيل الدخول لإجراء عملية الإرجاع.
+return.window.expired = انتهت المهلة المسموح بها للإرجاع لهذا المنتج.
+return.line.qty_exceeds_delivered = الكمية المطلوب إرجاعها تتجاوز الكمية المتاحة من هذا العنصر.
+return.line.restricted_zero_window = هذا المنتج من الفئات المقيّدة ولا يقبل الإرجاع.
+return.line.not_found = لم يتم العثور على عنصر الإرجاع المحدد.
+return.line.duplicate = تم تكرار نفس عنصر الطلب أكثر من مرة.
+return.order.not_delivered = لا يمكن طلب الإرجاع قبل تأكيد تسليم الطلب.
+return.state.illegal_transition = لا يمكن تنفيذ هذا الإجراء على طلب الإرجاع في حالته الحالية.
+return.partial.no_approved_lines = يجب الموافقة على عنصر واحد على الأقل بكمية أكبر من صفر، وإلا فاستخدم زر الرفض.
+return.photos.too_many = الحد الأقصى لعدد صور الإرجاع هو خمس صور.
+return.photo.not_found = لم يتم العثور على إحدى الصور المرفقة.
+return.photo.already_bound = تم استخدام هذه الصورة في طلب إرجاع آخر.
+return.photo.forbidden = لا يمكنك استخدام صور مرفوعة من حساب آخر.
+return.policy.missing = لم يتم تكوين سياسة الإرجاع لهذا السوق.
+return.policy.invalid_request = إعدادات سياسة الإرجاع غير صالحة.
+return.policy.invalid_market = رمز السوق المُدخل غير صالح.
+
+inspection.qty_mismatch = أعداد الوحدات الصالحة والمعيبة لا تطابق الكمية المستلمة.
+inventory.post_failed = تعذّر تسجيل حركة إعادة المخزون.
+
+refund.over_refund_blocked = لا يمكن تنفيذ هذا الاسترداد لأنه يتجاوز إجمالي المبلغ المحصّل.
+refund.gateway_failure = تعذّر تنفيذ الاسترداد عبر بوابة الدفع، ستتم إعادة المحاولة تلقائيًا.
+refund.gateway_unavailable = بوابة الدفع المستخدمة في هذا الطلب غير متاحة حاليًا للاسترداد.
+refund.amount_zero = المبلغ المراد استرداده يساوي صفرًا.
+refund.no_refundable_units = لا توجد وحدات صالحة قابلة للاسترداد.
+refund.compute_failed = تعذّر احتساب مبلغ الاسترداد.
+refund.duplicate_key = تم تسجيل استرداد سابق لهذا الطلب.
+refund.manual_iban.required = يجب إدخال رقم IBAN واسم المستفيد لإتمام التحويل البنكي اليدوي.
+refund.state_lost = تعذّر العثور على سجل الاسترداد بعد تنفيذ العملية.
+
+photo.empty = الملف المرفوع فارغ.
+photo.size.exceeded = حجم الصورة يتجاوز الحد المسموح به.
+photo.mime.unsupported = نوع الصورة غير مدعوم. يُسمح فقط بصيغ JPEG وPNG وHEIC.
+photo.upload.blocked = تعذّر قبول الصورة لأسباب أمنية.
+
+export.format.unsupported = صيغة التصدير المطلوبة غير مدعومة، يُسمح فقط بـ CSV.

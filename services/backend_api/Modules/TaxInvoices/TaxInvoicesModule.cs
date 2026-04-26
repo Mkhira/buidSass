@@ -70,6 +70,10 @@ public static class TaxInvoicesModule
         services.AddScoped<Internal.IssueOnCapture.IssueOnCaptureHandler>();
         services.AddScoped<Internal.IssueCreditNote.IssueCreditNoteHandler>();
 
+        // Spec 012 ↔ spec 013 credit-note seam.
+        services.AddScoped<BackendApi.Modules.Shared.ICreditNoteIssuer,
+            Internal.IssueCreditNote.CreditNoteIssuerAdapter>();
+
         if (!hostEnvironment.IsEnvironment("Test"))
         {
             services.AddHostedService<Workers.InvoiceRenderWorker>();

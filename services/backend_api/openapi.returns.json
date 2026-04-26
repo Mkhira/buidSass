@@ -1,0 +1,334 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Returns & Refunds API",
+    "version": "1.0.0",
+    "description": "Spec 013 returns v1 surfaces — customer, admin, internal. Three independent state machines (Return / Refund / Inspection) per Principle 24. Refunds advance spec 011's order refund_state via the internal seam and emit credit notes through spec 012."
+  },
+  "paths": {
+    "/v1/customer/orders/{orderId}/returns": {
+      "post": {
+        "summary": "Submit a return request for a delivered order (FR-001, FR-005, FR-024)",
+        "parameters": [
+          { "name": "orderId", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["lines", "reasonCode"],
+                "properties": {
+                  "lines": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "required": ["orderLineId", "qty"],
+                      "properties": {
+                        "orderLineId": { "type": "string", "format": "uuid" },
+                        "qty": { "type": "integer", "minimum": 1 },
+                        "lineReasonCode": { "type": "string" }
+                      }
+                    }
+                  },
+                  "reasonCode": { "type": "string" },
+                  "customerNotes": { "type": "string" },
+                  "photoIds": { "type": "array", "items": { "type": "string", "format": "uuid" }, "maxItems": 5 }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": { "description": "Return created (state=pending_review). Returns id + returnNumber RET-{MARKET}-{YYYYMM}-{SEQ6} (FR-003)" },
+          "400": { "description": "return.window.expired | return.line.qty_exceeds_delivered | return.line.restricted_zero_window | return.invalid_request | return.photos.too_many" },
+          "401": { "description": "returns.requires_auth" },
+          "404": { "description": "return.not_found | return.line.not_found | return.photo.not_found" },
+          "409": { "description": "return.order.not_delivered" }
+        }
+      }
+    },
+    "/v1/customer/returns": {
+      "get": {
+        "summary": "Customer paginated returns list (FR-017)",
+        "parameters": [
+          { "name": "status", "in": "query", "schema": { "type": "string" } },
+          { "name": "page", "in": "query", "schema": { "type": "integer" } },
+          { "name": "pageSize", "in": "query", "schema": { "type": "integer" } }
+        ],
+        "responses": {
+          "200": { "description": "Paginated return list" },
+          "401": { "description": "returns.requires_auth" }
+        }
+      }
+    },
+    "/v1/customer/returns/{id}": {
+      "get": {
+        "summary": "Customer return detail incl. timeline + refund (FR-013)",
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }],
+        "responses": {
+          "200": { "description": "Return detail" },
+          "401": { "description": "returns.requires_auth" },
+          "404": { "description": "return.not_found" }
+        }
+      }
+    },
+    "/v1/customer/returns/photos": {
+      "post": {
+        "summary": "Upload a return-evidence photo (FR-020)",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "properties": { "file": { "type": "string", "format": "binary" } }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": { "description": "{ photoId }" },
+          "400": { "description": "photo.empty" },
+          "401": { "description": "returns.requires_auth" },
+          "413": { "description": "photo.size.exceeded (max 5 MB)" },
+          "415": { "description": "photo.mime.unsupported (JPEG/PNG/HEIC only)" },
+          "422": { "description": "photo.upload.blocked" }
+        }
+      }
+    },
+    "/v1/admin/returns": {
+      "get": {
+        "summary": "Admin paginated returns list (permission returns.read)",
+        "parameters": [
+          { "name": "market", "in": "query", "schema": { "type": "string" } },
+          { "name": "state", "in": "query", "schema": { "type": "string" } },
+          { "name": "from", "in": "query", "schema": { "type": "string", "format": "date-time" } },
+          { "name": "to", "in": "query", "schema": { "type": "string", "format": "date-time" } },
+          { "name": "page", "in": "query", "schema": { "type": "integer" } },
+          { "name": "pageSize", "in": "query", "schema": { "type": "integer" } }
+        ],
+        "responses": {
+          "200": { "description": "Paginated return list" },
+          "401": { "description": "Auth required" },
+          "403": { "description": "Missing returns.read" }
+        }
+      }
+    },
+    "/v1/admin/returns/{id}": {
+      "get": {
+        "summary": "Admin return detail incl. inspections, refunds, full timeline (FR-012)",
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }],
+        "responses": {
+          "200": { "description": "Return detail" },
+          "404": { "description": "return.not_found" }
+        }
+      }
+    },
+    "/v1/admin/returns/{id}/approve": {
+      "post": {
+        "summary": "Approve all requested lines at full qty (FR-006, FR-019; permission returns.review.write)",
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": { "type": "object", "properties": { "adminNotes": { "type": "string" } } }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Approved (idempotent on duplicate clicks)" },
+          "409": { "description": "return.state.illegal_transition" }
+        }
+      }
+    },
+    "/v1/admin/returns/{id}/reject": {
+      "post": {
+        "summary": "Reject a return (FR-006)",
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["reasonCode"],
+                "properties": {
+                  "reasonCode": { "type": "string" },
+                  "adminNotes": { "type": "string" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Rejected" },
+          "409": { "description": "return.state.illegal_transition" }
+        }
+      }
+    },
+    "/v1/admin/returns/{id}/approve-partial": {
+      "post": {
+        "summary": "Partial approval (per-line approvedQty)",
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }],
+        "responses": {
+          "200": { "description": "Approved partial" },
+          "400": { "description": "return.partial.no_approved_lines | return.invalid_request" },
+          "409": { "description": "return.state.illegal_transition" }
+        }
+      }
+    },
+    "/v1/admin/returns/{id}/mark-received": {
+      "post": {
+        "summary": "Mark physical units received (permission returns.warehouse.write)",
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }],
+        "responses": {
+          "200": { "description": "Received" },
+          "400": { "description": "inspection.qty_mismatch" },
+          "409": { "description": "return.state.illegal_transition" }
+        }
+      }
+    },
+    "/v1/admin/returns/{id}/inspect": {
+      "post": {
+        "summary": "Record inspection; sellable units restock to spec 008 (FR-009, SC-007)",
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }],
+        "responses": {
+          "200": { "description": "Inspected (idempotent on replay)" },
+          "400": { "description": "inspection.qty_mismatch" },
+          "409": { "description": "return.state.illegal_transition" },
+          "500": { "description": "inventory.post_failed" }
+        }
+      }
+    },
+    "/v1/admin/returns/{id}/issue-refund": {
+      "post": {
+        "summary": "Issue refund via spec 010 IPaymentGateway or COD manual path (FR-007, FR-014, FR-022, SC-005, SC-006)",
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": { "type": "object", "properties": { "restockingFeeMinor": { "type": "integer", "format": "int64" } } }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Refund initiated; state=completed (online) or pending_manual_transfer (COD)" },
+          "400": { "description": "refund.over_refund_blocked | refund.no_refundable_units | refund.compute_failed | refund.amount_zero" },
+          "409": { "description": "return.state.illegal_transition | refund.duplicate_key" },
+          "422": { "description": "refund.gateway_unavailable" },
+          "502": { "description": "refund.gateway_failure" }
+        }
+      }
+    },
+    "/v1/admin/returns/{id}/force-refund": {
+      "post": {
+        "summary": "Skip-physical refund (high-privilege; FR-006)",
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["reasonCode"],
+                "properties": { "reasonCode": { "type": "string" } }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Force-refund flag set; call /issue-refund next" },
+          "409": { "description": "return.state.illegal_transition" }
+        }
+      }
+    },
+    "/v1/admin/refunds/{refundId}/retry": {
+      "post": {
+        "summary": "Retry a failed gateway refund (FR-021)",
+        "parameters": [{ "name": "refundId", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }],
+        "responses": {
+          "200": { "description": "Queued for immediate retry" },
+          "409": { "description": "return.state.illegal_transition (refund not in failed state)" }
+        }
+      }
+    },
+    "/v1/admin/refunds/{refundId}/confirm-bank-transfer": {
+      "post": {
+        "summary": "Confirm manual bank transfer (FR-011, FR-023)",
+        "parameters": [{ "name": "refundId", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["iban", "beneficiaryName"],
+                "properties": {
+                  "iban": { "type": "string" },
+                  "beneficiaryName": { "type": "string" },
+                  "bankName": { "type": "string" },
+                  "reference": { "type": "string" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Refund completed" },
+          "400": { "description": "refund.manual_iban.required" },
+          "409": { "description": "return.state.illegal_transition" }
+        }
+      }
+    },
+    "/v1/admin/returns/export": {
+      "get": {
+        "summary": "Admin CSV export (FR-016)",
+        "parameters": [
+          { "name": "market", "in": "query", "schema": { "type": "string" } },
+          { "name": "from", "in": "query", "schema": { "type": "string", "format": "date-time" } },
+          { "name": "to", "in": "query", "schema": { "type": "string", "format": "date-time" } },
+          { "name": "format", "in": "query", "schema": { "type": "string", "enum": ["csv"] } }
+        ],
+        "responses": {
+          "200": { "description": "text/csv attachment" },
+          "400": { "description": "export.format.unsupported" }
+        }
+      }
+    },
+    "/v1/admin/return-policies": {
+      "get": {
+        "summary": "List per-market return policies (FR-015)",
+        "responses": { "200": { "description": "Policy list" } }
+      }
+    },
+    "/v1/admin/return-policies/{market}": {
+      "put": {
+        "summary": "Upsert per-market return policy (FR-015; permission returns.policy.write)",
+        "parameters": [{ "name": "market", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["returnWindowDays", "restockingFeeBp", "shippingRefundOnFullOnly"],
+                "properties": {
+                  "returnWindowDays": { "type": "integer", "minimum": 0 },
+                  "autoApproveUnderDays": { "type": "integer", "minimum": 0 },
+                  "restockingFeeBp": { "type": "integer", "minimum": 0, "maximum": 10000 },
+                  "shippingRefundOnFullOnly": { "type": "boolean" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Policy upserted; audit row written" },
+          "400": { "description": "return.policy.invalid_request | return.policy.invalid_market" }
+        }
+      }
+    }
+  }
+}

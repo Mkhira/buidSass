@@ -1,0 +1,157 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Checkout API",
+    "version": "1.0.0",
+    "description": "Spec 010 checkout v1 surfaces — customer session flow + admin + payment-gateway webhook. Step-wise state machine: created → address_set → shipping_selected → payment_selected → priced → submitting → submitted | abandoned | expired. Submit is idempotent on Idempotency-Key header (SC-002)."
+  },
+  "paths": {
+    "/v1/customer/checkout/sessions": {
+      "post": {
+        "summary": "Start a checkout session for the authenticated customer + a cart (US1)",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["cartId", "marketCode"],
+                "properties": {
+                  "cartId": { "type": "string", "format": "uuid" },
+                  "marketCode": { "type": "string", "enum": ["KSA", "EG"] }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": { "description": "Session created" },
+          "400": { "description": "checkout.market_required | checkout.cart_required | checkout.market_mismatch | checkout.cart.empty" },
+          "401": { "description": "checkout.requires_auth (US2)" },
+          "403": { "description": "checkout.restricted_not_allowed (US3)" },
+          "404": { "description": "checkout.cart.not_found | checkout.cart.not_owned" }
+        }
+      }
+    },
+    "/v1/customer/checkout/sessions/{sessionId}/address": {
+      "patch": {
+        "summary": "Set / change shipping address; resets shipping selection (US5)",
+        "parameters": [{ "name": "sessionId", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }],
+        "responses": {
+          "200": { "description": "Address set" },
+          "400": { "description": "checkout.address.invalid | checkout.address_unserviceable" },
+          "404": { "description": "checkout.session.not_found" },
+          "409": { "description": "checkout.invalid_state | checkout.session.expired | checkout.concurrency_conflict" }
+        }
+      }
+    },
+    "/v1/customer/checkout/sessions/{sessionId}/shipping-quotes": {
+      "get": {
+        "summary": "Fetch shipping quotes for the current address (US5)",
+        "parameters": [{ "name": "sessionId", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }],
+        "responses": {
+          "200": { "description": "List of quotes" },
+          "400": { "description": "checkout.address.missing" },
+          "404": { "description": "checkout.session.not_found" }
+        }
+      }
+    },
+    "/v1/customer/checkout/sessions/{sessionId}/shipping": {
+      "patch": {
+        "summary": "Select a shipping quote",
+        "parameters": [{ "name": "sessionId", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }],
+        "responses": {
+          "200": { "description": "Shipping selected" },
+          "400": { "description": "checkout.shipping.invalid | checkout.shipping.quote_expired" },
+          "404": { "description": "checkout.session.not_found" },
+          "409": { "description": "checkout.invalid_state" }
+        }
+      }
+    },
+    "/v1/customer/checkout/sessions/{sessionId}/payment-method": {
+      "patch": {
+        "summary": "Select a payment method (Card / Mada / STC Pay / BNPL / COD / BankTransfer per market matrix)",
+        "parameters": [{ "name": "sessionId", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }],
+        "responses": {
+          "200": { "description": "Payment method selected" },
+          "400": { "description": "checkout.payment.method_required | checkout.payment.method_not_supported | checkout.b2b_required | checkout.b2b.po_required | checkout.cod_cap_exceeded | checkout.cod_restricted_product" },
+          "404": { "description": "checkout.session.not_found" },
+          "409": { "description": "checkout.invalid_state" }
+        }
+      }
+    },
+    "/v1/customer/checkout/sessions/{sessionId}/summary": {
+      "get": {
+        "summary": "Final priced summary; computes pricing-explanation hash for drift detection (SC-004)",
+        "parameters": [{ "name": "sessionId", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }],
+        "responses": {
+          "200": { "description": "Summary with totals + driftHash" },
+          "404": { "description": "checkout.session.not_found" },
+          "409": { "description": "checkout.invalid_state | checkout.pricing_failed" }
+        }
+      }
+    },
+    "/v1/customer/checkout/sessions/{sessionId}/submit": {
+      "post": {
+        "summary": "Submit the session: capture payment + create order. Idempotent on Idempotency-Key header (SC-002).",
+        "parameters": [
+          { "name": "sessionId", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } },
+          { "name": "Idempotency-Key", "in": "header", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": { "description": "Order created (replay if Idempotency-Key already seen)" },
+          "400": { "description": "checkout.idempotency_required | checkout.idempotency_body_mismatch" },
+          "401": { "description": "checkout.requires_auth" },
+          "403": { "description": "checkout.restricted_not_allowed" },
+          "409": { "description": "checkout.already_submitted | checkout.invalid_state | checkout.pricing_drift | checkout.inventory_lost | checkout.order_create_failed | checkout.payment.declined" }
+        }
+      }
+    },
+    "/v1/customer/checkout/sessions/{sessionId}/accept-drift": {
+      "post": {
+        "summary": "Accept a pricing drift surfaced by Submit (SC-004); next Submit will succeed",
+        "parameters": [{ "name": "sessionId", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }],
+        "responses": {
+          "200": { "description": "Drift accepted; resubmit to confirm" },
+          "404": { "description": "checkout.session.not_found" },
+          "409": { "description": "checkout.invalid_state" }
+        }
+      }
+    },
+    "/v1/admin/checkout/sessions": {
+      "get": {
+        "summary": "Admin paginated session list (US8)",
+        "parameters": [
+          { "name": "state", "in": "query", "schema": { "type": "string" } },
+          { "name": "market", "in": "query", "schema": { "type": "string" } },
+          { "name": "page", "in": "query", "schema": { "type": "integer" } },
+          { "name": "pageSize", "in": "query", "schema": { "type": "integer" } }
+        ],
+        "responses": {
+          "200": { "description": "Paginated session list" },
+          "400": { "description": "checkout.pagination_out_of_range" }
+        }
+      }
+    },
+    "/v1/admin/checkout/sessions/{sessionId}/expire": {
+      "post": {
+        "summary": "Admin force-expire a session; releases reservations + writes audit row (SC-009)",
+        "parameters": [{ "name": "sessionId", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }],
+        "responses": {
+          "200": { "description": "Expired (idempotent if already expired)" },
+          "404": { "description": "checkout.session.not_found" }
+        }
+      }
+    },
+    "/v1/webhooks/payment-gateway/{providerId}": {
+      "post": {
+        "summary": "Payment-gateway webhook; signature-verified + 100-duplicate dedup (SC-007)",
+        "parameters": [{ "name": "providerId", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": {
+          "200": { "description": "Acknowledged (idempotent — duplicates collapse to one mutation)" },
+          "400": { "description": "Bad signature / unparseable payload" }
+        }
+      }
+    }
+  }
+}

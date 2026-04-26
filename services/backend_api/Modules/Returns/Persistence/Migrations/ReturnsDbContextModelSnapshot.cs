@@ -88,6 +88,8 @@ namespace BackendApi.Modules.Returns.Persistence.Migrations
 
                     b.HasKey("InspectionId", "ReturnLineId");
 
+                    b.HasIndex("ReturnLineId");
+
                     b.ToTable("inspection_lines", "returns", t =>
                         {
                             t.HasCheckConstraint("CK_returns_inspection_lines_qty_non_negative", "\"SellableQty\" >= 0 AND \"DefectiveQty\" >= 0");
@@ -240,6 +242,8 @@ namespace BackendApi.Modules.Returns.Persistence.Migrations
                         .HasColumnType("bigint");
 
                     b.HasKey("RefundId", "ReturnLineId");
+
+                    b.HasIndex("ReturnLineId");
 
                     b.ToTable("refund_lines", "returns", t =>
                         {
@@ -617,6 +621,13 @@ namespace BackendApi.Modules.Returns.Persistence.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
+                    b.HasOne("BackendApi.Modules.Returns.Entities.ReturnLine", null)
+                        .WithMany()
+                        .HasForeignKey("ReturnLineId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("FK_inspection_lines_return_lines_ReturnLineId");
+
                     b.Navigation("Inspection");
                 });
 
@@ -638,6 +649,13 @@ namespace BackendApi.Modules.Returns.Persistence.Migrations
                         .HasForeignKey("RefundId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+
+                    b.HasOne("BackendApi.Modules.Returns.Entities.ReturnLine", null)
+                        .WithMany()
+                        .HasForeignKey("ReturnLineId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("FK_refund_lines_return_lines_ReturnLineId");
 
                     b.Navigation("Refund");
                 });

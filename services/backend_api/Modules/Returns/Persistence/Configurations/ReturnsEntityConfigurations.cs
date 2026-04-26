@@ -109,6 +109,15 @@ public sealed class InspectionLineConfiguration : IEntityTypeConfiguration<Inspe
         builder.HasKey(x => new { x.InspectionId, x.ReturnLineId });
         builder.Property(x => x.MarketCode).HasColumnType("citext").IsRequired();
         builder.Property(x => x.PhotosJson).HasColumnType("jsonb");
+        // CR Major round 2: enforce referential integrity to return_lines so an inspection
+        // line cannot reference a non-existent return_line. Restrict on delete because
+        // cascade would let an admin's accidental ReturnLine delete wipe the inspection
+        // history; the parent Inspection cascade handles legitimate cleanup.
+        builder.HasOne<ReturnLine>()
+            .WithMany()
+            .HasForeignKey(x => x.ReturnLineId)
+            .OnDelete(DeleteBehavior.Restrict)
+            .HasConstraintName("FK_inspection_lines_return_lines_ReturnLineId");
     }
 }
 
@@ -167,6 +176,14 @@ public sealed class RefundLineConfiguration : IEntityTypeConfiguration<RefundLin
         });
         builder.HasKey(x => new { x.RefundId, x.ReturnLineId });
         builder.Property(x => x.MarketCode).HasColumnType("citext").IsRequired();
+        // CR Major round 2: FK to return_lines so a refund line can't reference a phantom
+        // return_line. Restrict so an accidental ReturnLine delete doesn't wipe refund
+        // history (the parent Refund cascade handles legitimate cleanup).
+        builder.HasOne<ReturnLine>()
+            .WithMany()
+            .HasForeignKey(x => x.ReturnLineId)
+            .OnDelete(DeleteBehavior.Restrict)
+            .HasConstraintName("FK_refund_lines_return_lines_ReturnLineId");
     }
 }
 

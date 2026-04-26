@@ -73,6 +73,7 @@ namespace BackendApi.Modules.Returns.Persistence.Migrations
                 {
                     Id = table.Column<long>(type: "bigint", nullable: false)
                         .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
+                    MarketCode = table.Column<string>(type: "citext", nullable: false),
                     EventType = table.Column<string>(type: "citext", nullable: false),
                     AggregateId = table.Column<Guid>(type: "uuid", nullable: false),
                     PayloadJson = table.Column<string>(type: "jsonb", nullable: false, defaultValueSql: "'{}'::jsonb"),
@@ -94,6 +95,7 @@ namespace BackendApi.Modules.Returns.Persistence.Migrations
                 {
                     Id = table.Column<Guid>(type: "uuid", nullable: false),
                     ReturnRequestId = table.Column<Guid>(type: "uuid", nullable: false),
+                    MarketCode = table.Column<string>(type: "citext", nullable: false),
                     InspectorAccountId = table.Column<Guid>(type: "uuid", nullable: false),
                     State = table.Column<string>(type: "citext", nullable: false, defaultValue: "pending"),
                     StartedAt = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false),
@@ -119,6 +121,7 @@ namespace BackendApi.Modules.Returns.Persistence.Migrations
                 {
                     Id = table.Column<Guid>(type: "uuid", nullable: false),
                     ReturnRequestId = table.Column<Guid>(type: "uuid", nullable: false),
+                    MarketCode = table.Column<string>(type: "citext", nullable: false),
                     ProviderId = table.Column<string>(type: "citext", nullable: true),
                     CapturedTransactionId = table.Column<string>(type: "text", nullable: true),
                     AmountMinor = table.Column<long>(type: "bigint", nullable: false),
@@ -164,6 +167,7 @@ namespace BackendApi.Modules.Returns.Persistence.Migrations
                 {
                     Id = table.Column<Guid>(type: "uuid", nullable: false),
                     ReturnRequestId = table.Column<Guid>(type: "uuid", nullable: false),
+                    MarketCode = table.Column<string>(type: "citext", nullable: false),
                     OrderLineId = table.Column<Guid>(type: "uuid", nullable: false),
                     RequestedQty = table.Column<int>(type: "integer", nullable: false),
                     ApprovedQty = table.Column<int>(type: "integer", nullable: true),
@@ -181,8 +185,8 @@ namespace BackendApi.Modules.Returns.Persistence.Migrations
                 {
                     table.PrimaryKey("PK_return_lines", x => x.Id);
                     table.CheckConstraint("CK_returns_return_lines_approved_qty_bounds", "\"ApprovedQty\" IS NULL OR (\"ApprovedQty\" >= 0 AND \"ApprovedQty\" <= \"RequestedQty\")");
-                    table.CheckConstraint("CK_returns_return_lines_inspection_qty_balance", "(\"SellableQty\" IS NULL AND \"DefectiveQty\" IS NULL) OR (\"SellableQty\" + \"DefectiveQty\" = \"ReceivedQty\")");
-                    table.CheckConstraint("CK_returns_return_lines_received_qty_bounds", "\"ReceivedQty\" IS NULL OR (\"ReceivedQty\" >= 0 AND \"ReceivedQty\" <= \"ApprovedQty\")");
+                    table.CheckConstraint("CK_returns_return_lines_inspection_qty_balance", "(\"SellableQty\" IS NULL AND \"DefectiveQty\" IS NULL) OR (\"ReceivedQty\" IS NOT NULL AND \"SellableQty\" IS NOT NULL AND \"DefectiveQty\" IS NOT NULL AND \"SellableQty\" + \"DefectiveQty\" = \"ReceivedQty\")");
+                    table.CheckConstraint("CK_returns_return_lines_received_qty_bounds", "\"ReceivedQty\" IS NULL OR (\"ApprovedQty\" IS NOT NULL AND \"ReceivedQty\" >= 0 AND \"ReceivedQty\" <= \"ApprovedQty\")");
                     table.CheckConstraint("CK_returns_return_lines_requested_qty_positive", "\"RequestedQty\" > 0");
                     table.CheckConstraint("CK_returns_return_lines_tax_rate_bounds", "\"TaxRateBp\" >= 0 AND \"TaxRateBp\" <= 10000");
                     table.CheckConstraint("CK_returns_return_lines_unit_price_non_negative", "\"UnitPriceMinor\" >= 0");
@@ -230,6 +234,7 @@ namespace BackendApi.Modules.Returns.Persistence.Migrations
                     Id = table.Column<long>(type: "bigint", nullable: false)
                         .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
                     ReturnRequestId = table.Column<Guid>(type: "uuid", nullable: false),
+                    MarketCode = table.Column<string>(type: "citext", nullable: false),
                     RefundId = table.Column<Guid>(type: "uuid", nullable: true),
                     InspectionId = table.Column<Guid>(type: "uuid", nullable: true),
                     Machine = table.Column<string>(type: "citext", nullable: false),
@@ -261,6 +266,7 @@ namespace BackendApi.Modules.Returns.Persistence.Migrations
                 {
                     InspectionId = table.Column<Guid>(type: "uuid", nullable: false),
                     ReturnLineId = table.Column<Guid>(type: "uuid", nullable: false),
+                    MarketCode = table.Column<string>(type: "citext", nullable: false),
                     SellableQty = table.Column<int>(type: "integer", nullable: false),
                     DefectiveQty = table.Column<int>(type: "integer", nullable: false),
                     PhotosJson = table.Column<string>(type: "jsonb", nullable: true)
@@ -276,6 +282,13 @@ namespace BackendApi.Modules.Returns.Persistence.Migrations
                         principalTable: "inspections",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Cascade);
+                    table.ForeignKey(
+                        name: "FK_inspection_lines_return_lines_ReturnLineId",
+                        column: x => x.ReturnLineId,
+                        principalSchema: "returns",
+                        principalTable: "return_lines",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Restrict);
                 });
 
             migrationBuilder.CreateTable(
@@ -285,6 +298,7 @@ namespace BackendApi.Modules.Returns.Persistence.Migrations
                 {
                     RefundId = table.Column<Guid>(type: "uuid", nullable: false),
                     ReturnLineId = table.Column<Guid>(type: "uuid", nullable: false),
+                    MarketCode = table.Column<string>(type: "citext", nullable: false),
                     Qty = table.Column<int>(type: "integer", nullable: false),
                     UnitPriceMinor = table.Column<long>(type: "bigint", nullable: false),
                     TaxRateBp = table.Column<int>(type: "integer", nullable: false),
@@ -306,13 +320,44 @@ namespace BackendApi.Modules.Returns.Persistence.Migrations
                         principalTable: "refunds",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Cascade);
+                    table.ForeignKey(
+                        name: "FK_refund_lines_return_lines_ReturnLineId",
+                        column: x => x.ReturnLineId,
+                        principalSchema: "returns",
+                        principalTable: "return_lines",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Restrict);
                 });
+
+            migrationBuilder.CreateIndex(
+                name: "IX_inspection_lines_ReturnLineId",
+                schema: "returns",
+                table: "inspection_lines",
+                column: "ReturnLineId");
 
             migrationBuilder.CreateIndex(
                 name: "IX_inspections_ReturnRequestId",
                 schema: "returns",
                 table: "inspections",
                 column: "ReturnRequestId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_returns_inspections_market_started",
+                schema: "returns",
+                table: "inspections",
+                columns: new[] { "MarketCode", "StartedAt" });
+
+            migrationBuilder.CreateIndex(
+                name: "IX_refund_lines_ReturnLineId",
+                schema: "returns",
+                table: "refund_lines",
+                column: "ReturnLineId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_returns_refunds_market_state",
+                schema: "returns",
+                table: "refunds",
+                columns: new[] { "MarketCode", "State" });
 
             migrationBuilder.CreateIndex(
                 name: "IX_returns_refunds_request_active_unique",
@@ -346,6 +391,12 @@ namespace BackendApi.Modules.Returns.Persistence.Migrations
                 schema: "returns",
                 table: "return_lines",
                 column: "ReturnRequestId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_returns_return_lines_market_order_line",
+                schema: "returns",
+                table: "return_lines",
+                columns: new[] { "MarketCode", "OrderLineId" });
 
             migrationBuilder.CreateIndex(
                 name: "IX_return_photos_AccountId",
@@ -385,6 +436,12 @@ namespace BackendApi.Modules.Returns.Persistence.Migrations
                 column: "OrderId");
 
             migrationBuilder.CreateIndex(
+                name: "IX_returns_state_transitions_market_occurred",
+                schema: "returns",
+                table: "return_state_transitions",
+                columns: new[] { "MarketCode", "OccurredAt" });
+
+            migrationBuilder.CreateIndex(
                 name: "IX_returns_state_transitions_request_occurred",
                 schema: "returns",
                 table: "return_state_transitions",
@@ -401,6 +458,13 @@ namespace BackendApi.Modules.Returns.Persistence.Migrations
                 schema: "returns",
                 table: "returns_outbox",
                 column: "CommittedAt",
+                filter: "\"DispatchedAt\" IS NULL");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_returns_outbox_pending_per_market",
+                schema: "returns",
+                table: "returns_outbox",
+                columns: new[] { "MarketCode", "CommittedAt" },
                 filter: "\"DispatchedAt\" IS NULL");
 
             // B3 — seed launch return policies (FR-001 / FR-002). Idempotent: re-applied
@@ -428,10 +492,6 @@ namespace BackendApi.Modules.Returns.Persistence.Migrations
                 schema: "returns");
 
             migrationBuilder.DropTable(
-                name: "return_lines",
-                schema: "returns");
-
-            migrationBuilder.DropTable(
                 name: "return_photos",
                 schema: "returns");
 
@@ -453,6 +513,10 @@ namespace BackendApi.Modules.Returns.Persistence.Migrations
 
             migrationBuilder.DropTable(
                 name: "refunds",
+                schema: "returns");
+
+            migrationBuilder.DropTable(
+                name: "return_lines",
                 schema: "returns");
 
             migrationBuilder.DropTable(

@@ -12,7 +12,7 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace BackendApi.Modules.Returns.Persistence.Migrations
 {
     [DbContext(typeof(ReturnsDbContext))]
-    [Migration("20260426032329_Returns_Initial")]
+    [Migration("20260426105037_Returns_Initial")]
     partial class Returns_Initial
     {
         /// <inheritdoc />
@@ -39,6 +39,10 @@ namespace BackendApi.Modules.Returns.Persistence.Migrations
                     b.Property<Guid>("InspectorAccountId")
                         .HasColumnType("uuid");
 
+                    b.Property<string>("MarketCode")
+                        .IsRequired()
+                        .HasColumnType("citext");
+
                     b.Property<Guid>("ReturnRequestId")
                         .HasColumnType("uuid");
 
@@ -54,6 +58,9 @@ namespace BackendApi.Modules.Returns.Persistence.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("ReturnRequestId");
+
+                    b.HasIndex("MarketCode", "StartedAt")
+                        .HasDatabaseName("IX_returns_inspections_market_started");
 
                     b.ToTable("inspections", "returns", t =>
                         {
@@ -72,6 +79,10 @@ namespace BackendApi.Modules.Returns.Persistence.Migrations
                     b.Property<int>("DefectiveQty")
                         .HasColumnType("integer");
 
+                    b.Property<string>("MarketCode")
+                        .IsRequired()
+                        .HasColumnType("citext");
+
                     b.Property<string>("PhotosJson")
                         .HasColumnType("jsonb");
 
@@ -79,6 +90,8 @@ namespace BackendApi.Modules.Returns.Persistence.Migrations
                         .HasColumnType("integer");
 
                     b.HasKey("InspectionId", "ReturnLineId");
+
+                    b.HasIndex("ReturnLineId");
 
                     b.ToTable("inspection_lines", "returns", t =>
                         {
@@ -138,6 +151,10 @@ namespace BackendApi.Modules.Returns.Persistence.Migrations
                     b.Property<string>("ManualReference")
                         .HasColumnType("text");
 
+                    b.Property<string>("MarketCode")
+                        .IsRequired()
+                        .HasColumnType("citext");
+
                     b.Property<DateTimeOffset?>("NextRetryAt")
                         .HasColumnType("timestamp with time zone");
 
@@ -179,6 +196,9 @@ namespace BackendApi.Modules.Returns.Persistence.Migrations
                     b.HasIndex("State")
                         .HasDatabaseName("IX_returns_refunds_state");
 
+                    b.HasIndex("MarketCode", "State")
+                        .HasDatabaseName("IX_returns_refunds_market_state");
+
                     b.ToTable("refunds", "returns", t =>
                         {
                             t.HasCheckConstraint("CK_returns_refunds_amount_non_negative", "\"AmountMinor\" >= 0");
@@ -211,6 +231,10 @@ namespace BackendApi.Modules.Returns.Persistence.Migrations
                     b.Property<long>("LineTaxMinor")
                         .HasColumnType("bigint");
 
+                    b.Property<string>("MarketCode")
+                        .IsRequired()
+                        .HasColumnType("citext");
+
                     b.Property<int>("Qty")
                         .HasColumnType("integer");
 
@@ -221,6 +245,8 @@ namespace BackendApi.Modules.Returns.Persistence.Migrations
                         .HasColumnType("bigint");
 
                     b.HasKey("RefundId", "ReturnLineId");
+
+                    b.HasIndex("ReturnLineId");
 
                     b.ToTable("refund_lines", "returns", t =>
                         {
@@ -245,6 +271,10 @@ namespace BackendApi.Modules.Returns.Persistence.Migrations
                         .HasColumnType("integer");
 
                     b.Property<string>("LineReasonCode")
+                        .HasColumnType("citext");
+
+                    b.Property<string>("MarketCode")
+                        .IsRequired()
                         .HasColumnType("citext");
 
                     b.Property<Guid>("OrderLineId")
@@ -283,13 +313,16 @@ namespace BackendApi.Modules.Returns.Persistence.Migrations
 
                     b.HasIndex("ReturnRequestId");
 
+                    b.HasIndex("MarketCode", "OrderLineId")
+                        .HasDatabaseName("IX_returns_return_lines_market_order_line");
+
                     b.ToTable("return_lines", "returns", t =>
                         {
                             t.HasCheckConstraint("CK_returns_return_lines_approved_qty_bounds", "\"ApprovedQty\" IS NULL OR (\"ApprovedQty\" >= 0 AND \"ApprovedQty\" <= \"RequestedQty\")");
 
-                            t.HasCheckConstraint("CK_returns_return_lines_inspection_qty_balance", "(\"SellableQty\" IS NULL AND \"DefectiveQty\" IS NULL) OR (\"SellableQty\" + \"DefectiveQty\" = \"ReceivedQty\")");
+                            t.HasCheckConstraint("CK_returns_return_lines_inspection_qty_balance", "(\"SellableQty\" IS NULL AND \"DefectiveQty\" IS NULL) OR (\"ReceivedQty\" IS NOT NULL AND \"SellableQty\" IS NOT NULL AND \"DefectiveQty\" IS NOT NULL AND \"SellableQty\" + \"DefectiveQty\" = \"ReceivedQty\")");
 
-                            t.HasCheckConstraint("CK_returns_return_lines_received_qty_bounds", "\"ReceivedQty\" IS NULL OR (\"ReceivedQty\" >= 0 AND \"ReceivedQty\" <= \"ApprovedQty\")");
+                            t.HasCheckConstraint("CK_returns_return_lines_received_qty_bounds", "\"ReceivedQty\" IS NULL OR (\"ApprovedQty\" IS NOT NULL AND \"ReceivedQty\" >= 0 AND \"ReceivedQty\" <= \"ApprovedQty\")");
 
                             t.HasCheckConstraint("CK_returns_return_lines_requested_qty_positive", "\"RequestedQty\" > 0");
 
@@ -479,6 +512,10 @@ namespace BackendApi.Modules.Returns.Persistence.Migrations
                         .IsRequired()
                         .HasColumnType("citext");
 
+                    b.Property<string>("MarketCode")
+                        .IsRequired()
+                        .HasColumnType("citext");
+
                     b.Property<DateTimeOffset>("OccurredAt")
                         .HasColumnType("timestamp with time zone");
 
@@ -500,6 +537,9 @@ namespace BackendApi.Modules.Returns.Persistence.Migrations
                         .HasColumnType("citext");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("MarketCode", "OccurredAt")
+                        .HasDatabaseName("IX_returns_state_transitions_market_occurred");
 
                     b.HasIndex("ReturnRequestId", "OccurredAt")
                         .HasDatabaseName("IX_returns_state_transitions_request_occurred");
@@ -537,6 +577,10 @@ namespace BackendApi.Modules.Returns.Persistence.Migrations
                     b.Property<string>("LastError")
                         .HasColumnType("text");
 
+                    b.Property<string>("MarketCode")
+                        .IsRequired()
+                        .HasColumnType("citext");
+
                     b.Property<DateTimeOffset?>("NextAttemptAt")
                         .HasColumnType("timestamp with time zone");
 
@@ -552,6 +596,10 @@ namespace BackendApi.Modules.Returns.Persistence.Migrations
 
                     b.HasIndex("CommittedAt")
                         .HasDatabaseName("IX_returns_outbox_pending")
+                        .HasFilter("\"DispatchedAt\" IS NULL");
+
+                    b.HasIndex("MarketCode", "CommittedAt")
+                        .HasDatabaseName("IX_returns_outbox_pending_per_market")
                         .HasFilter("\"DispatchedAt\" IS NULL");
 
                     b.ToTable("returns_outbox", "returns");
@@ -576,6 +624,13 @@ namespace BackendApi.Modules.Returns.Persistence.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
+                    b.HasOne("BackendApi.Modules.Returns.Entities.ReturnLine", null)
+                        .WithMany()
+                        .HasForeignKey("ReturnLineId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("FK_inspection_lines_return_lines_ReturnLineId");
+
                     b.Navigation("Inspection");
                 });
 
@@ -597,6 +652,13 @@ namespace BackendApi.Modules.Returns.Persistence.Migrations
                         .HasForeignKey("RefundId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+
+                    b.HasOne("BackendApi.Modules.Returns.Entities.ReturnLine", null)
+                        .WithMany()
+                        .HasForeignKey("ReturnLineId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("FK_refund_lines_return_lines_ReturnLineId");
 
                     b.Navigation("Refund");
                 });

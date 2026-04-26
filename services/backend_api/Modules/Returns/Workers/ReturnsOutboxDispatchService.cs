@@ -66,7 +66,9 @@ public sealed class ReturnsOutboxDispatchService(
     private async Task DispatchOneAsync(ReturnsOutboxEntry entry, CancellationToken ct)
     {
         var eventType = entry.EventType.ToLowerInvariant();
-        var payload = JsonDocument.Parse(entry.PayloadJson);
+        // CR Major round 2: dispose JsonDocument so its pooled buffers are returned to
+        // the array pool — without `using`, sustained outbox traffic leaks them.
+        using var payload = JsonDocument.Parse(entry.PayloadJson);
         switch (eventType)
         {
             case "return.submitted":
@@ -171,8 +173,11 @@ public sealed class ReturnsOutboxDispatchService(
                     break;
                 }
             default:
-                logger.LogInformation(
-                    "returns.outbox.dispatched id={Id} type={Type} aggregate={AggregateId}",
+                // CR Nitpick round 2: unknown event types may indicate typos or missing
+                // handlers — log at Warning so they surface in alerts rather than mixing
+                // with regular successful-dispatch traffic.
+                logger.LogWarning(
+                    "returns.outbox.dispatched_unknown_event id={Id} type={Type} aggregate={AggregateId}",
                     entry.Id, entry.EventType, entry.AggregateId);
                 break;
         }

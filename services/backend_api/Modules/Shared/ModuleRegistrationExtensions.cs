@@ -46,6 +46,9 @@ public static class ModuleRegistrationExtensions
         services.AddSingleton<InventoryMetrics>();
         services.AddTransient<CorrelationIdDelegatingHandler>();
         services.AddHttpClient("default").AddHttpMessageHandler<CorrelationIdDelegatingHandler>();
+        // Host-scoped singleton — gate is per DI container, not per process. Keeps test
+        // isolation clean when multiple WebApplicationFactory instances live in one process.
+        services.AddSingleton<DbConnectivityProbeGate>();
         services.AddHealthChecks()
             .AddCheck<DbConnectivityCheck>("db-connectivity")
             .AddCheck<StorageReachabilityCheck>("storage-reachability");

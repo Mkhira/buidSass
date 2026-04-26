@@ -4,18 +4,18 @@ using Microsoft.Extensions.Diagnostics.HealthChecks;
 
 namespace BackendApi.Modules.Observability.HealthChecks;
 
-public sealed class DbConnectivityCheck(AppDbContext dbContext) : IHealthCheck
+public sealed class DbConnectivityCheck(AppDbContext dbContext, DbConnectivityProbeGate gate) : IHealthCheck
 {
     private static readonly TimeSpan Deadline = TimeSpan.FromMilliseconds(100);
 
-    // Serializes in-flight probes so that a stuck connector (Npgsql can keep one busy for
-    // ~15s after we abandon CanConnectAsync via the WhenAny timeout) doesn't accumulate
-    // under repeated probing — at most one slot is held at a time.
-    private static readonly SemaphoreSlim ProbeGate = new(initialCount: 1, maxCount: 1);
-
     public async Task<HealthCheckResult> CheckHealthAsync(HealthCheckContext context, CancellationToken cancellationToken = default)
     {
-        if (!await ProbeGate.WaitAsync(0, cancellationToken).ConfigureAwait(false))
+        // The gate serializes in-flight probes so that a stuck connector (Npgsql can keep
+        // one busy for ~15s after we abandon CanConnectAsync via the WhenAny timeout)
+        // doesn't accumulate under repeated probing. The gate is host-scoped (DI singleton),
+        // not process-wide, so multiple test hosts in one process don't share state.
+        var probeGate = gate.Semaphore;
+        if (!await probeGate.WaitAsync(0, cancellationToken).ConfigureAwait(false))
         {
             // Another probe is still mid-flight (or hung). Don't pile on the connection pool.
             return HealthCheckResult.Unhealthy("database probe already in flight");
@@ -42,10 +42,10 @@ public sealed class DbConnectivityCheck(AppDbContext dbContext) : IHealthCheck
             _ = connectTask.ContinueWith(static (t, state) =>
             {
                 _ = t.Exception;
-                var (gate, cts) = ((SemaphoreSlim, CancellationTokenSource))state!;
+                var (g, cts) = ((SemaphoreSlim, CancellationTokenSource))state!;
                 cts.Dispose();
-                gate.Release();
-            }, (ProbeGate, timeoutCts), TaskScheduler.Default);
+                g.Release();
+            }, (probeGate, timeoutCts), TaskScheduler.Default);
             return HealthCheckResult.Unhealthy("database connectivity check timed out");
         }
 
@@ -68,7 +68,7 @@ public sealed class DbConnectivityCheck(AppDbContext dbContext) : IHealthCheck
         finally
         {
             timeoutCts.Dispose();
-            ProbeGate.Release();
+            probeGate.Release();
         }
     }
 }

@@ -19,7 +19,7 @@ public sealed class HealthCheckTests
             .UseInMemoryDatabase(Guid.NewGuid().ToString())
             .Options);
 
-        var check = new DbConnectivityCheck(db);
+        var check = new DbConnectivityCheck(db, new DbConnectivityProbeGate());
 
         using var cts = new CancellationTokenSource(TimeSpan.FromMilliseconds(500));
         var result = await check.CheckHealthAsync(new HealthCheckContext(), cts.Token);
@@ -46,7 +46,7 @@ public sealed class HealthCheckTests
             .Options;
 
         await using var db = new AppDbContext(options);
-        var check = new DbConnectivityCheck(db);
+        var check = new DbConnectivityCheck(db, new DbConnectivityProbeGate());
 
         using var cts = new CancellationTokenSource(TimeSpan.FromMilliseconds(500));
         var result = await check.CheckHealthAsync(new HealthCheckContext(), cts.Token);

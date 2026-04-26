@@ -64,6 +64,14 @@ public sealed class CheckoutTestFactory : WebApplicationFactory<Program>, IAsync
         await using var command = connection.CreateCommand();
         command.CommandText = """
             TRUNCATE TABLE
+                orders.orders_outbox,
+                orders.order_state_transitions,
+                orders.shipment_lines,
+                orders.shipments,
+                orders.order_lines,
+                orders.orders,
+                orders.quotation_lines,
+                orders.quotations,
                 checkout.idempotency_results,
                 checkout.payment_webhook_events,
                 checkout.shipping_quotes,

@@ -4,6 +4,7 @@ using BackendApi.Modules.Catalog.Persistence;
 using BackendApi.Modules.Checkout.Persistence;
 using BackendApi.Modules.Identity.Persistence;
 using BackendApi.Modules.Inventory.Persistence;
+using BackendApi.Modules.Orders.Persistence;
 using BackendApi.Modules.Pricing.Persistence;
 using BackendApi.Modules.Pricing.Primitives.Caches;
 using BackendApi.Modules.Shared;
@@ -63,6 +64,15 @@ public sealed class CheckoutTestFactory : WebApplicationFactory<Program>, IAsync
         await using var command = connection.CreateCommand();
         command.CommandText = """
             TRUNCATE TABLE
+                orders.orders_outbox,
+                orders.order_state_transitions,
+                orders.shipment_lines,
+                orders.shipments,
+                orders.order_lines,
+                orders.orders,
+                orders.quotation_lines,
+                orders.quotations,
+                orders.cancellation_policies,
                 checkout.idempotency_results,
                 checkout.payment_webhook_events,
                 checkout.shipping_quotes,
@@ -158,6 +168,7 @@ public sealed class CheckoutTestFactory : WebApplicationFactory<Program>, IAsync
             services.RemoveAll<DbContextOptions<InventoryDbContext>>();
             services.RemoveAll<DbContextOptions<CartDbContext>>();
             services.RemoveAll<DbContextOptions<CheckoutDbContext>>();
+            services.RemoveAll<DbContextOptions<OrdersDbContext>>();
             services.RemoveAll<NpgsqlDataSource>();
 
             services.AddSingleton(_ => new NpgsqlDataSourceBuilder(ConnectionString).Build());
@@ -197,6 +208,11 @@ public sealed class CheckoutTestFactory : WebApplicationFactory<Program>, IAsync
                 options.UseNpgsql(provider.GetRequiredService<NpgsqlDataSource>());
                 options.ConfigureWarnings(w => w.Ignore(CoreEventId.ManyServiceProvidersCreatedWarning));
             });
+            services.AddDbContext<OrdersDbContext>((provider, options) =>
+            {
+                options.UseNpgsql(provider.GetRequiredService<NpgsqlDataSource>());
+                options.ConfigureWarnings(w => w.Ignore(CoreEventId.ManyServiceProvidersCreatedWarning));
+            });
         });
     }
 
@@ -210,6 +226,7 @@ public sealed class CheckoutTestFactory : WebApplicationFactory<Program>, IAsync
         await scope.ServiceProvider.GetRequiredService<InventoryDbContext>().Database.MigrateAsync();
         await scope.ServiceProvider.GetRequiredService<CartDbContext>().Database.MigrateAsync();
         await scope.ServiceProvider.GetRequiredService<CheckoutDbContext>().Database.MigrateAsync();
+        await scope.ServiceProvider.GetRequiredService<OrdersDbContext>().Database.MigrateAsync();
     }
 
     private static string CreatePrivateKeyPem()

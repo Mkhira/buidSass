@@ -47,9 +47,18 @@ builder.Services.AddHttpContextAccessor();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddOpenApi();
 
-var connectionString = builder.Configuration.ResolveRequiredDefaultConnectionString(builder.Environment);
+// Resolve eagerly so a missing connection string fails at startup with a clear message,
+// matching the pre-existing behavior. The actual UseNpgsql call is deferred to scope time
+// so test hosts that override IConfiguration via ConfigureAppConfiguration take effect —
+// otherwise the variable would freeze before the factory's overrides apply.
+_ = builder.Configuration.ResolveRequiredDefaultConnectionString(builder.Environment);
 
-builder.Services.AddDbContext<AppDbContext>(options => options.UseNpgsql(connectionString));
+builder.Services.AddDbContext<AppDbContext>((provider, options) =>
+{
+    var configuration = provider.GetRequiredService<IConfiguration>();
+    var hostEnvironment = provider.GetRequiredService<IHostEnvironment>();
+    options.UseNpgsql(configuration.ResolveRequiredDefaultConnectionString(hostEnvironment));
+});
 
 // Spec 003 T011 module stubs (sequentially expanded by T043/T054/T064/T073).
 builder.Services.AddAuditLogModule();

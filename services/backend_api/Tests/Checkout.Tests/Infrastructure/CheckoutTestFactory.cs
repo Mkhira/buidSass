@@ -72,6 +72,7 @@ public sealed class CheckoutTestFactory : WebApplicationFactory<Program>, IAsync
                 orders.orders,
                 orders.quotation_lines,
                 orders.quotations,
+                orders.cancellation_policies,
                 checkout.idempotency_results,
                 checkout.payment_webhook_events,
                 checkout.shipping_quotes,

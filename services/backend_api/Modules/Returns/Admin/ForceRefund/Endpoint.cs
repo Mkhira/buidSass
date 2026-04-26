@@ -46,6 +46,11 @@ public static class Endpoint
             return ReturnsResponseFactory.Problem(context, 400, "return.invalid_request", "reasonCode is required.");
         }
         await using var tx = await db.Database.BeginTransactionAsync(ct);
+        if (!await AdminMutation.LockReturnRequestAsync(db, id, ct))
+        {
+            await tx.RollbackAsync(ct);
+            return ReturnsResponseFactory.Problem(context, 404, "return.not_found", "Return not found.");
+        }
         var r = await db.ReturnRequests.Include(x => x.Lines).FirstOrDefaultAsync(x => x.Id == id, ct);
         if (r is null)
         {

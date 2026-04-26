@@ -37,6 +37,13 @@ public static class Endpoint
             return ReturnsResponseFactory.Problem(context, 401, "returns.requires_auth", "Auth required");
         }
         await using var tx = await db.Database.BeginTransactionAsync(ct);
+        // CR Critical round 5: lock the parent row before validating fromState so a
+        // concurrent /reject or /approve-partial can't both pass an unlocked snapshot.
+        if (!await AdminMutation.LockReturnRequestAsync(db, id, ct))
+        {
+            await tx.RollbackAsync(ct);
+            return ReturnsResponseFactory.Problem(context, 404, "return.not_found", "Return not found.");
+        }
         var r = await db.ReturnRequests.Include(x => x.Lines).FirstOrDefaultAsync(x => x.Id == id, ct);
         if (r is null)
         {

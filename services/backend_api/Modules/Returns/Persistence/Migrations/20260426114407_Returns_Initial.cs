@@ -485,9 +485,8 @@ namespace BackendApi.Modules.Returns.Persistence.Migrations
                 columns: new[] { "MarketCode", "CommittedAt" },
                 filter: "\"DispatchedAt\" IS NULL");
 
-            // B3 — seed launch return policies (FR-001 / FR-002). Idempotent via ON CONFLICT
-            // DO NOTHING; mirrors spec 011's cancellation_policies seed pattern. Re-applied
-            // migrations preserve admin overrides via PUT /v1/admin/return-policies/{market}.
+            // B3 — seed launch return policies (FR-001 / FR-002). Idempotent via
+            // ON CONFLICT DO NOTHING; mirrors spec 011's cancellation_policies pattern.
             migrationBuilder.Sql(@"
                 INSERT INTO returns.return_policies
                     (""MarketCode"", ""ReturnWindowDays"", ""AutoApproveUnderDays"", ""RestockingFeeBp"", ""ShippingRefundOnFullOnly"", ""UpdatedByAccountId"", ""UpdatedAt"")

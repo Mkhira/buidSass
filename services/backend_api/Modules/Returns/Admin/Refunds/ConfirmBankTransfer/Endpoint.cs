@@ -50,6 +50,18 @@ public static class Endpoint
         }
 
         await using var tx = await db.Database.BeginTransactionAsync(ct);
+        // CR Critical round 5: lock both the refund row AND the parent return row before
+        // validating fromState. Concurrent /retry from the worker + manual confirm could
+        // otherwise race on the same refund (different state machines but shared parent).
+        var refundLockExists = await db.Refunds
+            .FromSqlInterpolated($"SELECT * FROM returns.refunds WHERE \"Id\" = {refundId} FOR UPDATE")
+            .AsNoTracking()
+            .AnyAsync(ct);
+        if (!refundLockExists)
+        {
+            await tx.RollbackAsync(ct);
+            return ReturnsResponseFactory.Problem(context, 404, "return.not_found", "Refund not found.");
+        }
         var refund = await db.Refunds.Include(rf => rf.Lines).FirstOrDefaultAsync(rf => rf.Id == refundId, ct);
         if (refund is null)
         {

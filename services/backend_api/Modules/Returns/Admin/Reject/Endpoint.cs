@@ -41,6 +41,11 @@ public static class Endpoint
         }
 
         await using var tx = await db.Database.BeginTransactionAsync(ct);
+        if (!await AdminMutation.LockReturnRequestAsync(db, id, ct))
+        {
+            await tx.RollbackAsync(ct);
+            return ReturnsResponseFactory.Problem(context, 404, "return.not_found", "Return not found.");
+        }
         var r = await db.ReturnRequests.FirstOrDefaultAsync(x => x.Id == id, ct);
         if (r is null)
         {

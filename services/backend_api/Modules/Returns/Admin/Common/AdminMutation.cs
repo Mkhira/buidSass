@@ -47,6 +47,26 @@ internal static class AdminMutation
         return false;
     }
 
+    /// <summary>
+    /// CR Critical round 5: acquires a SELECT FOR UPDATE row lock on the parent
+    /// <c>return_requests</c> row inside the caller's transaction. Returns true if the
+    /// row exists and the lock is held. Concurrent admin mutations on the same return
+    /// (e.g. simultaneous /reject + /approve-partial) serialise on this lock so they
+    /// can't both pass an unlocked validation snapshot of the same fromState.
+    ///
+    /// FromSqlInterpolated is required (vs ExecuteSqlInterpolatedAsync) because SELECT
+    /// statements don't return an "affected rows" count that we can check; the
+    /// materialising AnyAsync() forces the query to execute and acquire the lock.
+    /// </summary>
+    public static async Task<bool> LockReturnRequestAsync(
+        ReturnsDbContext db, Guid returnRequestId, CancellationToken ct)
+    {
+        return await db.ReturnRequests
+            .FromSqlInterpolated($"SELECT * FROM returns.return_requests WHERE \"Id\" = {returnRequestId} FOR UPDATE")
+            .AsNoTracking()
+            .AnyAsync(ct);
+    }
+
     public static ReturnStateTransition NewReturnTransition(
         Guid returnRequestId, string marketCode, string from, string to, Guid actorAccountId, string trigger,
         string idempotencyDiscriminator, object? contextPayload, DateTimeOffset nowUtc) =>

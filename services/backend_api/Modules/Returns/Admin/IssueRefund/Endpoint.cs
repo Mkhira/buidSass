@@ -80,6 +80,13 @@ public static class Endpoint
 
         // Begin a single transaction so the refund row + state advance + outbox land atomically.
         await using var tx = await db.Database.BeginTransactionAsync(ct);
+        // CR Critical round 5: lock the parent row before reading state so a concurrent
+        // admin mutation cannot bypass the validation snapshot.
+        if (!await AdminMutation.LockReturnRequestAsync(db, id, ct))
+        {
+            await tx.RollbackAsync(ct);
+            return ReturnsResponseFactory.Problem(context, 404, "return.not_found", "Return not found.");
+        }
         var r = await db.ReturnRequests.Include(x => x.Lines).FirstOrDefaultAsync(x => x.Id == id, ct);
         if (r is null)
         {
@@ -266,8 +273,25 @@ public static class Endpoint
                 amountMinor = refund.AmountMinor,
                 manual = true,
             }, nowUtc));
-            await db.SaveChangesAsync(ct);
-            await tx.CommitAsync(ct);
+            try
+            {
+                await db.SaveChangesAsync(ct);
+                await tx.CommitAsync(ct);
+            }
+            catch (DbUpdateException ex) when (AdminMutation.IsUniqueDedupViolation(ex))
+            {
+                // CR Critical round 5: a concurrent peer beat us to the same dedup tuple
+                // — return the existing refund row as the deduped result.
+                await tx.RollbackAsync(ct);
+                return Results.Ok(new
+                {
+                    id = refund.Id,
+                    state = refund.State,
+                    amountMinor = refund.AmountMinor,
+                    manual = true,
+                    deduped = true,
+                });
+            }
 
             await AdminMutation.PublishAuditAsync(auditPublisher, actorId.Value, "returns.issue_refund.manual",
                 r.Id, new { state = fromState }, new { state = r.State, refundId = refund.Id }, "manual_path", ct);
@@ -413,8 +437,26 @@ public static class Endpoint
                 error = locked.FailureReason,
             }, settledNowUtc));
         }
-        await db.SaveChangesAsync(ct);
-        await settleTx.CommitAsync(ct);
+        try
+        {
+            await db.SaveChangesAsync(ct);
+            await settleTx.CommitAsync(ct);
+        }
+        catch (DbUpdateException ex) when (AdminMutation.IsUniqueDedupViolation(ex))
+        {
+            // CR Critical round 5: dedup violation on the settle commit means a peer
+            // worker (e.g. retry worker) already finalised this refund. Re-read the row
+            // and return its current state.
+            await settleTx.RollbackAsync(ct);
+            var raced = await db.Refunds.AsNoTracking().FirstOrDefaultAsync(rf => rf.Id == refund.Id, ct);
+            return Results.Ok(new
+            {
+                id = refund.Id,
+                state = raced?.State ?? refund.State,
+                amountMinor = refund.AmountMinor,
+                deduped = true,
+            });
+        }
 
         await AdminMutation.PublishAuditAsync(auditPublisher, actorId.Value,
             outcome.IsSuccess ? "returns.issue_refund.completed" : "returns.issue_refund.failed",

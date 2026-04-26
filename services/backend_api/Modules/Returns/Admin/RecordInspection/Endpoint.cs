@@ -60,6 +60,11 @@ public static class Endpoint
         }
 
         await using var tx = await db.Database.BeginTransactionAsync(ct);
+        if (!await AdminMutation.LockReturnRequestAsync(db, id, ct))
+        {
+            await tx.RollbackAsync(ct);
+            return ReturnsResponseFactory.Problem(context, 404, "return.not_found", "Return not found.");
+        }
         var r = await db.ReturnRequests
             .Include(x => x.Lines)
             .Include(x => x.Inspections).ThenInclude(i => i.Lines)
@@ -170,27 +175,31 @@ public static class Endpoint
         }
         db.Inspections.Add(inspection);
 
-        // Resolve (productId, warehouseId, batchId) per return line by reading the original
-        // sale movement(s) recorded by spec 011's CreateFromCheckout flow. Sellable qty is
-        // routed back into the same source bucket; the inventory return handler routes
-        // expired batches to a fresh restock batch.
+        // CR Major round 5: build the (warehouse, batch) consumption ledger ONCE up front
+        // and decrement as each return line allocates from it. Previously sourceBuckets was
+        // rebuilt per-line from the full product-level movement set, so two return lines
+        // sharing the same ProductId could each consume the same buckets and double-count
+        // the source stock.
         var orderLineIds = r.Lines.Select(l => l.OrderLineId).ToHashSet();
         var orderProducts = await ordersDb.OrderLines.AsNoTracking()
             .Where(ol => orderLineIds.Contains(ol.Id))
             .Select(ol => new { ol.Id, ol.OrderId, ol.ProductId })
             .ToListAsync(ct);
-        // CR Major fix: include Delta so we can fan-out the restock across the actual
-        // (warehouse, batch) buckets in proportion to the original sale, instead of
-        // collapsing to FirstOrDefault and routing the wrong warehouse/batch.
         var saleMovements = await inventoryDb.InventoryMovements.AsNoTracking()
             .Where(m => m.SourceKind == "order" && m.SourceId == r.OrderId && m.Kind == "sale")
             .Select(m => new { m.ProductId, m.WarehouseId, m.BatchId, m.Delta })
             .ToListAsync(ct);
+        // Mutable shared ledger keyed by (productId, warehouseId, batchId-or-null).
+        var consumption = saleMovements
+            .GroupBy(s => (s.ProductId, s.WarehouseId, s.BatchId))
+            .ToDictionary(
+                g => g.Key,
+                g => -g.Sum(x => x.Delta));   // sale Delta is negative; flip sign
 
+        var pendingInventoryItems = new List<ReservationReturnLine>();
         var totalSellable = r.Lines.Sum(l => l.SellableQty ?? 0);
         if (totalSellable > 0)
         {
-            var items = new List<ReservationReturnLine>();
             foreach (var rl in r.Lines.Where(l => (l.SellableQty ?? 0) > 0))
             {
                 var prod = orderProducts.FirstOrDefault(p => p.Id == rl.OrderLineId);
@@ -200,23 +209,16 @@ public static class Endpoint
                         rl.Id, rl.OrderLineId);
                     continue;
                 }
-                // Group all sale movements for this product into (warehouse, batch) buckets,
-                // each carrying the absolute qty originally drawn. We then distribute the
-                // sellable qty across those buckets in source order, preserving original
-                // warehouse/batch fidelity. The inventory return handler routes expired
-                // batches to a fresh restock batch independently.
-                var sourceBuckets = saleMovements
-                    .Where(s => s.ProductId == prod.ProductId)
-                    .GroupBy(s => (s.WarehouseId, s.BatchId))
-                    .Select(g => new
-                    {
-                        g.Key.WarehouseId,
-                        g.Key.BatchId,
-                        AvailableQty = -g.Sum(x => x.Delta), // sale Delta is negative
-                    })
-                    .Where(b => b.AvailableQty > 0)
+                // Walk this product's buckets in source order, deducting from the SHARED
+                // consumption ledger so a sibling return line for the same product can't
+                // re-consume the same units. Buckets are sorted deterministically by
+                // (warehouse, batch) for stable allocation across runs.
+                var productBuckets = consumption
+                    .Where(kv => kv.Key.ProductId == prod.ProductId && kv.Value > 0)
+                    .OrderBy(kv => kv.Key.WarehouseId)
+                    .ThenBy(kv => kv.Key.BatchId)
                     .ToList();
-                if (sourceBuckets.Count == 0)
+                if (productBuckets.Count == 0)
                 {
                     logger.LogWarning(
                         "returns.inspect.no_source_movement returnLineId={Id} productId={Pid} orderId={OrderId} "
@@ -225,37 +227,24 @@ public static class Endpoint
                     continue;
                 }
                 var remaining = rl.SellableQty!.Value;
-                foreach (var bucket in sourceBuckets)
+                foreach (var bucket in productBuckets)
                 {
                     if (remaining <= 0) break;
-                    var take = Math.Min(remaining, bucket.AvailableQty);
-                    items.Add(new ReservationReturnLine(
+                    var take = Math.Min(remaining, bucket.Value);
+                    pendingInventoryItems.Add(new ReservationReturnLine(
                         ProductId: prod.ProductId,
-                        WarehouseId: bucket.WarehouseId,
-                        BatchId: bucket.BatchId,
+                        WarehouseId: bucket.Key.WarehouseId,
+                        BatchId: bucket.Key.BatchId,
                         Qty: take));
+                    consumption[bucket.Key] -= take;
                     remaining -= take;
                 }
-                if (remaining > 0)
+                if (remaining > 0 && pendingInventoryItems.Count > 0)
                 {
-                    // Customer is returning more than was ever sold for this line — partial
-                    // restock; remainder goes to the first available bucket (still preserves
-                    // the original warehouse), then the inventory handler will create a
-                    // synthetic restock batch if needed.
-                    items[^1] = items[^1] with { Qty = items[^1].Qty + remaining };
-                }
-            }
-            if (items.Count > 0)
-            {
-                var result = await reservationConverter.PostReturnAsync(
-                    r.OrderId, actorId.Value, items, "returns.inspect", ct);
-                if (!result.IsSuccess)
-                {
-                    logger.LogError("returns.inspect.inventory_post_failed returnId={Id} reason={Reason}",
-                        r.Id, result.ReasonCode);
-                    await tx.RollbackAsync(ct);
-                    return ReturnsResponseFactory.Problem(context, 500, "inventory.post_failed",
-                        $"Inventory return movement failed: {result.ReasonCode}");
+                    // Customer is returning more than the per-line consumption ledger held
+                    // — pile the leftover onto the last allocation; the inventory handler
+                    // creates a synthetic restock batch if needed.
+                    pendingInventoryItems[^1] = pendingInventoryItems[^1] with { Qty = pendingInventoryItems[^1].Qty + remaining };
                 }
             }
         }
@@ -304,6 +293,60 @@ public static class Endpoint
             await tx.RollbackAsync(ct);
             return Results.Ok(new { id = r.Id, state = r.State, deduped = true });
         }
+
+        // CR Critical round 5: post inventory restock AFTER the returns transaction
+        // commits. If we posted before commit and SaveChanges failed, inventory would
+        // already be restocked while the return stayed uninspected (cross-module saga
+        // break). Post-commit best-effort with a compensation outbox row mirrors spec
+        // 011's Cancel/ReleaseInventoryAsync pattern.
+        if (pendingInventoryItems.Count > 0)
+        {
+            try
+            {
+                var result = await reservationConverter.PostReturnAsync(
+                    r.OrderId, actorId.Value, pendingInventoryItems, "returns.inspect", ct);
+                if (!result.IsSuccess)
+                {
+                    logger.LogError("returns.inspect.inventory_post_failed returnId={Id} reason={Reason}",
+                        r.Id, result.ReasonCode);
+                    db.Outbox.Add(new ReturnsOutboxEntry
+                    {
+                        EventType = "inventory.return_post_failed",
+                        AggregateId = r.Id,
+                        MarketCode = r.MarketCode,
+                        PayloadJson = JsonSerializer.Serialize(new
+                        {
+                            returnRequestId = r.Id,
+                            orderId = r.OrderId,
+                            reasonCode = result.ReasonCode,
+                            items = pendingInventoryItems,
+                        }),
+                        CommittedAt = DateTimeOffset.UtcNow,
+                    });
+                    await db.SaveChangesAsync(ct);
+                }
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                logger.LogError(ex, "returns.inspect.inventory_post_threw returnId={Id}", r.Id);
+                db.Outbox.Add(new ReturnsOutboxEntry
+                {
+                    EventType = "inventory.return_post_failed",
+                    AggregateId = r.Id,
+                    MarketCode = r.MarketCode,
+                    PayloadJson = JsonSerializer.Serialize(new
+                    {
+                        returnRequestId = r.Id,
+                        orderId = r.OrderId,
+                        error = ex.Message,
+                        items = pendingInventoryItems,
+                    }),
+                    CommittedAt = DateTimeOffset.UtcNow,
+                });
+                await db.SaveChangesAsync(ct);
+            }
+        }
+
         await AdminMutation.PublishAuditAsync(auditPublisher, actorId.Value, "returns.inspect",
             r.Id, new { state = fromState }, new { state = r.State, inspectionId = inspection.Id }, null, ct);
 

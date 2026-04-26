@@ -58,6 +58,11 @@ public static class Endpoint
         }
         // The actual notification dispatch ships in spec 019. Phase 1B emits an outbox event
         // that the future notifications consumer will pick up.
+        // R3 Major fix — write the audit trail to the outbox transactionally with the resend
+        // intent so the audit record is durable even if the audit publisher is offline. The
+        // outbox dispatcher fires the audit event into spec 003's audit_log_entries when the
+        // publisher is healthy; the in-handler PublishAsync below remains a best-effort
+        // immediate-write so admin dashboards see the row promptly under normal conditions.
         var nowUtc = DateTimeOffset.UtcNow;
         db.Outbox.Add(new InvoicesOutboxEntry
         {
@@ -74,15 +79,27 @@ public static class Endpoint
             }),
             CommittedAt = nowUtc,
         });
+        db.Outbox.Add(new InvoicesOutboxEntry
+        {
+            EventType = "audit.invoices.resend",
+            AggregateId = invoice.Id,
+            MarketCode = invoice.MarketCode,
+            PayloadJson = JsonSerializer.Serialize(new
+            {
+                actorId = actor,
+                actorRole = "admin",
+                action = "invoices.resend",
+                entityType = "invoices.invoice",
+                entityId = invoice.Id,
+                afterState = new { channel, invoiceNumber = invoice.InvoiceNumber },
+                emittedAt = nowUtc,
+            }),
+            CommittedAt = nowUtc,
+        });
         await db.SaveChangesAsync(ct);
 
-        // CR R2 Critical fix — the resend intent is already committed via SaveChangesAsync
-        // above. Returning 500 "aborted" after that would be a lie: a client retry would
-        // enqueue a duplicate `invoice.resend_requested` event. Treat post-commit audit
-        // publication failure as a warning (the state-machine trail is preserved by the
-        // outbox row + spec 003's eventual-consistency replay path). The admin audit gap
-        // surfaces as a missing entry in the audit_log_entries query, which finance-ops
-        // dashboards already alert on.
+        // Best-effort immediate audit publish so the audit_log_entries row appears promptly.
+        // The outbox row above guarantees durability even if this fails.
         try
         {
             await auditPublisher.PublishAsync(new AuditEvent(

@@ -95,6 +95,11 @@ public sealed class InvoiceRenderWorker(
         var blobStore = scope.ServiceProvider.GetRequiredService<IInvoiceBlobStore>();
         var templates = scope.ServiceProvider.GetRequiredService<InvoiceTemplateResolver>();
 
+        // R3 Major fix — persist each job's outcome on its own SaveChangesAsync so a single
+        // job's DB write failure can't strand other jobs whose blobs already landed. Without
+        // this, a hiccup committing the third job's `done` flip used to roll back every
+        // job's state in the batch — leading to duplicate uploads + duplicate
+        // `invoice.regenerated` events on the next pass.
         foreach (var job in jobs)
         {
             try
@@ -138,8 +143,22 @@ public sealed class InvoiceRenderWorker(
                     job.NextAttemptAt = nowUtc.AddSeconds(Math.Pow(2, job.Attempts) * 5);
                 }
             }
+            // Per-job persistence — a downstream save failure for THIS job logs and continues,
+            // but the per-job blob is recorded so a retry won't re-upload.
+            try
+            {
+                await db.SaveChangesAsync(ct);
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                logger.LogError(ex,
+                    "invoices.render.persist_failed jobId={JobId} state={State}", job.Id, job.State);
+                // Detach the job so subsequent saves in the batch aren't poisoned by the
+                // failed entry; the worker will reclaim it via the rendering-state
+                // FOR UPDATE SKIP LOCKED query on the next tick.
+                db.Entry(job).State = Microsoft.EntityFrameworkCore.EntityState.Detached;
+            }
         }
-        await db.SaveChangesAsync(ct);
         return jobs.Count;
     }
 

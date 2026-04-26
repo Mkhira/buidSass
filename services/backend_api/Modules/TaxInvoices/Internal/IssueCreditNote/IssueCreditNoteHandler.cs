@@ -68,11 +68,14 @@ public sealed class IssueCreditNoteHandler(
             return new IssueCreditNoteResult(false, null, null, "invoice.not_found",
                 "Original invoice not found.");
         }
+        // R3 Major fix — share ONE timestamp between the sequence number and IssuedAt so a
+        // request that crosses a UTC month boundary mid-execution can't end up with a number
+        // tagged for one month and an IssuedAt in the next.
+        var issuedAt = DateTimeOffset.UtcNow;
         // Warm the credit-note number sequence BEFORE opening the FOR UPDATE tx — the cold
         // path issues CREATE SEQUENCE which would abort our locked tx on first-use of a new
         // (market, yyyymm). Spec 011 hit the identical issue with quotations.
-        var nowUtcEarly = DateTimeOffset.UtcNow;
-        var creditNoteNumberPreallocated = await sequencer.NextAsync(preview.MarketCode, nowUtcEarly, ct);
+        var creditNoteNumberPreallocated = await sequencer.NextAsync(preview.MarketCode, issuedAt, ct);
 
         // CR1 fix — cumulative refund check + insert MUST be in one transaction with a
         // row-level lock on the invoice. Without it, two refundIds for the same invoice could
@@ -85,6 +88,17 @@ public sealed class IssueCreditNoteHandler(
         if (existing is not null)
         {
             await tx.RollbackAsync(ct);
+            // R3 Major fix — refundId hits MUST belong to the same invoice we were asked to
+            // credit. A replay against a DIFFERENT invoice would otherwise return success for
+            // the wrong credit note. Fail loud so the caller can investigate.
+            if (existing.InvoiceId != request.InvoiceId)
+            {
+                logger.LogWarning(
+                    "invoices.credit_note.refund_invoice_mismatch refundId={RefundId} expectedInvoice={Expected} existingInvoice={Existing}",
+                    request.RefundId, request.InvoiceId, existing.InvoiceId);
+                return new IssueCreditNoteResult(false, null, null, "credit_note.refund_invoice_mismatch",
+                    $"refundId {request.RefundId} already credited against invoice {existing.InvoiceId}, not {request.InvoiceId}.");
+            }
             logger.LogInformation(
                 "invoices.credit_note.idempotent_hit refundId={RefundId} creditNoteNumber={Number}",
                 request.RefundId, existing.CreditNoteNumber);
@@ -228,8 +242,10 @@ public sealed class IssueCreditNoteHandler(
             return new IssueCreditNoteResult(false, null, null, "invoice.template.missing", ex.Message);
         }
 
-        var nowUtc = DateTimeOffset.UtcNow;
-        // creditNoteNumber was preallocated above the tx (sequencer cold-path safety).
+        // R3 Major fix — single timestamp `issuedAt` (computed pre-tx) is the source of
+        // truth for both the sequence number's yyyyMM and IssuedAt, so a UTC month boundary
+        // can't desynchronise them. nowUtc is reused for CreatedAt/UpdatedAt.
+        var nowUtc = issuedAt;
         var creditNote = new CreditNote
         {
             Id = Guid.NewGuid(),
@@ -237,7 +253,7 @@ public sealed class IssueCreditNoteHandler(
             InvoiceId = invoice.Id,
             MarketCode = invoice.MarketCode,
             RefundId = request.RefundId,
-            IssuedAt = nowUtc,
+            IssuedAt = issuedAt,
             SubtotalMinor = subtotal,
             DiscountMinor = discount,
             TaxMinor = tax,

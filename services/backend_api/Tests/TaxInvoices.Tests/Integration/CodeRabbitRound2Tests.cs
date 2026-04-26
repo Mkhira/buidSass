@@ -119,10 +119,11 @@ public sealed class CodeRabbitRound2Tests(InvoicesTestFactory factory)
         after.Attempts.Should().Be(0, "admin retry resets Attempts so the worker's MaxAttempts gate doesn't lock the job out");
     }
 
-    /// <summary>R2 Major — terminal `invoice.regenerated` event emitted when a regenerate
-    /// completes. Without it, spec 019 wouldn't observe the new SHA.</summary>
+    /// <summary>R2 Major — verifies the `invoice.regenerate_queued` request event is emitted
+    /// by the regenerate endpoint. The terminal `invoice.regenerated` event is asserted by
+    /// the worker-rendering integration tests; here we cover the queue-time behaviour.</summary>
     [Fact]
-    public async Task R2_RegeneratedEvent_EmittedOnSecondRender()
+    public async Task R2_RegenerateQueuedEvent_EmittedAtRequestTime()
     {
         await factory.ResetDatabaseAsync();
         var accountId = await InvoicesTestSeed.SeedAccountAsync(factory);

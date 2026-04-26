@@ -59,7 +59,12 @@ public static class Endpoint
         var beforeState = invoice.State;
         var nowUtc = DateTimeOffset.UtcNow;
         invoice.State = Invoice.StatePending;
-        invoice.PdfSha256 = null;
+        // R3 Major fix — DON'T wipe PdfSha256 here. The render worker reads the prior SHA to
+        // populate `previousSha256` on the terminal `invoice.regenerated` outbox event;
+        // nulling it now means downstream consumers (spec 019) lose the prior-render
+        // fingerprint that round-2 explicitly added. The worker overwrites both PdfSha256
+        // and PdfBlobKey on render commit; the customer-facing endpoint gates downloads on
+        // State='rendered' so the previous bytes are still served while State='pending'.
         invoice.LastError = null;
         invoice.UpdatedAt = nowUtc;
         db.RenderJobs.Add(new InvoiceRenderJob

@@ -77,18 +77,34 @@ public static class RetryEndpoint
                 $"Render job state '{current.State}' is not retry-eligible.", "");
         }
 
-        // R2 Major — admin-forced render-queue retry IS a critical action; emit an audit row
-        // (post-commit non-fatal pattern: the conditional UPDATE has already landed).
+        // R3 Major fix — re-fetch the job's underlying invoice/credit-note GUID for the
+        // audit `EntityId` so reconciliation queries by entity stay sound. Using
+        // `Guid.Empty` would collapse every retry into one audit bucket.
+        var target = await db.RenderJobs.AsNoTracking()
+            .Where(j => j.Id == jobId)
+            .Select(j => new { j.InvoiceId, j.CreditNoteId, j.MarketCode })
+            .FirstAsync(ct);
+        var entityId = target.InvoiceId ?? target.CreditNoteId ?? Guid.Empty;
+        var entityType = target.InvoiceId is not null ? "invoices.invoice" : "invoices.credit_note";
+
+        // R2 Major — admin-forced render-queue retry IS a critical action; emit an audit row.
+        // Post-commit non-fatal pattern: the conditional UPDATE has already landed.
         try
         {
             await auditPublisher.PublishAsync(new AuditEvent(
                 ActorId: actor.Value,
                 ActorRole: "admin",
                 Action: "invoices.render_queue.retry",
-                EntityType: "invoices.render_job",
-                EntityId: Guid.Empty, // jobId is bigserial; we record it in AfterState
+                EntityType: entityType,
+                EntityId: entityId,
                 BeforeState: null,
-                AfterState: new { jobId, state = InvoiceRenderJob.StateQueued, forcedAt = nowUtc },
+                AfterState: new
+                {
+                    jobId,
+                    state = InvoiceRenderJob.StateQueued,
+                    market = target.MarketCode,
+                    forcedAt = nowUtc,
+                },
                 Reason: null), ct);
         }
         catch (Exception ex) when (ex is not OperationCanceledException)

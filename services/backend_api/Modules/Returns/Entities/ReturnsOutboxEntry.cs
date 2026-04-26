@@ -4,6 +4,9 @@ namespace BackendApi.Modules.Returns.Entities;
 public sealed class ReturnsOutboxEntry
 {
     public long Id { get; set; }
+    /// <summary>Per-market partitioning (Principle 5 / ADR-010) — lets the dispatcher poll
+    /// market-scoped pending events when the outbox grows.</summary>
+    public string MarketCode { get; set; } = string.Empty;
     public string EventType { get; set; } = string.Empty;
     public Guid AggregateId { get; set; }
     public string PayloadJson { get; set; } = "{}";

@@ -41,6 +41,17 @@ public class ReturnStateMachineTests
         }
     }
 
+    [Theory]
+    [InlineData("unknown", "unknown")]
+    [InlineData("", "")]
+    [InlineData("not_a_state", "not_a_state")]
+    public void Unknown_self_transitions_rejected(string from, string to)
+    {
+        // CR Major regression: the All.Contains guard before the switch must reject
+        // garbage values even when from == to.
+        ReturnStateMachine.IsValidTransition(from, to).Should().BeFalse();
+    }
+
     [Fact]
     public void Case_insensitive_transitions_normalize_at_boundary()
     {

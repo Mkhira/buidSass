@@ -3,6 +3,7 @@ using System;
 using BackendApi.Modules.Returns.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace BackendApi.Modules.Returns.Persistence.Migrations
 {
     [DbContext(typeof(ReturnsDbContext))]
-    partial class ReturnsDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260426103631_Returns_DeepReviewFixes")]
+    partial class Returns_DeepReviewFixes
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder

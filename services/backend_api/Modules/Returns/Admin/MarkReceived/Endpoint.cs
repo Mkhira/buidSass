@@ -94,8 +94,8 @@ public static class Endpoint
         r.State = ReturnStateMachine.Received;
         r.UpdatedAt = nowUtc;
         db.StateTransitions.Add(AdminMutation.NewReturnTransition(
-            r.Id, fromState, r.State, actorId.Value, Trigger, disc, new { lines = requested }, nowUtc));
-        db.Outbox.Add(AdminMutation.NewOutbox("return.received", r.Id, new
+            r.Id, r.MarketCode, fromState, r.State, actorId.Value, Trigger, disc, new { lines = requested }, nowUtc));
+        db.Outbox.Add(AdminMutation.NewOutbox("return.received", r.Id, r.MarketCode, new
         {
             returnRequestId = r.Id,
             returnNumber = r.ReturnNumber,

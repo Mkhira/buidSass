@@ -50,20 +50,29 @@ public sealed class ReturnLineConfiguration : IEntityTypeConfiguration<ReturnLin
                 "\"RequestedQty\" > 0");
             t.HasCheckConstraint("CK_returns_return_lines_approved_qty_bounds",
                 "\"ApprovedQty\" IS NULL OR (\"ApprovedQty\" >= 0 AND \"ApprovedQty\" <= \"RequestedQty\")");
+            // CR Major fix: NULL operands silently satisfy CHECK constraints in Postgres.
+            // Require ApprovedQty IS NOT NULL when ReceivedQty is set, and require all three
+            // (Received/Sellable/Defective) IS NOT NULL together for the inspection balance.
             t.HasCheckConstraint("CK_returns_return_lines_received_qty_bounds",
-                "\"ReceivedQty\" IS NULL OR (\"ReceivedQty\" >= 0 AND \"ReceivedQty\" <= \"ApprovedQty\")");
+                "\"ReceivedQty\" IS NULL OR (\"ApprovedQty\" IS NOT NULL "
+                + "AND \"ReceivedQty\" >= 0 AND \"ReceivedQty\" <= \"ApprovedQty\")");
             t.HasCheckConstraint("CK_returns_return_lines_inspection_qty_balance",
                 "(\"SellableQty\" IS NULL AND \"DefectiveQty\" IS NULL) "
-                + "OR (\"SellableQty\" + \"DefectiveQty\" = \"ReceivedQty\")");
+                + "OR (\"ReceivedQty\" IS NOT NULL AND \"SellableQty\" IS NOT NULL "
+                + "AND \"DefectiveQty\" IS NOT NULL "
+                + "AND \"SellableQty\" + \"DefectiveQty\" = \"ReceivedQty\")");
             t.HasCheckConstraint("CK_returns_return_lines_unit_price_non_negative",
                 "\"UnitPriceMinor\" >= 0");
             t.HasCheckConstraint("CK_returns_return_lines_tax_rate_bounds",
                 "\"TaxRateBp\" >= 0 AND \"TaxRateBp\" <= 10000");
         });
         builder.HasKey(x => x.Id);
+        builder.Property(x => x.MarketCode).HasColumnType("citext").IsRequired();
         builder.Property(x => x.LineReasonCode).HasColumnType("citext");
         builder.HasIndex(x => x.ReturnRequestId);
         builder.HasIndex(x => x.OrderLineId);
+        builder.HasIndex(x => new { x.MarketCode, x.OrderLineId })
+            .HasDatabaseName("IX_returns_return_lines_market_order_line");
     }
 }
 
@@ -77,11 +86,14 @@ public sealed class InspectionConfiguration : IEntityTypeConfiguration<Inspectio
                 "\"State\" IN ('pending','in_progress','complete')");
         });
         builder.HasKey(x => x.Id);
+        builder.Property(x => x.MarketCode).HasColumnType("citext").IsRequired();
         builder.Property(x => x.State).HasColumnType("citext").IsRequired()
             .HasDefaultValue(InspectionStateMachine.Pending);
         builder.HasMany(x => x.Lines).WithOne(l => l.Inspection!)
             .HasForeignKey(l => l.InspectionId).OnDelete(DeleteBehavior.Cascade);
         builder.HasIndex(x => x.ReturnRequestId);
+        builder.HasIndex(x => new { x.MarketCode, x.StartedAt })
+            .HasDatabaseName("IX_returns_inspections_market_started");
     }
 }
 
@@ -95,6 +107,7 @@ public sealed class InspectionLineConfiguration : IEntityTypeConfiguration<Inspe
                 "\"SellableQty\" >= 0 AND \"DefectiveQty\" >= 0");
         });
         builder.HasKey(x => new { x.InspectionId, x.ReturnLineId });
+        builder.Property(x => x.MarketCode).HasColumnType("citext").IsRequired();
         builder.Property(x => x.PhotosJson).HasColumnType("jsonb");
     }
 }
@@ -115,6 +128,7 @@ public sealed class RefundConfiguration : IEntityTypeConfiguration<Refund>
                 "\"RestockingFeeMinor\" >= 0");
         });
         builder.HasKey(x => x.Id);
+        builder.Property(x => x.MarketCode).HasColumnType("citext").IsRequired();
         builder.Property(x => x.ProviderId).HasColumnType("citext");
         builder.Property(x => x.Currency).HasColumnType("citext").IsRequired();
         builder.Property(x => x.State).HasColumnType("citext").IsRequired()
@@ -134,6 +148,8 @@ public sealed class RefundConfiguration : IEntityTypeConfiguration<Refund>
         builder.HasIndex(x => x.NextRetryAt)
             .HasFilter("\"State\" = 'failed' AND \"NextRetryAt\" IS NOT NULL")
             .HasDatabaseName("IX_returns_refunds_retry_pending");
+        builder.HasIndex(x => new { x.MarketCode, x.State })
+            .HasDatabaseName("IX_returns_refunds_market_state");
     }
 }
 
@@ -150,6 +166,7 @@ public sealed class RefundLineConfiguration : IEntityTypeConfiguration<RefundLin
                 "\"TaxRateBp\" >= 0 AND \"TaxRateBp\" <= 10000");
         });
         builder.HasKey(x => new { x.RefundId, x.ReturnLineId });
+        builder.Property(x => x.MarketCode).HasColumnType("citext").IsRequired();
     }
 }
 
@@ -190,11 +207,15 @@ public sealed class ReturnsOutboxEntryConfiguration : IEntityTypeConfiguration<R
     {
         builder.ToTable("returns_outbox", "returns");
         builder.HasKey(x => x.Id);
+        builder.Property(x => x.MarketCode).HasColumnType("citext").IsRequired();
         builder.Property(x => x.EventType).HasColumnType("citext").IsRequired();
         builder.Property(x => x.PayloadJson).HasColumnType("jsonb").HasDefaultValueSql("'{}'::jsonb");
         builder.HasIndex(x => x.CommittedAt)
             .HasFilter("\"DispatchedAt\" IS NULL")
             .HasDatabaseName("IX_returns_outbox_pending");
+        builder.HasIndex(x => new { x.MarketCode, x.CommittedAt })
+            .HasFilter("\"DispatchedAt\" IS NULL")
+            .HasDatabaseName("IX_returns_outbox_pending_per_market");
         builder.HasIndex(x => x.AggregateId);
     }
 }
@@ -209,6 +230,7 @@ public sealed class ReturnStateTransitionConfiguration : IEntityTypeConfiguratio
                 "\"Machine\" IN ('return','refund','inspection')");
         });
         builder.HasKey(x => x.Id);
+        builder.Property(x => x.MarketCode).HasColumnType("citext").IsRequired();
         builder.Property(x => x.Machine).HasColumnType("citext").IsRequired();
         builder.Property(x => x.FromState).HasColumnType("citext").IsRequired();
         builder.Property(x => x.ToState).HasColumnType("citext").IsRequired();
@@ -216,5 +238,7 @@ public sealed class ReturnStateTransitionConfiguration : IEntityTypeConfiguratio
         builder.Property(x => x.ContextJson).HasColumnType("jsonb");
         builder.HasIndex(x => new { x.ReturnRequestId, x.OccurredAt })
             .HasDatabaseName("IX_returns_state_transitions_request_occurred");
+        builder.HasIndex(x => new { x.MarketCode, x.OccurredAt })
+            .HasDatabaseName("IX_returns_state_transitions_market_occurred");
     }
 }

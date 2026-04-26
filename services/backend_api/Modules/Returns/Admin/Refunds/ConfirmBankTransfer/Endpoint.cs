@@ -93,13 +93,14 @@ public static class Endpoint
             r.State = ReturnStateMachine.Refunded;
             r.UpdatedAt = nowUtc;
             db.StateTransitions.Add(AdminMutation.NewReturnTransition(
-                r.Id, fromReturnState, r.State, actorId.Value, "admin.confirm_bank_transfer",
+                r.Id, r.MarketCode, fromReturnState, r.State, actorId.Value, "admin.confirm_bank_transfer",
                 $"refundId={refund.Id}",
                 new { refundId = refund.Id }, nowUtc));
         }
         db.StateTransitions.Add(new ReturnStateTransition
         {
             ReturnRequestId = r.Id,
+            MarketCode = r.MarketCode,
             RefundId = refund.Id,
             Machine = ReturnStateTransition.MachineRefund,
             FromState = fromRefundState,
@@ -108,7 +109,7 @@ public static class Endpoint
             Trigger = "admin.confirm_bank_transfer",
             OccurredAt = nowUtc,
         });
-        db.Outbox.Add(AdminMutation.NewOutbox("refund.manual_confirmed", r.Id, new
+        db.Outbox.Add(AdminMutation.NewOutbox("refund.manual_confirmed", r.Id, r.MarketCode, new
         {
             returnRequestId = r.Id,
             returnNumber = r.ReturnNumber,

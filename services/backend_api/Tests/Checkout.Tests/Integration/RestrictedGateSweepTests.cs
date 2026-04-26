@@ -67,7 +67,11 @@ public sealed class RestrictedGateSweepTests(CheckoutTestFactory factory)
             if (startResp.StatusCode == HttpStatusCode.Forbidden)
             {
                 // Some SKUs gate at start-session via the cart-restricted check — that's still
-                // a successful block (FR-009 semantics).
+                // a successful block (FR-009 semantics) PROVIDED the reason code matches; an
+                // unrelated 403 must not silently count as success.
+                var startBody = await startResp.Content.ReadAsStringAsync();
+                startBody.Should().Contain("checkout.restricted_not_allowed",
+                    $"iteration {i}: expected restricted gate reason at start-session for {sku}, got: {startBody}");
                 blockedCount++;
                 continue;
             }

@@ -219,6 +219,6 @@ public class FrContractTests(ReturnsTestFactory factory) : IAsyncLifetime
         var admin = factory.CreateClient();
         ReturnsAuthHelper.SetBearer(admin, adminToken);
         var resp = await admin.GetAsync("/v1/admin/returns");
-        resp.StatusCode.Should().BeOneOf(HttpStatusCode.Forbidden, HttpStatusCode.Unauthorized);
+        resp.StatusCode.Should().Be(HttpStatusCode.Forbidden);
     }
 }

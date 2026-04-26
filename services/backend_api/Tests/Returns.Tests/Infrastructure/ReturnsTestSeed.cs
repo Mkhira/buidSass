@@ -134,10 +134,13 @@ public static class ReturnsTestSeed
             BatchId = batchId, Kind = "sale", Delta = -qty, Reason = "test.sale",
             SourceKind = "order", SourceId = order.Id, OccurredAt = nowUtc.AddDays(-3),
         });
-        // Decrement stock to mirror the sale.
+        // CR Major: mirror the sale on BOTH StockLevel AND InventoryBatch so return-path
+        // tests start from a consistent ledger (no lot-level desync hiding bugs).
         var stock = await inventoryDb.StockLevels.FirstAsync(s =>
             s.ProductId == productId && s.WarehouseId == warehouseId);
         stock.OnHand -= qty;
+        var batch = await inventoryDb.InventoryBatches.FirstAsync(b => b.Id == batchId);
+        batch.QtyOnHand -= qty;
         await inventoryDb.SaveChangesAsync();
 
         return (order, order.Lines[0]);

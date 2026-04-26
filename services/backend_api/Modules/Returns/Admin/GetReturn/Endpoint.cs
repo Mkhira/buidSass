@@ -102,12 +102,22 @@ public static class Endpoint
                 attempts = rf.Attempts,
                 gatewayRef = rf.GatewayRef,
                 failureReason = rf.FailureReason,
-                manualIban = rf.ManualIban,
+                // CR Major: do not return the full IBAN to anyone with `returns.read`.
+                // Mask all but the last 4 digits; full value is only available via the
+                // confirm-bank-transfer audit row (gated behind `returns.refund.write`).
+                manualIbanMasked = MaskIban(rf.ManualIban),
                 initiatedAt = rf.InitiatedAt,
                 completedAt = rf.CompletedAt,
                 restockingFeeMinor = rf.RestockingFeeMinor,
             }),
             timeline,
         });
+    }
+
+    private static string? MaskIban(string? iban)
+    {
+        if (string.IsNullOrWhiteSpace(iban)) return null;
+        var s = iban.Replace(" ", string.Empty);
+        return s.Length <= 4 ? new string('*', s.Length) : new string('*', s.Length - 4) + s[^4..];
     }
 }

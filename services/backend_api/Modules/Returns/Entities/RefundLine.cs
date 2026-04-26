@@ -5,6 +5,8 @@ public sealed class RefundLine
 {
     public Guid RefundId { get; set; }
     public Guid ReturnLineId { get; set; }
+    /// <summary>Per-market partitioning (Principle 5 / ADR-010).</summary>
+    public string MarketCode { get; set; } = string.Empty;
     public int Qty { get; set; }
     public long UnitPriceMinor { get; set; }
     public int TaxRateBp { get; set; }

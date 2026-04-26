@@ -22,6 +22,10 @@ public static class RefundStateMachine
     {
         var f = from?.ToLowerInvariant() ?? string.Empty;
         var t = to?.ToLowerInvariant() ?? string.Empty;
+        if (!All.Contains(f) || !All.Contains(t))
+        {
+            return false;
+        }
         return (f, t) switch
         {
             (Pending, InProgress) => true,

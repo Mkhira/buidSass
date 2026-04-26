@@ -198,6 +198,7 @@ public static class Endpoint
             {
                 Id = Guid.NewGuid(),
                 OrderLineId = orderLine.Id,
+                MarketCode = order.MarketCode,
                 RequestedQty = input.Qty,
                 LineReasonCode = input.LineReasonCode,
                 UnitPriceMinor = orderLine.UnitPriceMinor,
@@ -256,7 +257,12 @@ public static class Endpoint
         returnsDb.StateTransitions.Add(new ReturnStateTransition
         {
             ReturnRequestId = returnRequest.Id,
+            MarketCode = order.MarketCode,
             Machine = ReturnStateTransition.MachineReturn,
+            // Bootstrap row: the parent ReturnRequest is being CREATED here so there is no
+            // prior canonical state. The transition is audit-only and never re-validated by
+            // ReturnStateMachine.IsValidTransition, so an empty FromState is intentional
+            // (matches the inspection bootstrap convention in RecordInspection).
             FromState = string.Empty,
             ToState = ReturnStateMachine.PendingReview,
             ActorAccountId = accountId,
@@ -267,6 +273,7 @@ public static class Endpoint
         {
             EventType = "return.submitted",
             AggregateId = returnRequest.Id,
+            MarketCode = order.MarketCode,
             PayloadJson = JsonSerializer.Serialize(new
             {
                 returnRequestId = returnRequest.Id,
@@ -286,9 +293,19 @@ public static class Endpoint
         await returnsDb.SaveChangesAsync(ct);
         if (photoIds.Count > 0)
         {
-            await returnsDb.ReturnPhotos
+            // CR Major: the prior validation read is stale by the time ExecuteUpdateAsync
+            // runs. If a concurrent submit claimed one of these photos in between, the
+            // update affects fewer rows and we'd commit a return missing evidence. Verify
+            // the affected-row count and abort on mismatch.
+            var bound = await returnsDb.ReturnPhotos
                 .Where(p => photoIds.Contains(p.Id) && p.ReturnRequestId == null && p.AccountId == accountId)
                 .ExecuteUpdateAsync(s => s.SetProperty(p => p.ReturnRequestId, returnRequest.Id), ct);
+            if (bound != photoIds.Count)
+            {
+                await tx.RollbackAsync(ct);
+                return ReturnsResponseFactory.Problem(context, 409, "return.photo.already_bound",
+                    $"One or more photos were claimed by a concurrent submit ({bound}/{photoIds.Count} bound).");
+            }
         }
         await tx.CommitAsync(ct);
 

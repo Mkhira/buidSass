@@ -180,6 +180,7 @@ public static class Endpoint
         {
             Id = Guid.NewGuid(),
             ReturnRequestId = r.Id,
+            MarketCode = r.MarketCode,
             ProviderId = order.PaymentProviderId,
             CapturedTransactionId = order.PaymentProviderTxnId,
             AmountMinor = computation.GrandRefundMinor,
@@ -197,6 +198,7 @@ public static class Endpoint
             {
                 RefundId = refund.Id,
                 ReturnLineId = line.ReturnLineId,
+                MarketCode = r.MarketCode,
                 Qty = line.Qty,
                 UnitPriceMinor = line.UnitPriceMinor,
                 LineSubtotalMinor = line.LineSubtotalMinor,
@@ -248,6 +250,7 @@ public static class Endpoint
             db.StateTransitions.Add(new ReturnStateTransition
             {
                 ReturnRequestId = r.Id,
+                MarketCode = r.MarketCode,
                 RefundId = refund.Id,
                 Machine = ReturnStateTransition.MachineRefund,
                 FromState = RefundStateMachine.Pending,
@@ -256,7 +259,7 @@ public static class Endpoint
                 Trigger = "admin.issue_refund.manual",
                 OccurredAt = nowUtc,
             });
-            db.Outbox.Add(AdminMutation.NewOutbox("refund.initiated", r.Id, new
+            db.Outbox.Add(AdminMutation.NewOutbox("refund.initiated", r.Id, r.MarketCode, new
             {
                 returnRequestId = r.Id,
                 refundId = refund.Id,
@@ -299,6 +302,7 @@ public static class Endpoint
         db.StateTransitions.Add(new ReturnStateTransition
         {
             ReturnRequestId = r.Id,
+            MarketCode = r.MarketCode,
             RefundId = refund.Id,
             Machine = ReturnStateTransition.MachineRefund,
             FromState = RefundStateMachine.Pending,
@@ -337,7 +341,10 @@ public static class Endpoint
         {
             var fromReturn = lockedReturn.State;
             locked.State = RefundStateMachine.Completed;
-            locked.GatewayRef = outcome.ErrorCode is null ? "ok" : null;
+            // CR Major: don't persist a synthetic "ok" — the IPaymentGateway contract
+            // currently has no field for a real provider reference. Leaving GatewayRef
+            // null is honest; spec 010 ADR-007 will widen the contract later.
+            locked.GatewayRef = null;
             locked.CompletedAt = settledNowUtc;
             locked.UpdatedAt = settledNowUtc;
             lockedReturn.State = ReturnStateMachine.Refunded;
@@ -345,6 +352,7 @@ public static class Endpoint
             db.StateTransitions.Add(new ReturnStateTransition
             {
                 ReturnRequestId = lockedReturn.Id,
+                MarketCode = lockedReturn.MarketCode,
                 RefundId = locked.Id,
                 Machine = ReturnStateTransition.MachineRefund,
                 FromState = RefundStateMachine.InProgress,
@@ -354,10 +362,10 @@ public static class Endpoint
                 OccurredAt = settledNowUtc,
             });
             db.StateTransitions.Add(AdminMutation.NewReturnTransition(
-                lockedReturn.Id, fromReturn, lockedReturn.State, actorId.Value, "admin.issue_refund",
+                lockedReturn.Id, lockedReturn.MarketCode, fromReturn, lockedReturn.State, actorId.Value, "admin.issue_refund",
                 $"refundId={locked.Id}",
                 new { refundId = locked.Id, amountMinor = locked.AmountMinor }, settledNowUtc));
-            db.Outbox.Add(AdminMutation.NewOutbox("refund.completed", lockedReturn.Id, new
+            db.Outbox.Add(AdminMutation.NewOutbox("refund.completed", lockedReturn.Id, lockedReturn.MarketCode, new
             {
                 returnRequestId = lockedReturn.Id,
                 returnNumber = lockedReturn.ReturnNumber,
@@ -383,6 +391,7 @@ public static class Endpoint
             db.StateTransitions.Add(new ReturnStateTransition
             {
                 ReturnRequestId = lockedReturn.Id,
+                MarketCode = lockedReturn.MarketCode,
                 RefundId = locked.Id,
                 Machine = ReturnStateTransition.MachineRefund,
                 FromState = RefundStateMachine.InProgress,
@@ -393,10 +402,10 @@ public static class Endpoint
                 OccurredAt = settledNowUtc,
             });
             db.StateTransitions.Add(AdminMutation.NewReturnTransition(
-                lockedReturn.Id, fromReturn, lockedReturn.State, actorId.Value, "admin.issue_refund.failed",
+                lockedReturn.Id, lockedReturn.MarketCode, fromReturn, lockedReturn.State, actorId.Value, "admin.issue_refund.failed",
                 $"refundId={locked.Id}",
                 new { refundId = locked.Id, error = locked.FailureReason }, settledNowUtc));
-            db.Outbox.Add(AdminMutation.NewOutbox("refund.failed", lockedReturn.Id, new
+            db.Outbox.Add(AdminMutation.NewOutbox("refund.failed", lockedReturn.Id, lockedReturn.MarketCode, new
             {
                 returnRequestId = lockedReturn.Id,
                 refundId = locked.Id,

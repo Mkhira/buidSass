@@ -45,7 +45,11 @@ public static class Endpoint
         }
 
         const string Trigger = "admin.approve";
-        if (await AdminMutation.WasAlreadyApplied(db, r.Id, Trigger, string.Empty, ct))
+        // CR Minor: include normalized AdminNotes in the idempotency discriminator so a
+        // retry with different notes is not silently dropped as a dedupe of the original
+        // mutation; the trail then captures both intents.
+        var disc = (body?.AdminNotes ?? string.Empty).Trim();
+        if (await AdminMutation.WasAlreadyApplied(db, r.Id, Trigger, disc, ct))
         {
             await tx.RollbackAsync(ct);
             return Results.Ok(new { id = r.Id, state = r.State, deduped = true });
@@ -71,9 +75,9 @@ public static class Endpoint
         }
 
         db.StateTransitions.Add(AdminMutation.NewReturnTransition(
-            r.Id, fromState, r.State, actorId.Value, Trigger, string.Empty,
+            r.Id, r.MarketCode, fromState, r.State, actorId.Value, Trigger, disc,
             new { adminNotes = body?.AdminNotes }, nowUtc));
-        db.Outbox.Add(AdminMutation.NewOutbox("return.approved", r.Id, new
+        db.Outbox.Add(AdminMutation.NewOutbox("return.approved", r.Id, r.MarketCode, new
         {
             returnRequestId = r.Id,
             returnNumber = r.ReturnNumber,

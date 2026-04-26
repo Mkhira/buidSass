@@ -99,6 +99,14 @@ public sealed class AdvanceRefundStateService(OrdersDbContext db, ILoggerFactory
                 {
                     foreach (var d in lineDeltas)
                     {
+                        // CR Major: reject non-positive deltas — a negative would decrement
+                        // ReturnedQty (corrupting the ledger) and a zero is meaningless.
+                        if (d.DeltaQty <= 0)
+                        {
+                            await tx.RollbackAsync(ct);
+                            return AdvanceOutcome.Fail(400, "order.refund.invalid_request",
+                                $"OrderLine {d.OrderLineId} deltaQty must be positive (got {d.DeltaQty}).");
+                        }
                         var line = order.Lines.FirstOrDefault(l => l.Id == d.OrderLineId);
                         if (line is null)
                         {

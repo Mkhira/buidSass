@@ -5,6 +5,9 @@ public sealed class ReturnLine
 {
     public Guid Id { get; set; }
     public Guid ReturnRequestId { get; set; }
+    /// <summary>Per-market partitioning (Principle 5 / ADR-010) — denormalised from the
+    /// parent <see cref="ReturnRequest"/> so child queries can filter without a join.</summary>
+    public string MarketCode { get; set; } = string.Empty;
     public Guid OrderLineId { get; set; }
     public int RequestedQty { get; set; }
     public int? ApprovedQty { get; set; }

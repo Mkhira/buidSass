@@ -13,7 +13,6 @@ public sealed class ReturnPolicySeeder(ReturnsDbContext db)
 {
     public async Task<int> SeedAsync(CancellationToken ct)
     {
-        int inserted = 0;
         var defaults = new[]
         {
             new ReturnPolicy
@@ -35,19 +34,27 @@ public sealed class ReturnPolicySeeder(ReturnsDbContext db)
                 UpdatedAt = DateTimeOffset.UtcNow,
             },
         };
-        foreach (var p in defaults)
+        // CR Major fix — single read + AddRange is race-tolerant under concurrent boots.
+        // Two parallel callers may both compute the same `toInsert`, but the second
+        // SaveChanges fails on the PK conflict, which we swallow so startup stays idempotent.
+        var existingMarkets = await db.ReturnPolicies
+            .AsNoTracking()
+            .Select(x => x.MarketCode)
+            .ToListAsync(ct);
+        var existingSet = new HashSet<string>(existingMarkets, StringComparer.OrdinalIgnoreCase);
+        var toInsert = defaults.Where(p => !existingSet.Contains(p.MarketCode)).ToArray();
+        if (toInsert.Length == 0) return 0;
+
+        db.ReturnPolicies.AddRange(toInsert);
+        try
         {
-            var exists = await db.ReturnPolicies.AnyAsync(x => x.MarketCode == p.MarketCode, ct);
-            if (!exists)
-            {
-                db.ReturnPolicies.Add(p);
-                inserted++;
-            }
+            return await db.SaveChangesAsync(ct);
         }
-        if (inserted > 0)
+        catch (DbUpdateException)
         {
-            await db.SaveChangesAsync(ct);
+            // Concurrent peer inserted first — the migration's ON CONFLICT seed and this
+            // seeder are belt-and-braces; the policy rows exist, that is what matters.
+            return 0;
         }
-        return inserted;
     }
 }

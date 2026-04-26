@@ -71,9 +71,9 @@ public static class Endpoint
         r.UpdatedAt = nowUtc;
 
         db.StateTransitions.Add(AdminMutation.NewReturnTransition(
-            r.Id, fromState, r.State, actorId.Value, Trigger, body.ReasonCode,
+            r.Id, r.MarketCode, fromState, r.State, actorId.Value, Trigger, body.ReasonCode,
             new { reasonCode = body.ReasonCode, adminNotes = body.AdminNotes }, nowUtc));
-        db.Outbox.Add(AdminMutation.NewOutbox("return.rejected", r.Id, new
+        db.Outbox.Add(AdminMutation.NewOutbox("return.rejected", r.Id, r.MarketCode, new
         {
             returnRequestId = r.Id,
             returnNumber = r.ReturnNumber,

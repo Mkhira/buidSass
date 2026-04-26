@@ -64,18 +64,22 @@ public static class Endpoint
         sb.AppendLine("id,return_number,order_id,market_code,state,reason_code,submitted_at,decided_at,force_refund,line_count,total_refunded_minor,currency");
         foreach (var r in rows)
         {
+            // CR Minor: escape every emitted string column — a stray comma/quote/newline
+            // in the return number, market, state, or currency would otherwise break the
+            // CSV row. The ID and ISO-8601 timestamps are safe because their character set
+            // is constrained.
             sb.Append(r.Id).Append(',');
-            sb.Append(r.ReturnNumber).Append(',');
+            sb.Append(Csv(r.ReturnNumber)).Append(',');
             sb.Append(r.OrderId).Append(',');
-            sb.Append(r.MarketCode).Append(',');
-            sb.Append(r.State).Append(',');
+            sb.Append(Csv(r.MarketCode)).Append(',');
+            sb.Append(Csv(r.State)).Append(',');
             sb.Append(Csv(r.ReasonCode)).Append(',');
             sb.Append(r.SubmittedAt.ToString("o", CultureInfo.InvariantCulture)).Append(',');
             sb.Append(r.DecidedAt?.ToString("o", CultureInfo.InvariantCulture) ?? "").Append(',');
             sb.Append(r.ForceRefund ? "true" : "false").Append(',');
             sb.Append(r.LineCount).Append(',');
             sb.Append(r.TotalRefunded).Append(',');
-            sb.Append(r.Currency).AppendLine();
+            sb.Append(Csv(r.Currency)).AppendLine();
         }
         var bytes = Encoding.UTF8.GetBytes(sb.ToString());
         return Results.File(bytes, "text/csv; charset=utf-8", "returns_export.csv");
@@ -84,7 +88,7 @@ public static class Endpoint
     private static string Csv(string? s)
     {
         if (string.IsNullOrEmpty(s)) return "";
-        if (s.IndexOfAny(new[] { ',', '"', '\n' }) < 0) return s;
+        if (s.IndexOfAny(new[] { ',', '"', '\n', '\r' }) < 0) return s;
         return "\"" + s.Replace("\"", "\"\"") + "\"";
     }
 }

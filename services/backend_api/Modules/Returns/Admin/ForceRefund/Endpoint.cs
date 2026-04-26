@@ -77,9 +77,9 @@ public static class Endpoint
             rl.ApprovedQty = rl.RequestedQty;
         }
         db.StateTransitions.Add(AdminMutation.NewReturnTransition(
-            r.Id, r.State, r.State, actorId.Value, Trigger, body.ReasonCode,
+            r.Id, r.MarketCode, r.State, r.State, actorId.Value, Trigger, body.ReasonCode,
             new { reasonCode = body.ReasonCode }, nowUtc));
-        db.Outbox.Add(AdminMutation.NewOutbox("return.force_refund_marked", r.Id, new
+        db.Outbox.Add(AdminMutation.NewOutbox("return.force_refund_marked", r.Id, r.MarketCode, new
         {
             returnRequestId = r.Id,
             returnNumber = r.ReturnNumber,

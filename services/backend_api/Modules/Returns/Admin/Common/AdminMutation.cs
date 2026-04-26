@@ -27,11 +27,12 @@ internal static class AdminMutation
     }
 
     public static ReturnStateTransition NewReturnTransition(
-        Guid returnRequestId, string from, string to, Guid actorAccountId, string trigger,
+        Guid returnRequestId, string marketCode, string from, string to, Guid actorAccountId, string trigger,
         string idempotencyDiscriminator, object? contextPayload, DateTimeOffset nowUtc) =>
         new()
         {
             ReturnRequestId = returnRequestId,
+            MarketCode = marketCode,
             Machine = ReturnStateTransition.MachineReturn,
             FromState = from,
             ToState = to,
@@ -42,11 +43,12 @@ internal static class AdminMutation
             OccurredAt = nowUtc,
         };
 
-    public static ReturnsOutboxEntry NewOutbox(string eventType, Guid returnRequestId, object payload, DateTimeOffset nowUtc) =>
+    public static ReturnsOutboxEntry NewOutbox(string eventType, Guid returnRequestId, string marketCode, object payload, DateTimeOffset nowUtc) =>
         new()
         {
             EventType = eventType,
             AggregateId = returnRequestId,
+            MarketCode = marketCode,
             PayloadJson = JsonSerializer.Serialize(payload),
             CommittedAt = nowUtc,
         };

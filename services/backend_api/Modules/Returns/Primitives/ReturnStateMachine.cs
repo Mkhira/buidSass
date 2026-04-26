@@ -23,6 +23,12 @@ public static class ReturnStateMachine
     {
         var f = from?.ToLowerInvariant() ?? string.Empty;
         var t = to?.ToLowerInvariant() ?? string.Empty;
+        // CR Major: reject unknown states even when from == to so the idempotent self-
+        // transition arm cannot launder garbage values past the canonical-state gate.
+        if (!All.Contains(f) || !All.Contains(t))
+        {
+            return false;
+        }
         return (f, t) switch
         {
             (PendingReview, Approved) => true,

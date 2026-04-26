@@ -72,7 +72,11 @@ public sealed class RefundRetryWorker(
             {
                 logger.LogWarning("returns.refund_retry.no_gateway refundId={RefundId} provider={Provider}",
                     refund.Id, refund.ProviderId);
-                refund.NextRetryAt = nowUtc.Add(BackoffFor(refund.Attempts + 1));
+                // CR Major: increment Attempts even on the no-gateway branch so a
+                // permanently broken refund row eventually parks at MaxAttemptsBeforePark
+                // instead of looping forever.
+                refund.Attempts += 1;
+                refund.NextRetryAt = nowUtc.Add(BackoffFor(refund.Attempts));
                 refund.UpdatedAt = nowUtc;
                 continue;
             }
@@ -85,6 +89,7 @@ public sealed class RefundRetryWorker(
             db.StateTransitions.Add(new ReturnStateTransition
             {
                 ReturnRequestId = refund.ReturnRequestId,
+                MarketCode = refund.MarketCode,
                 RefundId = refund.Id,
                 Machine = ReturnStateTransition.MachineRefund,
                 FromState = fromState,
@@ -113,13 +118,16 @@ public sealed class RefundRetryWorker(
             if (outcome.IsSuccess)
             {
                 refund.State = RefundStateMachine.Completed;
-                refund.GatewayRef = "ok";
+                // CR Major: don't persist a synthetic "ok"; leave null until the gateway
+                // contract carries a real provider reference.
+                refund.GatewayRef = null;
                 refund.CompletedAt = settledNowUtc;
                 refund.NextRetryAt = null;
                 refund.UpdatedAt = settledNowUtc;
                 db.StateTransitions.Add(new ReturnStateTransition
                 {
                     ReturnRequestId = refund.ReturnRequestId,
+                    MarketCode = refund.MarketCode,
                     RefundId = refund.Id,
                     Machine = ReturnStateTransition.MachineRefund,
                     FromState = RefundStateMachine.InProgress,
@@ -135,10 +143,10 @@ public sealed class RefundRetryWorker(
                     rr.State = ReturnStateMachine.Refunded;
                     rr.UpdatedAt = settledNowUtc;
                     db.StateTransitions.Add(AdminMutation.NewReturnTransition(
-                        rr.Id, fromReturn, rr.State, Guid.Empty, "worker.refund_retry",
+                        rr.Id, rr.MarketCode, fromReturn, rr.State, Guid.Empty, "worker.refund_retry",
                         $"refundId={refund.Id}",
                         new { refundId = refund.Id }, settledNowUtc));
-                    db.Outbox.Add(AdminMutation.NewOutbox("refund.completed", rr.Id, new
+                    db.Outbox.Add(AdminMutation.NewOutbox("refund.completed", rr.Id, rr.MarketCode, new
                     {
                         returnRequestId = rr.Id,
                         returnNumber = rr.ReturnNumber,
@@ -159,6 +167,7 @@ public sealed class RefundRetryWorker(
                 db.StateTransitions.Add(new ReturnStateTransition
                 {
                     ReturnRequestId = refund.ReturnRequestId,
+                    MarketCode = refund.MarketCode,
                     RefundId = refund.Id,
                     Machine = ReturnStateTransition.MachineRefund,
                     FromState = RefundStateMachine.InProgress,

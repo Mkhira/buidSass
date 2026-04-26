@@ -42,15 +42,27 @@ public sealed class CreditNoteIssuerAdapter(InvoicesDbContext db, IssueCreditNot
                 $"No invoice found for order {request.OrderId}.");
         }
 
-        // Map orderLineId → invoiceLineId. Aggregating duplicates here lets the underlying
-        // handler's CR2 dedup logic operate on a clean payload.
+        // Map orderLineId → invoiceLineId.
         var lineMap = await db.InvoiceLines.AsNoTracking()
             .Where(l => l.InvoiceId == invoice.Id)
             .Select(l => new { l.Id, l.OrderLineId })
             .ToDictionaryAsync(x => x.OrderLineId, x => x.Id, cancellationToken);
 
-        var mappedLines = new List<CreditNoteLineInput>(request.Lines.Count);
-        foreach (var line in request.Lines)
+        // CR Major fix — aggregate duplicate OrderLineIds at this seam so the underlying
+        // handler doesn't see two CreditNoteLineInputs for the same invoice line. Reject
+        // non-positive cumulative qty as malformed input rather than punting downstream.
+        var aggregated = request.Lines
+            .GroupBy(l => l.OrderLineId)
+            .Select(g => new { OrderLineId = g.Key, Qty = g.Sum(x => x.Qty) })
+            .ToList();
+        if (aggregated.Any(x => x.Qty <= 0))
+        {
+            return new CreditNoteIssueResult(false, null, null, "credit_note.invalid_request",
+                "Credited quantities must be positive.");
+        }
+
+        var mappedLines = new List<CreditNoteLineInput>(aggregated.Count);
+        foreach (var line in aggregated)
         {
             if (!lineMap.TryGetValue(line.OrderLineId, out var invoiceLineId))
             {

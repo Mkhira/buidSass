@@ -136,6 +136,7 @@ public static class Endpoint
         {
             Id = Guid.NewGuid(),
             ReturnRequestId = r.Id,
+            MarketCode = r.MarketCode,
             InspectorAccountId = actorId.Value,
             State = InspectionStateMachine.Complete,
             StartedAt = nowUtc,
@@ -147,6 +148,7 @@ public static class Endpoint
             {
                 InspectionId = inspection.Id,
                 ReturnLineId = match.Id,
+                MarketCode = r.MarketCode,
                 SellableQty = match.Sellable,
                 DefectiveQty = match.Defective,
             });
@@ -162,9 +164,12 @@ public static class Endpoint
             .Where(ol => orderLineIds.Contains(ol.Id))
             .Select(ol => new { ol.Id, ol.OrderId, ol.ProductId })
             .ToListAsync(ct);
+        // CR Major fix: include Delta so we can fan-out the restock across the actual
+        // (warehouse, batch) buckets in proportion to the original sale, instead of
+        // collapsing to FirstOrDefault and routing the wrong warehouse/batch.
         var saleMovements = await inventoryDb.InventoryMovements.AsNoTracking()
             .Where(m => m.SourceKind == "order" && m.SourceId == r.OrderId && m.Kind == "sale")
-            .Select(m => new { m.ProductId, m.WarehouseId, m.BatchId })
+            .Select(m => new { m.ProductId, m.WarehouseId, m.BatchId, m.Delta })
             .ToListAsync(ct);
 
         var totalSellable = r.Lines.Sum(l => l.SellableQty ?? 0);
@@ -180,11 +185,23 @@ public static class Endpoint
                         rl.Id, rl.OrderLineId);
                     continue;
                 }
-                // Pick the first sale movement for this product on this order. Multi-warehouse
-                // splits are uncommon at launch (single warehouse per order) — when they
-                // become real, this lookup can be widened to fan out per (warehouse, batch).
-                var src = saleMovements.FirstOrDefault(s => s.ProductId == prod.ProductId);
-                if (src is null)
+                // Group all sale movements for this product into (warehouse, batch) buckets,
+                // each carrying the absolute qty originally drawn. We then distribute the
+                // sellable qty across those buckets in source order, preserving original
+                // warehouse/batch fidelity. The inventory return handler routes expired
+                // batches to a fresh restock batch independently.
+                var sourceBuckets = saleMovements
+                    .Where(s => s.ProductId == prod.ProductId)
+                    .GroupBy(s => (s.WarehouseId, s.BatchId))
+                    .Select(g => new
+                    {
+                        g.Key.WarehouseId,
+                        g.Key.BatchId,
+                        AvailableQty = -g.Sum(x => x.Delta), // sale Delta is negative
+                    })
+                    .Where(b => b.AvailableQty > 0)
+                    .ToList();
+                if (sourceBuckets.Count == 0)
                 {
                     logger.LogWarning(
                         "returns.inspect.no_source_movement returnLineId={Id} productId={Pid} orderId={OrderId} "
@@ -192,11 +209,26 @@ public static class Endpoint
                         rl.Id, prod.ProductId, r.OrderId, rl.SellableQty);
                     continue;
                 }
-                items.Add(new ReservationReturnLine(
-                    ProductId: prod.ProductId,
-                    WarehouseId: src.WarehouseId,
-                    BatchId: src.BatchId,
-                    Qty: rl.SellableQty!.Value));
+                var remaining = rl.SellableQty!.Value;
+                foreach (var bucket in sourceBuckets)
+                {
+                    if (remaining <= 0) break;
+                    var take = Math.Min(remaining, bucket.AvailableQty);
+                    items.Add(new ReservationReturnLine(
+                        ProductId: prod.ProductId,
+                        WarehouseId: bucket.WarehouseId,
+                        BatchId: bucket.BatchId,
+                        Qty: take));
+                    remaining -= take;
+                }
+                if (remaining > 0)
+                {
+                    // Customer is returning more than was ever sold for this line — partial
+                    // restock; remainder goes to the first available bucket (still preserves
+                    // the original warehouse), then the inventory handler will create a
+                    // synthetic restock batch if needed.
+                    items[^1] = items[^1] with { Qty = items[^1].Qty + remaining };
+                }
             }
             if (items.Count > 0)
             {
@@ -216,7 +248,7 @@ public static class Endpoint
         r.State = ReturnStateMachine.Inspected;
         r.UpdatedAt = nowUtc;
         db.StateTransitions.Add(AdminMutation.NewReturnTransition(
-            r.Id, fromState, r.State, actorId.Value, Trigger, disc,
+            r.Id, r.MarketCode, fromState, r.State, actorId.Value, Trigger, disc,
             new
             {
                 inspectionId = inspection.Id,
@@ -226,6 +258,7 @@ public static class Endpoint
         db.StateTransitions.Add(new ReturnStateTransition
         {
             ReturnRequestId = r.Id,
+            MarketCode = r.MarketCode,
             InspectionId = inspection.Id,
             Machine = ReturnStateTransition.MachineInspection,
             FromState = string.Empty,
@@ -236,7 +269,7 @@ public static class Endpoint
             ContextJson = JsonSerializer.Serialize(new { totalSellable }),
             OccurredAt = nowUtc,
         });
-        db.Outbox.Add(AdminMutation.NewOutbox("return.inspected", r.Id, new
+        db.Outbox.Add(AdminMutation.NewOutbox("return.inspected", r.Id, r.MarketCode, new
         {
             returnRequestId = r.Id,
             returnNumber = r.ReturnNumber,

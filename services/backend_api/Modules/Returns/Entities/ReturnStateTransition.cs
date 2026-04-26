@@ -11,6 +11,9 @@ public sealed class ReturnStateTransition
 
     public long Id { get; set; }
     public Guid ReturnRequestId { get; set; }
+    /// <summary>Per-market partitioning (Principle 5 / ADR-010) — denormalised so audit
+    /// queries can scope by market without joining the parent return request.</summary>
+    public string MarketCode { get; set; } = string.Empty;
     public Guid? RefundId { get; set; }
     public Guid? InspectionId { get; set; }
     public string Machine { get; set; } = string.Empty;

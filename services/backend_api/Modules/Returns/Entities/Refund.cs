@@ -7,6 +7,8 @@ public sealed class Refund
 {
     public Guid Id { get; set; }
     public Guid ReturnRequestId { get; set; }
+    /// <summary>Per-market partitioning (Principle 5 / ADR-010).</summary>
+    public string MarketCode { get; set; } = string.Empty;
     public string? ProviderId { get; set; }
     public string? CapturedTransactionId { get; set; }
     public long AmountMinor { get; set; }

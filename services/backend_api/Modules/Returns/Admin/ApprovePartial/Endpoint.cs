@@ -112,9 +112,9 @@ public static class Endpoint
         r.UpdatedAt = nowUtc;
 
         db.StateTransitions.Add(AdminMutation.NewReturnTransition(
-            r.Id, fromState, r.State, actorId.Value, Trigger, disc,
+            r.Id, r.MarketCode, fromState, r.State, actorId.Value, Trigger, disc,
             new { lines = requested, adminNotes = body.AdminNotes }, nowUtc));
-        db.Outbox.Add(AdminMutation.NewOutbox("return.approved_partial", r.Id, new
+        db.Outbox.Add(AdminMutation.NewOutbox("return.approved_partial", r.Id, r.MarketCode, new
         {
             returnRequestId = r.Id,
             returnNumber = r.ReturnNumber,

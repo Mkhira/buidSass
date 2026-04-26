@@ -26,6 +26,14 @@ public sealed class ReturnPolicyEvaluator
             return PolicyDecision.Reject("return.window.expired",
                 "Market return window is zero.");
         }
+        // CR Minor: a future DeliveredAt produces a negative elapsed and silently passed
+        // the window check, falsely accepting a not-yet-delivered line. Treat it the same
+        // as not-delivered.
+        if (input.DeliveredAt.Value > input.NowUtc)
+        {
+            return PolicyDecision.Reject("return.order.not_delivered",
+                "Order has not been delivered yet.");
+        }
         var elapsed = input.NowUtc - input.DeliveredAt.Value;
         if (elapsed.TotalDays > input.ReturnWindowDays)
         {

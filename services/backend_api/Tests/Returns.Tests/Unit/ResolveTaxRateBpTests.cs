@@ -8,7 +8,7 @@ public class ResolveTaxRateBpTests
     [Theory]
     // 100×1 unit, no discount, 15 tax → 1500 bp
     [InlineData(100, 1, 0, 15, 1500)]
-    // 100×2, discount 50, tax 7.5 → taxable 150, rate 5% = 500 bp
+    // 100×2, discount 50, tax 7 → taxable 150, rate ≈4.67% = 467 bp
     [InlineData(100, 2, 50, 7, 467)]
     // 0 taxable → 0 bp
     [InlineData(100, 1, 100, 0, 0)]

@@ -86,8 +86,16 @@ public static class Endpoint
             orderId = r.OrderId,
             reasonCode = body.ReasonCode,
         }, nowUtc));
-        await db.SaveChangesAsync(ct);
-        await tx.CommitAsync(ct);
+        try
+        {
+            await db.SaveChangesAsync(ct);
+            await tx.CommitAsync(ct);
+        }
+        catch (DbUpdateException ex) when (AdminMutation.IsUniqueDedupViolation(ex))
+        {
+            await tx.RollbackAsync(ct);
+            return Results.Ok(new { id = r.Id, state = r.State, deduped = true });
+        }
 
         await AdminMutation.PublishAuditAsync(auditPublisher, actorId.Value, "returns.force_refund_marked",
             r.Id, null, new { forceRefund = true, reasonCode = body.ReasonCode }, body.ReasonCode, ct);

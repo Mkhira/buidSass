@@ -65,6 +65,15 @@ public sealed class ReturnLineConfiguration : IEntityTypeConfiguration<ReturnLin
                 "\"UnitPriceMinor\" >= 0");
             t.HasCheckConstraint("CK_returns_return_lines_tax_rate_bounds",
                 "\"TaxRateBp\" >= 0 AND \"TaxRateBp\" <= 10000");
+            // CR Major round 3: defend the snapshot fields used by RefundAmountCalculator.
+            // Negative or zero original-qty would break the pro-rata math; negative tax /
+            // discount minors would corrupt SC-009 reconciliation against the credit note.
+            t.HasCheckConstraint("CK_returns_return_lines_original_qty_positive",
+                "\"OriginalQty\" > 0");
+            t.HasCheckConstraint("CK_returns_return_lines_original_tax_non_negative",
+                "\"OriginalTaxMinor\" >= 0");
+            t.HasCheckConstraint("CK_returns_return_lines_original_discount_non_negative",
+                "\"OriginalDiscountMinor\" >= 0");
         });
         builder.HasKey(x => x.Id);
         builder.Property(x => x.MarketCode).HasColumnType("citext").IsRequired();
@@ -196,9 +205,12 @@ public sealed class ReturnPhotoConfiguration : IEntityTypeConfiguration<ReturnPh
             t.HasCheckConstraint("CK_returns_return_photos_size_positive", "\"SizeBytes\" > 0");
         });
         builder.HasKey(x => x.Id);
+        builder.Property(x => x.MarketCode).HasColumnType("citext").IsRequired();
         builder.Property(x => x.Mime).HasColumnType("citext").IsRequired();
         builder.HasIndex(x => x.ReturnRequestId);
         builder.HasIndex(x => x.AccountId);
+        builder.HasIndex(x => new { x.MarketCode, x.UploadedAt })
+            .HasDatabaseName("IX_returns_return_photos_market_uploaded");
     }
 }
 
@@ -257,5 +269,17 @@ public sealed class ReturnStateTransitionConfiguration : IEntityTypeConfiguratio
             .HasDatabaseName("IX_returns_state_transitions_request_occurred");
         builder.HasIndex(x => new { x.MarketCode, x.OccurredAt })
             .HasDatabaseName("IX_returns_state_transitions_market_occurred");
+        // CR Critical round 3: enforce admin-action idempotency at the DB so two concurrent
+        // requests with the same (return_request, machine, trigger, reason) tuple cannot
+        // both insert their own transition + outbox rows. The application-level
+        // WasAlreadyApplied check remains as a best-effort fast path; the correctness
+        // gate is this filtered unique index, with the insert-time 23505 caught at the
+        // call site and treated as the deduped case. Filtered to return-machine rows with
+        // a non-null Reason so the per-machine state-transitions (refund/inspection) and
+        // bootstrap rows are not constrained.
+        builder.HasIndex(x => new { x.ReturnRequestId, x.Machine, x.Trigger, x.Reason })
+            .IsUnique()
+            .HasFilter("\"Machine\" = 'return' AND \"Reason\" IS NOT NULL")
+            .HasDatabaseName("IX_returns_state_transitions_admin_dedup");
     }
 }

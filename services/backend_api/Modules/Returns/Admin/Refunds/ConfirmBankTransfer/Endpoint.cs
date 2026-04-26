@@ -88,15 +88,22 @@ public static class Endpoint
         refund.UpdatedAt = nowUtc;
 
         var fromReturnState = r.State;
-        if (AdminMutation.ValidateTransition(fromReturnState, ReturnStateMachine.Refunded))
+        if (!AdminMutation.ValidateTransition(fromReturnState, ReturnStateMachine.Refunded))
         {
-            r.State = ReturnStateMachine.Refunded;
-            r.UpdatedAt = nowUtc;
-            db.StateTransitions.Add(AdminMutation.NewReturnTransition(
-                r.Id, r.MarketCode, fromReturnState, r.State, actorId.Value, "admin.confirm_bank_transfer",
-                $"refundId={refund.Id}",
-                new { refundId = refund.Id }, nowUtc));
+            // CR Major round 3: fail FAST — completing a refund while leaving the return
+            // unchanged would desync the two state machines (the refund row says completed
+            // but the return is still inspected/etc., yet the manual transfer has been
+            // dispatched in the real world). Refuse to write so admin can investigate.
+            await tx.RollbackAsync(ct);
+            return ReturnsResponseFactory.Problem(context, 409, "return.state.illegal_transition",
+                $"Return state {fromReturnState} cannot transition to refunded; investigate before re-confirming.");
         }
+        r.State = ReturnStateMachine.Refunded;
+        r.UpdatedAt = nowUtc;
+        db.StateTransitions.Add(AdminMutation.NewReturnTransition(
+            r.Id, r.MarketCode, fromReturnState, r.State, actorId.Value, "admin.confirm_bank_transfer",
+            $"refundId={refund.Id}",
+            new { refundId = refund.Id }, nowUtc));
         db.StateTransitions.Add(new ReturnStateTransition
         {
             ReturnRequestId = r.Id,
@@ -121,8 +128,16 @@ public static class Endpoint
             lines = refund.Lines.Select(l => new { returnLineId = l.ReturnLineId, qty = l.Qty }),
         }, nowUtc));
 
-        await db.SaveChangesAsync(ct);
-        await tx.CommitAsync(ct);
+        try
+        {
+            await db.SaveChangesAsync(ct);
+            await tx.CommitAsync(ct);
+        }
+        catch (DbUpdateException ex) when (AdminMutation.IsUniqueDedupViolation(ex))
+        {
+            await tx.RollbackAsync(ct);
+            return Results.Ok(new { id = refund.Id, state = refund.State, deduped = true });
+        }
 
         await AdminMutation.PublishAuditAsync(auditPublisher, actorId.Value, "returns.confirm_bank_transfer",
             r.Id, new { refundId = refund.Id }, new

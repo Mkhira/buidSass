@@ -95,6 +95,7 @@ public static class Endpoint
         {
             Id = stored.FileId,
             ReturnRequestId = null,
+            MarketCode = market.ToString(),
             AccountId = accountId.Value,
             BlobKey = stored.FileId.ToString("N"),
             Mime = file.ContentType!,

@@ -49,7 +49,10 @@ public static class Endpoint
         }
 
         const string Trigger = "admin.reject";
-        if (await AdminMutation.WasAlreadyApplied(db, r.Id, Trigger, body.ReasonCode, ct))
+        // CR Minor round 3: include normalized AdminNotes so a retry with different notes
+        // is not silently dropped as a dedup of the original mutation.
+        var disc = $"{body.ReasonCode}|{(body.AdminNotes ?? string.Empty).Trim()}";
+        if (await AdminMutation.WasAlreadyApplied(db, r.Id, Trigger, disc, ct))
         {
             await tx.RollbackAsync(ct);
             return Results.Ok(new { id = r.Id, state = r.State, deduped = true });
@@ -71,7 +74,7 @@ public static class Endpoint
         r.UpdatedAt = nowUtc;
 
         db.StateTransitions.Add(AdminMutation.NewReturnTransition(
-            r.Id, r.MarketCode, fromState, r.State, actorId.Value, Trigger, body.ReasonCode,
+            r.Id, r.MarketCode, fromState, r.State, actorId.Value, Trigger, disc,
             new { reasonCode = body.ReasonCode, adminNotes = body.AdminNotes }, nowUtc));
         db.Outbox.Add(AdminMutation.NewOutbox("return.rejected", r.Id, r.MarketCode, new
         {
@@ -82,8 +85,16 @@ public static class Endpoint
             decidedByAccountId = actorId.Value,
         }, nowUtc));
 
-        await db.SaveChangesAsync(ct);
-        await tx.CommitAsync(ct);
+        try
+        {
+            await db.SaveChangesAsync(ct);
+            await tx.CommitAsync(ct);
+        }
+        catch (DbUpdateException ex) when (AdminMutation.IsUniqueDedupViolation(ex))
+        {
+            await tx.RollbackAsync(ct);
+            return Results.Ok(new { id = r.Id, state = r.State, deduped = true });
+        }
 
         await AdminMutation.PublishAuditAsync(auditPublisher, actorId.Value, "returns.reject",
             r.Id, new { state = fromState }, new { state = r.State, reasonCode = body.ReasonCode }, body.ReasonCode, ct);

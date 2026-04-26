@@ -103,8 +103,16 @@ public static class Endpoint
             lines = requested,
         }, nowUtc));
 
-        await db.SaveChangesAsync(ct);
-        await tx.CommitAsync(ct);
+        try
+        {
+            await db.SaveChangesAsync(ct);
+            await tx.CommitAsync(ct);
+        }
+        catch (DbUpdateException ex) when (AdminMutation.IsUniqueDedupViolation(ex))
+        {
+            await tx.RollbackAsync(ct);
+            return Results.Ok(new { id = r.Id, state = r.State, deduped = true });
+        }
         await AdminMutation.PublishAuditAsync(auditPublisher, actorId.Value, "returns.mark_received",
             r.Id, new { state = fromState }, new { state = r.State, lines = requested }, null, ct);
 

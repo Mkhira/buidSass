@@ -34,9 +34,17 @@ public sealed class AdvanceRefundStateService(OrdersDbContext db, ILoggerFactory
         }
 
         await using var tx = await db.Database.BeginTransactionAsync(ct);
-        var locked = await db.Database.ExecuteSqlInterpolatedAsync(
-            $"SELECT 1 FROM orders.orders WHERE \"Id\" = {orderId} FOR UPDATE", ct);
-        if (locked == 0)
+        // CR Critical round 3: ExecuteSqlInterpolatedAsync returns -1 for SELECT, so the
+        // prior `if (locked == 0)` was dead code (worked only because the follow-up
+        // FirstOrDefault caught missing rows). Use FromSqlInterpolated to materialise the
+        // result AND acquire the FOR UPDATE lock atomically. AsNoTracking + Any() is
+        // enough — we re-read with Include below for the lines collection; the lock is
+        // held by the locking query for the duration of the tx.
+        var lockedExists = await db.Orders
+            .FromSqlInterpolated($"SELECT * FROM orders.orders WHERE \"Id\" = {orderId} FOR UPDATE")
+            .AsNoTracking()
+            .AnyAsync(ct);
+        if (!lockedExists)
         {
             await tx.RollbackAsync(ct);
             return AdvanceOutcome.Fail(404, "order.not_found", "Order not found");

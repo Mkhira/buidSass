@@ -72,17 +72,41 @@ public sealed class RefundRetryWorker(
             {
                 logger.LogWarning("returns.refund_retry.no_gateway refundId={RefundId} provider={Provider}",
                     refund.Id, refund.ProviderId);
-                // CR Major: increment Attempts even on the no-gateway branch so a
-                // permanently broken refund row eventually parks at MaxAttemptsBeforePark
-                // instead of looping forever.
+                // CR Critical round 3: increment Attempts AND persist immediately so a
+                // permanently broken refund row eventually parks at MaxAttemptsBeforePark.
+                // The earlier version only mutated the in-memory entity and continued —
+                // the change tracker held the increment but never wrote it.
                 refund.Attempts += 1;
                 refund.NextRetryAt = nowUtc.Add(BackoffFor(refund.Attempts));
                 refund.UpdatedAt = nowUtc;
+                await db.SaveChangesAsync(ct);
                 continue;
             }
 
-            // Move to in_progress before the call.
-            var fromState = refund.State;
+            // CR Critical round 3: claim atomically before any gateway call. With multiple
+            // app instances, two workers can pick the same refund from the `due` list and
+            // both call gateway.RefundAsync — a double-refund risk. ExecuteUpdateAsync with
+            // a CAS-style WHERE state=failed clause flips exactly ONE row; the loser sees
+            // affected=0 and skips. The `Attempts` increment + `NextRetryAt` advance happen
+            // in the same atomic update so a crash mid-tick doesn't lose accounting.
+            var fromState = RefundStateMachine.Failed;
+            var claimed = await db.Refunds
+                .Where(rf => rf.Id == refund.Id && rf.State == RefundStateMachine.Failed)
+                .ExecuteUpdateAsync(s => s
+                    .SetProperty(p => p.State, RefundStateMachine.InProgress)
+                    .SetProperty(p => p.Attempts, p => p.Attempts + 1)
+                    .SetProperty(p => p.UpdatedAt, nowUtc),
+                    ct);
+            if (claimed == 0)
+            {
+                logger.LogInformation(
+                    "returns.refund_retry.claim_lost refundId={RefundId} — peer worker took it.",
+                    refund.Id);
+                continue;
+            }
+            // Refresh local in-memory entity to reflect the atomic update so the rest of
+            // the loop sees the new Attempts value (we already incremented in-memory below
+            // for the trail row's ContextJson; ExecuteUpdateAsync bypassed change tracker).
             refund.State = RefundStateMachine.InProgress;
             refund.Attempts += 1;
             refund.UpdatedAt = nowUtc;

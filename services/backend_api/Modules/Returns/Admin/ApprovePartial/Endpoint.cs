@@ -81,8 +81,10 @@ public static class Endpoint
                     $"Line {line.Id}: approvedQty {line.Qty} out of [0,{rl.RequestedQty}].");
             }
         }
-        // Idempotency on (returnId, sorted-line-payload).
-        var disc = string.Join("|", requested.OrderBy(x => x.Id).Select(x => $"{x.Id}={x.Qty}"));
+        // CR Minor round 3: include normalized AdminNotes in the discriminator so retries
+        // with different notes are not silently coalesced.
+        var disc = string.Join("|", requested.OrderBy(x => x.Id).Select(x => $"{x.Id}={x.Qty}"))
+            + "|notes=" + (body.AdminNotes ?? string.Empty).Trim();
         const string Trigger = "admin.approve_partial";
         if (await AdminMutation.WasAlreadyApplied(db, r.Id, Trigger, disc, ct))
         {
@@ -123,8 +125,16 @@ public static class Endpoint
             lines = r.Lines.Select(l => new { id = l.Id, approvedQty = l.ApprovedQty }),
         }, nowUtc));
 
-        await db.SaveChangesAsync(ct);
-        await tx.CommitAsync(ct);
+        try
+        {
+            await db.SaveChangesAsync(ct);
+            await tx.CommitAsync(ct);
+        }
+        catch (DbUpdateException ex) when (AdminMutation.IsUniqueDedupViolation(ex))
+        {
+            await tx.RollbackAsync(ct);
+            return Results.Ok(new { id = r.Id, state = r.State, deduped = true });
+        }
 
         await AdminMutation.PublishAuditAsync(auditPublisher, actorId.Value, "returns.approve_partial",
             r.Id, new { state = fromState }, new { state = r.State, lines = requested }, body.AdminNotes, ct);

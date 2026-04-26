@@ -23,18 +23,34 @@ public static class Endpoint
         ReturnsDbContext db,
         CancellationToken ct)
     {
-        var r = await db.ReturnRequests.AsNoTracking()
+        // CR Major round 3: scope every read to the caller's market so a KSA admin token
+        // cannot fetch an EG return by guessing its id (cross-market data exposure).
+        // The market claim is set by the admin auth pipeline; null means platform-wide
+        // (super-admin), which we keep unrestricted for legitimate ops use.
+        var marketClaim = context.User.FindFirst("market_code")?.Value
+            ?? context.User.FindFirst("market")?.Value;
+        var query = db.ReturnRequests.AsNoTracking()
             .Include(x => x.Lines)
             .Include(x => x.Photos)
             .Include(x => x.Inspections).ThenInclude(i => i.Lines)
             .Include(x => x.Refunds).ThenInclude(rf => rf.Lines)
-            .FirstOrDefaultAsync(x => x.Id == id, ct);
+            .Where(x => x.Id == id);
+        if (!string.IsNullOrWhiteSpace(marketClaim) && !string.Equals(marketClaim, "platform", StringComparison.OrdinalIgnoreCase))
+        {
+            query = query.Where(x => x.MarketCode == marketClaim);
+        }
+        var r = await query.FirstOrDefaultAsync(ct);
         if (r is null)
         {
             return ReturnsResponseFactory.Problem(context, 404, "return.not_found", "Return not found.");
         }
-        var timeline = await db.StateTransitions.AsNoTracking()
-            .Where(t => t.ReturnRequestId == id)
+        var timelineQuery = db.StateTransitions.AsNoTracking()
+            .Where(t => t.ReturnRequestId == id);
+        if (!string.IsNullOrWhiteSpace(marketClaim) && !string.Equals(marketClaim, "platform", StringComparison.OrdinalIgnoreCase))
+        {
+            timelineQuery = timelineQuery.Where(t => t.MarketCode == marketClaim);
+        }
+        var timeline = await timelineQuery
             .OrderBy(t => t.OccurredAt)
             .Select(t => new
             {

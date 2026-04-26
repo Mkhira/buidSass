@@ -12,7 +12,7 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace BackendApi.Modules.Returns.Persistence.Migrations
 {
     [DbContext(typeof(ReturnsDbContext))]
-    [Migration("20260426105037_Returns_Initial")]
+    [Migration("20260426110719_Returns_Initial")]
     partial class Returns_Initial
     {
         /// <inheritdoc />
@@ -322,6 +322,12 @@ namespace BackendApi.Modules.Returns.Persistence.Migrations
 
                             t.HasCheckConstraint("CK_returns_return_lines_inspection_qty_balance", "(\"SellableQty\" IS NULL AND \"DefectiveQty\" IS NULL) OR (\"ReceivedQty\" IS NOT NULL AND \"SellableQty\" IS NOT NULL AND \"DefectiveQty\" IS NOT NULL AND \"SellableQty\" + \"DefectiveQty\" = \"ReceivedQty\")");
 
+                            t.HasCheckConstraint("CK_returns_return_lines_original_discount_non_negative", "\"OriginalDiscountMinor\" >= 0");
+
+                            t.HasCheckConstraint("CK_returns_return_lines_original_qty_positive", "\"OriginalQty\" > 0");
+
+                            t.HasCheckConstraint("CK_returns_return_lines_original_tax_non_negative", "\"OriginalTaxMinor\" >= 0");
+
                             t.HasCheckConstraint("CK_returns_return_lines_received_qty_bounds", "\"ReceivedQty\" IS NULL OR (\"ApprovedQty\" IS NOT NULL AND \"ReceivedQty\" >= 0 AND \"ReceivedQty\" <= \"ApprovedQty\")");
 
                             t.HasCheckConstraint("CK_returns_return_lines_requested_qty_positive", "\"RequestedQty\" > 0");
@@ -345,6 +351,10 @@ namespace BackendApi.Modules.Returns.Persistence.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
+                    b.Property<string>("MarketCode")
+                        .IsRequired()
+                        .HasColumnType("citext");
+
                     b.Property<string>("Mime")
                         .IsRequired()
                         .HasColumnType("citext");
@@ -367,6 +377,9 @@ namespace BackendApi.Modules.Returns.Persistence.Migrations
                     b.HasIndex("AccountId");
 
                     b.HasIndex("ReturnRequestId");
+
+                    b.HasIndex("MarketCode", "UploadedAt")
+                        .HasDatabaseName("IX_returns_return_photos_market_uploaded");
 
                     b.ToTable("return_photos", "returns", t =>
                         {
@@ -543,6 +556,11 @@ namespace BackendApi.Modules.Returns.Persistence.Migrations
 
                     b.HasIndex("ReturnRequestId", "OccurredAt")
                         .HasDatabaseName("IX_returns_state_transitions_request_occurred");
+
+                    b.HasIndex("ReturnRequestId", "Machine", "Trigger", "Reason")
+                        .IsUnique()
+                        .HasDatabaseName("IX_returns_state_transitions_admin_dedup")
+                        .HasFilter("\"Machine\" = 'return' AND \"Reason\" IS NOT NULL");
 
                     b.ToTable("return_state_transitions", "returns", t =>
                         {

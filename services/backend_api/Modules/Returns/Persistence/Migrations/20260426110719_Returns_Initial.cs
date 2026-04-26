@@ -186,6 +186,9 @@ namespace BackendApi.Modules.Returns.Persistence.Migrations
                     table.PrimaryKey("PK_return_lines", x => x.Id);
                     table.CheckConstraint("CK_returns_return_lines_approved_qty_bounds", "\"ApprovedQty\" IS NULL OR (\"ApprovedQty\" >= 0 AND \"ApprovedQty\" <= \"RequestedQty\")");
                     table.CheckConstraint("CK_returns_return_lines_inspection_qty_balance", "(\"SellableQty\" IS NULL AND \"DefectiveQty\" IS NULL) OR (\"ReceivedQty\" IS NOT NULL AND \"SellableQty\" IS NOT NULL AND \"DefectiveQty\" IS NOT NULL AND \"SellableQty\" + \"DefectiveQty\" = \"ReceivedQty\")");
+                    table.CheckConstraint("CK_returns_return_lines_original_discount_non_negative", "\"OriginalDiscountMinor\" >= 0");
+                    table.CheckConstraint("CK_returns_return_lines_original_qty_positive", "\"OriginalQty\" > 0");
+                    table.CheckConstraint("CK_returns_return_lines_original_tax_non_negative", "\"OriginalTaxMinor\" >= 0");
                     table.CheckConstraint("CK_returns_return_lines_received_qty_bounds", "\"ReceivedQty\" IS NULL OR (\"ApprovedQty\" IS NOT NULL AND \"ReceivedQty\" >= 0 AND \"ReceivedQty\" <= \"ApprovedQty\")");
                     table.CheckConstraint("CK_returns_return_lines_requested_qty_positive", "\"RequestedQty\" > 0");
                     table.CheckConstraint("CK_returns_return_lines_tax_rate_bounds", "\"TaxRateBp\" >= 0 AND \"TaxRateBp\" <= 10000");
@@ -206,6 +209,7 @@ namespace BackendApi.Modules.Returns.Persistence.Migrations
                 {
                     Id = table.Column<Guid>(type: "uuid", nullable: false),
                     ReturnRequestId = table.Column<Guid>(type: "uuid", nullable: true),
+                    MarketCode = table.Column<string>(type: "citext", nullable: false),
                     AccountId = table.Column<Guid>(type: "uuid", nullable: false),
                     BlobKey = table.Column<string>(type: "text", nullable: false),
                     Mime = table.Column<string>(type: "citext", nullable: false),
@@ -411,6 +415,12 @@ namespace BackendApi.Modules.Returns.Persistence.Migrations
                 column: "ReturnRequestId");
 
             migrationBuilder.CreateIndex(
+                name: "IX_returns_return_photos_market_uploaded",
+                schema: "returns",
+                table: "return_photos",
+                columns: new[] { "MarketCode", "UploadedAt" });
+
+            migrationBuilder.CreateIndex(
                 name: "IX_return_requests_ReturnNumber",
                 schema: "returns",
                 table: "return_requests",
@@ -434,6 +444,14 @@ namespace BackendApi.Modules.Returns.Persistence.Migrations
                 schema: "returns",
                 table: "return_requests",
                 column: "OrderId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_returns_state_transitions_admin_dedup",
+                schema: "returns",
+                table: "return_state_transitions",
+                columns: new[] { "ReturnRequestId", "Machine", "Trigger", "Reason" },
+                unique: true,
+                filter: "\"Machine\" = 'return' AND \"Reason\" IS NOT NULL");
 
             migrationBuilder.CreateIndex(
                 name: "IX_returns_state_transitions_market_occurred",
@@ -467,9 +485,9 @@ namespace BackendApi.Modules.Returns.Persistence.Migrations
                 columns: new[] { "MarketCode", "CommittedAt" },
                 filter: "\"DispatchedAt\" IS NULL");
 
-            // B3 — seed launch return policies (FR-001 / FR-002). Idempotent: re-applied
-            // migrations keep existing admin overrides via ON CONFLICT DO NOTHING.
-            // Mirrors spec 011's cancellation_policies seed pattern.
+            // B3 — seed launch return policies (FR-001 / FR-002). Idempotent via ON CONFLICT
+            // DO NOTHING; mirrors spec 011's cancellation_policies seed pattern. Re-applied
+            // migrations preserve admin overrides via PUT /v1/admin/return-policies/{market}.
             migrationBuilder.Sql(@"
                 INSERT INTO returns.return_policies
                     (""MarketCode"", ""ReturnWindowDays"", ""AutoApproveUnderDays"", ""RestockingFeeBp"", ""ShippingRefundOnFullOnly"", ""UpdatedByAccountId"", ""UpdatedAt"")

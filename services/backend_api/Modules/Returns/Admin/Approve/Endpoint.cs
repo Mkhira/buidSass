@@ -85,8 +85,19 @@ public static class Endpoint
             decidedByAccountId = actorId.Value,
         }, nowUtc));
 
-        await db.SaveChangesAsync(ct);
-        await tx.CommitAsync(ct);
+        try
+        {
+            await db.SaveChangesAsync(ct);
+            await tx.CommitAsync(ct);
+        }
+        catch (DbUpdateException ex) when (AdminMutation.IsUniqueDedupViolation(ex))
+        {
+            // CR Critical round 3: a concurrent peer beat us to the same dedup tuple. The
+            // DB unique index on (ReturnRequestId, Machine, Trigger, Reason) is the
+            // correctness gate; we treat the loss as the deduped case.
+            await tx.RollbackAsync(ct);
+            return Results.Ok(new { id = r.Id, state = r.State, deduped = true });
+        }
 
         await AdminMutation.PublishAuditAsync(auditPublisher, actorId.Value, "returns.approve",
             r.Id, new { state = fromState }, new { state = r.State }, body?.AdminNotes, ct);

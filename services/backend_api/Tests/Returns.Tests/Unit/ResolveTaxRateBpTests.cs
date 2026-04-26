@@ -15,6 +15,8 @@ public class ResolveTaxRateBpTests
     public void Reconstructs_rate_within_rounding(long unit, int qty, long disc, long tax, int expectedBp)
     {
         var bp = Endpoint.ResolveTaxRateBp(tax, unit, qty, disc);
-        bp.Should().BeInRange(expectedBp - 1, expectedBp + 1);
+        // CR Minor round 3: tighten to exact equality — ResolveTaxRateBp uses deterministic
+        // half-up integer rounding so any drift indicates a regression worth catching.
+        bp.Should().Be(expectedBp);
     }
 }

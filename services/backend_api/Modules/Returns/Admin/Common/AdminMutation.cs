@@ -11,6 +11,15 @@ namespace BackendApi.Modules.Returns.Admin.Common;
 /// FR-019. Common helpers for admin-action idempotency, return-state-machine validation, audit
 /// emission, and outbox writes. Every admin mutation routes through here so the idempotency
 /// key (return_id, action, optionalDiscriminator) and audit signature stay consistent.
+///
+/// Idempotency is enforced at TWO layers:
+///   1. <see cref="WasAlreadyApplied"/> — best-effort fast path; if the record is already
+///      visible we short-circuit with deduped=true without opening a transaction.
+///   2. The DB-level partial unique index <c>IX_returns_state_transitions_admin_dedup</c>
+///      on <c>(ReturnRequestId, Machine, Trigger, Reason)</c> — the actual correctness gate.
+///      Concurrent requests that both pass (1) will collide here at SaveChanges; the loser
+///      catches the 23505 via <see cref="IsUniqueDedupViolation"/> and returns the deduped
+///      response.
 /// </summary>
 internal static class AdminMutation
 {
@@ -24,6 +33,18 @@ internal static class AdminMutation
                 && t.Trigger == trigger
                 && t.Reason == key,
             ct);
+    }
+
+    /// <summary>True when the caught EF exception is the dedup unique-index violation
+    /// (Postgres SQLSTATE 23505 on <c>IX_returns_state_transitions_admin_dedup</c>).</summary>
+    public static bool IsUniqueDedupViolation(DbUpdateException ex)
+    {
+        if (ex.InnerException is Npgsql.PostgresException pg && pg.SqlState == "23505")
+        {
+            return string.Equals(pg.ConstraintName,
+                "IX_returns_state_transitions_admin_dedup", StringComparison.OrdinalIgnoreCase);
+        }
+        return false;
     }
 
     public static ReturnStateTransition NewReturnTransition(

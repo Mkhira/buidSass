@@ -159,6 +159,7 @@ public sealed class CheckoutTestFactory : WebApplicationFactory<Program>, IAsync
             services.RemoveAll<DbContextOptions<InventoryDbContext>>();
             services.RemoveAll<DbContextOptions<CartDbContext>>();
             services.RemoveAll<DbContextOptions<CheckoutDbContext>>();
+            services.RemoveAll<DbContextOptions<OrdersDbContext>>();
             services.RemoveAll<NpgsqlDataSource>();
 
             services.AddSingleton(_ => new NpgsqlDataSourceBuilder(ConnectionString).Build());
@@ -194,6 +195,11 @@ public sealed class CheckoutTestFactory : WebApplicationFactory<Program>, IAsync
                 options.ConfigureWarnings(w => w.Ignore(CoreEventId.ManyServiceProvidersCreatedWarning));
             });
             services.AddDbContext<CheckoutDbContext>((provider, options) =>
+            {
+                options.UseNpgsql(provider.GetRequiredService<NpgsqlDataSource>());
+                options.ConfigureWarnings(w => w.Ignore(CoreEventId.ManyServiceProvidersCreatedWarning));
+            });
+            services.AddDbContext<OrdersDbContext>((provider, options) =>
             {
                 options.UseNpgsql(provider.GetRequiredService<NpgsqlDataSource>());
                 options.ConfigureWarnings(w => w.Ignore(CoreEventId.ManyServiceProvidersCreatedWarning));

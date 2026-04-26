@@ -1,0 +1,38 @@
+return.not_found = Return request not found.
+return.invalid_request = The return request is invalid.
+return.requires_auth = Please sign in to manage returns.
+return.window.expired = The return window for this product has expired.
+return.line.qty_exceeds_delivered = Requested return quantity exceeds the available units for this line.
+return.line.restricted_zero_window = This product is restricted and cannot be returned.
+return.line.not_found = The selected return line was not found.
+return.line.duplicate = Duplicate orderLineId entries are not allowed in the same submission.
+return.order.not_delivered = A return cannot be submitted before the order has been delivered.
+return.state.illegal_transition = This action is not allowed for the current return state.
+return.partial.no_approved_lines = At least one line must be approved with a positive quantity; otherwise use Reject.
+return.photos.too_many = A return cannot have more than five attached photos.
+return.photo.not_found = One or more attached photos were not found.
+return.photo.already_bound = This photo is already attached to another return.
+return.photo.forbidden = You cannot use a photo uploaded by another account.
+return.policy.missing = No return policy is configured for this market.
+return.policy.invalid_request = Return policy settings are invalid.
+return.policy.invalid_market = Market code is invalid.
+
+inspection.qty_mismatch = Sellable + defective quantities must equal the received quantity.
+inventory.post_failed = Recording the inventory return movement failed.
+
+refund.over_refund_blocked = This refund would exceed the captured order total.
+refund.gateway_failure = Payment gateway refund failed; retry has been scheduled.
+refund.gateway_unavailable = The payment gateway used by this order is not available for refunds.
+refund.amount_zero = The computed refund amount is zero.
+refund.no_refundable_units = There are no refundable units for this return.
+refund.compute_failed = Failed to compute the refund amount.
+refund.duplicate_key = A refund already exists for this return.
+refund.manual_iban.required = An IBAN and beneficiary name are required to confirm a manual bank transfer.
+refund.state_lost = Refund record was not found after the gateway call completed.
+
+photo.empty = The uploaded file is empty.
+photo.size.exceeded = The photo exceeds the maximum allowed size.
+photo.mime.unsupported = Unsupported photo format. Only JPEG, PNG and HEIC are allowed.
+photo.upload.blocked = The photo could not be accepted for security reasons.
+
+export.format.unsupported = Only CSV export format is supported.

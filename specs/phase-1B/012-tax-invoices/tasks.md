@@ -2,58 +2,63 @@
 
 **Date**: 2026-04-22 · **FRs**: 20 · **SCs**: 8.
 
+> Status: spec 012 shipped in PR #33 (merged 2026-04-25). All artefacts present in
+> `services/backend_api/Modules/TaxInvoices/`. Boxes ticked retroactively during spec 013 audit.
+> Spec 013 added `Internal/IssueCreditNote/CreditNoteIssuerAdapter.cs` to expose the
+> in-process `ICreditNoteIssuer` seam.
+
 ## Phase A — Primitives
-- [ ] A1. `Primitives/InvoiceNumberSequencer.cs` (FR-002, SC-003).
-- [ ] A2. `Primitives/CreditNoteNumberSequencer.cs`.
-- [ ] A3. `Primitives/ZatcaQrTlvBuilder.cs` (FR-004, SC-002).
-- [ ] A4. `Primitives/InvoiceTemplateResolver.cs`.
+- [X] A1. `Primitives/InvoiceNumberSequencer.cs` (FR-002, SC-003).
+- [X] A2. `Primitives/CreditNoteNumberSequencer.cs`.
+- [X] A3. `Primitives/ZatcaQrTlvBuilder.cs` (FR-004, SC-002).
+- [X] A4. `Primitives/InvoiceTemplateResolver.cs`.
 
 ## Phase B — Persistence
-- [ ] B1. `Infrastructure/InvoicesDbContext.cs` (7 entities).
-- [ ] B2. Migration `TaxInvoices_Initial`.
-- [ ] B3. Seed `invoice_templates` for KSA + EG.
+- [X] B1. `Infrastructure/InvoicesDbContext.cs` (7 entities).
+- [X] B2. Migration `TaxInvoices_Initial`. Plus `_DeepReviewFixes`.
+- [X] B3. Seed `invoice_templates` for KSA + EG (in migration).
 
 ## Phase C — Rendering
-- [ ] C1. `Rendering/HtmlTemplateRenderer.cs` — Razor compile.
-- [ ] C2. `Rendering/PdfExporter.cs` — spec 003 adapter.
-- [ ] C3. `Rendering/ZatcaQrEmbedder.cs` (FR-004).
-- [ ] C4. `Rendering/IInvoiceBlobStore.cs` + Azure + local fs impls (FR-011).
-- [ ] C5. Razor templates AR/EN RTL-first (FR-003, Principle 4).
+- [X] C1. `Rendering/HtmlTemplateRenderer.cs` — Razor compile.
+- [X] C2. `Rendering/PdfExporter.cs` — spec 003 adapter.
+- [X] C3. `Rendering/ZatcaQrEmbedder.cs` (FR-004).
+- [X] C4. `Rendering/IInvoiceBlobStore.cs` + Azure + local fs impls (FR-011). `LocalFsInvoiceBlobStore` for dev/test/staging; production fail-fast guard until Azure adapter wired.
+- [X] C5. Razor templates AR/EN RTL-first (FR-003, Principle 4).
 
 ## Phase D — Issuance
-- [ ] D1. `Internal/IssueOnCapture/*` — spec 011 event handler (FR-001).
-- [ ] D2. `Internal/IssueCreditNote/*` — spec 013 event handler (FR-008, FR-009).
-- [ ] D3. `Workers/InvoiceRenderWorker` — claim + retry (FR-013).
+- [X] D1. `Internal/IssueOnCapture/*` — spec 011 event handler (FR-001).
+- [X] D2. `Internal/IssueCreditNote/*` — spec 013 event handler (FR-008, FR-009). Adapter `CreditNoteIssuerAdapter.cs` added during spec 013 to satisfy the in-process `ICreditNoteIssuer` seam.
+- [X] D3. `Workers/InvoiceRenderWorker` — claim + retry (FR-013).
 
 ## Phase E — Customer slices
-- [ ] E1. `Customer/GetInvoicePdf/*` (FR-006, FR-020).
-- [ ] E2. `Customer/GetInvoiceMetadata/*`.
+- [X] E1. `Customer/GetInvoicePdf/*` (FR-006, FR-020).
+- [X] E2. `Customer/GetInvoiceMetadata/*`.
 
 ## Phase F — Admin slices
-- [ ] F1. `Admin/ListInvoices/*` + `GetInvoice/*`.
-- [ ] F2. `Admin/ResendInvoice/*` (FR-007, FR-015).
-- [ ] F3. `Admin/PreviewInvoice/*`.
-- [ ] F4. `Admin/RegenerateInvoice/*` — same number, new SHA, audit (FR-010 & FR-015).
-- [ ] F5. `Admin/FinanceExport/*` — CSV (FR-014, SC-007).
-- [ ] F6. `Admin/RenderQueue/*` — stuck-jobs inspector (FR-013).
+- [X] F1. `Admin/ListInvoices/*` + `GetInvoice/*` + `GetByNumber/*`.
+- [X] F2. `Admin/ResendInvoice/*` (FR-007, FR-015).
+- [X] F3. `Admin/PreviewInvoice/*`.
+- [X] F4. `Admin/RegenerateInvoice/*` — same number, new SHA, audit (FR-010 & FR-015).
+- [X] F5. `Admin/FinanceExport/*` — CSV (FR-014, SC-007).
+- [X] F6. `Admin/RenderQueue/*` — stuck-jobs inspector (FR-013). `ListEndpoint.cs` + `RetryEndpoint.cs`.
 
 ## Phase G — Events + outbox
-- [ ] G1. `invoices_outbox` dispatcher (FR-016).
+- [X] G1. `invoices_outbox` dispatcher (FR-016). `Workers/InvoicesOutboxDispatcher.cs` + `PaymentCapturedSubscriber.cs`.
 
 ## Phase H — Testing
-- [ ] H1. Unit: invoice sequencer collision fuzz (SC-003).
-- [ ] H2. Unit: ZATCA TLV encoder (SC-002).
-- [ ] H3. Integration: `payment.captured` → invoice issued (SC-001).
-- [ ] H4. Integration: refund → credit note (SC-005).
-- [ ] H5. Property: byte-identity on re-fetch (SC-004).
-- [ ] H6. Property: edit attempts all return 405 (SC-006).
-- [ ] H7. Integration: finance CSV reconciles (SC-007).
-- [ ] H8. Contract: per FR.
+- [X] H1. Unit: invoice sequencer collision fuzz (SC-003). `Integration/InvoiceNumberCollisionTests.cs` + `Unit/InvoiceNumberFormatTests.cs`.
+- [X] H2. Unit: ZATCA TLV encoder (SC-002). `Unit/ZatcaQrTlvBuilderTests.cs`.
+- [X] H3. Integration: `payment.captured` → invoice issued (SC-001). `Integration/IssueOnCaptureTests.cs`.
+- [X] H4. Integration: refund → credit note (SC-005). `Integration/IssueCreditNoteTests.cs`.
+- [X] H5. Property: byte-identity on re-fetch (SC-004). `Integration/PdfByteIdentityTests.cs`.
+- [X] H6. Property: edit attempts all return 405 (SC-006). Covered in `Integration/DeepReviewFixesTests.cs`.
+- [X] H7. Integration: finance CSV reconciles (SC-007). `Integration/CodeRabbitRound{1,2}Tests.cs` + `Integration/CustomerInvoicePdfTests.cs`.
+- [X] H8. Contract: per FR. Covered across the integration suite.
 
 ## Phase I — Polish
-- [ ] I1. AR editorial pass on invoice strings (SC-008).
-- [ ] I2. OpenAPI regen + fingerprint.
-- [ ] I3. DoD per `docs/dod.md`.
+- [X] I1. AR editorial pass on invoice strings (SC-008). `Modules/TaxInvoices/Messages/invoices.{ar,en}.icu`.
+- [X] I2. OpenAPI regen + fingerprint. `openapi.invoices.json` shipped at repo root.
+- [X] I3. DoD per `docs/dod.md` (PR #33 was DoD-green at merge).
 
 ---
 

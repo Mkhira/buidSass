@@ -49,7 +49,7 @@ export function CustomersTable({
         header: t("table.name"),
         cell: ({ row }) => (
           <button
-            className="text-left underline-offset-4 hover:underline"
+            className="text-start underline-offset-4 hover:underline"
             onClick={() => router.push(`/customers/${row.original.id}`)}
           >
             {row.original.displayName}

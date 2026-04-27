@@ -38,7 +38,7 @@ export function ProductListTable({
         header: t("table.sku"),
         cell: ({ row }) => (
           <button
-            className="text-left underline-offset-4 hover:underline"
+            className="text-start underline-offset-4 hover:underline"
             onClick={() => router.push(`/catalog/products/${row.original.id}`)}
           >
             {row.original.sku}

@@ -35,7 +35,7 @@ export function OrdersTable({
         header: t("table.number"),
         cell: ({ row }) => (
           <button
-            className="text-left underline-offset-4 hover:underline"
+            className="text-start underline-offset-4 hover:underline"
             onClick={() => router.push(`/orders/${row.original.id}`)}
           >
             {row.original.number}

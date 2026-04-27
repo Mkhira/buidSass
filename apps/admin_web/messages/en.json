@@ -22,7 +22,9 @@
       "inventory_batches": "Batches",
       "inventory_expiry": "Expiry",
       "inventory_reservations": "Reservations",
-      "inventory_ledger": "Ledger"
+      "inventory_ledger": "Ledger",
+      "orders_list": "Orders",
+      "orders_exports": "Exports"
     }
   },
   "shell": {
@@ -165,6 +167,71 @@
     "next": "Next",
     "yes": "Yes",
     "no": "No"
+  },
+  "orders": {
+    "list": {
+      "title": "Orders",
+      "search_placeholder": "Search by order number or customer email",
+      "b2b_chip": "B2B",
+      "table": {
+        "number": "Order #",
+        "customer": "Customer",
+        "states": "States",
+        "total": "Total",
+        "placed": "Placed"
+      },
+      "filters": {
+        "order_state": "Order state",
+        "payment_state": "Payment",
+        "fulfillment_state": "Fulfillment",
+        "refund_state": "Refund",
+        "market": "Market",
+        "b2b": "B2B",
+        "from": "From",
+        "to": "To"
+      }
+    },
+    "detail": {
+      "title": "Order {number}",
+      "customer": "Customer",
+      "shipping": "Shipping",
+      "payment": "Payment",
+      "lines": "Line items",
+      "totals": "Totals",
+      "shipments": "Shipments",
+      "timeline": "Timeline",
+      "refund": "Refund",
+      "invoice": "Invoice"
+    },
+    "transitions": {
+      "confirm_order": "Confirm order",
+      "cancel_order": "Cancel order",
+      "mark_packed": "Mark packed",
+      "hand_to_carrier": "Hand to carrier",
+      "mark_delivered": "Mark delivered",
+      "capture_payment": "Capture payment"
+    },
+    "states": {
+      "placed": "Placed",
+      "confirmed": "Confirmed",
+      "cancelled": "Cancelled",
+      "completed": "Completed",
+      "authorized": "Authorized",
+      "captured": "Captured",
+      "refunded": "Refunded",
+      "pending": "Pending",
+      "packed": "Packed",
+      "handed_to_carrier": "Handed to carrier",
+      "delivered": "Delivered",
+      "none": "None",
+      "partial": "Partial",
+      "full": "Full"
+    },
+    "errors": {
+      "illegal_transition": "That transition isn't allowed from the current state.",
+      "stale_version": "The order changed while you were viewing it. Reload to pull the latest.",
+      "step_up_required": "This action requires re-authentication."
+    }
   },
   "inventory": {
     "overview": {

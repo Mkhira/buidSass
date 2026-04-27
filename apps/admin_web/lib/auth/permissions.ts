@@ -39,8 +39,11 @@ export const ROUTE_PERMISSIONS: RoutePermissionRule[] = [
   { pattern: /^\/inventory\/expiry(?:\/|$)/, requiredPermissions: ["inventory.batch.read"] },
   { pattern: /^\/inventory\/reservations(?:\/|$)/, requiredPermissions: ["inventory.reservation.read"] },
   { pattern: /^\/inventory\/ledger(?:\/|$)/, requiredPermissions: ["inventory.read"] },
-  // Orders (spec 018)
-  { pattern: /^\/orders(?:\/|$)/, requiredPermissions: ["orders.read"] },
+  // Orders (spec 018) — fine-grained per-route gates.
+  { pattern: /^\/orders\/?$/, requiredPermissions: ["orders.read"] },
+  { pattern: /^\/orders\/exports(?:\/|$)/, requiredPermissions: ["orders.export"] },
+  { pattern: /^\/orders\/[^/]+\/refund(?:\/|$)/, requiredPermissions: ["orders.refund"] },
+  { pattern: /^\/orders\/[^/]+(?:\/|$)/, requiredPermissions: ["orders.read"] },
   // Customers (spec 019)
   { pattern: /^\/customers(?:\/|$)/, requiredPermissions: ["customers.read"] },
 ];

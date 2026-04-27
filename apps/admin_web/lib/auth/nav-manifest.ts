@@ -18,6 +18,7 @@ import type { AdminSessionPayload } from "./session";
 import foundation from "./nav-manifest-static/foundation.json";
 import catalog from "./nav-manifest-static/catalog.json";
 import inventory from "./nav-manifest-static/inventory.json";
+import orders from "./nav-manifest-static/orders.json";
 
 export interface NavEntry {
   id: string;
@@ -41,6 +42,7 @@ const STATIC_GROUPS: NavGroup[] = [
   foundation as NavGroup,
   catalog as NavGroup,
   inventory as NavGroup,
+  orders as NavGroup,
 ];
 
 function isStaticMode(): boolean {

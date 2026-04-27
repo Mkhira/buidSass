@@ -23,7 +23,9 @@
       "inventory_batches": "EN_PLACEHOLDER: Batches",
       "inventory_expiry": "EN_PLACEHOLDER: Expiry",
       "inventory_reservations": "EN_PLACEHOLDER: Reservations",
-      "inventory_ledger": "EN_PLACEHOLDER: Ledger"
+      "inventory_ledger": "EN_PLACEHOLDER: Ledger",
+      "orders_list": "EN_PLACEHOLDER: Orders",
+      "orders_exports": "EN_PLACEHOLDER: Exports"
     }
   },
   "shell": {
@@ -166,6 +168,71 @@
     "next": "EN_PLACEHOLDER: Next",
     "yes": "EN_PLACEHOLDER: Yes",
     "no": "EN_PLACEHOLDER: No"
+  },
+  "orders": {
+    "list": {
+      "title": "EN_PLACEHOLDER: Orders",
+      "search_placeholder": "EN_PLACEHOLDER: Search by order number or customer email",
+      "b2b_chip": "EN_PLACEHOLDER: B2B",
+      "table": {
+        "number": "EN_PLACEHOLDER: Order #",
+        "customer": "EN_PLACEHOLDER: Customer",
+        "states": "EN_PLACEHOLDER: States",
+        "total": "EN_PLACEHOLDER: Total",
+        "placed": "EN_PLACEHOLDER: Placed"
+      },
+      "filters": {
+        "order_state": "EN_PLACEHOLDER: Order state",
+        "payment_state": "EN_PLACEHOLDER: Payment",
+        "fulfillment_state": "EN_PLACEHOLDER: Fulfillment",
+        "refund_state": "EN_PLACEHOLDER: Refund",
+        "market": "EN_PLACEHOLDER: Market",
+        "b2b": "EN_PLACEHOLDER: B2B",
+        "from": "EN_PLACEHOLDER: From",
+        "to": "EN_PLACEHOLDER: To"
+      }
+    },
+    "detail": {
+      "title": "EN_PLACEHOLDER: Order {number}",
+      "customer": "EN_PLACEHOLDER: Customer",
+      "shipping": "EN_PLACEHOLDER: Shipping",
+      "payment": "EN_PLACEHOLDER: Payment",
+      "lines": "EN_PLACEHOLDER: Line items",
+      "totals": "EN_PLACEHOLDER: Totals",
+      "shipments": "EN_PLACEHOLDER: Shipments",
+      "timeline": "EN_PLACEHOLDER: Timeline",
+      "refund": "EN_PLACEHOLDER: Refund",
+      "invoice": "EN_PLACEHOLDER: Invoice"
+    },
+    "transitions": {
+      "confirm_order": "EN_PLACEHOLDER: Confirm order",
+      "cancel_order": "EN_PLACEHOLDER: Cancel order",
+      "mark_packed": "EN_PLACEHOLDER: Mark packed",
+      "hand_to_carrier": "EN_PLACEHOLDER: Hand to carrier",
+      "mark_delivered": "EN_PLACEHOLDER: Mark delivered",
+      "capture_payment": "EN_PLACEHOLDER: Capture payment"
+    },
+    "states": {
+      "placed": "EN_PLACEHOLDER: Placed",
+      "confirmed": "EN_PLACEHOLDER: Confirmed",
+      "cancelled": "EN_PLACEHOLDER: Cancelled",
+      "completed": "EN_PLACEHOLDER: Completed",
+      "authorized": "EN_PLACEHOLDER: Authorized",
+      "captured": "EN_PLACEHOLDER: Captured",
+      "refunded": "EN_PLACEHOLDER: Refunded",
+      "pending": "EN_PLACEHOLDER: Pending",
+      "packed": "EN_PLACEHOLDER: Packed",
+      "handed_to_carrier": "EN_PLACEHOLDER: Handed to carrier",
+      "delivered": "EN_PLACEHOLDER: Delivered",
+      "none": "EN_PLACEHOLDER: None",
+      "partial": "EN_PLACEHOLDER: Partial",
+      "full": "EN_PLACEHOLDER: Full"
+    },
+    "errors": {
+      "illegal_transition": "EN_PLACEHOLDER: That transition isn't allowed from the current state.",
+      "stale_version": "EN_PLACEHOLDER: The order changed while you were viewing it. Reload to pull the latest.",
+      "step_up_required": "EN_PLACEHOLDER: This action requires re-authentication."
+    }
   },
   "inventory": {
     "overview": {

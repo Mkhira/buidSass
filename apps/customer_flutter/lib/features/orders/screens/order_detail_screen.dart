@@ -53,9 +53,8 @@ class _Body extends StatelessWidget {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
     return RefreshIndicator(
-      onRefresh: () async => context
-          .read<OrderDetailBloc>()
-          .add(const OrderDetailRefreshed()),
+      onRefresh: () async =>
+          context.read<OrderDetailBloc>().add(const OrderDetailRefreshed()),
       child: ListView(
         padding: const EdgeInsets.all(AppSpacing.md),
         children: [

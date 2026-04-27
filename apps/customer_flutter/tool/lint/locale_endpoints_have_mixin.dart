@@ -21,7 +21,8 @@ void main(List<String> args) {
 
   final dataDir = Directory('lib/features');
   if (!dataDir.existsSync()) {
-    stdout.writeln('locale_endpoints_have_mixin: lib/features missing — skipping.');
+    stdout.writeln(
+        'locale_endpoints_have_mixin: lib/features missing — skipping.');
     return;
   }
 
@@ -35,7 +36,8 @@ void main(List<String> args) {
   final adopters = <String>[];
   for (final entity in dataDir.listSync(recursive: true)) {
     if (entity is! File || !entity.path.endsWith('.dart')) continue;
-    if (!entity.path.contains('${Platform.pathSeparator}data${Platform.pathSeparator}')) {
+    if (!entity.path
+        .contains('${Platform.pathSeparator}data${Platform.pathSeparator}')) {
       continue;
     }
     final src = entity.readAsStringSync();

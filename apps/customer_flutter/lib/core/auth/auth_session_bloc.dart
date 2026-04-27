@@ -106,7 +106,8 @@ class RefreshStarted extends AuthSessionEvent {
 }
 
 class RefreshSucceeded extends AuthSessionEvent {
-  const RefreshSucceeded({required this.accessToken, required this.refreshToken});
+  const RefreshSucceeded(
+      {required this.accessToken, required this.refreshToken});
   final String accessToken;
   final String refreshToken;
 }

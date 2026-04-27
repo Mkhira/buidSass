@@ -119,8 +119,9 @@ class ListingBloc extends Bloc<ListingEvent, ListingState> {
       : _repository = repository,
         super(const ListingIdle(filter: ListingFilter())) {
     on<QueryChanged>(_onQueryChanged,
-        transformer: (events, mapper) =>
-            events.debounce(const Duration(milliseconds: 250)).switchMap(mapper));
+        transformer: (events, mapper) => events
+            .debounce(const Duration(milliseconds: 250))
+            .switchMap(mapper));
     on<FacetToggled>(_onFacetToggled);
     on<SortChanged>(_onSortChanged);
     on<CategorySet>(_onCategorySet);
@@ -167,11 +168,13 @@ class ListingBloc extends Bloc<ListingEvent, ListingState> {
     await _refresh(state.filter.copyWith(categoryId: event.categoryId), emit);
   }
 
-  Future<void> _onRefreshed(_Refreshed event, Emitter<ListingState> emit) async {
+  Future<void> _onRefreshed(
+      _Refreshed event, Emitter<ListingState> emit) async {
     await _refresh(state.filter, emit);
   }
 
-  Future<void> _refresh(ListingFilter filter, Emitter<ListingState> emit) async {
+  Future<void> _refresh(
+      ListingFilter filter, Emitter<ListingState> emit) async {
     emit(ListingLoading(filter: filter));
     try {
       final page = await _repository.fetchListing(

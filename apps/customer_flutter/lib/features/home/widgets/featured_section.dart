@@ -30,7 +30,8 @@ class FeaturedSection extends StatelessWidget {
           height: 180,
           child: ListView.separated(
             scrollDirection: Axis.horizontal,
-            padding: const EdgeInsetsDirectional.symmetric(horizontal: AppSpacing.md),
+            padding: const EdgeInsetsDirectional.symmetric(
+                horizontal: AppSpacing.md),
             itemCount: items.length,
             separatorBuilder: (_, __) => const SizedBox(width: AppSpacing.sm),
             itemBuilder: (ctx, i) {

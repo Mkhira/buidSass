@@ -25,13 +25,13 @@ class HomeScreen extends StatelessWidget {
             HomeError() => ErrorState(
                 title: l10n.commonErrorTitle,
                 body: l10n.commonErrorBody,
-                onRetry: () => context.read<HomeBloc>().add(const HomeRequested()),
+                onRetry: () =>
+                    context.read<HomeBloc>().add(const HomeRequested()),
                 retryLabel: l10n.commonRetry,
               ),
             HomeLoaded(:final payload) => RefreshIndicator(
-                onRefresh: () async => context
-                    .read<HomeBloc>()
-                    .add(const HomeRefreshRequested()),
+                onRefresh: () async =>
+                    context.read<HomeBloc>().add(const HomeRefreshRequested()),
                 child: ListView(
                   children: [
                     const SizedBox(height: AppSpacing.md),

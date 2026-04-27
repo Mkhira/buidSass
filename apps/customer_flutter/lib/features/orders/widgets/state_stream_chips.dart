@@ -24,7 +24,8 @@ class StateStreamChips extends StatelessWidget {
       runSpacing: AppSpacing.xs,
       children: [
         _Chip(label: 'order', value: orderState, color: AppColors.primary),
-        _Chip(label: 'payment', value: paymentState, color: AppColors.secondary),
+        _Chip(
+            label: 'payment', value: paymentState, color: AppColors.secondary),
         _Chip(
           label: 'fulfillment',
           value: fulfillmentState,

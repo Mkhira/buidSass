@@ -42,6 +42,5 @@ class StubAddressesRepository implements AddressesRepository {
 class AddressesGapException implements Exception {
   const AddressesGapException();
   @override
-  String toString() =>
-      'Addresses client gap — escalate to spec 004 (FR-031).';
+  String toString() => 'Addresses client gap — escalate to spec 004 (FR-031).';
 }

@@ -20,7 +20,8 @@ void main() {
   group('isValidPostalCode', () {
     test('ksa requires 5 digits', () {
       expect(
-          AddressValidators.isValidPostalCode(marketCode: 'ksa', input: '12345'),
+          AddressValidators.isValidPostalCode(
+              marketCode: 'ksa', input: '12345'),
           isTrue);
       expect(
           AddressValidators.isValidPostalCode(marketCode: 'ksa', input: '1234'),
@@ -32,8 +33,7 @@ void main() {
           AddressValidators.isValidPostalCode(marketCode: 'eg', input: '12345'),
           isTrue);
       expect(
-          AddressValidators.isValidPostalCode(
-              marketCode: 'eg', input: 'abcde'),
+          AddressValidators.isValidPostalCode(marketCode: 'eg', input: 'abcde'),
           isFalse);
     });
 
@@ -41,8 +41,7 @@ void main() {
       expect(
           AddressValidators.isValidPostalCode(marketCode: 'us', input: 'A1B'),
           isTrue);
-      expect(
-          AddressValidators.isValidPostalCode(marketCode: 'us', input: ''),
+      expect(AddressValidators.isValidPostalCode(marketCode: 'us', input: ''),
           isFalse);
     });
   });
@@ -51,7 +50,8 @@ void main() {
     test('validatePhoneOrNull returns reason or null', () {
       expect(AddressValidators.validatePhoneOrNull(null), 'phone.required');
       expect(AddressValidators.validatePhoneOrNull(''), 'phone.required');
-      expect(AddressValidators.validatePhoneOrNull('123'), 'phone.invalid_e164');
+      expect(
+          AddressValidators.validatePhoneOrNull('123'), 'phone.invalid_e164');
       expect(AddressValidators.validatePhoneOrNull('+966500000000'), isNull);
     });
 

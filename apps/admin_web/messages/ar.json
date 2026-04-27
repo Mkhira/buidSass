@@ -244,6 +244,7 @@
       "shipping": "EN_PLACEHOLDER: Shipping",
       "payment": "EN_PLACEHOLDER: Payment",
       "lines": "EN_PLACEHOLDER: Line items",
+      "line_qty": "EN_PLACEHOLDER: × {qty}",
       "totals": "EN_PLACEHOLDER: Totals",
       "shipments": "EN_PLACEHOLDER: Shipments",
       "timeline": "EN_PLACEHOLDER: Timeline",

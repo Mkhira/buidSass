@@ -12,7 +12,8 @@ const _registryPath =
 void main(List<String> args) {
   final registry = File(_registryPath);
   if (!registry.existsSync()) {
-    stdout.writeln('no_locale_leaky_cache: registry not found at $_registryPath — skipping.');
+    stdout.writeln(
+        'no_locale_leaky_cache: registry not found at $_registryPath — skipping.');
     return;
   }
   final body = registry.readAsStringSync();

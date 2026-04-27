@@ -85,7 +85,8 @@ class OrderListBloc extends Bloc<OrderListEvent, OrderListState> {
     await _refresh(state.filter, emit);
   }
 
-  Future<void> _refresh(OrderListFilter filter, Emitter<OrderListState> emit) async {
+  Future<void> _refresh(
+      OrderListFilter filter, Emitter<OrderListState> emit) async {
     emit(OrderListLoading(filter: filter));
     try {
       final page = await _repository.fetchList(filter: filter);

@@ -27,7 +27,8 @@ class CartScreen extends StatelessWidget {
             CartError() => ErrorState(
                 title: l10n.commonErrorTitle,
                 body: l10n.commonErrorBody,
-                onRetry: () => context.read<CartBloc>().add(const CartRefreshed()),
+                onRetry: () =>
+                    context.read<CartBloc>().add(const CartRefreshed()),
                 retryLabel: l10n.commonRetry,
               ),
             CartLoaded() ||
@@ -63,8 +64,7 @@ class _Body extends StatelessWidget {
         if (state is CartOutOfSync)
           CartOutOfSyncBanner(
             message: l10n.commonErrorBody,
-            onReload: () =>
-                context.read<CartBloc>().add(const CartRefreshed()),
+            onReload: () => context.read<CartBloc>().add(const CartRefreshed()),
           ),
         if (blockCheckout)
           CartOutOfSyncBanner(message: l10n.verificationRequired),
@@ -75,15 +75,13 @@ class _Body extends StatelessWidget {
               final line = loaded.cart.lines[i];
               return CartLineTile(
                 line: line,
-                onQuantity: (q) => context
-                    .read<CartBloc>()
-                    .add(LineQuantityChanged(
-                      productId: line.productId,
-                      quantity: q,
-                    )),
-                onRemove: () => context
-                    .read<CartBloc>()
-                    .add(LineRemoved(line.productId)),
+                onQuantity: (q) =>
+                    context.read<CartBloc>().add(LineQuantityChanged(
+                          productId: line.productId,
+                          quantity: q,
+                        )),
+                onRemove: () =>
+                    context.read<CartBloc>().add(LineRemoved(line.productId)),
               );
             },
           ),

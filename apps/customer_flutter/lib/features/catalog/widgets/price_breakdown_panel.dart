@@ -5,7 +5,8 @@ import 'package:intl/intl.dart';
 import '../data/catalog_view_models.dart';
 
 class PriceBreakdownPanel extends StatelessWidget {
-  const PriceBreakdownPanel({super.key, required this.breakdown, this.localeCode});
+  const PriceBreakdownPanel(
+      {super.key, required this.breakdown, this.localeCode});
   final PriceBreakdown breakdown;
   final String? localeCode;
 

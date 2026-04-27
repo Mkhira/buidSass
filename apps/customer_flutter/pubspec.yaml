@@ -28,7 +28,8 @@ dependencies:
   cookie_jar: ^4.0.8
 
   # Localization + i18n — research §R4
-  intl: ^0.20.2
+  # Range covers Flutter 3.24 (intl 0.19.0) → 3.41+ (intl 0.20.2) per CI matrix.
+  intl: ">=0.19.0 <0.21.0"
   hijri: ^3.0.0
 
   # Secure storage — research §R5
@@ -71,7 +72,8 @@ dev_dependencies:
   golden_toolkit: ^0.15.0
 
   # Custom lint scripts (tool/lint/no_hardcoded_strings.dart)
-  analyzer: ^6.4.1
+  # Range covers Flutter 3.24 (analyzer 6) → 3.41+ (analyzer 9/10) per CI matrix.
+  analyzer: ">=6.4.1 <11.0.0"
 
 flutter:
   uses-material-design: true

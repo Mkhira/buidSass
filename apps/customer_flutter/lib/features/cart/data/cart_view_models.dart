@@ -69,7 +69,8 @@ class CartConflictReport {
     required this.reason,
   });
   final String productId;
-  final String reason; // quantity_capped | now_restricted_and_unverified | out_of_stock
+  final String
+      reason; // quantity_capped | now_restricted_and_unverified | out_of_stock
 }
 
 @immutable

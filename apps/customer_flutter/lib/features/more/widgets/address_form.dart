@@ -24,7 +24,8 @@ class AddressForm extends StatefulWidget {
 class _AddressFormState extends State<AddressForm> {
   final _formKey = GlobalKey<FormState>();
   late final _label = TextEditingController(text: widget.initial?.label);
-  late final _recipient = TextEditingController(text: widget.initial?.recipient);
+  late final _recipient =
+      TextEditingController(text: widget.initial?.recipient);
   late final _line1 = TextEditingController(text: widget.initial?.line1);
   late final _city = TextEditingController(text: widget.initial?.city);
   late final _country = TextEditingController(text: widget.initial?.country);

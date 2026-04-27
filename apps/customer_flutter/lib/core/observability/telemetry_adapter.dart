@@ -22,7 +22,8 @@ class ConsoleTelemetryAdapter extends TelemetryAdapter {
 
   @override
   void emit(String event, {Map<String, Object?> properties = const {}}) {
-    developer.log('telemetry.$event ${properties.toString()}', name: 'telemetry');
+    developer.log('telemetry.$event ${properties.toString()}',
+        name: 'telemetry');
   }
 }
 

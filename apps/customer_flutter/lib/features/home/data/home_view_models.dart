@@ -55,6 +55,5 @@ class HomePayloadViewModel {
   final List<FeaturedProductViewModel> featured;
   final List<CategoryTileViewModel> categories;
 
-  bool get isEmpty =>
-      banners.isEmpty && featured.isEmpty && categories.isEmpty;
+  bool get isEmpty => banners.isEmpty && featured.isEmpty && categories.isEmpty;
 }

@@ -16,7 +16,10 @@ void main() {
     'Loading -> Loaded on success',
     build: () {
       when(repo.fetchHome).thenAnswer((_) async => const HomePayloadViewModel(
-            banners: [HomeBannerViewModel(id: 'b', titleKey: 't', imageUrl: '', deeplink: '/')],
+            banners: [
+              HomeBannerViewModel(
+                  id: 'b', titleKey: 't', imageUrl: '', deeplink: '/')
+            ],
             featured: [],
             categories: [],
           ));

@@ -9,7 +9,8 @@ class FeatureFlags {
   factory FeatureFlags.fromEnvironment() {
     const verification =
         bool.fromEnvironment('VERIFICATION_CTA_SHIPPED', defaultValue: false);
-    const cms = bool.fromEnvironment('CMS_CONTENT_SHIPPED', defaultValue: false);
+    const cms =
+        bool.fromEnvironment('CMS_CONTENT_SHIPPED', defaultValue: false);
     return const FeatureFlags(
       verificationCtaShipped: verification,
       cmsContentShipped: cms,

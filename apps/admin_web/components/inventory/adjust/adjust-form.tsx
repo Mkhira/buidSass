@@ -25,7 +25,7 @@ import { FormField } from "@/components/form-builder/form-field";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { ConflictReloadDialog } from "@/components/shell/conflict-reload-dialog";
-import { inventoryApi, type ReasonCode } from "@/lib/api/clients/inventory";
+import type { AdjustmentResult, ReasonCode } from "@/lib/api/clients/inventory";
 import {
   validateAdjustment,
   wouldBeBelowZero,
@@ -102,8 +102,13 @@ export function AdjustForm({
   async function persist(values: AdjustFormValues) {
     setSubmission({ kind: "submitting", idempotencyKey });
     try {
-      const result = await inventoryApi.adjustments.create(
-        {
+      const res = await fetch("/api/inventory/adjustments", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Idempotency-Key": idempotencyKey,
+        },
+        body: JSON.stringify({
           warehouseId: values.warehouseId,
           skuId: values.skuId,
           delta: values.delta,
@@ -111,9 +116,13 @@ export function AdjustForm({
           batchId: values.batchId ?? null,
           note: values.note,
           rowVersion: values.rowVersion,
-        },
-        idempotencyKey,
-      );
+        }),
+      });
+      if (!res.ok) {
+        const errBody = await res.json().catch(() => ({ error: `${res.status}` }));
+        throw new Error(errBody.error ?? `${res.status}`);
+      }
+      const result = (await res.json()) as AdjustmentResult;
       setSubmission({
         kind: "submitted",
         ledgerEntryId: result.ledgerEntryId,

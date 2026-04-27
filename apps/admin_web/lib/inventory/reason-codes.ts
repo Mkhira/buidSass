@@ -3,14 +3,12 @@
  *
  * Keys come from the server (R4); this module re-exports the
  * `requiresNote` predicate from `adjust-state` (single source of
- * truth) plus a thin fetch helper. The actual react-query hook
- * lives in the consuming component's data layer.
+ * truth). Server-side fetching lives in the route handler under
+ * `app/api/inventory/reason-codes/route.ts` so client bundles never
+ * pull `lib/api/proxy.ts` (which depends on `next/headers`).
  */
-import { inventoryApi, type ReasonCode } from "@/lib/api/clients/inventory";
+import type { ReasonCode } from "@/lib/api/clients/inventory";
+
+export type { ReasonCode };
 
 export { requiresNote } from "./adjust-state";
-
-/** Fetches the server-published catalog. UI caches via react-query. */
-export async function fetchReasonCodes(): Promise<ReasonCode[]> {
-  return inventoryApi.reasonCodes.list();
-}

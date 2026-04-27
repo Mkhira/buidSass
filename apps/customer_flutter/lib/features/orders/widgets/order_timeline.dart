@@ -36,8 +36,7 @@ class OrderTimeline extends StatelessWidget {
                   children: [
                     Text('${e.stream} · ${e.fromState} → ${e.toState}',
                         style: AppTypography.body),
-                    Text(fmt.format(e.at),
-                        style: AppTypography.caption),
+                    Text(fmt.format(e.at), style: AppTypography.caption),
                     if (e.reasonNote != null && e.reasonNote!.isNotEmpty)
                       Text(e.reasonNote!, style: AppTypography.caption),
                   ],

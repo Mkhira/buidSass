@@ -20,7 +20,8 @@ class LocaleState {
 
   @override
   bool operator ==(Object other) =>
-      identical(this, other) || (other is LocaleState && other.locale == locale);
+      identical(this, other) ||
+      (other is LocaleState && other.locale == locale);
 
   @override
   int get hashCode => locale.hashCode;
@@ -44,7 +45,8 @@ class LocaleBloc extends Bloc<LocaleEvent, LocaleState> {
   LocaleBloc({AppLocale? initial})
       : super(LocaleState(initial ?? _resolveInitial())) {
     on<LanguageToggled>((_, emit) {
-      emit(LocaleState(state.locale == AppLocale.en ? AppLocale.ar : AppLocale.en));
+      emit(LocaleState(
+          state.locale == AppLocale.en ? AppLocale.ar : AppLocale.en));
     });
     on<LanguageSet>((event, emit) => emit(LocaleState(event.locale)));
   }

@@ -14,7 +14,8 @@ class DioFactoryConfig {
     const baseUrl = String.fromEnvironment('API_BASE_URL', defaultValue: '');
     const allowInsecureFlag =
         String.fromEnvironment('ALLOW_INSECURE_BACKEND', defaultValue: '');
-    final allow = allowInsecureFlag == '1' || (kDebugMode && allowInsecureFlag.isEmpty);
+    final allow =
+        allowInsecureFlag == '1' || (kDebugMode && allowInsecureFlag.isEmpty);
     return DioFactoryConfig(baseUrl: baseUrl, allowInsecureBackend: allow);
   }
 
@@ -56,7 +57,8 @@ class HttpsBearerGuardInterceptor extends Interceptor {
 
   @override
   void onRequest(RequestOptions options, RequestInterceptorHandler handler) {
-    final auth = options.headers['Authorization'] ?? options.headers['authorization'];
+    final auth =
+        options.headers['Authorization'] ?? options.headers['authorization'];
     if (auth is String && auth.startsWith('Bearer ')) {
       final scheme = options.uri.scheme.toLowerCase();
       if (scheme != 'https' && !allowInsecure) {

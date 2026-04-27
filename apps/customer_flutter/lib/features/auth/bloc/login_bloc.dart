@@ -81,7 +81,8 @@ class LoginBloc extends Bloc<LoginEvent, LoginState> {
         ));
         emit(const LoginSuccess());
       } else {
-        _sessionBloc.add(LoginAttemptFailed(reasonCode: outcome.reasonCode ?? 'unknown'));
+        _sessionBloc.add(
+            LoginAttemptFailed(reasonCode: outcome.reasonCode ?? 'unknown'));
         emit(LoginFailure(outcome.reasonCode ?? 'unknown'));
       }
     } on Object catch (e) {

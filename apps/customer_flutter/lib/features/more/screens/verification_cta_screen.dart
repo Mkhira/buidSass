@@ -22,7 +22,9 @@ class VerificationCtaScreen extends StatelessWidget {
             Text(l10n.verificationRequired, style: AppTypography.headline),
             const SizedBox(height: AppSpacing.md),
             Text(
-              flags.verificationCtaShipped ? l10n.commonContinue : l10n.commonEmpty,
+              flags.verificationCtaShipped
+                  ? l10n.commonContinue
+                  : l10n.commonEmpty,
               style: AppTypography.body,
             ),
             const SizedBox(height: AppSpacing.lg),

@@ -34,9 +34,8 @@ class CheckoutScreen extends StatelessWidget {
             CheckoutIdle() => Center(
                 child: AppButton(
                   label: l10n.commonContinue,
-                  onPressed: () => context
-                      .read<CheckoutBloc>()
-                      .add(const CheckoutStarted()),
+                  onPressed: () =>
+                      context.read<CheckoutBloc>().add(const CheckoutStarted()),
                 ),
               ),
             CheckoutDrafting(
@@ -69,7 +68,8 @@ class CheckoutScreen extends StatelessWidget {
               ),
             CheckoutSubmitting() =>
               LoadingState(semanticsLabel: l10n.commonLoading),
-            CheckoutDriftBlocked(:final details) => _DriftInline(details: details),
+            CheckoutDriftBlocked(:final details) =>
+              _DriftInline(details: details),
             CheckoutFailed(:final reasonCode) => ErrorState(
                 title: l10n.commonErrorTitle,
                 body: reasonCode,

@@ -19,7 +19,8 @@ class AddressesScreen extends StatelessWidget {
       body: BlocBuilder<AddressesBloc, AddressesState>(
         builder: (context, state) {
           return switch (state) {
-            AddressesLoading() => LoadingState(semanticsLabel: l10n.commonLoading),
+            AddressesLoading() =>
+              LoadingState(semanticsLabel: l10n.commonLoading),
             AddressesEmpty() => Padding(
                 padding: const EdgeInsets.all(AppSpacing.md),
                 child: AddressForm(
@@ -55,9 +56,8 @@ class AddressesScreen extends StatelessWidget {
                     padding: const EdgeInsets.all(AppSpacing.md),
                     child: AddressForm(
                       marketCode: market,
-                      onSubmit: (d) => context
-                          .read<AddressesBloc>()
-                          .add(AddressCreated(d)),
+                      onSubmit: (d) =>
+                          context.read<AddressesBloc>().add(AddressCreated(d)),
                     ),
                   ),
                 ],

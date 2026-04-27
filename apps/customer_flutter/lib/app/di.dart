@@ -86,15 +86,13 @@ Future<void> bootstrap({
       // When the HTTP layer detects a stale token and refreshes, we keep
       // the Bloc state aligned so the router redirect re-evaluates and
       // unauthenticated users land on /auth/login.
-      onRefreshStarted: () =>
-          sl<AuthSessionBloc>().add(const RefreshStarted()),
+      onRefreshStarted: () => sl<AuthSessionBloc>().add(const RefreshStarted()),
       onRefreshSucceeded: (accessToken, refreshToken) =>
           sl<AuthSessionBloc>().add(RefreshSucceeded(
         accessToken: accessToken,
         refreshToken: refreshToken,
       )),
-      onRefreshFailed: () =>
-          sl<AuthSessionBloc>().add(const RefreshFailed()),
+      onRefreshFailed: () => sl<AuthSessionBloc>().add(const RefreshFailed()),
     ),
   );
 

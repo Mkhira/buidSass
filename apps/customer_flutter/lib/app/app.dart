@@ -37,8 +37,9 @@ class _CustomerAppState extends State<CustomerApp> {
             localizationsDelegates: AppLocalizations.localizationsDelegates,
             routerConfig: _router,
             builder: (ctx, child) => Directionality(
-              textDirection:
-                  localeState.locale.isRtl ? TextDirection.rtl : TextDirection.ltr,
+              textDirection: localeState.locale.isRtl
+                  ? TextDirection.rtl
+                  : TextDirection.ltr,
               child: child ?? const SizedBox.shrink(),
             ),
           );

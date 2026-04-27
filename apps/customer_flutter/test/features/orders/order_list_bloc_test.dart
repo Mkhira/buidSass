@@ -41,7 +41,8 @@ void main() {
           ));
       return OrderListBloc(repository: repo);
     },
-    act: (b) => b.add(const OrderListFilterChanged(OrderListFilter(orderState: 'placed'))),
+    act: (b) => b.add(
+        const OrderListFilterChanged(OrderListFilter(orderState: 'placed'))),
     expect: () => [isA<OrderListLoading>(), isA<OrderListLoaded>()],
   );
 
@@ -49,10 +50,11 @@ void main() {
     'empty page -> Empty',
     build: () {
       when(() => repo.fetchList(
-            filter: any(named: 'filter'),
-            cursor: any(named: 'cursor'),
-          )).thenAnswer((_) async =>
-          const OrderListPage(items: [], nextCursor: null));
+                filter: any(named: 'filter'),
+                cursor: any(named: 'cursor'),
+              ))
+          .thenAnswer(
+              (_) async => const OrderListPage(items: [], nextCursor: null));
       return OrderListBloc(repository: repo);
     },
     act: (b) => b.add(const OrderListRefreshTapped()),
@@ -96,8 +98,8 @@ void main() {
       // first emission: isLoadingMore=true with the existing item
       predicate<OrderListLoaded>((s) => s.isLoadingMore && s.items.length == 1),
       // second: appended
-      predicate<OrderListLoaded>(
-          (s) => !s.isLoadingMore && s.items.length == 2 && s.nextCursor == null),
+      predicate<OrderListLoaded>((s) =>
+          !s.isLoadingMore && s.items.length == 2 && s.nextCursor == null),
     ],
   );
 }

@@ -39,7 +39,8 @@ void main(List<String> args) {
     if (entity is! File || !entity.path.endsWith('.dart')) continue;
     if (_allowlistFiles.contains(entity.path)) continue;
     final segments = entity.path.split(Platform.pathSeparator);
-    if (!segments.contains('screens') && !segments.contains('widgets')) continue;
+    if (!segments.contains('screens') && !segments.contains('widgets'))
+      continue;
     final result = parseFile(
       path: entity.absolute.path,
       featureSet: _features,
@@ -76,7 +77,8 @@ class _StringLitVisitor extends RecursiveAstVisitor<void> {
         if (arg is StringLiteral) {
           _record(arg, '$ctor(...) literal: ${arg.toSource()}');
         }
-        if (arg is NamedExpression && _flaggedNamedArgs.contains(arg.name.label.name)) {
+        if (arg is NamedExpression &&
+            _flaggedNamedArgs.contains(arg.name.label.name)) {
           if (arg.expression is StringLiteral) {
             _record(arg.expression as StringLiteral,
                 '$ctor(${arg.name.label.name}: …) literal: ${arg.expression.toSource()}');

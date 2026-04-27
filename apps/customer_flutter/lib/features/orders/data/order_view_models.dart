@@ -153,8 +153,7 @@ class OrderListFilter {
       dateFrom: identical(dateFrom, _sentinel)
           ? this.dateFrom
           : dateFrom as DateTime?,
-      dateTo:
-          identical(dateTo, _sentinel) ? this.dateTo : dateTo as DateTime?,
+      dateTo: identical(dateTo, _sentinel) ? this.dateTo : dateTo as DateTime?,
     );
   }
 }

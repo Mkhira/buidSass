@@ -18,8 +18,10 @@ void main() {
   setUp(() {
     repo = _MockRepo();
     final storage = _MockStorage();
-    when(() => storage.read(key: any(named: 'key'))).thenAnswer((_) async => null);
-    when(() => storage.write(key: any(named: 'key'), value: any(named: 'value')))
+    when(() => storage.read(key: any(named: 'key')))
+        .thenAnswer((_) async => null);
+    when(() =>
+            storage.write(key: any(named: 'key'), value: any(named: 'value')))
         .thenAnswer((_) async {});
     when(() => storage.delete(key: any(named: 'key'))).thenAnswer((_) async {});
     when(() => storage.deleteAll()).thenAnswer((_) async {});

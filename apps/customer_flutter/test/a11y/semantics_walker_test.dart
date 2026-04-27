@@ -10,7 +10,8 @@ import 'package:flutter_test/flutter_test.dart';
 /// walker lands when widget tests are introduced — this is the
 /// design-system-level smoke test that covers shared primitives.
 void main() {
-  testWidgets('design-system primitives expose semantic labels', (tester) async {
+  testWidgets('design-system primitives expose semantic labels',
+      (tester) async {
     await tester.pumpWidget(MaterialApp(
       localizationsDelegates: AppLocalizations.localizationsDelegates,
       supportedLocales: const [Locale('en'), Locale('ar')],
@@ -56,7 +57,8 @@ void main() {
     handle.dispose();
   });
 
-  testWidgets('AR-RTL renders without overflow on the same primitives', (tester) async {
+  testWidgets('AR-RTL renders without overflow on the same primitives',
+      (tester) async {
     await tester.pumpWidget(MaterialApp(
       localizationsDelegates: AppLocalizations.localizationsDelegates,
       supportedLocales: const [Locale('en'), Locale('ar')],

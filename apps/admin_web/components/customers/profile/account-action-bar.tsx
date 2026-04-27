@@ -23,7 +23,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { customersApi } from "@/lib/api/clients/customers";
 import {
   isSelfAction,
   reasonNoteValid,
@@ -115,18 +114,28 @@ export function AccountActionBar({
       stepUpAssertionId: "stub-step-up",
     });
     try {
-      const fn =
+      const path =
         action === "suspend"
-          ? customersApi.suspend
+          ? "suspend"
           : action === "unlock"
-            ? customersApi.unlock
-            : customersApi.triggerPasswordReset;
-      await fn(
-        customerId,
-        { reasonNote, rowVersion },
-        idempotencyKey,
-        "stub-step-up",
+            ? "unlock"
+            : "password-reset";
+      const res = await fetch(
+        `/api/customers/${encodeURIComponent(customerId)}/${path}`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Idempotency-Key": idempotencyKey,
+            "X-StepUp-Assertion": "stub-step-up",
+          },
+          body: JSON.stringify({ reasonNote, rowVersion }),
+        },
       );
+      if (!res.ok) {
+        const errBody = await res.json().catch(() => ({ error: `${res.status}` }));
+        throw new Error(errBody.error ?? `${res.status}`);
+      }
       setSubmission({ kind: "submitted" });
       setReasonNote("");
       router.refresh();

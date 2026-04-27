@@ -23,7 +23,8 @@ class ProductDetailScreen extends StatelessWidget {
       body: BlocBuilder<ProductDetailBloc, ProductDetailState>(
         builder: (context, state) {
           return switch (state) {
-            ProductDetailLoading() => LoadingState(semanticsLabel: l10n.commonLoading),
+            ProductDetailLoading() =>
+              LoadingState(semanticsLabel: l10n.commonLoading),
             ProductDetailError() => ErrorState(
                 title: l10n.commonErrorTitle,
                 body: l10n.commonErrorBody,
@@ -36,8 +37,8 @@ class ProductDetailScreen extends StatelessWidget {
               _Body(product: product, addToCartEnabled: true),
             ProductDetailOutOfStock(:final product) =>
               _Body(product: product, addToCartEnabled: false),
-            ProductDetailRestricted(:final product) =>
-              _Body(product: product, addToCartEnabled: false, isRestricted: true),
+            ProductDetailRestricted(:final product) => _Body(
+                product: product, addToCartEnabled: false, isRestricted: true),
           };
         },
       ),
@@ -73,8 +74,10 @@ class _Body extends StatelessWidget {
                     Text(product.name, style: AppTypography.headline),
                     if (isRestricted)
                       Padding(
-                        padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
-                        child: RestrictedBadge(label: l10n.verificationRequired),
+                        padding:
+                            const EdgeInsets.symmetric(vertical: AppSpacing.sm),
+                        child:
+                            RestrictedBadge(label: l10n.verificationRequired),
                       ),
                     const SizedBox(height: AppSpacing.sm),
                     Text(product.description, style: AppTypography.body),
@@ -94,9 +97,7 @@ class _Body extends StatelessWidget {
           child: AppButton(
             label: l10n.cartProceedToCheckout,
             expand: true,
-            onPressed: addToCartEnabled
-                ? () => context.go('/cart')
-                : null,
+            onPressed: addToCartEnabled ? () => context.go('/cart') : null,
           ),
         ),
       ],

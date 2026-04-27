@@ -21,8 +21,7 @@ class _OrdersListScreenState extends State<OrdersListScreen> {
   void initState() {
     super.initState();
     _scroll.addListener(() {
-      if (_scroll.position.pixels >=
-          _scroll.position.maxScrollExtent - 200) {
+      if (_scroll.position.pixels >= _scroll.position.maxScrollExtent - 200) {
         context.read<OrderListBloc>().add(const OrderListPageRequested());
       }
     });

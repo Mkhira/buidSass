@@ -13,11 +13,12 @@ void main() {
 
   setUp(() {
     storage = _MockStorage();
-    when(() => storage.read(key: any(named: 'key'))).thenAnswer((_) async => null);
-    when(() => storage.write(key: any(named: 'key'), value: any(named: 'value')))
+    when(() => storage.read(key: any(named: 'key')))
+        .thenAnswer((_) async => null);
+    when(() =>
+            storage.write(key: any(named: 'key'), value: any(named: 'value')))
         .thenAnswer((_) async {});
-    when(() => storage.delete(key: any(named: 'key')))
-        .thenAnswer((_) async {});
+    when(() => storage.delete(key: any(named: 'key'))).thenAnswer((_) async {});
     when(() => storage.deleteAll()).thenAnswer((_) async {});
     tokenStore = SecureTokenStore(storage: storage);
   });
@@ -52,9 +53,11 @@ void main() {
     'Authenticating -> Guest on LoginAttemptFailed',
     build: build,
     seed: () => const AuthAuthenticating(),
-    act: (b) => b.add(const LoginAttemptFailed(reasonCode: 'identity.invalid_credentials')),
+    act: (b) => b.add(
+        const LoginAttemptFailed(reasonCode: 'identity.invalid_credentials')),
     expect: () => [
-      isA<AuthGuest>().having((s) => s.reasonCode, 'reason', 'identity.invalid_credentials'),
+      isA<AuthGuest>().having(
+          (s) => s.reasonCode, 'reason', 'identity.invalid_credentials'),
     ],
   );
 
@@ -107,7 +110,8 @@ void main() {
   blocTest<AuthSessionBloc, AuthSessionState>(
     'Guest -> Authenticated on SessionRehydrated',
     build: build,
-    act: (b) => b.add(const SessionRehydrated(accessToken: 'a', refreshToken: 'r')),
+    act: (b) =>
+        b.add(const SessionRehydrated(accessToken: 'a', refreshToken: 'r')),
     expect: () => [
       isA<AuthAuthenticated>()
           .having((s) => s.accessToken, 'access', 'a')

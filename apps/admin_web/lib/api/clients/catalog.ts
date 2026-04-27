@@ -5,6 +5,13 @@
  * land under `lib/api/types/catalog.ts` after `pnpm gen:api` runs
  * against `services/backend_api/openapi.catalog.json`. Until that doc
  * is on `main`, the shapes here are hand-typed mirrors of `data-model.md`.
+ *
+ * NOTE: this module pulls `proxyFetch` (which depends on `next/headers`)
+ * and is therefore SERVER-ONLY at runtime. Client Components may still
+ * import the exported *types* via `import type { … } from …` — SWC
+ * strips those at compile time so they never reach the bundle. Runtime
+ * mutation calls from the client must go through the route handlers
+ * under `app/api/catalog/...`.
  */
 import { proxyFetch } from "@/lib/api/proxy";
 
@@ -123,9 +130,7 @@ export const catalogApi = {
           // Pass `null` explicitly to unschedule / revert to draft —
           // `undefined` is elided by JSON.stringify and the backend
           // would interpret an empty body as "publish now" instead.
-          body: JSON.stringify(
-            scheduledAt === undefined ? {} : { scheduledAt },
-          ),
+          body: JSON.stringify(scheduledAt === undefined ? {} : { scheduledAt }),
         },
       ),
     discard: (productId: string) =>

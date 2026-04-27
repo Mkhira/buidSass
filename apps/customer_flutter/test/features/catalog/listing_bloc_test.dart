@@ -46,13 +46,14 @@ void main() {
     'SortChanged refetches',
     build: () {
       when(() => repo.fetchListing(
-            query: any(named: 'query'),
-            categoryId: any(named: 'categoryId'),
-            sortKey: any(named: 'sortKey'),
-            selectedFacets: any(named: 'selectedFacets'),
-            cursor: any(named: 'cursor'),
-          )).thenAnswer((_) async =>
-          const ListingPage(items: [], facets: [], nextCursor: null));
+                query: any(named: 'query'),
+                categoryId: any(named: 'categoryId'),
+                sortKey: any(named: 'sortKey'),
+                selectedFacets: any(named: 'selectedFacets'),
+                cursor: any(named: 'cursor'),
+              ))
+          .thenAnswer((_) async =>
+              const ListingPage(items: [], facets: [], nextCursor: null));
       return ListingBloc(repository: repo);
     },
     act: (b) => b.add(const SortChanged('priceAsc')),

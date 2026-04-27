@@ -53,9 +53,8 @@ GoRouter buildRouter(AuthSessionBloc authBloc) {
       final auth = authBloc.state;
       final loc = gstate.matchedLocation;
       final isAuthGated = _authGatedPrefixes.any(loc.startsWith);
-      final isLoginOrRegister = loc == '/auth/login' ||
-          loc == '/auth/register' ||
-          loc == '/auth/otp';
+      final isLoginOrRegister =
+          loc == '/auth/login' || loc == '/auth/register' || loc == '/auth/otp';
       final isGuest = auth is AuthGuest || auth is AuthRefreshFailed;
       if (isAuthGated && isGuest) {
         final next = Uri.encodeComponent(loc);
@@ -185,8 +184,7 @@ GoRouter buildRouter(AuthSessionBloc authBloc) {
             repository: sl<AuthRepository>(),
             sessionBloc: authBloc,
           ),
-          child:
-              LoginScreen(continueTo: s.uri.queryParameters['continueTo']),
+          child: LoginScreen(continueTo: s.uri.queryParameters['continueTo']),
         ),
       ),
       GoRoute(
@@ -229,8 +227,7 @@ GoRouter buildRouter(AuthSessionBloc authBloc) {
         builder: (context, s) {
           final token = s.uri.queryParameters['token'];
           return BlocProvider(
-            create: (_) =>
-                PasswordResetBloc(repository: sl<AuthRepository>()),
+            create: (_) => PasswordResetBloc(repository: sl<AuthRepository>()),
             child: (token != null && token.isNotEmpty)
                 ? PasswordResetConfirmScreen(token: token)
                 : const PasswordResetRequestScreen(),

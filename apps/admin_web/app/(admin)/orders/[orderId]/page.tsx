@@ -102,7 +102,9 @@ export default async function OrderDetailPage({
           {detail.lineItems.map((line) => (
             <li key={line.id} className="flex justify-between text-sm">
               <span>
-                {line.name[locale] || line.name.en} · ×{line.qty}
+                {line.name[locale] || line.name.en}
+                {" · "}
+                {t("line_qty", { qty: line.qty })}
               </span>
               <span>
                 {(line.lineSubtotalMinor / 100).toLocaleString()}{" "}

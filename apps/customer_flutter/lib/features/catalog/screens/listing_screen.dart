@@ -95,7 +95,8 @@ class _ListingScreenState extends State<ListingScreen> {
                     context.read<ListingBloc>().add(const QueryChanged('')),
                 retryLabel: l10n.commonRetry,
               ),
-            ListingLoaded(:final items, :final isLoadingMore) => GridView.builder(
+            ListingLoaded(:final items, :final isLoadingMore) =>
+              GridView.builder(
                 controller: _scrollController,
                 padding: const EdgeInsets.all(AppSpacing.md),
                 gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(

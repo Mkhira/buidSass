@@ -243,6 +243,7 @@
       "shipping": "Shipping",
       "payment": "Payment",
       "lines": "Line items",
+      "line_qty": "× {qty}",
       "totals": "Totals",
       "shipments": "Shipments",
       "timeline": "Timeline",

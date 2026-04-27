@@ -84,7 +84,8 @@ class OtpChallenge {
 
 class StubAuthRepository implements AuthRepository {
   @override
-  Future<AuthOutcome> login({required String email, required String password}) async {
+  Future<AuthOutcome> login(
+      {required String email, required String password}) async {
     throw const IdentityGapException();
   }
 

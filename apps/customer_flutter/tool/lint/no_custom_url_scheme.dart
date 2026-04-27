@@ -28,7 +28,8 @@ void main(List<String> args) {
   final plist = File('ios/Runner/Info.plist');
   if (plist.existsSync()) {
     final body = plist.readAsStringSync();
-    if (body.contains('CFBundleURLSchemes') || body.contains('CFBundleURLTypes')) {
+    if (body.contains('CFBundleURLSchemes') ||
+        body.contains('CFBundleURLTypes')) {
       violations.add('ios/Runner/Info.plist: CFBundleURLTypes/Schemes present');
     }
   }

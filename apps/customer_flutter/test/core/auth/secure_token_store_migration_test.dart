@@ -23,15 +23,16 @@ void main() {
   setUp(() {
     storage = _MockStorage();
     telemetry = _CapturingTelemetry();
-    when(() => storage.write(key: any(named: 'key'), value: any(named: 'value')))
+    when(() =>
+            storage.write(key: any(named: 'key'), value: any(named: 'value')))
         .thenAnswer((_) async {});
-    when(() => storage.delete(key: any(named: 'key')))
-        .thenAnswer((_) async {});
+    when(() => storage.delete(key: any(named: 'key'))).thenAnswer((_) async {});
     when(() => storage.deleteAll()).thenAnswer((_) async {});
   });
 
   test('clean install — writes version marker, no migration', () async {
-    when(() => storage.read(key: any(named: 'key'))).thenAnswer((_) async => null);
+    when(() => storage.read(key: any(named: 'key')))
+        .thenAnswer((_) async => null);
     final store = SecureTokenStore(storage: storage, telemetry: telemetry);
 
     await store.ensureMigrated();
@@ -50,8 +51,8 @@ void main() {
 
     await store.ensureMigrated();
 
-    verifyNever(() =>
-        storage.write(key: 'auth.storage_schema_version', value: any(named: 'value')));
+    verifyNever(() => storage.write(
+        key: 'auth.storage_schema_version', value: any(named: 'value')));
     expect(telemetry.events, isEmpty);
   });
 

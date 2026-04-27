@@ -24,7 +24,7 @@ import { FormField } from "@/components/form-builder/form-field";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { ConflictReloadDialog } from "@/components/shell/conflict-reload-dialog";
-import { catalogApi, type ProductDetail } from "@/lib/api/clients/catalog";
+import type { ProductDetail } from "@/lib/api/clients/catalog";
 import type { ClientProductState } from "@/lib/catalog/product-state";
 import { LocaleTabs } from "./locale-tabs";
 import { PublishControls } from "./publish-controls";
@@ -109,10 +109,26 @@ export function ProductEditorForm({ initial }: ProductEditorFormProps) {
         : null,
       rowVersion: values.rowVersion,
     };
-    if (initial?.id) {
-      return catalogApi.products.update(initial.id, payload);
+    const url = initial?.id
+      ? `/api/catalog/products/${encodeURIComponent(initial.id)}`
+      : `/api/catalog/products`;
+    const method = initial?.id ? "PUT" : "POST";
+    const headers: Record<string, string> = { "Content-Type": "application/json" };
+    if (!initial?.id) {
+      headers["Idempotency-Key"] = crypto.randomUUID();
     }
-    return catalogApi.products.create(payload);
+    const res = await fetch(url, {
+      method,
+      headers,
+      body: JSON.stringify(payload),
+    });
+    if (!res.ok) {
+      const errBody = await res.json().catch(() => ({ error: `${res.status}` }));
+      const err = new Error(errBody.error ?? `${res.status}`);
+      if (res.status === 412) (err as Error & { status: number }).status = 412;
+      throw err;
+    }
+    return (await res.json()) as ProductDetail;
   }
 
   const form = useFormBuilder({
@@ -140,6 +156,18 @@ export function ProductEditorForm({ initial }: ProductEditorFormProps) {
   const restricted = form.watch("restricted");
   const state: ClientProductState = initial?.state ?? "draft";
 
+  async function postJson(url: string, body: unknown): Promise<void> {
+    const res = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    if (!res.ok) {
+      const errBody = await res.json().catch(() => ({ error: `${res.status}` }));
+      throw new Error(errBody.error ?? `${res.status}`);
+    }
+  }
+
   function publish(scheduledAt?: string) {
     if (!initial?.id) {
       void form.submit();
@@ -147,7 +175,10 @@ export function ProductEditorForm({ initial }: ProductEditorFormProps) {
     }
     startTransition(async () => {
       try {
-        await catalogApi.products.publish(initial.id, scheduledAt);
+        await postJson(
+          `/api/catalog/products/${encodeURIComponent(initial.id)}/publish`,
+          scheduledAt === undefined ? {} : { scheduledAt },
+        );
         router.refresh();
       } catch (err) {
         setServerError(err instanceof Error ? err.message : "unknown");
@@ -159,7 +190,10 @@ export function ProductEditorForm({ initial }: ProductEditorFormProps) {
     if (!initial?.id) return;
     startTransition(async () => {
       try {
-        await catalogApi.products.discard(initial.id);
+        await postJson(
+          `/api/catalog/products/${encodeURIComponent(initial.id)}/discard`,
+          {},
+        );
         router.replace("/catalog/products");
       } catch (err) {
         setServerError(err instanceof Error ? err.message : "unknown");
@@ -283,7 +317,10 @@ export function ProductEditorForm({ initial }: ProductEditorFormProps) {
             // undefined would be elided and mean "publish now".
             startTransition(async () => {
               try {
-                await catalogApi.products.publish(initial.id, null);
+                await postJson(
+                  `/api/catalog/products/${encodeURIComponent(initial.id)}/publish`,
+                  { scheduledAt: null },
+                );
                 router.refresh();
               } catch (err) {
                 setServerError(err instanceof Error ? err.message : "unknown");

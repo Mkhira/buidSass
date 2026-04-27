@@ -14,7 +14,6 @@ import {
   candidateTransitions,
   type Machine,
 } from "@/lib/orders/transition-gate";
-import { ordersApi } from "@/lib/api/clients/orders";
 
 export interface TransitionActionBarProps {
   orderId: string;
@@ -56,12 +55,21 @@ export function TransitionActionBar({
     setSubmitting(true);
     const idempotencyKey = crypto.randomUUID();
     try {
-      await ordersApi.transition(
-        orderId,
-        machine,
-        { toState, rowVersion },
-        idempotencyKey,
+      const res = await fetch(
+        `/api/orders/${encodeURIComponent(orderId)}/transitions/${encodeURIComponent(machine)}`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Idempotency-Key": idempotencyKey,
+          },
+          body: JSON.stringify({ toState, rowVersion }),
+        },
       );
+      if (!res.ok) {
+        const errBody = await res.json().catch(() => ({ error: `${res.status}` }));
+        throw new Error(errBody.error ?? `${res.status}`);
+      }
       startTransition(() => router.refresh());
     } catch (err) {
       const message = err instanceof Error ? err.message : "unknown";

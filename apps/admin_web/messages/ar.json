@@ -25,7 +25,8 @@
       "inventory_reservations": "EN_PLACEHOLDER: Reservations",
       "inventory_ledger": "EN_PLACEHOLDER: Ledger",
       "orders_list": "EN_PLACEHOLDER: Orders",
-      "orders_exports": "EN_PLACEHOLDER: Exports"
+      "orders_exports": "EN_PLACEHOLDER: Exports",
+      "customers_list": "EN_PLACEHOLDER: Customers"
     }
   },
   "shell": {
@@ -168,6 +169,51 @@
     "next": "EN_PLACEHOLDER: Next",
     "yes": "EN_PLACEHOLDER: Yes",
     "no": "EN_PLACEHOLDER: No"
+  },
+  "customers": {
+    "list": {
+      "title": "EN_PLACEHOLDER: Customers",
+      "search_placeholder": "EN_PLACEHOLDER: Search by name, email, or phone",
+      "table": {
+        "name": "EN_PLACEHOLDER: Name",
+        "email": "EN_PLACEHOLDER: Email",
+        "market": "EN_PLACEHOLDER: Market",
+        "verification": "EN_PLACEHOLDER: Verification",
+        "account_state": "EN_PLACEHOLDER: State",
+        "last_active": "EN_PLACEHOLDER: Last active"
+      }
+    },
+    "profile": {
+      "title": "EN_PLACEHOLDER: {name}",
+      "email": "EN_PLACEHOLDER: Email",
+      "phone": "EN_PLACEHOLDER: Phone",
+      "addresses": "EN_PLACEHOLDER: Addresses",
+      "orders": "EN_PLACEHOLDER: Orders",
+      "company": "EN_PLACEHOLDER: Company",
+      "verifications": "EN_PLACEHOLDER: Verifications",
+      "quotes": "EN_PLACEHOLDER: Quotes",
+      "support": "EN_PLACEHOLDER: Support tickets",
+      "history_panel_pending": "EN_PLACEHOLDER: Will be available when the related module ships."
+    },
+    "actions": {
+      "suspend": "EN_PLACEHOLDER: Suspend account",
+      "unlock": "EN_PLACEHOLDER: Unlock account",
+      "password_reset": "EN_PLACEHOLDER: Trigger password reset",
+      "reason_label": "EN_PLACEHOLDER: Reason note",
+      "reason_required_help": "EN_PLACEHOLDER: Required (≥ 10 characters). Surfaces in the audit log.",
+      "submit": "EN_PLACEHOLDER: Apply",
+      "self_action_forbidden": "EN_PLACEHOLDER: You can't perform account actions on your own admin account.",
+      "step_up_required": "EN_PLACEHOLDER: This action requires re-authentication.",
+      "stale_version": "EN_PLACEHOLDER: The customer's record changed while you were viewing it. Reload to pull the latest.",
+      "permission_revoked": "EN_PLACEHOLDER: Your customers permission was revoked. Reach out to your admin.",
+      "submitted_toast": "EN_PLACEHOLDER: Action recorded."
+    },
+    "states": {
+      "active": "EN_PLACEHOLDER: Active",
+      "suspended": "EN_PLACEHOLDER: Suspended",
+      "closed": "EN_PLACEHOLDER: Closed"
+    },
+    "b2b_chip": "EN_PLACEHOLDER: B2B"
   },
   "orders": {
     "list": {

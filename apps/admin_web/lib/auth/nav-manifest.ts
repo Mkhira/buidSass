@@ -19,6 +19,7 @@ import foundation from "./nav-manifest-static/foundation.json";
 import catalog from "./nav-manifest-static/catalog.json";
 import inventory from "./nav-manifest-static/inventory.json";
 import orders from "./nav-manifest-static/orders.json";
+import customers from "./nav-manifest-static/customers.json";
 
 export interface NavEntry {
   id: string;
@@ -43,6 +44,7 @@ const STATIC_GROUPS: NavGroup[] = [
   catalog as NavGroup,
   inventory as NavGroup,
   orders as NavGroup,
+  customers as NavGroup,
 ];
 
 function isStaticMode(): boolean {

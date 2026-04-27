@@ -24,7 +24,8 @@
       "inventory_reservations": "Reservations",
       "inventory_ledger": "Ledger",
       "orders_list": "Orders",
-      "orders_exports": "Exports"
+      "orders_exports": "Exports",
+      "customers_list": "Customers"
     }
   },
   "shell": {
@@ -167,6 +168,51 @@
     "next": "Next",
     "yes": "Yes",
     "no": "No"
+  },
+  "customers": {
+    "list": {
+      "title": "Customers",
+      "search_placeholder": "Search by name, email, or phone",
+      "table": {
+        "name": "Name",
+        "email": "Email",
+        "market": "Market",
+        "verification": "Verification",
+        "account_state": "State",
+        "last_active": "Last active"
+      }
+    },
+    "profile": {
+      "title": "{name}",
+      "email": "Email",
+      "phone": "Phone",
+      "addresses": "Addresses",
+      "orders": "Orders",
+      "company": "Company",
+      "verifications": "Verifications",
+      "quotes": "Quotes",
+      "support": "Support tickets",
+      "history_panel_pending": "Will be available when the related module ships."
+    },
+    "actions": {
+      "suspend": "Suspend account",
+      "unlock": "Unlock account",
+      "password_reset": "Trigger password reset",
+      "reason_label": "Reason note",
+      "reason_required_help": "Required (≥ 10 characters). Surfaces in the audit log.",
+      "submit": "Apply",
+      "self_action_forbidden": "You can't perform account actions on your own admin account.",
+      "step_up_required": "This action requires re-authentication.",
+      "stale_version": "The customer's record changed while you were viewing it. Reload to pull the latest.",
+      "permission_revoked": "Your customers permission was revoked. Reach out to your admin.",
+      "submitted_toast": "Action recorded."
+    },
+    "states": {
+      "active": "Active",
+      "suspended": "Suspended",
+      "closed": "Closed"
+    },
+    "b2b_chip": "B2B"
   },
   "orders": {
     "list": {

@@ -44,8 +44,12 @@ export const ROUTE_PERMISSIONS: RoutePermissionRule[] = [
   { pattern: /^\/orders\/exports(?:\/|$)/, requiredPermissions: ["orders.export"] },
   { pattern: /^\/orders\/[^/]+\/refund(?:\/|$)/, requiredPermissions: ["orders.refund"] },
   { pattern: /^\/orders\/[^/]+(?:\/|$)/, requiredPermissions: ["orders.read"] },
-  // Customers (spec 019)
-  { pattern: /^\/customers(?:\/|$)/, requiredPermissions: ["customers.read"] },
+  // Customers (spec 019) — fine-grained per-route gates.
+  { pattern: /^\/customers\/?$/, requiredPermissions: ["customers.read"] },
+  { pattern: /^\/customers\/[^/]+\/suspend(?:\/|$)/, requiredPermissions: ["customers.account_action"] },
+  { pattern: /^\/customers\/[^/]+\/unlock(?:\/|$)/, requiredPermissions: ["customers.account_action"] },
+  { pattern: /^\/customers\/[^/]+\/password-reset(?:\/|$)/, requiredPermissions: ["customers.account_action"] },
+  { pattern: /^\/customers\/[^/]+(?:\/|$)/, requiredPermissions: ["customers.read"] },
 ];
 
 export function hasPermission(session: AdminSessionPayload | null, key: string): boolean {

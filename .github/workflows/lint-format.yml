@@ -94,11 +94,21 @@ jobs:
             if [ -f "pnpm-lock.yaml" ]; then
               pnpm install --frozen-lockfile
               pnpm exec eslint . --max-warnings=0
-              pnpm exec prettier --check .
+              # Prettier is optional — skip if it isn't installed in
+              # this package (admin_web doesn't ship a Prettier config).
+              if pnpm list prettier --depth -1 2>/dev/null | grep -q "prettier "; then
+                pnpm exec prettier --check .
+              else
+                echo "prettier not installed in ${target}; skipping prettier check."
+              fi
             elif [ -f "package-lock.json" ]; then
               npm ci
               npx eslint . --max-warnings=0
-              npx prettier --check .
+              if [ -d "node_modules/prettier" ]; then
+                npx prettier --check .
+              else
+                echo "prettier not installed in ${target}; skipping prettier check."
+              fi
             else
               echo "No JS lockfile in ${target}; skipping lint."
             fi

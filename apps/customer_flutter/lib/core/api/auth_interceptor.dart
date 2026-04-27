@@ -5,6 +5,9 @@ import 'package:dio/dio.dart';
 import '../auth/secure_token_store.dart';
 
 typedef RefreshTokenFn = Future<RefreshOutcome> Function(String refreshToken);
+typedef RefreshLifecycleHook = void Function();
+typedef RefreshSuccessHook = void Function(
+    String accessToken, String refreshToken);
 
 class RefreshOutcome {
   const RefreshOutcome.success({
@@ -24,20 +27,31 @@ class RefreshOutcome {
 
 /// AuthInterceptor — attaches `Authorization: Bearer <access>` from secure
 /// storage; on 401 with a valid refresh token, refreshes and retries the
-/// original request **once**. If refresh fails the request error propagates
-/// and the AuthSessionBloc transitions to `RefreshFailed`.
+/// original request **once**. Concurrent 401s share the same in-flight
+/// refresh via a Completer so we never double-refresh.
 class AuthInterceptor extends QueuedInterceptor {
   AuthInterceptor({
     required this.tokenStore,
     required this.refresh,
     required this.dio,
+    this.onRefreshStarted,
+    this.onRefreshSucceeded,
+    this.onRefreshFailed,
   });
 
   final SecureTokenStore tokenStore;
   final RefreshTokenFn refresh;
   final Dio dio;
 
-  bool _refreshing = false;
+  /// Optional lifecycle hooks — DI wires these to AuthSessionBloc events
+  /// so SM-1 stays in sync with the HTTP layer.
+  final RefreshLifecycleHook? onRefreshStarted;
+  final RefreshSuccessHook? onRefreshSucceeded;
+  final RefreshLifecycleHook? onRefreshFailed;
+
+  /// In-flight refresh — concurrent 401s await the same future so we
+  /// only call the spec 004 refresh endpoint once.
+  Completer<RefreshOutcome>? _inflight;
 
   @override
   Future<void> onRequest(
@@ -68,20 +82,12 @@ class AuthInterceptor extends QueuedInterceptor {
     if (refreshToken == null || refreshToken.isEmpty) {
       return handler.next(err);
     }
-    if (_refreshing) {
-      return handler.next(err);
-    }
-    _refreshing = true;
     try {
-      final outcome = await refresh(refreshToken);
+      final outcome = await _refreshOnceShared(refreshToken);
       if (!outcome.ok) {
-        await tokenStore.clear();
         return handler.next(err);
       }
-      await tokenStore.writeTokens(
-        accessToken: outcome.accessToken!,
-        refreshToken: outcome.refreshToken!,
-      );
+      // Retry the original request with the new access token.
       final retryOptions = err.requestOptions
         ..headers['Authorization'] = 'Bearer ${outcome.accessToken}'
         ..extra['retriedAfterRefresh'] = true;
@@ -89,8 +95,39 @@ class AuthInterceptor extends QueuedInterceptor {
       handler.resolve(response);
     } on Object {
       handler.next(err);
+    }
+  }
+
+  /// Shared-completer dedup: the first caller fires the actual refresh;
+  /// concurrent callers await the same outcome.
+  Future<RefreshOutcome> _refreshOnceShared(String refreshToken) async {
+    final inflight = _inflight;
+    if (inflight != null) return inflight.future;
+
+    final completer = Completer<RefreshOutcome>();
+    _inflight = completer;
+    onRefreshStarted?.call();
+    try {
+      final outcome = await refresh(refreshToken);
+      if (outcome.ok) {
+        await tokenStore.writeTokens(
+          accessToken: outcome.accessToken!,
+          refreshToken: outcome.refreshToken!,
+        );
+        onRefreshSucceeded?.call(outcome.accessToken!, outcome.refreshToken!);
+      } else {
+        await tokenStore.clear();
+        onRefreshFailed?.call();
+      }
+      completer.complete(outcome);
+      return outcome;
+    } on Object catch (e, st) {
+      await tokenStore.clear();
+      onRefreshFailed?.call();
+      completer.completeError(e, st);
+      rethrow;
     } finally {
-      _refreshing = false;
+      _inflight = null;
     }
   }
 }

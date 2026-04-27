@@ -82,6 +82,19 @@ Future<void> bootstrap({
       // Refresh stub — wired to spec 004 client when generated. Today it
       // signals failure so the AuthSessionBloc transitions to RefreshFailed.
       refresh: (_) async => const RefreshOutcome.failure(),
+      // Lifecycle hooks bridge the HTTP refresh-and-retry path with SM-1.
+      // When the HTTP layer detects a stale token and refreshes, we keep
+      // the Bloc state aligned so the router redirect re-evaluates and
+      // unauthenticated users land on /auth/login.
+      onRefreshStarted: () =>
+          sl<AuthSessionBloc>().add(const RefreshStarted()),
+      onRefreshSucceeded: (accessToken, refreshToken) =>
+          sl<AuthSessionBloc>().add(RefreshSucceeded(
+        accessToken: accessToken,
+        refreshToken: refreshToken,
+      )),
+      onRefreshFailed: () =>
+          sl<AuthSessionBloc>().add(const RefreshFailed()),
     ),
   );
 

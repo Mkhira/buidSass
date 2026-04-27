@@ -25,6 +25,9 @@ class ApiModule {
     required this.locale,
     required this.market,
     required this.refresh,
+    this.onRefreshStarted,
+    this.onRefreshSucceeded,
+    this.onRefreshFailed,
   });
 
   final DioFactory dioFactory;
@@ -32,6 +35,9 @@ class ApiModule {
   final LocaleProvider locale;
   final MarketProvider market;
   final RefreshTokenFn refresh;
+  final RefreshLifecycleHook? onRefreshStarted;
+  final RefreshSuccessHook? onRefreshSucceeded;
+  final RefreshLifecycleHook? onRefreshFailed;
 
   late final Dio dio = _buildDio();
 
@@ -41,7 +47,14 @@ class ApiModule {
       LocaleMarketInterceptor(locale: locale, market: market),
       CorrelationIdInterceptor(),
       const IdempotencyInterceptor(),
-      AuthInterceptor(tokenStore: tokenStore, refresh: refresh, dio: dio),
+      AuthInterceptor(
+        tokenStore: tokenStore,
+        refresh: refresh,
+        dio: dio,
+        onRefreshStarted: onRefreshStarted,
+        onRefreshSucceeded: onRefreshSucceeded,
+        onRefreshFailed: onRefreshFailed,
+      ),
       // FR-015b — runs LAST on the request lane so it sees the Bearer
       // header that AuthInterceptor just attached and can refuse it on
       // non-https requests.

@@ -7,7 +7,7 @@
 import { getTranslations, getLocale } from "next-intl/server";
 import Link from "next/link";
 import { requirePermission } from "@/lib/auth/guards";
-import { catalogApi } from "@/lib/api/clients/catalog";
+import { catalogApi, type ProductState } from "@/lib/api/clients/catalog";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { PageHeader } from "@/components/shell/page-header";
@@ -29,9 +29,14 @@ export default async function ProductsListPage({
   const t = await getTranslations("catalog.product");
   const locale = (await getLocale()) === "ar" ? "ar" : "en";
 
+  const validStates: readonly ProductState[] = ["draft", "scheduled", "published"];
+  const stateParam =
+    searchParams.state && (validStates as readonly string[]).includes(searchParams.state)
+      ? (searchParams.state as ProductState)
+      : undefined;
   const filter = {
     search: searchParams.q,
-    state: searchParams.state as never,
+    state: stateParam,
     cursor: searchParams.cursor,
   };
 
@@ -52,7 +57,7 @@ export default async function ProductsListPage({
             href="/catalog/products/new"
             className={cn(buttonVariants({ variant: "default" }))}
           >
-            {t("publish.save_draft")}
+            {t("create_new")}
           </Link>
         }
       />

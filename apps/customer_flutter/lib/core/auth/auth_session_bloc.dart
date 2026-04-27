@@ -233,6 +233,7 @@ class AuthSessionBloc extends Bloc<AuthSessionEvent, AuthSessionState> {
   ) {
     if (state is AuthAuthenticated) {
       emit(const AuthLoggingOut());
+      _telemetry.emit('more.logout.tapped');
     }
   }
 
@@ -242,7 +243,6 @@ class AuthSessionBloc extends Bloc<AuthSessionEvent, AuthSessionState> {
   ) async {
     await _tokenStore.clear();
     emit(const AuthGuest());
-    _telemetry.emit('more.logout.tapped');
   }
 
   void _onSessionRehydrated(

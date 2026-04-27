@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../generated/l10n/app_localizations.dart';
 import '../bloc/otp_bloc.dart';
+import '../services/auth_error_messages.dart';
 
 class OtpScreen extends StatefulWidget {
   const OtpScreen({super.key});
@@ -26,7 +27,7 @@ class _OtpScreenState extends State<OtpScreen> {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
     return Scaffold(
-      appBar: AppBar(),
+      appBar: AppBar(title: Text(l10n.authOtpTitle)),
       body: BlocConsumer<OtpBloc, OtpState>(
         listener: (context, state) {
           if (state.success) context.go('/');
@@ -49,21 +50,26 @@ class _OtpScreenState extends State<OtpScreen> {
                   label: l10n.commonContinue,
                   expand: true,
                   isLoading: state.submitting,
-                  onPressed: () =>
-                      context.read<OtpBloc>().add(OtpSubmitted(_code.text.trim())),
+                  onPressed: () => context
+                      .read<OtpBloc>()
+                      .add(OtpSubmitted(_code.text.trim())),
                 ),
                 const SizedBox(height: AppSpacing.sm),
                 TextButton(
                   onPressed: state.resendInSeconds > 0
                       ? null
-                      : () => context.read<OtpBloc>().add(const OtpResendRequested()),
+                      : () => context
+                          .read<OtpBloc>()
+                          .add(const OtpResendRequested()),
                   child: Text(state.resendInSeconds > 0
                       ? '${l10n.authResendOtp} (${state.resendInSeconds})'
                       : l10n.authResendOtp),
                 ),
                 if (state.errorReason != null)
-                  Text(state.errorReason!,
-                      style: const TextStyle(color: AppColors.danger)),
+                  Text(
+                    localizeAuthError(l10n, state.errorReason!),
+                    style: const TextStyle(color: AppColors.danger),
+                  ),
               ],
             ),
           );
@@ -72,4 +78,3 @@ class _OtpScreenState extends State<OtpScreen> {
     );
   }
 }
-

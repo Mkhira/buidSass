@@ -82,9 +82,15 @@ class CartBloc extends Bloc<CartEvent, CartState> {
     on<LineRemoved>(_onLineRemoved);
     on<CartClaimRequested>(_onClaimRequested);
 
+    // Claim only on transition INTO Authenticated from a non-Authenticated
+    // state. Otherwise Authenticated → Refreshing → Authenticated would
+    // re-claim on every token refresh (FR-013a).
+    AuthSessionState previous = authSessionBloc.state;
     _authSub = authSessionBloc.stream.listen((auth) {
-      if (auth is AuthAuthenticated) {
-        add(const CartClaimRequested());
+      final wasAuthenticated = previous is AuthAuthenticated;
+      previous = auth;
+      if (auth is AuthAuthenticated && !wasAuthenticated) {
+        if (!isClosed) add(const CartClaimRequested());
       }
     });
   }

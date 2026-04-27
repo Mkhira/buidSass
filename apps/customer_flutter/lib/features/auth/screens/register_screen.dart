@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../generated/l10n/app_localizations.dart';
 import '../bloc/register_bloc.dart';
+import '../services/auth_error_messages.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -30,30 +31,34 @@ class _RegisterScreenState extends State<RegisterScreen> {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
     return Scaffold(
-      appBar: AppBar(),
+      appBar: AppBar(title: Text(l10n.authRegister)),
       body: BlocConsumer<RegisterBloc, RegisterState>(
         listener: (context, state) {
           if (state is RegisterRequiresOtp) {
-            context.go('/auth/otp');
-          } else if (state is RegisterSuccess) {
-            context.go('/');
+            final qs = Uri(queryParameters: {
+              'challengeId': state.challenge.challengeId,
+              'channel': state.challenge.channel,
+              'retryAfter': state.challenge.retryAfterSeconds.toString(),
+            }).query;
+            context.go('/auth/otp?$qs');
           }
+          // RegisterSuccess: rely on the router redirect.
         },
         builder: (context, state) {
           return Padding(
             padding: const EdgeInsets.all(AppSpacing.md),
             child: Column(
               children: [
-                AppTextField(label: l10n.authRegister, controller: _name),
+                AppTextField(label: l10n.authNameLabel, controller: _name),
                 const SizedBox(height: AppSpacing.md),
                 AppTextField(
-                  label: l10n.authRegister,
+                  label: l10n.authEmailLabel,
                   controller: _email,
                   keyboardType: TextInputType.emailAddress,
                 ),
                 const SizedBox(height: AppSpacing.md),
                 AppTextField(
-                  label: l10n.authRegister,
+                  label: l10n.authPasswordLabel,
                   controller: _password,
                   obscureText: true,
                 ),
@@ -73,8 +78,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 if (state is RegisterFailure)
                   Padding(
                     padding: const EdgeInsets.only(top: AppSpacing.sm),
-                    child: Text(state.reasonCode,
-                        style: const TextStyle(color: AppColors.danger)),
+                    child: Text(
+                      localizeAuthError(l10n, state.reasonCode),
+                      style: const TextStyle(color: AppColors.danger),
+                    ),
                   ),
               ],
             ),

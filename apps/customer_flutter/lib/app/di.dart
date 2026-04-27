@@ -13,7 +13,14 @@ import '../core/observability/telemetry_adapter.dart';
 import '../core/platform/app_links_adapter.dart';
 import '../core/platform/secure_storage_web.dart';
 import '../core/platform/sms_autofill_adapter.dart';
+import '../features/auth/data/auth_repository.dart';
+import '../features/cart/data/cart_repository.dart';
+import '../features/catalog/data/catalog_repository.dart';
+import '../features/checkout/data/checkout_repository.dart';
 import '../features/home/data/cms_stub_repository.dart';
+import '../features/home/data/home_repository.dart';
+import '../features/more/data/addresses_repository.dart';
+import '../features/orders/data/orders_repository.dart';
 
 /// GetIt composition root. Boots in [bootstrap]; feature modules and tests
 /// register additional bindings on top via [GetIt.I].
@@ -82,8 +89,17 @@ Future<void> bootstrap({
   sl.registerLazySingleton<SmsAutofillAdapter>(SmsAutofillAdapter.new);
   sl.registerLazySingleton<AppLinksAdapter>(AppLinksAdapter.new);
 
-  // Feature stubs
+  // Feature repositories — stub adapters until generated clients land.
   sl.registerLazySingleton<CmsRepository>(() => const CmsStubRepository());
+  sl.registerLazySingleton<HomeRepository>(
+    () => DefaultHomeRepository(cms: sl<CmsRepository>()),
+  );
+  sl.registerLazySingleton<CatalogRepository>(StubCatalogRepository.new);
+  sl.registerLazySingleton<CartRepository>(StubCartRepository.new);
+  sl.registerLazySingleton<AuthRepository>(StubAuthRepository.new);
+  sl.registerLazySingleton<CheckoutRepository>(StubCheckoutRepository.new);
+  sl.registerLazySingleton<OrdersRepository>(StubOrdersRepository.new);
+  sl.registerLazySingleton<AddressesRepository>(StubAddressesRepository.new);
 
   sl.registerSingleton<bool>(true, instanceName: 'di.bootstrapped');
 }

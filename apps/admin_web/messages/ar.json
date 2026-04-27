@@ -180,6 +180,7 @@
     "product": {
       "title": "EN_PLACEHOLDER: Products",
       "new_title": "EN_PLACEHOLDER: New product",
+      "create_new": "EN_PLACEHOLDER: New product",
       "edit_title": "EN_PLACEHOLDER: Edit product",
       "table": {
         "sku": "EN_PLACEHOLDER: SKU",

@@ -103,13 +103,18 @@ class OtpBloc extends Bloc<OtpEvent, OtpState> {
   late final StreamSubscription<void> _ticker;
 
   Future<void> _restoreFromStorage() async {
-    final raw = await _storage.read(key: _otpStateKey);
-    final deadline = int.tryParse(raw ?? '');
-    if (deadline == null) return;
-    final remaining =
-        (deadline - DateTime.now().millisecondsSinceEpoch) ~/ 1000;
-    if (remaining > 0) {
-      add(_OtpRestored(remaining));
+    try {
+      final raw = await _storage.read(key: _otpStateKey);
+      final deadline = int.tryParse(raw ?? '');
+      if (deadline == null) return;
+      final remaining =
+          (deadline - DateTime.now().millisecondsSinceEpoch) ~/ 1000;
+      if (remaining > 0 && !isClosed) {
+        add(_OtpRestored(remaining));
+      }
+    } on Object {
+      // Storage read failed — keep the in-memory countdown the bloc was
+      // constructed with; nothing to restore.
     }
   }
 

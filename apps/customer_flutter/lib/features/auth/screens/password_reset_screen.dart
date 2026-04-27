@@ -4,6 +4,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../generated/l10n/app_localizations.dart';
 import '../bloc/password_reset_bloc.dart';
+import '../services/auth_error_messages.dart';
 
 class PasswordResetRequestScreen extends StatefulWidget {
   const PasswordResetRequestScreen({super.key});
@@ -27,7 +28,7 @@ class _PasswordResetRequestScreenState
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
     return Scaffold(
-      appBar: AppBar(),
+      appBar: AppBar(title: Text(l10n.authForgotPassword)),
       body: BlocBuilder<PasswordResetBloc, PasswordResetState>(
         builder: (context, state) {
           return Padding(
@@ -35,7 +36,7 @@ class _PasswordResetRequestScreenState
             child: Column(
               children: [
                 AppTextField(
-                  label: l10n.authForgotPassword,
+                  label: l10n.authResetEmailLabel,
                   controller: _email,
                   keyboardType: TextInputType.emailAddress,
                 ),
@@ -51,13 +52,15 @@ class _PasswordResetRequestScreenState
                 if (state is PasswordResetEmailSent)
                   Padding(
                     padding: const EdgeInsets.only(top: AppSpacing.md),
-                    child: Text(l10n.commonOk),
+                    child: Text(l10n.authResetEmailSent),
                   ),
                 if (state is PasswordResetFailure)
                   Padding(
                     padding: const EdgeInsets.only(top: AppSpacing.sm),
-                    child: Text(state.reasonCode,
-                        style: const TextStyle(color: AppColors.danger)),
+                    child: Text(
+                      localizeAuthError(l10n, state.reasonCode),
+                      style: const TextStyle(color: AppColors.danger),
+                    ),
                   ),
               ],
             ),
@@ -91,7 +94,7 @@ class _PasswordResetConfirmScreenState
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
     return Scaffold(
-      appBar: AppBar(),
+      appBar: AppBar(title: Text(l10n.authForgotPassword)),
       body: BlocBuilder<PasswordResetBloc, PasswordResetState>(
         builder: (context, state) {
           return Padding(
@@ -99,7 +102,7 @@ class _PasswordResetConfirmScreenState
             child: Column(
               children: [
                 AppTextField(
-                  label: l10n.authForgotPassword,
+                  label: l10n.authNewPasswordLabel,
                   controller: _password,
                   obscureText: true,
                 ),
@@ -118,13 +121,15 @@ class _PasswordResetConfirmScreenState
                 if (state is PasswordResetConfirmed)
                   Padding(
                     padding: const EdgeInsets.only(top: AppSpacing.md),
-                    child: Text(l10n.commonOk),
+                    child: Text(l10n.authPasswordSaved),
                   ),
                 if (state is PasswordResetFailure)
                   Padding(
                     padding: const EdgeInsets.only(top: AppSpacing.sm),
-                    child: Text(state.reasonCode,
-                        style: const TextStyle(color: AppColors.danger)),
+                    child: Text(
+                      localizeAuthError(l10n, state.reasonCode),
+                      style: const TextStyle(color: AppColors.danger),
+                    ),
                   ),
               ],
             ),

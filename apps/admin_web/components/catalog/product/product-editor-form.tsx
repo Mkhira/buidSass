@@ -30,8 +30,6 @@ import { LocaleTabs } from "./locale-tabs";
 import { PublishControls } from "./publish-controls";
 import { RestrictedFlagSection } from "./restricted-flag-section";
 
-const localizedSchema = z.object({ en: z.string().min(1), ar: z.string().min(1) });
-
 const productSchema = z
   .object({
     sku: z.string().min(1),
@@ -75,6 +73,8 @@ export function ProductEditorForm({ initial }: ProductEditorFormProps) {
   const router = useRouter();
   const t = useTranslations("catalog.product.form");
   const tErrors = useTranslations("catalog.product.errors");
+  const tCommon = useTranslations("common");
+  const tPublish = useTranslations("catalog.product.publish");
   const [isPending, startTransition] = useTransition();
   const [serverError, setServerError] = useState<string | null>(null);
   const [conflictResource, setConflictResource] = useState<string | null>(null);
@@ -273,17 +273,26 @@ export function ProductEditorForm({ initial }: ProductEditorFormProps) {
         onPublish={publish}
         onDiscard={discard}
         onTransitionTo={(target) => {
+          // From scheduled or published, "draft" means unschedule / revert.
+          // Spec 005's publish endpoint accepts `scheduledAt: null` to
+          // unschedule; spec may carve a dedicated route later — see
+          // docs/admin_web-escalation-log.md for the gap.
+          if (!initial?.id) return;
           if (target === "draft") {
-            // unschedule / revert handled server-side via publish endpoint
-            // with scheduledAt=null payload; spec 005 may carve this into
-            // its own endpoint — escalate if so.
-            void form.submit();
+            startTransition(async () => {
+              try {
+                await catalogApi.products.publish(initial.id, undefined);
+                router.refresh();
+              } catch (err) {
+                setServerError(err instanceof Error ? err.message : "unknown");
+              }
+            });
           }
         }}
       />
       <div className="flex justify-end">
         <Button type="submit" disabled={form.isSubmitting}>
-          {form.isSubmitting ? "…" : "Save"}
+          {form.isSubmitting ? tCommon("save") + "…" : tPublish("save_draft")}
         </Button>
       </div>
     </FormShell>

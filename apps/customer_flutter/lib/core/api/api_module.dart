@@ -42,6 +42,12 @@ class ApiModule {
       CorrelationIdInterceptor(),
       const IdempotencyInterceptor(),
       AuthInterceptor(tokenStore: tokenStore, refresh: refresh, dio: dio),
+      // FR-015b — runs LAST on the request lane so it sees the Bearer
+      // header that AuthInterceptor just attached and can refuse it on
+      // non-https requests.
+      HttpsBearerGuardInterceptor(
+        allowInsecure: dioFactory.config.allowInsecureBackend,
+      ),
     ]);
     return dio;
   }

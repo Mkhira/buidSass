@@ -21,12 +21,18 @@ class CheckoutDrafting extends CheckoutState {
     this.selectedAddressId,
     this.selectedQuoteId,
     this.selectedPaymentMethodId,
+    this.transientError,
   });
 
   final CheckoutSession session;
   final String? selectedAddressId;
   final String? selectedQuoteId;
   final String? selectedPaymentMethodId;
+
+  /// Most recent transient picker error (address / shipping / payment
+  /// patch failure) — surfaced as a non-blocking notice on the screen.
+  /// Null on every successful patch.
+  final String? transientError;
 
   bool get isReady =>
       selectedAddressId != null &&
@@ -38,6 +44,8 @@ class CheckoutDrafting extends CheckoutState {
     String? selectedAddressId,
     String? selectedQuoteId,
     String? selectedPaymentMethodId,
+    String? transientError,
+    bool clearTransientError = false,
   }) {
     return CheckoutDrafting(
       session: session ?? this.session,
@@ -45,6 +53,8 @@ class CheckoutDrafting extends CheckoutState {
       selectedQuoteId: selectedQuoteId ?? this.selectedQuoteId,
       selectedPaymentMethodId:
           selectedPaymentMethodId ?? this.selectedPaymentMethodId,
+      transientError:
+          clearTransientError ? null : (transientError ?? this.transientError),
     );
   }
 }
@@ -224,8 +234,17 @@ class CheckoutBloc extends Bloc<CheckoutEvent, CheckoutState> {
           : next);
     } on CheckoutSessionExpiredException catch (e) {
       emit(CheckoutFailedTerminal(e.toString()));
-    } on Object catch (_) {
-      // keep prior state
+    } on Object catch (e) {
+      // Surface a Drafting copy with the transient error attached so the
+      // screen can render it as a non-blocking notice. We don't roll
+      // back to Idle — the user keeps the rest of their picker choices.
+      emit(CheckoutDrafting(
+        session: draft.session,
+        selectedAddressId: draft.selectedAddressId,
+        selectedQuoteId: draft.selectedQuoteId,
+        selectedPaymentMethodId: draft.selectedPaymentMethodId,
+        transientError: e.toString(),
+      ));
     }
   }
 
@@ -271,16 +290,16 @@ class CheckoutBloc extends Bloc<CheckoutEvent, CheckoutState> {
     }
   }
 
-  void _onDriftAccepted(
+  Future<void> _onDriftAccepted(
     DriftAccepted event,
     Emitter<CheckoutState> emit,
-  ) {
+  ) async {
     final s = state;
-    if (s is CheckoutDriftBlocked) {
-      // After accepting the drift the user re-opens the session; for v1 we
-      // bounce back to Idle and let the screen restart `CheckoutStarted`.
-      emit(const CheckoutIdle());
-    }
+    if (s is! CheckoutDriftBlocked) return;
+    // Drop back to Idle and immediately restart the session so the user
+    // sees the picker again with refreshed quotes.
+    emit(const CheckoutIdle());
+    add(const CheckoutStarted());
   }
 
   static String _generateIdempotencyKey() {

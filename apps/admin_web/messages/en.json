@@ -179,6 +179,7 @@
     "product": {
       "title": "Products",
       "new_title": "New product",
+      "create_new": "New product",
       "edit_title": "Edit product",
       "table": {
         "sku": "SKU",

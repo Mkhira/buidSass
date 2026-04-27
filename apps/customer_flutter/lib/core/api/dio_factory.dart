@@ -31,7 +31,7 @@ class DioFactory {
   final DioFactoryConfig config;
 
   Dio create() {
-    final dio = Dio(
+    return Dio(
       BaseOptions(
         baseUrl: config.baseUrl,
         connectTimeout: config.connectTimeout,
@@ -40,8 +40,9 @@ class DioFactory {
         headers: const {'Accept': 'application/json'},
       ),
     );
-    dio.interceptors.add(HttpsBearerGuardInterceptor(allowInsecure: config.allowInsecureBackend));
-    return dio;
+    // HttpsBearerGuardInterceptor is registered last in
+    // ApiModule._buildDio so it sees the Authorization header that
+    // AuthInterceptor attached and can refuse non-https Bearer attaches.
   }
 }
 

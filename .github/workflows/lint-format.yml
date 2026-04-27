@@ -62,6 +62,13 @@ jobs:
         shell: bash
         run: |
           if [ -f "apps/customer_flutter/pubspec.yaml" ]; then
+            # `flutter pub get` materialises package_config.json so
+            # `dart format` resolves the project's language version
+            # consistently with local dev — without it the formatter
+            # falls back to a default language version, which can
+            # produce different output across environments.
+            (cd apps/customer_flutter && flutter pub get)
+            (cd packages/design_system && flutter pub get) || true
             dart format --set-exit-if-changed apps/customer_flutter
           else
             echo "No Flutter pubspec found under apps/customer_flutter; skipping."

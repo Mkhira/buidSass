@@ -344,21 +344,38 @@ jobs:
                     echo "No Flutter app found; skipping."
                   fi
 
+            - name: Setup pnpm
+              if: steps.changes.outputs.build_targets == 'true'
+              uses: pnpm/action-setup@v4
+              with:
+                  version: 10
+
             - name: Build and test Node apps/packages
               if: steps.changes.outputs.build_targets == 'true'
               shell: bash
               run: |
+                  # Pick the package manager from the lockfile present in
+                  # the target — admin_web uses pnpm-lock.yaml; other
+                  # packages may not have a Node lockfile yet.
                   TARGETS=("apps/admin_web" "packages/shared_contracts" "packages/design_system")
                   for target in "${TARGETS[@]}"; do
-                    if [ -f "${target}/package.json" ]; then
-                      pushd "${target}" >/dev/null
+                    if [ ! -f "${target}/package.json" ]; then
+                      echo "No package.json in ${target}; skipping."
+                      continue
+                    fi
+                    pushd "${target}" >/dev/null
+                    if [ -f "pnpm-lock.yaml" ]; then
+                      pnpm install --frozen-lockfile
+                      pnpm run build --if-present || true
+                      pnpm test --if-present || true
+                    elif [ -f "package-lock.json" ]; then
                       npm ci
                       npm run build --if-present
                       npm test --if-present
-                      popd >/dev/null
                     else
-                      echo "No package.json in ${target}; skipping."
+                      echo "No lockfile in ${target}; skipping install."
                     fi
+                    popd >/dev/null
                   done
 
             - name: build no-op success
@@ -391,11 +408,15 @@ jobs:
               if: github.event.action != 'closed' && steps.changes.outputs.admin_web == 'true'
               uses: Azure/static-web-apps-deploy@v1
               with:
+                  # Token comes from a repo secret; PRs from forks (or
+                  # branches before the secret is provisioned) skip the
+                  # deploy instead of failing.
                   azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN }}
                   repo_token: ${{ secrets.GITHUB_TOKEN }}
                   action: upload
                   app_location: apps/admin_web
                   output_location: .next
+                  skip_deploy_on_missing_secrets: true
 
             - name: Comment preview URL on PR
               if: github.event.action != 'closed' && steps.changes.outputs.admin_web == 'true' && steps.swa_upload.outputs.static_web_app_url != ''

@@ -24,7 +24,10 @@ linter:
     # Style
     - prefer_relative_imports
     - prefer_single_quotes
-    - sort_pub_dependencies
+    # `sort_pub_dependencies` is intentionally NOT enabled — pubspec.yaml
+    # uses semantic grouping (state-management, routing, HTTP, i18n,
+    # secure storage, etc.) which is more readable than strict
+    # alphabetic order.
 
     # Correctness
     - unawaited_futures

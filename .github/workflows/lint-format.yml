@@ -33,6 +33,10 @@ jobs:
         if: steps.changes.outputs.lint_targets == 'true'
         uses: subosito/flutter-action@v2
         with:
+          # Pin to a specific stable so `dart format` output is
+          # deterministic across runs (Dart's formatter changes between
+          # minor versions). Update in lockstep with customer_flutter-ci.
+          flutter-version: "3.35.1"
           channel: stable
 
       - name: Setup Node.js

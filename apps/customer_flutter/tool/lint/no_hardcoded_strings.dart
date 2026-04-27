@@ -39,8 +39,9 @@ void main(List<String> args) {
     if (entity is! File || !entity.path.endsWith('.dart')) continue;
     if (_allowlistFiles.contains(entity.path)) continue;
     final segments = entity.path.split(Platform.pathSeparator);
-    if (!segments.contains('screens') && !segments.contains('widgets'))
+    if (!segments.contains('screens') && !segments.contains('widgets')) {
       continue;
+    }
     final result = parseFile(
       path: entity.absolute.path,
       featureSet: _features,

@@ -403,20 +403,33 @@ jobs:
                       admin_web:
                         - 'apps/admin_web/**'
 
+            - name: Check SWA token availability
+              id: swa_check
+              if: github.event.action != 'closed' && steps.changes.outputs.admin_web == 'true'
+              shell: bash
+              env:
+                  SWA_TOKEN: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN }}
+              run: |
+                  if [ -n "${SWA_TOKEN}" ]; then
+                    echo "has_token=true" >> "$GITHUB_OUTPUT"
+                  else
+                    echo "has_token=false" >> "$GITHUB_OUTPUT"
+                    echo "preview-deploy skipped: AZURE_STATIC_WEB_APPS_API_TOKEN secret not provisioned."
+                  fi
+
             - name: Deploy preview (open/sync/reopen)
               id: swa_upload
-              if: github.event.action != 'closed' && steps.changes.outputs.admin_web == 'true'
+              if: github.event.action != 'closed' && steps.changes.outputs.admin_web == 'true' && steps.swa_check.outputs.has_token == 'true'
               uses: Azure/static-web-apps-deploy@v1
               with:
-                  # Token comes from a repo secret; PRs from forks (or
-                  # branches before the secret is provisioned) skip the
-                  # deploy instead of failing.
                   azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN }}
                   repo_token: ${{ secrets.GITHUB_TOKEN }}
                   action: upload
                   app_location: apps/admin_web
                   output_location: .next
-                  skip_deploy_on_missing_secrets: true
+                  # admin_web build is verified by the build job above;
+                  # Oryx doesn't understand pnpm, so skip its build pass.
+                  skip_app_build: true
 
             - name: Comment preview URL on PR
               if: github.event.action != 'closed' && steps.changes.outputs.admin_web == 'true' && steps.swa_upload.outputs.static_web_app_url != ''

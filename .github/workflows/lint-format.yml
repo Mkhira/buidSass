@@ -74,21 +74,35 @@ jobs:
             echo "No Flutter pubspec found under apps/customer_flutter; skipping."
           fi
 
+      - name: Setup pnpm
+        if: steps.changes.outputs.lint_targets == 'true'
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
       - name: ESLint + Prettier checks
         if: steps.changes.outputs.lint_targets == 'true'
         shell: bash
         run: |
           TARGETS=("apps/admin_web" "packages")
           for target in "${TARGETS[@]}"; do
-            if [ -f "${target}/package.json" ]; then
-              pushd "${target}" >/dev/null
+            if [ ! -f "${target}/package.json" ]; then
+              echo "No package.json in ${target}; skipping."
+              continue
+            fi
+            pushd "${target}" >/dev/null
+            if [ -f "pnpm-lock.yaml" ]; then
+              pnpm install --frozen-lockfile
+              pnpm exec eslint . --max-warnings=0
+              pnpm exec prettier --check .
+            elif [ -f "package-lock.json" ]; then
               npm ci
               npx eslint . --max-warnings=0
               npx prettier --check .
-              popd >/dev/null
             else
-              echo "No package.json in ${target}; skipping."
+              echo "No JS lockfile in ${target}; skipping lint."
             fi
+            popd >/dev/null
           done
 
       - name: Governance agent-context test

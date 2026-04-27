@@ -16,7 +16,14 @@
       "catalog_categories": "EN_PLACEHOLDER: Categories",
       "catalog_brands": "EN_PLACEHOLDER: Brands",
       "catalog_manufacturers": "EN_PLACEHOLDER: Manufacturers",
-      "catalog_bulk_import": "EN_PLACEHOLDER: Bulk import"
+      "catalog_bulk_import": "EN_PLACEHOLDER: Bulk import",
+      "inventory_stock": "EN_PLACEHOLDER: Stock",
+      "inventory_adjust": "EN_PLACEHOLDER: Adjust",
+      "inventory_low_stock": "EN_PLACEHOLDER: Low stock",
+      "inventory_batches": "EN_PLACEHOLDER: Batches",
+      "inventory_expiry": "EN_PLACEHOLDER: Expiry",
+      "inventory_reservations": "EN_PLACEHOLDER: Reservations",
+      "inventory_ledger": "EN_PLACEHOLDER: Ledger"
     }
   },
   "shell": {
@@ -159,6 +166,72 @@
     "next": "EN_PLACEHOLDER: Next",
     "yes": "EN_PLACEHOLDER: Yes",
     "no": "EN_PLACEHOLDER: No"
+  },
+  "inventory": {
+    "overview": {
+      "title": "EN_PLACEHOLDER: Inventory",
+      "description": "EN_PLACEHOLDER: Stock snapshots, adjustments, low-stock queue, batches, reservations, and ledger.",
+      "card": {
+        "stock": "EN_PLACEHOLDER: Stock",
+        "stock_body": "EN_PLACEHOLDER: Browse stock by SKU + warehouse.",
+        "adjust": "EN_PLACEHOLDER: Adjust",
+        "adjust_body": "EN_PLACEHOLDER: Record a positive or negative adjustment with audit-bearing reason.",
+        "low_stock": "EN_PLACEHOLDER: Low stock",
+        "low_stock_body": "EN_PLACEHOLDER: SKUs at or below threshold.",
+        "batches": "EN_PLACEHOLDER: Batches",
+        "batches_body": "EN_PLACEHOLDER: Lot / batch master data.",
+        "expiry": "EN_PLACEHOLDER: Expiry",
+        "expiry_body": "EN_PLACEHOLDER: Near-expiry / expired calendar.",
+        "reservations": "EN_PLACEHOLDER: Reservations",
+        "reservations_body": "EN_PLACEHOLDER: Active reservations + manual release.",
+        "ledger": "EN_PLACEHOLDER: Ledger",
+        "ledger_body": "EN_PLACEHOLDER: All movements with audit deep-links."
+      }
+    },
+    "adjust": {
+      "title": "EN_PLACEHOLDER: Adjust stock",
+      "warehouse": "EN_PLACEHOLDER: Warehouse",
+      "sku": "EN_PLACEHOLDER: SKU",
+      "delta": "EN_PLACEHOLDER: Delta",
+      "delta_help": "EN_PLACEHOLDER: Positive to add stock, negative to remove.",
+      "reason": "EN_PLACEHOLDER: Reason",
+      "batch": "EN_PLACEHOLDER: Batch",
+      "note": "EN_PLACEHOLDER: Note",
+      "note_required_help": "EN_PLACEHOLDER: A note (≥ 10 characters) is required for this reason.",
+      "submit": "EN_PLACEHOLDER: Submit adjustment",
+      "below_zero_blocked": "EN_PLACEHOLDER: This adjustment would push on-hand below zero. The write-off-below-zero permission is required.",
+      "below_zero_confirm_title": "EN_PLACEHOLDER: Write-off below zero",
+      "below_zero_confirm_body": "EN_PLACEHOLDER: This is a write-off below zero. Continue?",
+      "missing_note_blocked": "EN_PLACEHOLDER: Add a note (at least 10 characters) before submitting.",
+      "submitted_toast": "EN_PLACEHOLDER: Adjustment recorded.",
+      "conflict_title": "EN_PLACEHOLDER: Stock changed while you were typing",
+      "conflict_body": "EN_PLACEHOLDER: Reload to pull the latest snapshot. Your typed delta and reason are preserved on the right.",
+      "permission_revoked": "EN_PLACEHOLDER: Your inventory-adjustment permission was revoked. Reach out to your admin."
+    },
+    "stock": {
+      "title": "EN_PLACEHOLDER: Stock by SKU",
+      "table": {
+        "sku": "EN_PLACEHOLDER: SKU",
+        "name": "EN_PLACEHOLDER: Name",
+        "warehouse": "EN_PLACEHOLDER: Warehouse",
+        "available": "EN_PLACEHOLDER: Available",
+        "on_hand": "EN_PLACEHOLDER: On hand",
+        "reserved": "EN_PLACEHOLDER: Reserved",
+        "updated_at": "EN_PLACEHOLDER: Updated"
+      },
+      "search_placeholder": "EN_PLACEHOLDER: Search by SKU or name"
+    },
+    "reason_codes": {
+      "stock_count": "EN_PLACEHOLDER: Stock count correction",
+      "receive": "EN_PLACEHOLDER: Receive stock",
+      "return_inbound": "EN_PLACEHOLDER: Customer return",
+      "theft_loss": "EN_PLACEHOLDER: Theft / loss",
+      "breakage": "EN_PLACEHOLDER: Breakage",
+      "write_off_expiry": "EN_PLACEHOLDER: Write-off (expiry)",
+      "write_off_below_zero": "EN_PLACEHOLDER: Write-off (below zero)",
+      "transfer_out": "EN_PLACEHOLDER: Transfer out",
+      "transfer_in": "EN_PLACEHOLDER: Transfer in"
+    }
   },
   "catalog": {
     "overview": {

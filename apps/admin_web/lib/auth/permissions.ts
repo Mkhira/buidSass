@@ -30,8 +30,15 @@ export const ROUTE_PERMISSIONS: RoutePermissionRule[] = [
   { pattern: /^\/catalog\/brands(?:\/|$)/, requiredPermissions: ["catalog.brand.read"] },
   { pattern: /^\/catalog\/manufacturers(?:\/|$)/, requiredPermissions: ["catalog.manufacturer.read"] },
   { pattern: /^\/catalog\/bulk-import(?:\/|$)/, requiredPermissions: ["catalog.product.bulk_import"] },
-  // Inventory (spec 017)
-  { pattern: /^\/inventory(?:\/|$)/, requiredPermissions: ["inventory.read"] },
+  // Inventory (spec 017) — keys mirror specs/phase-1C/015/contracts/permission-catalog.md.
+  { pattern: /^\/inventory\/?$/, requiredPermissions: ["inventory.read"] },
+  { pattern: /^\/inventory\/stock(?:\/|$)/, requiredPermissions: ["inventory.read"] },
+  { pattern: /^\/inventory\/adjust(?:\/|$)/, requiredPermissions: ["inventory.adjust"] },
+  { pattern: /^\/inventory\/low-stock(?:\/|$)/, requiredPermissions: ["inventory.threshold.read"] },
+  { pattern: /^\/inventory\/batches(?:\/|$)/, requiredPermissions: ["inventory.batch.read"] },
+  { pattern: /^\/inventory\/expiry(?:\/|$)/, requiredPermissions: ["inventory.batch.read"] },
+  { pattern: /^\/inventory\/reservations(?:\/|$)/, requiredPermissions: ["inventory.reservation.read"] },
+  { pattern: /^\/inventory\/ledger(?:\/|$)/, requiredPermissions: ["inventory.read"] },
   // Orders (spec 018)
   { pattern: /^\/orders(?:\/|$)/, requiredPermissions: ["orders.read"] },
   // Customers (spec 019)

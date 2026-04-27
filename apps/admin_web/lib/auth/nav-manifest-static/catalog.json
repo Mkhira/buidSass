@@ -1,0 +1,53 @@
+{
+  "groupId": "catalog",
+  "labelKey": "nav.group.catalog",
+  "iconKey": "package",
+  "order": 200,
+  "entries": [
+    {
+      "id": "catalog-products",
+      "labelKey": "nav.entry.catalog_products",
+      "iconKey": "boxes",
+      "route": "/catalog/products",
+      "requiredPermissions": ["catalog.product.read"],
+      "order": 210,
+      "badgeCountKey": null
+    },
+    {
+      "id": "catalog-categories",
+      "labelKey": "nav.entry.catalog_categories",
+      "iconKey": "folder-tree",
+      "route": "/catalog/categories",
+      "requiredPermissions": ["catalog.category.read"],
+      "order": 220,
+      "badgeCountKey": null
+    },
+    {
+      "id": "catalog-brands",
+      "labelKey": "nav.entry.catalog_brands",
+      "iconKey": "tag",
+      "route": "/catalog/brands",
+      "requiredPermissions": ["catalog.brand.read"],
+      "order": 230,
+      "badgeCountKey": null
+    },
+    {
+      "id": "catalog-manufacturers",
+      "labelKey": "nav.entry.catalog_manufacturers",
+      "iconKey": "factory",
+      "route": "/catalog/manufacturers",
+      "requiredPermissions": ["catalog.manufacturer.read"],
+      "order": 240,
+      "badgeCountKey": null
+    },
+    {
+      "id": "catalog-bulk-import",
+      "labelKey": "nav.entry.catalog_bulk_import",
+      "iconKey": "upload",
+      "route": "/catalog/bulk-import",
+      "requiredPermissions": ["catalog.product.bulk_import"],
+      "order": 290,
+      "badgeCountKey": null
+    }
+  ]
+}

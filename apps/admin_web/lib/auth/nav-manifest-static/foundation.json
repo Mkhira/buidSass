@@ -1,0 +1,26 @@
+{
+  "groupId": "foundation",
+  "labelKey": "nav.group.foundation",
+  "iconKey": "shield",
+  "order": 100,
+  "entries": [
+    {
+      "id": "audit",
+      "labelKey": "nav.entry.audit",
+      "iconKey": "scroll-text",
+      "route": "/audit",
+      "requiredPermissions": ["audit.read"],
+      "order": 110,
+      "badgeCountKey": null
+    },
+    {
+      "id": "me",
+      "labelKey": "nav.entry.me",
+      "iconKey": "user",
+      "route": "/me",
+      "requiredPermissions": [],
+      "order": 190,
+      "badgeCountKey": null
+    }
+  ]
+}

@@ -1,0 +1,281 @@
+{
+  "nav": {
+    "group": {
+      "foundation": "Foundation",
+      "catalog": "Catalog",
+      "inventory": "Inventory",
+      "orders": "Orders",
+      "customers": "Customers"
+    },
+    "entry": {
+      "audit": "Audit log",
+      "me": "My profile",
+      "preferences": "Saved views",
+      "catalog_products": "Products",
+      "catalog_categories": "Categories",
+      "catalog_brands": "Brands",
+      "catalog_manufacturers": "Manufacturers",
+      "catalog_bulk_import": "Bulk import"
+    }
+  },
+  "shell": {
+    "app_name": "Dental Commerce Admin",
+    "skip_to_content": "Skip to content",
+    "loading": "Loading…",
+    "empty": "No data to show",
+    "error": "Something went wrong. Please try again.",
+    "restricted": "This content is restricted.",
+    "forbidden": {
+      "title": "You do not have access",
+      "body": "You're signed in but your role doesn't include permission to view this page.",
+      "primary_cta": "Go to landing",
+      "secondary_hint": "If you think this is wrong, contact your administrator to request access."
+    },
+    "not_found": {
+      "title": "Page not found",
+      "body": "We couldn't find the page you're looking for.",
+      "cta": "Back to landing"
+    },
+    "conflict": {
+      "title": "Another admin updated this {resource}",
+      "body": "Reload to pull the latest, or copy your edits and reapply them.",
+      "reload": "Reload",
+      "cancel": "Keep my edits in the side panel",
+      "preserved_label": "Your unsaved edits"
+    },
+    "step_up": {
+      "title": "Confirm with MFA",
+      "body": "This action requires a fresh second-factor confirmation.",
+      "totp_label": "Enter your authenticator code",
+      "submit": "Confirm",
+      "cancel": "Cancel",
+      "expired": "Your verification timed out. Please re-confirm.",
+      "no_factor_enrolled": "No MFA factor enrolled. Enrol one in your profile before continuing."
+    },
+    "audit_for_resource_link": "View audit log",
+    "masked_field": {
+      "email_hidden": "Email hidden",
+      "phone_hidden": "Phone hidden",
+      "value_hidden": "Hidden"
+    },
+    "export_job": {
+      "queued": "Queued",
+      "in_progress": "Generating ({progress}%)…",
+      "done": "Ready",
+      "failed": "Export failed",
+      "download": "Download"
+    },
+    "topbar": {
+      "search_placeholder": "Search…",
+      "language": "Language",
+      "language_en": "English",
+      "language_ar": "العربية",
+      "logout": "Sign out",
+      "notifications": "Notifications"
+    }
+  },
+  "auth": {
+    "login": {
+      "title": "Sign in",
+      "email_label": "Email",
+      "password_label": "Password",
+      "submit": "Sign in",
+      "forgot_password": "Forgot password?",
+      "stub_notice": "Sign-in form lands in Session 4."
+    },
+    "mfa": {
+      "title": "Enter your authenticator code",
+      "submit": "Verify"
+    },
+    "reset": {
+      "title": "Reset your password",
+      "submit": "Send reset link"
+    },
+    "errors": {
+      "invalid_credentials": "Email or password is incorrect.",
+      "mfa_required": "Enter your second-factor code to continue.",
+      "mfa_invalid": "Code didn't match. Try again.",
+      "account_locked": "This account is temporarily locked. Try again later.",
+      "rate_limited": "Too many attempts. Try again later.",
+      "generic": "We couldn't sign you in right now. Please try again."
+    }
+  },
+  "audit": {
+    "title": "Audit log",
+    "filter": {
+      "actor": "Actor",
+      "resource_type": "Resource type",
+      "resource_id": "Resource id",
+      "action": "Action",
+      "market": "Market",
+      "from": "From",
+      "to": "To",
+      "clear": "Clear filters"
+    },
+    "columns": {
+      "occurred_at": "When",
+      "actor": "Actor",
+      "action": "Action",
+      "resource": "Resource",
+      "view": "View"
+    },
+    "detail": {
+      "before": "Before",
+      "after": "After",
+      "correlation_id": "Correlation id",
+      "copy_permalink": "Copy permalink",
+      "permalink_copied": "Permalink copied to clipboard"
+    },
+    "empty": "No audit entries match the current filters."
+  },
+  "saved_views": {
+    "trigger_label": "Saved views",
+    "empty": "No saved views yet.",
+    "name_prompt": "Saved view name"
+  },
+  "landing": {
+    "todays_tasks_title": "Today's tasks",
+    "todays_tasks_body": "Returns awaiting approval, low-stock alerts, pending verifications surface here when their owning specs land.",
+    "recent_audit_title": "Recent audit activity",
+    "recent_audit_body": "Browse the full log under {path}.",
+    "signed_in_as": "Signed in as {name}"
+  },
+  "me": {
+    "display_name": "Display name",
+    "email": "Email",
+    "market_scope": "Market scope",
+    "roles": "Roles",
+    "mfa_enrolled": "MFA enrolled",
+    "yes": "Yes",
+    "no": "No"
+  },
+  "common": {
+    "save": "Save",
+    "cancel": "Cancel",
+    "discard": "Discard",
+    "confirm": "Confirm",
+    "back": "Back",
+    "next": "Next",
+    "yes": "Yes",
+    "no": "No"
+  },
+  "catalog": {
+    "overview": {
+      "title": "Catalog",
+      "description": "Manage products, categories, brands, manufacturers, and bulk imports.",
+      "card": {
+        "products": "Products",
+        "products_body": "Create, edit, schedule, and publish products.",
+        "categories": "Categories",
+        "categories_body": "Manage the category tree.",
+        "brands": "Brands",
+        "brands_body": "Brand and manufacturer references.",
+        "manufacturers": "Manufacturers",
+        "manufacturers_body": "Manufacturer master data.",
+        "bulk_import": "Bulk import",
+        "bulk_import_body": "Upload a CSV to add or update products."
+      }
+    },
+    "product": {
+      "title": "Products",
+      "new_title": "New product",
+      "edit_title": "Edit product",
+      "table": {
+        "sku": "SKU",
+        "name": "Name",
+        "state": "State",
+        "brand": "Brand",
+        "restricted": "Restricted",
+        "updated_at": "Updated"
+      },
+      "filters": {
+        "state": "State",
+        "brand": "Brand",
+        "category": "Category",
+        "restricted": "Restricted",
+        "search_placeholder": "Search by name or SKU"
+      },
+      "state": {
+        "draft": "Draft",
+        "scheduled": "Scheduled",
+        "published": "Published",
+        "discarded": "Discarded"
+      },
+      "form": {
+        "sku": "SKU",
+        "name_en": "Name (English)",
+        "name_ar": "Name (Arabic)",
+        "description_en": "Description (English)",
+        "description_ar": "Description (Arabic)",
+        "brand": "Brand",
+        "manufacturer": "Manufacturer",
+        "categories": "Categories",
+        "attributes": "Attributes",
+        "restricted_label": "Restricted product",
+        "restricted_rationale_en": "Rationale (English)",
+        "restricted_rationale_ar": "Rationale (Arabic)",
+        "restricted_help": "Restricted products require admin approval before customers can purchase.",
+        "media": "Media",
+        "documents": "Documents"
+      },
+      "publish": {
+        "publish_now": "Publish now",
+        "schedule_publish": "Schedule publish",
+        "schedule_at_label": "Publish at",
+        "revert_to_draft": "Revert to draft",
+        "discard": "Discard",
+        "restore_revision": "Restore revision",
+        "unschedule": "Unschedule",
+        "save_draft": "Save draft"
+      },
+      "errors": {
+        "name_required": "Name is required in both languages.",
+        "rationale_required": "Restricted products need an English and Arabic rationale.",
+        "sku_taken": "This SKU is already in use.",
+        "stale_version": "This product was updated by another admin while you were editing.",
+        "publish_failed": "Could not publish. {reason}"
+      }
+    },
+    "category": {
+      "title": "Categories",
+      "tree_label": "Category tree",
+      "add": "Add category",
+      "deactivate": "Deactivate",
+      "rename": "Rename",
+      "deactivate_warning": "{count} products are linked to this category. Deactivating hides it from the storefront."
+    },
+    "brand": {
+      "title": "Brands",
+      "new_title": "New brand",
+      "edit_title": "Edit brand",
+      "form": {
+        "name_en": "Name (English)",
+        "name_ar": "Name (Arabic)",
+        "manufacturer": "Manufacturer",
+        "logo": "Logo",
+        "active": "Active"
+      }
+    },
+    "manufacturer": {
+      "title": "Manufacturers",
+      "new_title": "New manufacturer",
+      "edit_title": "Edit manufacturer",
+      "form": {
+        "name_en": "Name (English)",
+        "name_ar": "Name (Arabic)",
+        "logo": "Logo",
+        "active": "Active"
+      }
+    },
+    "bulk_import": {
+      "title": "Bulk import",
+      "step1": "Upload",
+      "step2": "Review",
+      "step3": "Commit",
+      "schema_unavailable": "The bulk-import schema is not yet published. Try again after spec 005 ships its CSV schema.",
+      "expected_row_count_label": "I confirm I want to import {count} rows",
+      "commit": "Commit import",
+      "download_report": "Download error report"
+    }
+  }
+}

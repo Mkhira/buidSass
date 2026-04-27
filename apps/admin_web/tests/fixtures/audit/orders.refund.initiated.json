@@ -1,0 +1,26 @@
+{
+  "id": "audit_002",
+  "actor": {
+    "id": "admin_finance_001",
+    "email": "finance@dental-commerce.com",
+    "role": "admin.finance"
+  },
+  "actionKey": "orders.refund.initiated",
+  "resourceType": "Order",
+  "resourceId": "ord_test_001",
+  "marketScope": "ksa",
+  "correlationId": "corr_bbbbbbbbbbbbbbbb",
+  "before": {
+    "customer": { "email": "buyer@example.com", "phone": "+966555000114" },
+    "refund": null
+  },
+  "after": {
+    "customer": { "email": "buyer@example.com", "phone": "+966555000114" },
+    "refund": {
+      "amountMinor": 12500,
+      "currency": "SAR",
+      "reasonNote": "Damaged in transit; partial refund agreed with customer."
+    }
+  },
+  "occurredAt": "2026-04-26T15:10:00Z"
+}

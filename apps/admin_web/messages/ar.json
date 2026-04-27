@@ -1,0 +1,282 @@
+{
+  "@@x-source": "EN_PLACEHOLDER — per Phase 5 task T075, every value below MUST be replaced by an editorial-grade Arabic translation by a human translator. CI MUST fail the AR build if any 'EN_PLACEHOLDER' marker remains. /speckit-implement MUST NOT auto-translate these. Constitution Principle 4 forbids machine-translated AR.",
+  "nav": {
+    "group": {
+      "foundation": "EN_PLACEHOLDER: Foundation",
+      "catalog": "EN_PLACEHOLDER: Catalog",
+      "inventory": "EN_PLACEHOLDER: Inventory",
+      "orders": "EN_PLACEHOLDER: Orders",
+      "customers": "EN_PLACEHOLDER: Customers"
+    },
+    "entry": {
+      "audit": "EN_PLACEHOLDER: Audit log",
+      "me": "EN_PLACEHOLDER: My profile",
+      "preferences": "EN_PLACEHOLDER: Saved views",
+      "catalog_products": "EN_PLACEHOLDER: Products",
+      "catalog_categories": "EN_PLACEHOLDER: Categories",
+      "catalog_brands": "EN_PLACEHOLDER: Brands",
+      "catalog_manufacturers": "EN_PLACEHOLDER: Manufacturers",
+      "catalog_bulk_import": "EN_PLACEHOLDER: Bulk import"
+    }
+  },
+  "shell": {
+    "app_name": "EN_PLACEHOLDER: Dental Commerce Admin",
+    "skip_to_content": "EN_PLACEHOLDER: Skip to content",
+    "loading": "EN_PLACEHOLDER: Loading…",
+    "empty": "EN_PLACEHOLDER: No data to show",
+    "error": "EN_PLACEHOLDER: Something went wrong. Please try again.",
+    "restricted": "EN_PLACEHOLDER: This content is restricted.",
+    "forbidden": {
+      "title": "EN_PLACEHOLDER: You do not have access",
+      "body": "EN_PLACEHOLDER: You're signed in but your role doesn't include permission to view this page.",
+      "primary_cta": "EN_PLACEHOLDER: Go to landing",
+      "secondary_hint": "EN_PLACEHOLDER: If you think this is wrong, contact your administrator to request access."
+    },
+    "not_found": {
+      "title": "EN_PLACEHOLDER: Page not found",
+      "body": "EN_PLACEHOLDER: We couldn't find the page you're looking for.",
+      "cta": "EN_PLACEHOLDER: Back to landing"
+    },
+    "conflict": {
+      "title": "EN_PLACEHOLDER: Another admin updated this {resource}",
+      "body": "EN_PLACEHOLDER: Reload to pull the latest, or copy your edits and reapply them.",
+      "reload": "EN_PLACEHOLDER: Reload",
+      "cancel": "EN_PLACEHOLDER: Keep my edits in the side panel",
+      "preserved_label": "EN_PLACEHOLDER: Your unsaved edits"
+    },
+    "step_up": {
+      "title": "EN_PLACEHOLDER: Confirm with MFA",
+      "body": "EN_PLACEHOLDER: This action requires a fresh second-factor confirmation.",
+      "totp_label": "EN_PLACEHOLDER: Enter your authenticator code",
+      "submit": "EN_PLACEHOLDER: Confirm",
+      "cancel": "EN_PLACEHOLDER: Cancel",
+      "expired": "EN_PLACEHOLDER: Your verification timed out. Please re-confirm.",
+      "no_factor_enrolled": "EN_PLACEHOLDER: No MFA factor enrolled. Enrol one in your profile before continuing."
+    },
+    "audit_for_resource_link": "EN_PLACEHOLDER: View audit log",
+    "masked_field": {
+      "email_hidden": "EN_PLACEHOLDER: Email hidden",
+      "phone_hidden": "EN_PLACEHOLDER: Phone hidden",
+      "value_hidden": "EN_PLACEHOLDER: Hidden"
+    },
+    "export_job": {
+      "queued": "EN_PLACEHOLDER: Queued",
+      "in_progress": "EN_PLACEHOLDER: Generating ({progress}%)…",
+      "done": "EN_PLACEHOLDER: Ready",
+      "failed": "EN_PLACEHOLDER: Export failed",
+      "download": "EN_PLACEHOLDER: Download"
+    },
+    "topbar": {
+      "search_placeholder": "EN_PLACEHOLDER: Search…",
+      "language": "EN_PLACEHOLDER: Language",
+      "language_en": "English",
+      "language_ar": "العربية",
+      "logout": "EN_PLACEHOLDER: Sign out",
+      "notifications": "EN_PLACEHOLDER: Notifications"
+    }
+  },
+  "auth": {
+    "login": {
+      "title": "EN_PLACEHOLDER: Sign in",
+      "email_label": "EN_PLACEHOLDER: Email",
+      "password_label": "EN_PLACEHOLDER: Password",
+      "submit": "EN_PLACEHOLDER: Sign in",
+      "forgot_password": "EN_PLACEHOLDER: Forgot password?",
+      "stub_notice": "EN_PLACEHOLDER: Sign-in form lands in Session 4."
+    },
+    "mfa": {
+      "title": "EN_PLACEHOLDER: Enter your authenticator code",
+      "submit": "EN_PLACEHOLDER: Verify"
+    },
+    "reset": {
+      "title": "EN_PLACEHOLDER: Reset your password",
+      "submit": "EN_PLACEHOLDER: Send reset link"
+    },
+    "errors": {
+      "invalid_credentials": "EN_PLACEHOLDER: Email or password is incorrect.",
+      "mfa_required": "EN_PLACEHOLDER: Enter your second-factor code to continue.",
+      "mfa_invalid": "EN_PLACEHOLDER: Code didn't match. Try again.",
+      "account_locked": "EN_PLACEHOLDER: This account is temporarily locked. Try again later.",
+      "rate_limited": "EN_PLACEHOLDER: Too many attempts. Try again later.",
+      "generic": "EN_PLACEHOLDER: We couldn't sign you in right now. Please try again."
+    }
+  },
+  "audit": {
+    "title": "EN_PLACEHOLDER: Audit log",
+    "filter": {
+      "actor": "EN_PLACEHOLDER: Actor",
+      "resource_type": "EN_PLACEHOLDER: Resource type",
+      "resource_id": "EN_PLACEHOLDER: Resource id",
+      "action": "EN_PLACEHOLDER: Action",
+      "market": "EN_PLACEHOLDER: Market",
+      "from": "EN_PLACEHOLDER: From",
+      "to": "EN_PLACEHOLDER: To",
+      "clear": "EN_PLACEHOLDER: Clear filters"
+    },
+    "columns": {
+      "occurred_at": "EN_PLACEHOLDER: When",
+      "actor": "EN_PLACEHOLDER: Actor",
+      "action": "EN_PLACEHOLDER: Action",
+      "resource": "EN_PLACEHOLDER: Resource",
+      "view": "EN_PLACEHOLDER: View"
+    },
+    "detail": {
+      "before": "EN_PLACEHOLDER: Before",
+      "after": "EN_PLACEHOLDER: After",
+      "correlation_id": "EN_PLACEHOLDER: Correlation id",
+      "copy_permalink": "EN_PLACEHOLDER: Copy permalink",
+      "permalink_copied": "EN_PLACEHOLDER: Permalink copied to clipboard"
+    },
+    "empty": "EN_PLACEHOLDER: No audit entries match the current filters."
+  },
+  "saved_views": {
+    "trigger_label": "EN_PLACEHOLDER: Saved views",
+    "empty": "EN_PLACEHOLDER: No saved views yet.",
+    "name_prompt": "EN_PLACEHOLDER: Saved view name"
+  },
+  "landing": {
+    "todays_tasks_title": "EN_PLACEHOLDER: Today's tasks",
+    "todays_tasks_body": "EN_PLACEHOLDER: Returns awaiting approval, low-stock alerts, pending verifications surface here when their owning specs land.",
+    "recent_audit_title": "EN_PLACEHOLDER: Recent audit activity",
+    "recent_audit_body": "EN_PLACEHOLDER: Browse the full log under {path}.",
+    "signed_in_as": "EN_PLACEHOLDER: Signed in as {name}"
+  },
+  "me": {
+    "display_name": "EN_PLACEHOLDER: Display name",
+    "email": "EN_PLACEHOLDER: Email",
+    "market_scope": "EN_PLACEHOLDER: Market scope",
+    "roles": "EN_PLACEHOLDER: Roles",
+    "mfa_enrolled": "EN_PLACEHOLDER: MFA enrolled",
+    "yes": "EN_PLACEHOLDER: Yes",
+    "no": "EN_PLACEHOLDER: No"
+  },
+  "common": {
+    "save": "EN_PLACEHOLDER: Save",
+    "cancel": "EN_PLACEHOLDER: Cancel",
+    "discard": "EN_PLACEHOLDER: Discard",
+    "confirm": "EN_PLACEHOLDER: Confirm",
+    "back": "EN_PLACEHOLDER: Back",
+    "next": "EN_PLACEHOLDER: Next",
+    "yes": "EN_PLACEHOLDER: Yes",
+    "no": "EN_PLACEHOLDER: No"
+  },
+  "catalog": {
+    "overview": {
+      "title": "EN_PLACEHOLDER: Catalog",
+      "description": "EN_PLACEHOLDER: Manage products, categories, brands, manufacturers, and bulk imports.",
+      "card": {
+        "products": "EN_PLACEHOLDER: Products",
+        "products_body": "EN_PLACEHOLDER: Create, edit, schedule, and publish products.",
+        "categories": "EN_PLACEHOLDER: Categories",
+        "categories_body": "EN_PLACEHOLDER: Manage the category tree.",
+        "brands": "EN_PLACEHOLDER: Brands",
+        "brands_body": "EN_PLACEHOLDER: Brand and manufacturer references.",
+        "manufacturers": "EN_PLACEHOLDER: Manufacturers",
+        "manufacturers_body": "EN_PLACEHOLDER: Manufacturer master data.",
+        "bulk_import": "EN_PLACEHOLDER: Bulk import",
+        "bulk_import_body": "EN_PLACEHOLDER: Upload a CSV to add or update products."
+      }
+    },
+    "product": {
+      "title": "EN_PLACEHOLDER: Products",
+      "new_title": "EN_PLACEHOLDER: New product",
+      "edit_title": "EN_PLACEHOLDER: Edit product",
+      "table": {
+        "sku": "EN_PLACEHOLDER: SKU",
+        "name": "EN_PLACEHOLDER: Name",
+        "state": "EN_PLACEHOLDER: State",
+        "brand": "EN_PLACEHOLDER: Brand",
+        "restricted": "EN_PLACEHOLDER: Restricted",
+        "updated_at": "EN_PLACEHOLDER: Updated"
+      },
+      "filters": {
+        "state": "EN_PLACEHOLDER: State",
+        "brand": "EN_PLACEHOLDER: Brand",
+        "category": "EN_PLACEHOLDER: Category",
+        "restricted": "EN_PLACEHOLDER: Restricted",
+        "search_placeholder": "EN_PLACEHOLDER: Search by name or SKU"
+      },
+      "state": {
+        "draft": "EN_PLACEHOLDER: Draft",
+        "scheduled": "EN_PLACEHOLDER: Scheduled",
+        "published": "EN_PLACEHOLDER: Published",
+        "discarded": "EN_PLACEHOLDER: Discarded"
+      },
+      "form": {
+        "sku": "EN_PLACEHOLDER: SKU",
+        "name_en": "EN_PLACEHOLDER: Name (English)",
+        "name_ar": "EN_PLACEHOLDER: Name (Arabic)",
+        "description_en": "EN_PLACEHOLDER: Description (English)",
+        "description_ar": "EN_PLACEHOLDER: Description (Arabic)",
+        "brand": "EN_PLACEHOLDER: Brand",
+        "manufacturer": "EN_PLACEHOLDER: Manufacturer",
+        "categories": "EN_PLACEHOLDER: Categories",
+        "attributes": "EN_PLACEHOLDER: Attributes",
+        "restricted_label": "EN_PLACEHOLDER: Restricted product",
+        "restricted_rationale_en": "EN_PLACEHOLDER: Rationale (English)",
+        "restricted_rationale_ar": "EN_PLACEHOLDER: Rationale (Arabic)",
+        "restricted_help": "EN_PLACEHOLDER: Restricted products require admin approval before customers can purchase.",
+        "media": "EN_PLACEHOLDER: Media",
+        "documents": "EN_PLACEHOLDER: Documents"
+      },
+      "publish": {
+        "publish_now": "EN_PLACEHOLDER: Publish now",
+        "schedule_publish": "EN_PLACEHOLDER: Schedule publish",
+        "schedule_at_label": "EN_PLACEHOLDER: Publish at",
+        "revert_to_draft": "EN_PLACEHOLDER: Revert to draft",
+        "discard": "EN_PLACEHOLDER: Discard",
+        "restore_revision": "EN_PLACEHOLDER: Restore revision",
+        "unschedule": "EN_PLACEHOLDER: Unschedule",
+        "save_draft": "EN_PLACEHOLDER: Save draft"
+      },
+      "errors": {
+        "name_required": "EN_PLACEHOLDER: Name is required in both languages.",
+        "rationale_required": "EN_PLACEHOLDER: Restricted products need an English and Arabic rationale.",
+        "sku_taken": "EN_PLACEHOLDER: This SKU is already in use.",
+        "stale_version": "EN_PLACEHOLDER: This product was updated by another admin while you were editing.",
+        "publish_failed": "EN_PLACEHOLDER: Could not publish. {reason}"
+      }
+    },
+    "category": {
+      "title": "EN_PLACEHOLDER: Categories",
+      "tree_label": "EN_PLACEHOLDER: Category tree",
+      "add": "EN_PLACEHOLDER: Add category",
+      "deactivate": "EN_PLACEHOLDER: Deactivate",
+      "rename": "EN_PLACEHOLDER: Rename",
+      "deactivate_warning": "EN_PLACEHOLDER: {count} products are linked to this category. Deactivating hides it from the storefront."
+    },
+    "brand": {
+      "title": "EN_PLACEHOLDER: Brands",
+      "new_title": "EN_PLACEHOLDER: New brand",
+      "edit_title": "EN_PLACEHOLDER: Edit brand",
+      "form": {
+        "name_en": "EN_PLACEHOLDER: Name (English)",
+        "name_ar": "EN_PLACEHOLDER: Name (Arabic)",
+        "manufacturer": "EN_PLACEHOLDER: Manufacturer",
+        "logo": "EN_PLACEHOLDER: Logo",
+        "active": "EN_PLACEHOLDER: Active"
+      }
+    },
+    "manufacturer": {
+      "title": "EN_PLACEHOLDER: Manufacturers",
+      "new_title": "EN_PLACEHOLDER: New manufacturer",
+      "edit_title": "EN_PLACEHOLDER: Edit manufacturer",
+      "form": {
+        "name_en": "EN_PLACEHOLDER: Name (English)",
+        "name_ar": "EN_PLACEHOLDER: Name (Arabic)",
+        "logo": "EN_PLACEHOLDER: Logo",
+        "active": "EN_PLACEHOLDER: Active"
+      }
+    },
+    "bulk_import": {
+      "title": "EN_PLACEHOLDER: Bulk import",
+      "step1": "EN_PLACEHOLDER: Upload",
+      "step2": "EN_PLACEHOLDER: Review",
+      "step3": "EN_PLACEHOLDER: Commit",
+      "schema_unavailable": "EN_PLACEHOLDER: The bulk-import schema is not yet published. Try again after spec 005 ships its CSV schema.",
+      "expected_row_count_label": "EN_PLACEHOLDER: I confirm I want to import {count} rows",
+      "commit": "EN_PLACEHOLDER: Commit import",
+      "download_report": "EN_PLACEHOLDER: Download error report"
+    }
+  }
+}

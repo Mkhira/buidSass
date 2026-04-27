@@ -115,10 +115,18 @@ export const catalogApi = {
         method: "PUT",
         body: JSON.stringify(payload),
       }),
-    publish: (productId: string, scheduledAt?: string) =>
+    publish: (productId: string, scheduledAt?: string | null) =>
       proxyFetch<ProductDetail>(
         `/v1/admin/catalog/products/${encodeURIComponent(productId)}/publish`,
-        { method: "POST", body: JSON.stringify({ scheduledAt }) },
+        {
+          method: "POST",
+          // Pass `null` explicitly to unschedule / revert to draft —
+          // `undefined` is elided by JSON.stringify and the backend
+          // would interpret an empty body as "publish now" instead.
+          body: JSON.stringify(
+            scheduledAt === undefined ? {} : { scheduledAt },
+          ),
+        },
       ),
     discard: (productId: string) =>
       proxyFetch<void>(`/v1/admin/catalog/products/${encodeURIComponent(productId)}/discard`, {

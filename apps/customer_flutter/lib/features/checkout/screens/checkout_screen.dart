@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../generated/l10n/app_localizations.dart';
 import '../bloc/checkout_bloc.dart';
+import '../data/checkout_view_models.dart';
 import '../widgets/address_picker.dart';
 import '../widgets/payment_method_picker.dart';
 import '../widgets/shipping_quote_picker.dart';
@@ -16,13 +17,14 @@ class CheckoutScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
     return Scaffold(
-      appBar: AppBar(),
+      appBar: AppBar(title: Text(l10n.checkoutSubmit)),
       body: BlocConsumer<CheckoutBloc, CheckoutState>(
         listener: (context, state) {
+          // CheckoutDriftBlocked is rendered inline (the bloc owns the
+          // drift details, and navigating away would lose state).
+          // Only navigate on terminal outcomes.
           if (state is CheckoutSubmitted) {
             context.go('/checkout/confirmation/${state.outcome.orderId}');
-          } else if (state is CheckoutDriftBlocked) {
-            context.go('/checkout/drift');
           } else if (state is CheckoutFailedTerminal) {
             context.go('/cart');
           }
@@ -32,19 +34,32 @@ class CheckoutScreen extends StatelessWidget {
             CheckoutIdle() => Center(
                 child: AppButton(
                   label: l10n.commonContinue,
-                  onPressed: () =>
-                      context.read<CheckoutBloc>().add(const CheckoutStarted()),
+                  onPressed: () => context
+                      .read<CheckoutBloc>()
+                      .add(const CheckoutStarted()),
                 ),
               ),
-            CheckoutDrafting(:final session, :final selectedAddressId, :final selectedQuoteId, :final selectedPaymentMethodId) =>
+            CheckoutDrafting(
+              :final session,
+              :final selectedAddressId,
+              :final selectedQuoteId,
+              :final selectedPaymentMethodId,
+              :final transientError,
+            ) =>
               _Stepper(
                 session: session,
                 addressId: selectedAddressId,
                 quoteId: selectedQuoteId,
                 paymentId: selectedPaymentMethodId,
                 submitEnabled: false,
+                transientError: transientError,
               ),
-            CheckoutReady(:final session, :final selectedAddressId, :final selectedQuoteId, :final selectedPaymentMethodId) =>
+            CheckoutReady(
+              :final session,
+              :final selectedAddressId,
+              :final selectedQuoteId,
+              :final selectedPaymentMethodId,
+            ) =>
               _Stepper(
                 session: session,
                 addressId: selectedAddressId,
@@ -52,15 +67,17 @@ class CheckoutScreen extends StatelessWidget {
                 paymentId: selectedPaymentMethodId,
                 submitEnabled: true,
               ),
-            CheckoutSubmitting() => LoadingState(semanticsLabel: l10n.commonLoading),
+            CheckoutSubmitting() =>
+              LoadingState(semanticsLabel: l10n.commonLoading),
+            CheckoutDriftBlocked(:final details) => _DriftInline(details: details),
             CheckoutFailed(:final reasonCode) => ErrorState(
                 title: l10n.commonErrorTitle,
                 body: reasonCode,
-                onRetry: () => context.read<CheckoutBloc>().add(const RetryTapped()),
+                onRetry: () =>
+                    context.read<CheckoutBloc>().add(const RetryTapped()),
                 retryLabel: l10n.commonRetry,
               ),
             CheckoutSubmitted() ||
-            CheckoutDriftBlocked() ||
             CheckoutFailedTerminal() =>
               const SizedBox.shrink(),
           };
@@ -77,36 +94,52 @@ class _Stepper extends StatelessWidget {
     required this.quoteId,
     required this.paymentId,
     required this.submitEnabled,
+    this.transientError,
   });
 
-  final dynamic session;
+  final CheckoutSession session;
   final String? addressId;
   final String? quoteId;
   final String? paymentId;
   final bool submitEnabled;
+  final String? transientError;
 
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
     return ListView(
       children: [
+        if (transientError != null)
+          Container(
+            margin: const EdgeInsets.all(AppSpacing.md),
+            padding: const EdgeInsets.all(AppSpacing.sm),
+            decoration: BoxDecoration(
+              color: AppColors.danger.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: AppColors.danger),
+            ),
+            child: Text(
+              l10n.commonErrorBody,
+              style: const TextStyle(color: AppColors.danger),
+            ),
+          ),
         const SizedBox(height: AppSpacing.md),
         AddressPicker(
-          addresses: List.castFrom(session.availableAddresses),
+          addresses: session.availableAddresses,
           selectedId: addressId,
           onSelected: (id) =>
               context.read<CheckoutBloc>().add(AddressSelected(id)),
         ),
         const Divider(),
         ShippingQuotePicker(
-          quotes: List.castFrom(session.availableQuotes),
+          quotes: session.availableQuotes,
           selectedId: quoteId,
           onSelected: (id) =>
               context.read<CheckoutBloc>().add(ShippingSelected(id)),
         ),
         const Divider(),
         PaymentMethodPicker(
-          methods: List.castFrom(session.availablePaymentMethods),
+          methods: session.availablePaymentMethods,
           selectedId: paymentId,
           onSelected: (id) =>
               context.read<CheckoutBloc>().add(PaymentSelected(id)),
@@ -123,6 +156,35 @@ class _Stepper extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+class _DriftInline extends StatelessWidget {
+  const _DriftInline({required this.details});
+  final CheckoutDriftDetails details;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    return Padding(
+      padding: const EdgeInsets.all(AppSpacing.md),
+      child: Column(
+        children: [
+          Text(l10n.commonErrorTitle, style: AppTypography.headline),
+          const SizedBox(height: AppSpacing.md),
+          Text(l10n.commonErrorBody),
+          const SizedBox(height: AppSpacing.sm),
+          Text('${details.changedLines.length} line(s) updated'),
+          const SizedBox(height: AppSpacing.md),
+          AppButton(
+            label: l10n.commonContinue,
+            expand: true,
+            onPressed: () =>
+                context.read<CheckoutBloc>().add(const DriftAccepted()),
+          ),
+        ],
+      ),
     );
   }
 }

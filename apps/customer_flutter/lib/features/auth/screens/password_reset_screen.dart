@@ -1,6 +1,7 @@
 import 'package:design_system/design_system.dart' hide AppLocalizations;
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../generated/l10n/app_localizations.dart';
 import '../bloc/password_reset_bloc.dart';
@@ -95,7 +96,16 @@ class _PasswordResetConfirmScreenState
     final l10n = AppLocalizations.of(context);
     return Scaffold(
       appBar: AppBar(title: Text(l10n.authForgotPassword)),
-      body: BlocBuilder<PasswordResetBloc, PasswordResetState>(
+      body: BlocConsumer<PasswordResetBloc, PasswordResetState>(
+        listener: (context, state) {
+          if (state is PasswordResetConfirmed) {
+            // Brief acknowledgement, then send the user to /auth/login
+            // so they can sign in with their new password.
+            Future<void>.delayed(const Duration(seconds: 2), () {
+              if (context.mounted) context.go('/auth/login');
+            });
+          }
+        },
         builder: (context, state) {
           return Padding(
             padding: const EdgeInsets.all(AppSpacing.md),

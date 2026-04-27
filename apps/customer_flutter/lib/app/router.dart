@@ -27,7 +27,6 @@ import '../features/catalog/screens/product_detail_screen.dart';
 import '../features/checkout/bloc/checkout_bloc.dart';
 import '../features/checkout/data/checkout_repository.dart';
 import '../features/checkout/screens/checkout_screen.dart';
-import '../features/checkout/screens/drift_screen.dart';
 import '../features/checkout/screens/order_confirmation_screen.dart';
 import '../features/home/bloc/home_bloc.dart';
 import '../features/home/data/home_repository.dart';
@@ -147,14 +146,10 @@ GoRouter buildRouter(AuthSessionBloc authBloc) {
           child: const CheckoutScreen(),
         ),
       ),
-      GoRoute(
-        path: '/checkout/drift',
-        name: 'checkoutDrift',
-        builder: (context, _) => BlocProvider(
-          create: (_) => CheckoutBloc(repository: sl<CheckoutRepository>()),
-          child: const DriftScreen(),
-        ),
-      ),
+      // /checkout/drift route removed — drift is rendered inline within
+      // /checkout so the bloc state survives. Deep-linking to drift
+      // without prior session context would land on a stub Idle bloc
+      // that can't show the drift detail anyway.
       GoRoute(
         path: '/checkout/confirmation/:orderId',
         name: 'checkoutConfirmation',

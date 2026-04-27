@@ -279,9 +279,11 @@ export function ProductEditorForm({ initial }: ProductEditorFormProps) {
           // docs/admin_web-escalation-log.md for the gap.
           if (!initial?.id) return;
           if (target === "draft") {
+            // Explicit null tells spec 005 to unschedule / revert; an
+            // undefined would be elided and mean "publish now".
             startTransition(async () => {
               try {
-                await catalogApi.products.publish(initial.id, undefined);
+                await catalogApi.products.publish(initial.id, null);
                 router.refresh();
               } catch (err) {
                 setServerError(err instanceof Error ? err.message : "unknown");

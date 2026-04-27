@@ -59,18 +59,21 @@ export default async function AdjustPage({
   return (
     <div className="space-y-ds-lg">
       <PageHeader title={t("title")} />
-      {snapshotError ? <ErrorState reasonCode={snapshotError} /> : null}
-      <AdjustForm
-        initialWarehouseId={initialWarehouseId}
-        initialSkuId={initialSkuId}
-        reasonCodes={reasonCodes}
-        currentOnHand={onHand}
-        rowVersion={rowVersion}
-        hasWriteoffBelowZeroPermission={hasPermission(
-          session,
-          "inventory.writeoff_below_zero",
-        )}
-      />
+      {snapshotError ? (
+        <ErrorState reasonCode={snapshotError} />
+      ) : (
+        <AdjustForm
+          initialWarehouseId={initialWarehouseId}
+          initialSkuId={initialSkuId}
+          reasonCodes={reasonCodes}
+          currentOnHand={onHand}
+          rowVersion={rowVersion}
+          hasWriteoffBelowZeroPermission={hasPermission(
+            session,
+            "inventory.writeoff_below_zero",
+          )}
+        />
+      )}
     </div>
   );
 }

@@ -27,6 +27,7 @@ export default async function StockBySkuPage({
   );
   const session = await getSession();
   const t = await getTranslations("inventory.stock");
+  const tOverview = await getTranslations("inventory.overview");
   const warehouseId = searchParams.warehouse ?? "";
 
   let snapshot;
@@ -49,7 +50,7 @@ export default async function StockBySkuPage({
               href={`/inventory/adjust?sku=${encodeURIComponent(params.skuId)}&warehouse=${encodeURIComponent(warehouseId)}`}
               className={cn(buttonVariants({ variant: "default" }))}
             >
-              {t("table.available")}
+              {tOverview("card.adjust")}
             </Link>
             <AuditForResourceLink
               resourceType="Sku"

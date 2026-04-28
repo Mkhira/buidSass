@@ -27,7 +27,6 @@ Last updated: 2026-04-27 (Phase 7 polish closure)
 | `flutter analyze` | ✅ | 2 info-level warnings (pubspec sort) — same as scaffold baseline. |
 | `flutter test` | ✅ | 81/81 tests passing as of Phase 7 closure. |
 | `dart run tool/lint/no_hardcoded_strings.dart` | ✅ | 0 violations. |
-| `dart run tool/lint/no_ad_hoc_http.dart` | ✅ | 0 violations — every HTTP call goes through `core/api/`. |
 | `dart run tool/lint/no_locale_leaky_cache.dart` | ✅ | 0 violations against the live registry. |
 | `dart run tool/lint/no_custom_url_scheme.dart` | ✅ | 0 violations — Android manifest uses https only; iOS entitlements use `applinks:` only. |
 | `dart run tool/lint/locale_endpoints_have_mixin.dart` | ✅ | 0 violations — at least one repository in `lib/features/**/data/` adopts the mixin. |

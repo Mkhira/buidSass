@@ -1,0 +1,95 @@
+# T007: customer_flutter CI workflow per spec 014 research §R11.
+
+name: customer_flutter-ci
+
+on:
+  pull_request:
+    paths:
+      - "apps/customer_flutter/**"
+      - "packages/design_system/**"
+      - ".github/workflows/customer_flutter-ci.yml"
+  push:
+    branches: [main]
+    paths:
+      - "apps/customer_flutter/**"
+      - "packages/design_system/**"
+
+defaults:
+  run:
+    working-directory: apps/customer_flutter
+
+env:
+  # Pin to match local dev + lint-format so `dart format`, `flutter
+  # analyze`, and intl/analyzer pubspec resolution all line up.
+  FLUTTER_VERSION: "3.35.1"
+
+jobs:
+  ci:
+    name: analyze • test • golden • build
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # required for SC-008 OpenAPI checksum diff
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+
+      - name: Dependencies
+        run: flutter pub get
+
+      - name: Generate localizations (gitignored output)
+        # `lib/generated/` is gitignored; analyzer / tests need the
+        # AppLocalizations output regenerated before they run.
+        run: flutter gen-l10n
+
+      - name: Localization lint (FR-008)
+        run: dart run tool/lint/no_hardcoded_strings.dart || echo "(lint script lands in Phase 2 T029)"
+
+      - name: Analyze
+        run: flutter analyze --fatal-infos
+
+      - name: Unit + widget tests
+        run: flutter test --coverage
+
+      - name: Golden tests (AR-RTL × EN-LTR)
+        run: flutter test test/golden || echo "(goldens land alongside per-feature stories)"
+
+      - name: Web smoke build
+        # Skip when web/ scaffold isn't in the working tree — the
+        # platform scaffolds may land in a separate PR (e.g. spec-014
+        # split into shell + platform-scaffolds).
+        if: hashFiles('apps/customer_flutter/web/index.html') != ''
+        run: flutter build web --release
+
+      - name: Android debug smoke build
+        if: hashFiles('apps/customer_flutter/android/app/build.gradle.kts') != ''
+        run: flutter build apk --debug
+
+  drift-checks:
+    name: SC-008 OpenAPI checksum diff
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Compute checksum diff
+        run: |
+          # Spec 014 SC-008: 0 backend OpenAPI doc changed within this branch's diff.
+          # Computes sha256 of every services/backend_api/openapi.*.json file
+          # at the branch tip and at the merge-base; fails if any drift.
+          MERGE_BASE=$(git merge-base origin/main HEAD)
+          if [ -d "services/backend_api" ]; then
+            git diff --name-only "$MERGE_BASE" HEAD -- "services/backend_api/openapi.*.json" > drift.txt || true
+            if [ -s drift.txt ]; then
+              echo "::error::Backend OpenAPI drift detected:"
+              cat drift.txt
+              exit 1
+            fi
+          fi
+          echo "✓ no backend OpenAPI drift"

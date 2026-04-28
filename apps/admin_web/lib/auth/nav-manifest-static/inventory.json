@@ -1,0 +1,71 @@
+{
+  "groupId": "inventory",
+  "labelKey": "nav.group.inventory",
+  "iconKey": "warehouse",
+  "order": 300,
+  "entries": [
+    {
+      "id": "inventory-stock",
+      "labelKey": "nav.entry.inventory_stock",
+      "iconKey": "package-2",
+      "route": "/inventory/stock",
+      "requiredPermissions": ["inventory.read"],
+      "order": 310,
+      "badgeCountKey": null
+    },
+    {
+      "id": "inventory-adjust",
+      "labelKey": "nav.entry.inventory_adjust",
+      "iconKey": "edit",
+      "route": "/inventory/adjust",
+      "requiredPermissions": ["inventory.adjust"],
+      "order": 320,
+      "badgeCountKey": null
+    },
+    {
+      "id": "inventory-low-stock",
+      "labelKey": "nav.entry.inventory_low_stock",
+      "iconKey": "alert-triangle",
+      "route": "/inventory/low-stock",
+      "requiredPermissions": ["inventory.threshold.read"],
+      "order": 330,
+      "badgeCountKey": null
+    },
+    {
+      "id": "inventory-batches",
+      "labelKey": "nav.entry.inventory_batches",
+      "iconKey": "layers",
+      "route": "/inventory/batches",
+      "requiredPermissions": ["inventory.batch.read"],
+      "order": 340,
+      "badgeCountKey": null
+    },
+    {
+      "id": "inventory-expiry",
+      "labelKey": "nav.entry.inventory_expiry",
+      "iconKey": "calendar-clock",
+      "route": "/inventory/expiry",
+      "requiredPermissions": ["inventory.batch.read"],
+      "order": 350,
+      "badgeCountKey": null
+    },
+    {
+      "id": "inventory-reservations",
+      "labelKey": "nav.entry.inventory_reservations",
+      "iconKey": "clock",
+      "route": "/inventory/reservations",
+      "requiredPermissions": ["inventory.reservation.read"],
+      "order": 360,
+      "badgeCountKey": null
+    },
+    {
+      "id": "inventory-ledger",
+      "labelKey": "nav.entry.inventory_ledger",
+      "iconKey": "history",
+      "route": "/inventory/ledger",
+      "requiredPermissions": ["inventory.read"],
+      "order": 390,
+      "badgeCountKey": null
+    }
+  ]
+}

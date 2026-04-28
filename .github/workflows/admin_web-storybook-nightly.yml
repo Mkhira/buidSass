@@ -1,0 +1,81 @@
+# T032h: Nightly Storybook visual-regression workflow.
+#
+# Runs the full visual + a11y suite end-to-end across 3 shards. PR-time
+# runs (admin_web-ci.yml) only execute the per-module --grep slice; this
+# nightly catches drift the per-module gate misses (cross-module visual
+# regressions, fixture-data refreshes, etc.).
+#
+# Wall-time budget: < 30 min total (with 3 shards in parallel).
+
+name: admin_web-storybook-nightly
+
+on:
+  schedule:
+    - cron: "0 2 * * *"  # 02:00 UTC daily
+  workflow_dispatch:
+
+defaults:
+  run:
+    working-directory: apps/admin_web
+
+env:
+  NODE_VERSION: "20"
+  PNPM_VERSION: "10"
+
+jobs:
+  visual-regression:
+    name: Storybook + Playwright snapshots (shard ${{ matrix.shard }}/3)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Install Playwright browsers
+        run: pnpm exec playwright install --with-deps chromium
+
+      - name: Build Storybook
+        run: pnpm build-storybook
+
+      - name: Visual regression
+        run: pnpm test:visual --shard ${{ matrix.shard }}/3
+        env:
+          STORYBOOK_DIR: storybook-static
+
+      - name: Upload diff artifacts on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: visual-diffs-shard-${{ matrix.shard }}
+          path: apps/admin_web/test-results/
+
+  a11y:
+    name: axe a11y full sweep
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: "20" }
+      - uses: pnpm/action-setup@v4
+        with: { version: "10" }
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm exec playwright install --with-deps chromium
+      - run: pnpm build
+      - run: pnpm test:a11y

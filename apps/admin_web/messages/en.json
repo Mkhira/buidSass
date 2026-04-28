@@ -1,0 +1,472 @@
+{
+  "nav": {
+    "group": {
+      "foundation": "Foundation",
+      "catalog": "Catalog",
+      "inventory": "Inventory",
+      "orders": "Orders",
+      "customers": "Customers"
+    },
+    "entry": {
+      "audit": "Audit log",
+      "me": "My profile",
+      "preferences": "Saved views",
+      "catalog_products": "Products",
+      "catalog_categories": "Categories",
+      "catalog_brands": "Brands",
+      "catalog_manufacturers": "Manufacturers",
+      "catalog_bulk_import": "Bulk import",
+      "inventory_stock": "Stock",
+      "inventory_adjust": "Adjust",
+      "inventory_low_stock": "Low stock",
+      "inventory_batches": "Batches",
+      "inventory_expiry": "Expiry",
+      "inventory_reservations": "Reservations",
+      "inventory_ledger": "Ledger",
+      "orders_list": "Orders",
+      "orders_exports": "Exports",
+      "customers_list": "Customers"
+    }
+  },
+  "shell": {
+    "app_name": "Dental Commerce Admin",
+    "skip_to_content": "Skip to content",
+    "loading": "Loading…",
+    "empty": "No data to show",
+    "error": "Something went wrong. Please try again.",
+    "restricted": "This content is restricted.",
+    "forbidden": {
+      "title": "You do not have access",
+      "body": "You're signed in but your role doesn't include permission to view this page.",
+      "primary_cta": "Go to landing",
+      "secondary_hint": "If you think this is wrong, contact your administrator to request access."
+    },
+    "not_found": {
+      "title": "Page not found",
+      "body": "We couldn't find the page you're looking for.",
+      "cta": "Back to landing"
+    },
+    "conflict": {
+      "title": "Another admin updated this {resource}",
+      "body": "Reload to pull the latest, or copy your edits and reapply them.",
+      "reload": "Reload",
+      "cancel": "Keep my edits in the side panel",
+      "preserved_label": "Your unsaved edits"
+    },
+    "step_up": {
+      "title": "Confirm with MFA",
+      "body": "This action requires a fresh second-factor confirmation.",
+      "totp_label": "Enter your authenticator code",
+      "submit": "Confirm",
+      "cancel": "Cancel",
+      "expired": "Your verification timed out. Please re-confirm.",
+      "no_factor_enrolled": "No MFA factor enrolled. Enrol one in your profile before continuing."
+    },
+    "audit_for_resource_link": "View audit log",
+    "masked_field": {
+      "email_hidden": "Email hidden",
+      "phone_hidden": "Phone hidden",
+      "value_hidden": "Hidden"
+    },
+    "export_job": {
+      "queued": "Queued",
+      "in_progress": "Generating ({progress}%)…",
+      "done": "Ready",
+      "failed": "Export failed",
+      "download": "Download"
+    },
+    "topbar": {
+      "search_placeholder": "Search…",
+      "language": "Language",
+      "language_en": "English",
+      "language_ar": "العربية",
+      "logout": "Sign out",
+      "notifications": "Notifications"
+    }
+  },
+  "auth": {
+    "login": {
+      "title": "Sign in",
+      "email_label": "Email",
+      "password_label": "Password",
+      "submit": "Sign in",
+      "forgot_password": "Forgot password?",
+      "stub_notice": "Sign-in form lands in Session 4."
+    },
+    "mfa": {
+      "title": "Enter your authenticator code",
+      "submit": "Verify",
+      "loading": "Loading…",
+      "code_format": "Enter 6 digits."
+    },
+    "reset": {
+      "title": "Reset your password",
+      "submit": "Send reset link"
+    },
+    "errors": {
+      "invalid_credentials": "Email or password is incorrect.",
+      "mfa_required": "Enter your second-factor code to continue.",
+      "mfa_invalid": "Code didn't match. Try again.",
+      "account_locked": "This account is temporarily locked. Try again later.",
+      "rate_limited": "Too many attempts. Try again later.",
+      "generic": "We couldn't sign you in right now. Please try again."
+    }
+  },
+  "audit": {
+    "title": "Audit log",
+    "filter": {
+      "actor": "Actor",
+      "resource_type": "Resource type",
+      "resource_id": "Resource id",
+      "action": "Action",
+      "market": "Market",
+      "from": "From",
+      "to": "To",
+      "clear": "Clear filters"
+    },
+    "columns": {
+      "occurred_at": "When",
+      "actor": "Actor",
+      "action": "Action",
+      "resource": "Resource",
+      "view": "View"
+    },
+    "detail": {
+      "before": "Before",
+      "after": "After",
+      "correlation_id": "Correlation id",
+      "copy_permalink": "Copy permalink",
+      "permalink_copied": "Permalink copied to clipboard"
+    },
+    "empty": "No audit entries match the current filters."
+  },
+  "saved_views": {
+    "trigger_label": "Saved views",
+    "empty": "No saved views yet.",
+    "name_prompt": "Saved view name"
+  },
+  "landing": {
+    "todays_tasks_title": "Today's tasks",
+    "todays_tasks_body": "Returns awaiting approval, low-stock alerts, pending verifications surface here when their owning specs land.",
+    "recent_audit_title": "Recent audit activity",
+    "recent_audit_body": "Browse the full log under {path}.",
+    "signed_in_as": "Signed in as {name}"
+  },
+  "me": {
+    "display_name": "Display name",
+    "email": "Email",
+    "market_scope": "Market scope",
+    "roles": "Roles",
+    "mfa_enrolled": "MFA enrolled",
+    "yes": "Yes",
+    "no": "No"
+  },
+  "common": {
+    "save": "Save",
+    "cancel": "Cancel",
+    "discard": "Discard",
+    "confirm": "Confirm",
+    "back": "Back",
+    "next": "Next",
+    "yes": "Yes",
+    "no": "No"
+  },
+  "customers": {
+    "list": {
+      "title": "Customers",
+      "search_placeholder": "Search by name, email, or phone",
+      "table": {
+        "name": "Name",
+        "email": "Email",
+        "market": "Market",
+        "verification": "Verification",
+        "account_state": "State",
+        "last_active": "Last active"
+      }
+    },
+    "profile": {
+      "title": "{name}",
+      "email": "Email",
+      "phone": "Phone",
+      "addresses": "Addresses",
+      "orders": "Orders",
+      "company": "Company",
+      "verifications": "Verifications",
+      "quotes": "Quotes",
+      "support": "Support tickets",
+      "history_panel_pending": "Will be available when the related module ships."
+    },
+    "actions": {
+      "suspend": "Suspend account",
+      "unlock": "Unlock account",
+      "password_reset": "Trigger password reset",
+      "reason_label": "Reason note",
+      "reason_required_help": "Required (≥ 10 characters). Surfaces in the audit log.",
+      "submit": "Apply",
+      "self_action_forbidden": "You can't perform account actions on your own admin account.",
+      "step_up_required": "This action requires re-authentication.",
+      "stale_version": "The customer's record changed while you were viewing it. Reload to pull the latest.",
+      "permission_revoked": "Your customers permission was revoked. Reach out to your admin.",
+      "step_up_unavailable": "Step-up MFA isn't available yet — account actions are blocked until the step-up dialog ships (T040c).",
+      "submitted_toast": "Action recorded."
+    },
+    "states": {
+      "active": "Active",
+      "suspended": "Suspended",
+      "closed": "Closed"
+    },
+    "b2b_chip": "B2B"
+  },
+  "orders": {
+    "list": {
+      "title": "Orders",
+      "search_placeholder": "Search by order number or customer email",
+      "b2b_chip": "B2B",
+      "table": {
+        "number": "Order #",
+        "customer": "Customer",
+        "states": "States",
+        "total": "Total",
+        "placed": "Placed"
+      },
+      "filters": {
+        "order_state": "Order state",
+        "payment_state": "Payment",
+        "fulfillment_state": "Fulfillment",
+        "refund_state": "Refund",
+        "market": "Market",
+        "b2b": "B2B",
+        "from": "From",
+        "to": "To"
+      }
+    },
+    "detail": {
+      "title": "Order {number}",
+      "customer": "Customer",
+      "shipping": "Shipping",
+      "payment": "Payment",
+      "lines": "Line items",
+      "line_qty": "× {qty}",
+      "totals": "Totals",
+      "shipments": "Shipments",
+      "timeline": "Timeline",
+      "refund": "Refund",
+      "invoice": "Invoice"
+    },
+    "transitions": {
+      "confirm_order": "Confirm order",
+      "cancel_order": "Cancel order",
+      "mark_packed": "Mark packed",
+      "hand_to_carrier": "Hand to carrier",
+      "mark_delivered": "Mark delivered",
+      "capture_payment": "Capture payment"
+    },
+    "states": {
+      "placed": "Placed",
+      "confirmed": "Confirmed",
+      "cancelled": "Cancelled",
+      "completed": "Completed",
+      "authorized": "Authorized",
+      "captured": "Captured",
+      "refunded": "Refunded",
+      "pending": "Pending",
+      "packed": "Packed",
+      "handed_to_carrier": "Handed to carrier",
+      "delivered": "Delivered",
+      "none": "None",
+      "partial": "Partial",
+      "full": "Full"
+    },
+    "errors": {
+      "illegal_transition": "That transition isn't allowed from the current state.",
+      "stale_version": "The order changed while you were viewing it. Reload to pull the latest.",
+      "step_up_required": "This action requires re-authentication."
+    }
+  },
+  "inventory": {
+    "overview": {
+      "title": "Inventory",
+      "description": "Stock snapshots, adjustments, low-stock queue, batches, reservations, and ledger.",
+      "card": {
+        "stock": "Stock",
+        "stock_body": "Browse stock by SKU + warehouse.",
+        "adjust": "Adjust",
+        "adjust_body": "Record a positive or negative adjustment with audit-bearing reason.",
+        "low_stock": "Low stock",
+        "low_stock_body": "SKUs at or below threshold.",
+        "batches": "Batches",
+        "batches_body": "Lot / batch master data.",
+        "expiry": "Expiry",
+        "expiry_body": "Near-expiry / expired calendar.",
+        "reservations": "Reservations",
+        "reservations_body": "Active reservations + manual release.",
+        "ledger": "Ledger",
+        "ledger_body": "All movements with audit deep-links."
+      }
+    },
+    "adjust": {
+      "title": "Adjust stock",
+      "warehouse": "Warehouse",
+      "sku": "SKU",
+      "delta": "Delta",
+      "delta_help": "Positive to add stock, negative to remove.",
+      "reason": "Reason",
+      "batch": "Batch",
+      "note": "Note",
+      "note_required_help": "A note (≥ 10 characters) is required for this reason.",
+      "submit": "Submit adjustment",
+      "below_zero_blocked": "This adjustment would push on-hand below zero. The write-off-below-zero permission is required.",
+      "below_zero_confirm_title": "Write-off below zero",
+      "below_zero_confirm_body": "This is a write-off below zero. Continue?",
+      "missing_note_blocked": "Add a note (at least 10 characters) before submitting.",
+      "submitted_toast": "Adjustment recorded.",
+      "conflict_title": "Stock changed while you were typing",
+      "conflict_body": "Reload to pull the latest snapshot. Your typed delta and reason are preserved on the right.",
+      "permission_revoked": "Your inventory-adjustment permission was revoked. Reach out to your admin."
+    },
+    "stock": {
+      "title": "Stock by SKU",
+      "table": {
+        "sku": "SKU",
+        "name": "Name",
+        "warehouse": "Warehouse",
+        "available": "Available",
+        "on_hand": "On hand",
+        "reserved": "Reserved",
+        "updated_at": "Updated"
+      },
+      "search_placeholder": "Search by SKU or name"
+    },
+    "reason_codes": {
+      "stock_count": "Stock count correction",
+      "receive": "Receive stock",
+      "return_inbound": "Customer return",
+      "theft_loss": "Theft / loss",
+      "breakage": "Breakage",
+      "write_off_expiry": "Write-off (expiry)",
+      "write_off_below_zero": "Write-off (below zero)",
+      "transfer_out": "Transfer out",
+      "transfer_in": "Transfer in"
+    }
+  },
+  "catalog": {
+    "overview": {
+      "title": "Catalog",
+      "description": "Manage products, categories, brands, manufacturers, and bulk imports.",
+      "card": {
+        "products": "Products",
+        "products_body": "Create, edit, schedule, and publish products.",
+        "categories": "Categories",
+        "categories_body": "Manage the category tree.",
+        "brands": "Brands",
+        "brands_body": "Brand and manufacturer references.",
+        "manufacturers": "Manufacturers",
+        "manufacturers_body": "Manufacturer master data.",
+        "bulk_import": "Bulk import",
+        "bulk_import_body": "Upload a CSV to add or update products."
+      }
+    },
+    "product": {
+      "title": "Products",
+      "new_title": "New product",
+      "create_new": "New product",
+      "edit_title": "Edit product",
+      "table": {
+        "sku": "SKU",
+        "name": "Name",
+        "state": "State",
+        "brand": "Brand",
+        "restricted": "Restricted",
+        "updated_at": "Updated"
+      },
+      "filters": {
+        "state": "State",
+        "brand": "Brand",
+        "category": "Category",
+        "restricted": "Restricted",
+        "search_placeholder": "Search by name or SKU"
+      },
+      "state": {
+        "draft": "Draft",
+        "scheduled": "Scheduled",
+        "published": "Published",
+        "discarded": "Discarded"
+      },
+      "form": {
+        "sku": "SKU",
+        "name_en": "Name (English)",
+        "name_ar": "Name (Arabic)",
+        "description_en": "Description (English)",
+        "description_ar": "Description (Arabic)",
+        "brand": "Brand",
+        "manufacturer": "Manufacturer",
+        "categories": "Categories",
+        "attributes": "Attributes",
+        "restricted_label": "Restricted product",
+        "restricted_rationale_en": "Rationale (English)",
+        "restricted_rationale_ar": "Rationale (Arabic)",
+        "restricted_help": "Restricted products require admin approval before customers can purchase.",
+        "media": "Media",
+        "documents": "Documents"
+      },
+      "publish": {
+        "publish_now": "Publish now",
+        "schedule_publish": "Schedule publish",
+        "schedule_at_label": "Publish at",
+        "revert_to_draft": "Revert to draft",
+        "discard": "Discard",
+        "restore_revision": "Restore revision",
+        "unschedule": "Unschedule",
+        "save_draft": "Save draft"
+      },
+      "errors": {
+        "name_required": "Name is required in both languages.",
+        "rationale_required": "Restricted products need an English and Arabic rationale.",
+        "sku_taken": "This SKU is already in use.",
+        "stale_version": "This product was updated by another admin while you were editing.",
+        "publish_failed": "Could not publish. {reason}"
+      }
+    },
+    "category": {
+      "title": "Categories",
+      "tree_label": "Category tree",
+      "add": "Add category",
+      "deactivate": "Deactivate",
+      "rename": "Rename",
+      "deactivate_warning": "{count} products are linked to this category. Deactivating hides it from the storefront."
+    },
+    "brand": {
+      "title": "Brands",
+      "new_title": "New brand",
+      "edit_title": "Edit brand",
+      "form": {
+        "name_en": "Name (English)",
+        "name_ar": "Name (Arabic)",
+        "manufacturer": "Manufacturer",
+        "logo": "Logo",
+        "active": "Active"
+      }
+    },
+    "manufacturer": {
+      "title": "Manufacturers",
+      "new_title": "New manufacturer",
+      "edit_title": "Edit manufacturer",
+      "form": {
+        "name_en": "Name (English)",
+        "name_ar": "Name (Arabic)",
+        "logo": "Logo",
+        "active": "Active"
+      }
+    },
+    "bulk_import": {
+      "title": "Bulk import",
+      "step1": "Upload",
+      "step2": "Review",
+      "step3": "Commit",
+      "schema_unavailable": "The bulk-import schema is not yet published. Try again after spec 005 ships its CSV schema.",
+      "expected_row_count_label": "I confirm I want to import {count} rows",
+      "commit": "Commit import",
+      "download_report": "Download error report"
+    }
+  }
+}

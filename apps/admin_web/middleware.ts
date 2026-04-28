@@ -19,6 +19,12 @@ import { permissionsForRoute } from "@/lib/auth/permissions";
 import { LOCALE_COOKIE, isLocale, type Locale } from "@/lib/i18n/config";
 
 const PUBLIC_ROUTES = [/^\/login(?:\/|$)/, /^\/mfa(?:\/|$)/, /^\/reset(?:\/|$)/];
+
+// Authenticated session-only routes that exist outside the
+// permission-mapped admin tree (e.g., the forbidden + not-found
+// landing pages the middleware itself rewrites to). These bypass the
+// permission map but still require a session.
+const SESSION_ONLY_ROUTES = [/^\/__forbidden(?:\/|$)/, /^\/__not-found(?:\/|$)/];
 const UNAUTH_API = [
   /^\/api\/auth\/login(?:\/|$)/,
   /^\/api\/auth\/mfa(?:\/|$)/,
@@ -143,14 +149,27 @@ export async function middleware(req: NextRequest) {
     return response;
   }
 
+  // System-only routes (forbidden / not-found landing pages) bypass
+  // the permission map but still required a session above.
+  if (SESSION_ONLY_ROUTES.some((re) => re.test(pathname))) {
+    const response = NextResponse.next({ request: { headers: requestHeaders } });
+    emitSecurityHeaders(response, nonce);
+    return response;
+  }
+
   // Per-route permission check (best-effort; the cookie is sealed so we
   // only check if rules are declared — full unseal happens in route
   // handlers / Server Components).
   const requiredKeys = permissionsForRoute(pathname);
   if (requiredKeys === null) {
-    // Unknown route in the (admin) tree — let it through; Next.js will
-    // 404 if it doesn't exist.
-    const response = NextResponse.next({ request: { headers: requestHeaders } });
+    // Fail closed: an admin-tree path with no permission mapping is a
+    // configuration gap, not an implicit "allow". Rewrite to the
+    // forbidden page so a missing mapping never leaks an unprotected
+    // route.
+    const url = req.nextUrl.clone();
+    url.pathname = "/__forbidden";
+    url.search = "";
+    const response = NextResponse.rewrite(url);
     emitSecurityHeaders(response, nonce);
     return response;
   }

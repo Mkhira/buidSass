@@ -26,7 +26,16 @@ export function MfaForm() {
   const t = useTranslations("auth");
   const router = useRouter();
   const searchParams = useSearchParams();
-  const continueTo = searchParams.get("continueTo") ?? "/";
+  // Validate continueTo is a same-origin absolute path. Reject
+  // protocol-relative `//` and any URL with a scheme (e.g.,
+  // `javascript:`) per Next.js docs — router.replace executes
+  // `javascript:` URLs in the page context (XSS) and cross-origin
+  // values open the user up to redirect attacks.
+  const rawContinueTo = searchParams.get("continueTo");
+  const continueTo =
+    rawContinueTo && rawContinueTo.startsWith("/") && !rawContinueTo.startsWith("//")
+      ? rawContinueTo
+      : "/";
   const [topError, setTopError] = useState<string | null>(null);
   const [partialAuthToken, setPartialAuthToken] = useState<string | null>(null);
 

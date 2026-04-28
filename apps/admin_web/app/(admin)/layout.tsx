@@ -10,7 +10,10 @@ import type { ReactNode } from "react";
 import { permissionsForRoute } from "@/lib/auth/permissions";
 import { requirePermission, requireSession } from "@/lib/auth/guards";
 import { AppShell } from "@/components/shell/app-shell";
-import { SessionProvider } from "@/components/providers/session-provider";
+import {
+  SessionProvider,
+  type ClientSessionPayload,
+} from "@/components/providers/session-provider";
 
 export default async function AdminLayout({ children }: { children: ReactNode }) {
   const hdrs = headers();
@@ -21,8 +24,21 @@ export default async function AdminLayout({ children }: { children: ReactNode })
     ? await requirePermission(required, pathname)
     : await requireSession(pathname);
 
+  // Strip tokens server-side — RSC serialises every prop, and the
+  // accessToken / refreshToken / expiresAt fields on AdminSessionPayload
+  // must never cross the boundary to a Client Component.
+  const clientSession: ClientSessionPayload = {
+    adminId: session.adminId,
+    email: session.email,
+    displayName: session.displayName,
+    roleScope: session.roleScope,
+    roles: session.roles,
+    permissions: session.permissions,
+    mfaEnrolled: session.mfaEnrolled,
+  };
+
   return (
-    <SessionProvider session={session}>
+    <SessionProvider session={clientSession}>
       <AppShell session={session}>{children}</AppShell>
     </SessionProvider>
   );

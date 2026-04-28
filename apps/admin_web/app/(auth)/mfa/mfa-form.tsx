@@ -128,7 +128,11 @@ export function MfaForm() {
 }
 
 function reasonToKey(reasonCode: string): "mfa_invalid" | "rate_limited" | "generic" {
-  if (reasonCode.includes("invalid") || reasonCode.includes("mfa")) return "mfa_invalid";
+  // Explicit mapping per /api/auth/mfa contract — `auth.mfa.failed`
+  // signals an upstream/server problem, not a bad code, so it should
+  // surface a generic retry message instead of "wrong code".
+  if (reasonCode === "auth.mfa.failed" || reasonCode === "invalid_request") return "generic";
   if (reasonCode.includes("rate")) return "rate_limited";
+  if (reasonCode.includes("invalid")) return "mfa_invalid";
   return "generic";
 }

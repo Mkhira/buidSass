@@ -115,13 +115,16 @@ function resolveLocaleHeader(req: NextRequest): Locale {
 export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
 
-  // Static assets: skip auth/permission, still emit security headers.
+  const nonce = generateNonce();
+
+  // Static assets: skip auth/permission, but still emit the shared
+  // security headers (CSP/HSTS/etc) — the comment used to say this
+  // branch did, but the early return skipped emitSecurityHeaders.
   if (isStatic(pathname)) {
     const res = NextResponse.next();
+    emitSecurityHeaders(res, nonce);
     return res;
   }
-
-  const nonce = generateNonce();
   const requestHeaders = new Headers(req.headers);
   requestHeaders.set("x-nonce", nonce);
   requestHeaders.set("x-locale", resolveLocaleHeader(req));
@@ -148,7 +151,9 @@ export async function middleware(req: NextRequest) {
   if (!sessionCookie) {
     const url = req.nextUrl.clone();
     url.pathname = "/login";
-    url.searchParams.set("continueTo", pathname);
+    // Preserve the query string so post-login routing lands on the
+    // same screen the user requested (e.g. /orders?page=2&tab=archived).
+    url.searchParams.set("continueTo", `${pathname}${req.nextUrl.search}`);
     const response = NextResponse.redirect(url);
     emitSecurityHeaders(response, nonce);
     return response;

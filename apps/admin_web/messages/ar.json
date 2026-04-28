@@ -208,6 +208,7 @@
       "step_up_required": "EN_PLACEHOLDER: This action requires re-authentication.",
       "stale_version": "EN_PLACEHOLDER: The customer's record changed while you were viewing it. Reload to pull the latest.",
       "permission_revoked": "EN_PLACEHOLDER: Your customers permission was revoked. Reach out to your admin.",
+      "step_up_unavailable": "EN_PLACEHOLDER: Step-up MFA isn't available yet — account actions are blocked until the step-up dialog ships (T040c).",
       "submitted_toast": "EN_PLACEHOLDER: Action recorded."
     },
     "states": {

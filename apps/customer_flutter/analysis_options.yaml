@@ -1,0 +1,52 @@
+# T003: customer_flutter analysis options.
+#
+# Layered on top of `flutter_lints`. Adds rules per spec 014 plan:
+#   - prefer_relative_imports
+#   - unawaited_futures (every async call must be awaited)
+#   - avoid_print
+#
+# Custom lint scripts (no_hardcoded_strings, no_ad_hoc_http, no_locale_leaky_cache)
+# live under `tool/lint/` and run via `dart run` in CI.
+
+include: package:flutter_lints/flutter.yaml
+
+analyzer:
+  exclude:
+    - "lib/generated/**"
+    - "**/*.g.dart"
+    - "**/*.freezed.dart"
+    - "build/**"
+  errors:
+    invalid_annotation_target: ignore
+
+linter:
+  rules:
+    # Style
+    - prefer_relative_imports
+    - prefer_single_quotes
+    # `sort_pub_dependencies` is intentionally NOT enabled — pubspec.yaml
+    # uses semantic grouping (state-management, routing, HTTP, i18n,
+    # secure storage, etc.) which is more readable than strict
+    # alphabetic order.
+
+    # Correctness
+    - unawaited_futures
+    - avoid_print
+    - cancel_subscriptions
+    - close_sinks
+    - control_flow_in_finally
+
+    # Bloc / immutability
+    - prefer_const_constructors
+    - prefer_const_constructors_in_immutables
+    - prefer_const_declarations
+    - prefer_const_literals_to_create_immutables
+    - prefer_final_fields
+    - prefer_final_locals
+
+    # Async hygiene
+    - avoid_void_async
+
+    # Imports
+    - directives_ordering
+    - implementation_imports

@@ -15,7 +15,25 @@
 
 import { createContext, useContext, useMemo } from "react";
 import type { ReactNode } from "react";
-import type { AdminSessionPayload } from "@/lib/auth/session";
+
+/**
+ * Token-free DTO that crosses the server→client boundary.
+ *
+ * IMPORTANT: do NOT widen this to `AdminSessionPayload` — that type
+ * carries `accessToken` / `refreshToken` / `expiresAt`, and React
+ * Server Components serialise every prop to the browser before the
+ * Client Component runs. The `useMemo` below cannot strip what's
+ * already on the wire. Layouts must construct this DTO server-side.
+ */
+export interface ClientSessionPayload {
+  adminId: string;
+  email: string;
+  displayName: string;
+  roleScope: "platform" | "ksa" | "eg";
+  roles: string[];
+  permissions: string[];
+  mfaEnrolled: boolean;
+}
 
 export interface ClientSession {
   adminId: string;
@@ -30,8 +48,8 @@ export interface ClientSession {
 const SessionContext = createContext<ClientSession | null>(null);
 
 interface SessionProviderProps {
-  /** Server-resolved session payload (token fields stripped). */
-  session: AdminSessionPayload;
+  /** Token-free server-side projection — see `ClientSessionPayload`. */
+  session: ClientSessionPayload;
   children: ReactNode;
 }
 
@@ -45,8 +63,6 @@ export function SessionProvider({ session, children }: SessionProviderProps) {
       roles: session.roles,
       permissions: new Set(session.permissions),
       mfaEnrolled: session.mfaEnrolled,
-      // accessToken / refreshToken / expiresAt INTENTIONALLY OMITTED —
-      // they never leave the server.
     }),
     [session],
   );
@@ -76,6 +92,10 @@ export function useSession(): ClientSession {
 export function usePermission(permissions: string | string[]): boolean {
   const session = useSession();
   const keys = typeof permissions === "string" ? [permissions] : permissions;
+  // Guard against `[]` — `Array.prototype.every` returns true on an
+  // empty array, which would silently grant access. Require at least
+  // one key; an empty list is treated as "no permission asserted".
+  if (keys.length === 0) return false;
   return keys.every((k) => session.permissions.has(k));
 }
 

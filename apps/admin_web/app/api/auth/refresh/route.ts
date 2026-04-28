@@ -1,26 +1,22 @@
 /**
  * T024: POST /api/auth/refresh
  *
- * Silent — called by `lib/api/proxy.ts` when a 401 lands on a request
- * the session said should still be valid. Reads the refresh token from
- * the sealed cookie, calls spec 004, re-seals on success.
+ * Silent — called by external clients that hold the sealed cookie and
+ * need a freshly-rotated access token. Internal callers from inside the
+ * Server Component / route-handler runtime should call
+ * `refreshSessionInProcess()` directly so Set-Cookie propagation
+ * reaches the calling response context.
  */
 import { NextResponse } from "next/server";
-import { identityApi } from "@/lib/api/clients/identity";
-import { getSession, writeSession, clearSession, type AdminSessionPayload } from "@/lib/auth/session";
+import { refreshSessionInProcess } from "@/lib/auth/refresh";
 
 export async function POST() {
-  const session = await getSession();
-  if (!session) {
-    clearSession();
-    return NextResponse.json({ kind: "error", reasonCode: "auth.refresh.no_session" }, { status: 401 });
+  const refreshed = await refreshSessionInProcess();
+  if (!refreshed) {
+    return NextResponse.json(
+      { kind: "error", reasonCode: "auth.refresh.failed" },
+      { status: 401 },
+    );
   }
-  try {
-    const refreshed = await identityApi.refresh(session.refreshToken);
-    await writeSession(refreshed as AdminSessionPayload);
-    return NextResponse.json({ kind: "ok" });
-  } catch {
-    clearSession();
-    return NextResponse.json({ kind: "error", reasonCode: "auth.refresh.failed" }, { status: 401 });
-  }
+  return NextResponse.json({ kind: "ok" });
 }

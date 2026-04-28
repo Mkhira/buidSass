@@ -15,11 +15,11 @@
  * Components. The `lib/api/clients/*` thin wrappers consume it.
  */
 import { randomUUID } from "node:crypto";
-import { headers } from "next/headers";
 import { ApiError } from "./error";
 import { bcp47For } from "@/lib/i18n/config";
 import { resolveLocale } from "@/lib/i18n/server";
 import { getSession, type AdminSessionPayload } from "@/lib/auth/session";
+import { refreshSessionInProcess } from "@/lib/auth/refresh";
 
 const BACKEND_URL = process.env.BACKEND_URL ?? "http://localhost:5000";
 
@@ -86,26 +86,12 @@ function buildAcceptLanguage(session: AdminSessionPayload | null): string {
 }
 
 /**
- * Internal — refreshes the access token via spec 004's refresh endpoint
- * using the refresh token from the sealed cookie. Re-seals on success.
- *
- * Lands in T024's `/api/auth/refresh` route handler. We call that route
- * handler here so the cookie-write path is centralized.
+ * Internal — refreshes the access token in-process via the shared
+ * `refreshSessionInProcess()` helper. Self-fetching the refresh route
+ * handler does not work in this code path because Set-Cookie headers
+ * from a subrequest do not propagate back to the parent request's
+ * cookie jar.
  */
 async function refreshOnce(): Promise<AdminSessionPayload | null> {
-  const hdrs = headers();
-  const host = hdrs.get("host") ?? "localhost:3001";
-  const protocol = hdrs.get("x-forwarded-proto") ?? "http";
-  const refreshUrl = `${protocol}://${host}/api/auth/refresh`;
-  try {
-    const res = await fetch(refreshUrl, {
-      method: "POST",
-      headers: { cookie: hdrs.get("cookie") ?? "" },
-      cache: "no-store",
-    });
-    if (!res.ok) return null;
-    return await getSession();
-  } catch {
-    return null;
-  }
+  return refreshSessionInProcess();
 }

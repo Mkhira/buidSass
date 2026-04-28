@@ -19,6 +19,12 @@ import { permissionsForRoute } from "@/lib/auth/permissions";
 import { LOCALE_COOKIE, isLocale, type Locale } from "@/lib/i18n/config";
 
 const PUBLIC_ROUTES = [/^\/login(?:\/|$)/, /^\/mfa(?:\/|$)/, /^\/reset(?:\/|$)/];
+
+// Authenticated session-only routes that exist outside the
+// permission-mapped admin tree (e.g., the forbidden + not-found
+// landing pages the middleware itself rewrites to). These bypass the
+// permission map but still require a session.
+const SESSION_ONLY_ROUTES = [/^\/__forbidden(?:\/|$)/, /^\/__not-found(?:\/|$)/];
 const UNAUTH_API = [
   /^\/api\/auth\/login(?:\/|$)/,
   /^\/api\/auth\/mfa(?:\/|$)/,
@@ -27,11 +33,16 @@ const UNAUTH_API = [
   /^\/api\/auth\/reset(?:\/|$)/,
 ];
 
+// Restrict the asset-extension bypass to the known public-asset
+// prefixes (`/_next/...`, `/static/...`, `/favicon.ico`). A bare
+// extension regex like `/\.(svg|...|js|map)$/` would let any admin
+// route whose last segment ends in one of those extensions skip both
+// session and permission checks — e.g. `/orders/exports/12.csv` or a
+// future `/reports/foo.js` — leaking the route to anonymous callers.
 const STATIC_PATHS = [
   /^\/_next(?:\/|$)/,
   /^\/favicon\.ico$/,
-  /^\/static(?:\/|$)/,
-  /\.(?:svg|png|jpg|jpeg|gif|webp|ico|woff2?|ttf|css|js|map)$/,
+  /^\/static\/.*\.(?:svg|png|jpg|jpeg|gif|webp|ico|woff2?|ttf|css|js|map)$/,
 ];
 
 function isPublic(pathname: string): boolean {
@@ -104,13 +115,16 @@ function resolveLocaleHeader(req: NextRequest): Locale {
 export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
 
-  // Static assets: skip auth/permission, still emit security headers.
+  const nonce = generateNonce();
+
+  // Static assets: skip auth/permission, but still emit the shared
+  // security headers (CSP/HSTS/etc) — the comment used to say this
+  // branch did, but the early return skipped emitSecurityHeaders.
   if (isStatic(pathname)) {
     const res = NextResponse.next();
+    emitSecurityHeaders(res, nonce);
     return res;
   }
-
-  const nonce = generateNonce();
   const requestHeaders = new Headers(req.headers);
   requestHeaders.set("x-nonce", nonce);
   requestHeaders.set("x-locale", resolveLocaleHeader(req));
@@ -137,8 +151,18 @@ export async function middleware(req: NextRequest) {
   if (!sessionCookie) {
     const url = req.nextUrl.clone();
     url.pathname = "/login";
-    url.searchParams.set("continueTo", pathname);
+    // Preserve the query string so post-login routing lands on the
+    // same screen the user requested (e.g. /orders?page=2&tab=archived).
+    url.searchParams.set("continueTo", `${pathname}${req.nextUrl.search}`);
     const response = NextResponse.redirect(url);
+    emitSecurityHeaders(response, nonce);
+    return response;
+  }
+
+  // System-only routes (forbidden / not-found landing pages) bypass
+  // the permission map but still required a session above.
+  if (SESSION_ONLY_ROUTES.some((re) => re.test(pathname))) {
+    const response = NextResponse.next({ request: { headers: requestHeaders } });
     emitSecurityHeaders(response, nonce);
     return response;
   }
@@ -148,9 +172,14 @@ export async function middleware(req: NextRequest) {
   // handlers / Server Components).
   const requiredKeys = permissionsForRoute(pathname);
   if (requiredKeys === null) {
-    // Unknown route in the (admin) tree — let it through; Next.js will
-    // 404 if it doesn't exist.
-    const response = NextResponse.next({ request: { headers: requestHeaders } });
+    // Fail closed: an admin-tree path with no permission mapping is a
+    // configuration gap, not an implicit "allow". Rewrite to the
+    // forbidden page so a missing mapping never leaks an unprotected
+    // route.
+    const url = req.nextUrl.clone();
+    url.pathname = "/__forbidden";
+    url.search = "";
+    const response = NextResponse.rewrite(url);
     emitSecurityHeaders(response, nonce);
     return response;
   }

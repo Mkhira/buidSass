@@ -4,7 +4,7 @@
  */
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
 import { useRouter, useSearchParams } from "next/navigation";
 import { z } from "zod";
@@ -16,31 +16,48 @@ import { emitTelemetry } from "@/lib/observability/telemetry";
 
 const PARTIAL_AUTH_KEY = "admin.partialAuthToken";
 
-const schema = z.object({
-  code: z.string().regex(/^\d{6}$/, "6 digits"),
-});
-
-type MfaFormValues = z.infer<typeof schema>;
+interface MfaFormValues {
+  code: string;
+}
 
 export function MfaForm() {
   const t = useTranslations("auth");
   const router = useRouter();
   const searchParams = useSearchParams();
-  const continueTo = searchParams.get("continueTo") ?? "/";
+  // Validate continueTo is a same-origin absolute path. Reject
+  // protocol-relative `//` and any URL with a scheme (e.g.,
+  // `javascript:`) per Next.js docs — router.replace executes
+  // `javascript:` URLs in the page context (XSS) and cross-origin
+  // values open the user up to redirect attacks.
+  const rawContinueTo = searchParams.get("continueTo");
+  const continueTo =
+    rawContinueTo && rawContinueTo.startsWith("/") && !rawContinueTo.startsWith("//")
+      ? rawContinueTo
+      : "/";
   const [topError, setTopError] = useState<string | null>(null);
   const [partialAuthToken, setPartialAuthToken] = useState<string | null>(null);
+
+  // Schema is built inside the component so the validation message is
+  // localized via the `auth` namespace (Constitution §4 — every UI
+  // string ships in both EN and AR).
+  const schema = useMemo(
+    () => z.object({ code: z.string().regex(/^\d{6}$/, t("mfa.code_format")) }),
+    [t],
+  );
 
   useEffect(() => {
     if (typeof window === "undefined") return;
     const tok = window.sessionStorage.getItem(PARTIAL_AUTH_KEY);
     if (!tok) {
       // No token — middleware would route here on direct nav. Send
-      // them back to /login to start over.
-      router.replace("/login");
+      // them back to /login to start over, preserving their original
+      // destination so they land where they intended after re-auth.
+      const loginUrl = `/login?continueTo=${encodeURIComponent(continueTo)}`;
+      router.replace(loginUrl);
       return;
     }
     setPartialAuthToken(tok);
-  }, [router]);
+  }, [router, continueTo]);
 
   const form = useFormBuilder({
     schema,
@@ -76,7 +93,12 @@ export function MfaForm() {
   });
 
   if (!partialAuthToken) {
-    return null;
+    // Explicit loading state with screen-reader cue — no blank screen.
+    return (
+      <div role="status" aria-live="polite" className="text-sm text-muted-foreground">
+        {t("mfa.loading")}
+      </div>
+    );
   }
 
   return (
@@ -106,7 +128,11 @@ export function MfaForm() {
 }
 
 function reasonToKey(reasonCode: string): "mfa_invalid" | "rate_limited" | "generic" {
-  if (reasonCode.includes("invalid") || reasonCode.includes("mfa")) return "mfa_invalid";
+  // Explicit mapping per /api/auth/mfa contract — `auth.mfa.failed`
+  // signals an upstream/server problem, not a bad code, so it should
+  // surface a generic retry message instead of "wrong code".
+  if (reasonCode === "auth.mfa.failed" || reasonCode === "invalid_request") return "generic";
   if (reasonCode.includes("rate")) return "rate_limited";
+  if (reasonCode.includes("invalid")) return "mfa_invalid";
   return "generic";
 }

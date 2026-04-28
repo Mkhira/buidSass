@@ -14,7 +14,11 @@ interface MfaPageProps {
 export default async function MfaPage({ searchParams }: MfaPageProps) {
   const session = await getSession();
   if (session) {
-    redirect(searchParams.continueTo ?? "/");
+    // Restrict to internal absolute paths to prevent open redirects.
+    const target = searchParams.continueTo;
+    const safeTarget =
+      target && target.startsWith("/") && !target.startsWith("//") ? target : "/";
+    redirect(safeTarget);
   }
   return <MfaForm />;
 }

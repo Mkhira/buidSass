@@ -1,0 +1,231 @@
+import 'dart:async';
+
+import 'package:flutter/foundation.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+
+import '../../../core/auth/auth_session_bloc.dart';
+import '../data/auth_repository.dart';
+
+const _otpStateKey = 'auth.otp_resend_deadline';
+
+// Sentinel used by copyWith to distinguish "caller did not pass
+// errorReason" from "caller explicitly cleared errorReason to null".
+// Without this, a tick would silently wipe an active error banner.
+const Object _keepErrorReason = Object();
+
+@immutable
+class OtpState {
+  const OtpState({
+    required this.challenge,
+    required this.resendInSeconds,
+    this.submitting = false,
+    this.errorReason,
+    this.success = false,
+  });
+
+  final OtpChallenge challenge;
+  final int resendInSeconds;
+  final bool submitting;
+  final String? errorReason;
+  final bool success;
+
+  OtpState copyWith({
+    OtpChallenge? challenge,
+    int? resendInSeconds,
+    bool? submitting,
+    Object? errorReason = _keepErrorReason,
+    bool? success,
+  }) {
+    return OtpState(
+      challenge: challenge ?? this.challenge,
+      resendInSeconds: resendInSeconds ?? this.resendInSeconds,
+      submitting: submitting ?? this.submitting,
+      errorReason: identical(errorReason, _keepErrorReason)
+          ? this.errorReason
+          : errorReason as String?,
+      success: success ?? this.success,
+    );
+  }
+}
+
+@immutable
+sealed class OtpEvent {
+  const OtpEvent();
+}
+
+class OtpStarted extends OtpEvent {
+  const OtpStarted(this.challenge);
+  final OtpChallenge challenge;
+}
+
+class OtpResendRequested extends OtpEvent {
+  const OtpResendRequested();
+}
+
+class OtpSubmitted extends OtpEvent {
+  const OtpSubmitted(this.code);
+  final String code;
+}
+
+class _OtpTick extends OtpEvent {
+  const _OtpTick();
+}
+
+class _OtpRestored extends OtpEvent {
+  const _OtpRestored(this.remainingSeconds);
+  final int remainingSeconds;
+}
+
+/// FR-014 — resend timer is driven by spec 004's response (`retry_after_seconds`)
+/// and persisted in secure storage so a tab close / app foregrounding rehydrates
+/// the same cooldown.
+class OtpBloc extends Bloc<OtpEvent, OtpState> {
+  OtpBloc({
+    required AuthRepository repository,
+    required AuthSessionBloc sessionBloc,
+    required OtpChallenge initial,
+    FlutterSecureStorage? storage,
+  })  : _repository = repository,
+        _sessionBloc = sessionBloc,
+        _storage = storage ?? const FlutterSecureStorage(),
+        super(OtpState(
+          challenge: initial,
+          resendInSeconds: initial.retryAfterSeconds,
+        )) {
+    on<OtpStarted>(_onStarted);
+    on<OtpResendRequested>(_onResend);
+    on<OtpSubmitted>(_onSubmitted);
+    on<_OtpTick>(_onTick);
+    on<_OtpRestored>(_onRestored);
+    _restoreFromStorage();
+    _ticker = Stream<void>.periodic(const Duration(seconds: 1)).listen((_) {
+      add(const _OtpTick());
+    });
+  }
+
+  final AuthRepository _repository;
+  final AuthSessionBloc _sessionBloc;
+  final FlutterSecureStorage _storage;
+  late final StreamSubscription<void> _ticker;
+
+  Future<void> _restoreFromStorage() async {
+    try {
+      final raw = await _storage.read(key: _otpStateKey);
+      final deadline = int.tryParse(raw ?? '');
+      if (deadline == null) return;
+      final remaining =
+          (deadline - DateTime.now().millisecondsSinceEpoch) ~/ 1000;
+      // Always apply the persisted deadline — including expired ones,
+      // which clamp to 0 — so a saved cooldown can never leave a
+      // stale `initial.retryAfterSeconds` countdown active longer
+      // than the persisted expiry.
+      if (!isClosed) {
+        add(_OtpRestored(remaining > 0 ? remaining : 0));
+      }
+    } on Object {
+      // Storage read failed — keep the in-memory countdown the bloc was
+      // constructed with; nothing to restore.
+    }
+  }
+
+  void _onRestored(_OtpRestored event, Emitter<OtpState> emit) {
+    if (event.remainingSeconds != state.resendInSeconds) {
+      emit(state.copyWith(resendInSeconds: event.remainingSeconds));
+    }
+  }
+
+  Future<void> _persistDeadline(int seconds) async {
+    final deadline =
+        DateTime.now().add(Duration(seconds: seconds)).millisecondsSinceEpoch;
+    await _storage.write(key: _otpStateKey, value: deadline.toString());
+  }
+
+  void _onStarted(OtpStarted event, Emitter<OtpState> emit) {
+    emit(OtpState(
+      challenge: event.challenge,
+      resendInSeconds: event.challenge.retryAfterSeconds,
+    ));
+    _persistDeadline(event.challenge.retryAfterSeconds);
+  }
+
+  Future<void> _onResend(
+    OtpResendRequested event,
+    Emitter<OtpState> emit,
+  ) async {
+    if (state.resendInSeconds > 0) return;
+    try {
+      final fresh = await _repository.resendOtp(
+        challengeId: state.challenge.challengeId,
+      );
+      emit(state.copyWith(
+        challenge: fresh,
+        resendInSeconds: fresh.retryAfterSeconds,
+      ));
+      await _persistDeadline(fresh.retryAfterSeconds);
+    } on Object catch (e, st) {
+      if (kDebugMode) {
+        debugPrint('OtpBloc resend exception: $e\n$st');
+      }
+      emit(state.copyWith(errorReason: 'identity.gap'));
+    }
+  }
+
+  Future<void> _onSubmitted(
+    OtpSubmitted event,
+    Emitter<OtpState> emit,
+  ) async {
+    emit(state.copyWith(submitting: true));
+    try {
+      final outcome = await _repository.verifyOtp(
+        challengeId: state.challenge.challengeId,
+        code: event.code,
+      );
+      if (outcome.ok) {
+        final accessToken = outcome.accessToken;
+        final refreshToken = outcome.refreshToken;
+        if (accessToken == null || refreshToken == null) {
+          // OTP success without tokens is a backend contract gap;
+          // surface as a recoverable failure instead of crashing.
+          emit(state.copyWith(
+            submitting: false,
+            errorReason: 'identity.gap',
+          ));
+          return;
+        }
+        _sessionBloc.add(LoginRequested(
+          accessToken: accessToken,
+          refreshToken: refreshToken,
+          customerId: outcome.customerId,
+          email: outcome.email,
+          displayName: outcome.displayName,
+          isVerified: outcome.isVerified,
+        ));
+        await _storage.delete(key: _otpStateKey);
+        emit(state.copyWith(submitting: false, success: true));
+      } else {
+        emit(state.copyWith(
+          submitting: false,
+          errorReason: outcome.reasonCode ?? 'unknown',
+        ));
+      }
+    } on Object catch (e, st) {
+      if (kDebugMode) {
+        debugPrint('OtpBloc submit exception: $e\n$st');
+      }
+      emit(state.copyWith(submitting: false, errorReason: 'identity.gap'));
+    }
+  }
+
+  void _onTick(_OtpTick event, Emitter<OtpState> emit) {
+    if (state.resendInSeconds > 0) {
+      emit(state.copyWith(resendInSeconds: state.resendInSeconds - 1));
+    }
+  }
+
+  @override
+  Future<void> close() async {
+    await _ticker.cancel();
+    return super.close();
+  }
+}

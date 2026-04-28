@@ -103,15 +103,27 @@ export function AccountActionBar({
 
   async function submit(action: AccountActionKind) {
     if (!reasonNoteValid(reasonNote)) return;
+    // Step-up MFA assertion comes from spec 015's <StepUpDialog>
+    // (T040c). Until that dialog ships, fail closed — never POST a
+    // hard-coded "stub" header that the backend can either bypass on
+    // (security gap) or reject on (every action breaks). The action
+    // bar surfaces a `step_up_unavailable` reason so operators can
+    // see the gap explicitly instead of a silent failure.
+    const stepUpAssertion: string | null = null;
+    if (!stepUpAssertion) {
+      setSubmission({
+        kind: "failed_terminal",
+        reasonCode: "customers.step_up_unavailable",
+      });
+      return;
+    }
     const idempotencyKey = crypto.randomUUID();
     setSubmission({
       kind: "submitting",
       action,
       reasonNote,
       idempotencyKey,
-      // Stub assertion until <StepUpDialog> wires the real spec 004 flow.
-      // Server is authoritative; this client value is forwarded for tracing.
-      stepUpAssertionId: "stub-step-up",
+      stepUpAssertionId: stepUpAssertion,
     });
     try {
       const path =
@@ -127,7 +139,7 @@ export function AccountActionBar({
           headers: {
             "Content-Type": "application/json",
             "Idempotency-Key": idempotencyKey,
-            "X-StepUp-Assertion": "stub-step-up",
+            "X-StepUp-Assertion": stepUpAssertion,
           },
           body: JSON.stringify({ reasonNote, rowVersion }),
         },
@@ -242,7 +254,9 @@ export function AccountActionBar({
       ) : null}
       {submission.kind === "failed_terminal" ? (
         <p role="alert" className="text-sm text-destructive">
-          {t("permission_revoked")}
+          {submission.reasonCode === "customers.step_up_unavailable"
+            ? t("step_up_unavailable")
+            : t("permission_revoked")}
         </p>
       ) : null}
       {submission.kind === "failed" ? (

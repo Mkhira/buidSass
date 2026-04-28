@@ -27,6 +27,7 @@ export function LocaleTabs({
     <div className="space-y-ds-sm">
       <div role="tablist" className="inline-flex rounded-md border border-border bg-muted/30 p-0.5">
         <button
+          type="button"
           role="tab"
           aria-selected={active === "en"}
           onClick={() => setActive("en")}
@@ -38,6 +39,7 @@ export function LocaleTabs({
           {enLabel}
         </button>
         <button
+          type="button"
           role="tab"
           aria-selected={active === "ar"}
           onClick={() => setActive("ar")}

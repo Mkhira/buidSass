@@ -30,12 +30,25 @@ export async function POST(
   if (!body) {
     return NextResponse.json({ error: "invalid_body" }, { status: 422 });
   }
+  // Refund transitions require an FR-013 step-up assertion. Reject
+  // before proxying so the backend never sees a refund without the
+  // freshly-minted MFA proof, and forward the assertion on the proxy
+  // call so backend enforcement can verify it.
+  const stepUp = request.headers.get("X-StepUp-Assertion");
+  if (params.machine === "refund" && !stepUp) {
+    return NextResponse.json({ error: "step_up_required" }, { status: 403 });
+  }
   const idempotencyKey =
     request.headers.get("Idempotency-Key") ?? crypto.randomUUID();
   try {
     const result = await proxyFetch(
       `/v1/admin/orders/${encodeURIComponent(params.orderId)}/transitions/${encodeURIComponent(params.machine)}`,
-      { method: "POST", body: JSON.stringify(body), idempotencyKey },
+      {
+        method: "POST",
+        body: JSON.stringify(body),
+        idempotencyKey,
+        headers: stepUp ? { "X-StepUp-Assertion": stepUp } : undefined,
+      },
     );
     return NextResponse.json(result);
   } catch (err) {

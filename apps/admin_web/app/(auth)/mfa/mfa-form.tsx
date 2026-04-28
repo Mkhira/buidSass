@@ -4,7 +4,7 @@
  */
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
 import { useRouter, useSearchParams } from "next/navigation";
 import { z } from "zod";
@@ -16,11 +16,9 @@ import { emitTelemetry } from "@/lib/observability/telemetry";
 
 const PARTIAL_AUTH_KEY = "admin.partialAuthToken";
 
-const schema = z.object({
-  code: z.string().regex(/^\d{6}$/, "6 digits"),
-});
-
-type MfaFormValues = z.infer<typeof schema>;
+interface MfaFormValues {
+  code: string;
+}
 
 export function MfaForm() {
   const t = useTranslations("auth");
@@ -39,17 +37,27 @@ export function MfaForm() {
   const [topError, setTopError] = useState<string | null>(null);
   const [partialAuthToken, setPartialAuthToken] = useState<string | null>(null);
 
+  // Schema is built inside the component so the validation message is
+  // localized via the `auth` namespace (Constitution §4 — every UI
+  // string ships in both EN and AR).
+  const schema = useMemo(
+    () => z.object({ code: z.string().regex(/^\d{6}$/, t("mfa.code_format")) }),
+    [t],
+  );
+
   useEffect(() => {
     if (typeof window === "undefined") return;
     const tok = window.sessionStorage.getItem(PARTIAL_AUTH_KEY);
     if (!tok) {
       // No token — middleware would route here on direct nav. Send
-      // them back to /login to start over.
-      router.replace("/login");
+      // them back to /login to start over, preserving their original
+      // destination so they land where they intended after re-auth.
+      const loginUrl = `/login?continueTo=${encodeURIComponent(continueTo)}`;
+      router.replace(loginUrl);
       return;
     }
     setPartialAuthToken(tok);
-  }, [router]);
+  }, [router, continueTo]);
 
   const form = useFormBuilder({
     schema,
@@ -85,7 +93,12 @@ export function MfaForm() {
   });
 
   if (!partialAuthToken) {
-    return null;
+    // Explicit loading state with screen-reader cue — no blank screen.
+    return (
+      <div role="status" aria-live="polite" className="text-sm text-muted-foreground">
+        {t("mfa.loading")}
+      </div>
+    );
   }
 
   return (

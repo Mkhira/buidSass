@@ -33,11 +33,16 @@ const UNAUTH_API = [
   /^\/api\/auth\/reset(?:\/|$)/,
 ];
 
+// Restrict the asset-extension bypass to the known public-asset
+// prefixes (`/_next/...`, `/static/...`, `/favicon.ico`). A bare
+// extension regex like `/\.(svg|...|js|map)$/` would let any admin
+// route whose last segment ends in one of those extensions skip both
+// session and permission checks — e.g. `/orders/exports/12.csv` or a
+// future `/reports/foo.js` — leaking the route to anonymous callers.
 const STATIC_PATHS = [
   /^\/_next(?:\/|$)/,
   /^\/favicon\.ico$/,
-  /^\/static(?:\/|$)/,
-  /\.(?:svg|png|jpg|jpeg|gif|webp|ico|woff2?|ttf|css|js|map)$/,
+  /^\/static\/.*\.(?:svg|png|jpg|jpeg|gif|webp|ico|woff2?|ttf|css|js|map)$/,
 ];
 
 function isPublic(pathname: string): boolean {

@@ -44,7 +44,11 @@ describe("<MfaForm>", () => {
 
   it("redirects to /login when no partial-auth token is present", async () => {
     renderForm();
-    await waitFor(() => expect(replaceMock).toHaveBeenCalledWith("/login"));
+    // Includes a continueTo param so the user lands where they
+    // intended after re-authenticating.
+    await waitFor(() =>
+      expect(replaceMock).toHaveBeenCalledWith(expect.stringMatching(/^\/login\?continueTo=/)),
+    );
   });
 
   it("on success clears the token + redirects to landing", async () => {

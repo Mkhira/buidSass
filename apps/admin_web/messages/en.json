@@ -95,7 +95,9 @@
     },
     "mfa": {
       "title": "Enter your authenticator code",
-      "submit": "Verify"
+      "submit": "Verify",
+      "loading": "Loading…",
+      "code_format": "Enter 6 digits."
     },
     "reset": {
       "title": "Reset your password",

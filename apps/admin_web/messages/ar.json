@@ -96,7 +96,9 @@
     },
     "mfa": {
       "title": "EN_PLACEHOLDER: Enter your authenticator code",
-      "submit": "EN_PLACEHOLDER: Verify"
+      "submit": "EN_PLACEHOLDER: Verify",
+      "loading": "EN_PLACEHOLDER: Loading…",
+      "code_format": "EN_PLACEHOLDER: Enter 6 digits."
     },
     "reset": {
       "title": "EN_PLACEHOLDER: Reset your password",

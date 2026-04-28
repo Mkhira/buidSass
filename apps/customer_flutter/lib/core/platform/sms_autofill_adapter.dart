@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:io' show Platform;
 
 import 'package:flutter/foundation.dart';
 import 'package:sms_autofill/sms_autofill.dart';
@@ -19,7 +18,11 @@ class SmsAutofillAdapter {
 
   bool get isSupported {
     if (kIsWeb) return false;
-    return Platform.isAndroid;
+    // Use Flutter's `defaultTargetPlatform` instead of `dart:io`'s
+    // `Platform` so this file remains buildable for Web — the
+    // `dart:io` import alone breaks the web compile, even if the
+    // runtime branch is gated by `kIsWeb`.
+    return defaultTargetPlatform == TargetPlatform.android;
   }
 
   Future<String?> getAppSignature() async {

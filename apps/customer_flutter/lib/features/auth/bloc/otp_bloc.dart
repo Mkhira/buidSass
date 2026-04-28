@@ -168,9 +168,20 @@ class OtpBloc extends Bloc<OtpEvent, OtpState> {
         code: event.code,
       );
       if (outcome.ok) {
+        final accessToken = outcome.accessToken;
+        final refreshToken = outcome.refreshToken;
+        if (accessToken == null || refreshToken == null) {
+          // OTP success without tokens is a backend contract gap;
+          // surface as a recoverable failure instead of crashing.
+          emit(state.copyWith(
+            submitting: false,
+            errorReason: 'identity.gap',
+          ));
+          return;
+        }
         _sessionBloc.add(LoginRequested(
-          accessToken: outcome.accessToken!,
-          refreshToken: outcome.refreshToken!,
+          accessToken: accessToken,
+          refreshToken: refreshToken,
           customerId: outcome.customerId,
           email: outcome.email,
           displayName: outcome.displayName,

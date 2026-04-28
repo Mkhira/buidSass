@@ -71,9 +71,19 @@ class LoginBloc extends Bloc<LoginEvent, LoginState> {
         return;
       }
       if (outcome.ok) {
+        // Guard against a backend contract gap — if `ok` returns without
+        // tokens, fail closed instead of force-unwrapping a null.
+        final accessToken = outcome.accessToken;
+        final refreshToken = outcome.refreshToken;
+        if (accessToken == null || refreshToken == null) {
+          _sessionBloc
+              .add(const LoginAttemptFailed(reasonCode: 'identity.gap'));
+          emit(const LoginFailure('identity.gap'));
+          return;
+        }
         _sessionBloc.add(LoginRequested(
-          accessToken: outcome.accessToken!,
-          refreshToken: outcome.refreshToken!,
+          accessToken: accessToken,
+          refreshToken: refreshToken,
           customerId: outcome.customerId,
           email: outcome.email,
           displayName: outcome.displayName,

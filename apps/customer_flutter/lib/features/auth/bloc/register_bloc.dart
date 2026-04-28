@@ -76,9 +76,15 @@ class RegisterBloc extends Bloc<RegisterEvent, RegisterState> {
         return;
       }
       if (outcome.ok) {
+        final accessToken = outcome.accessToken;
+        final refreshToken = outcome.refreshToken;
+        if (accessToken == null || refreshToken == null) {
+          emit(const RegisterFailure('identity.gap'));
+          return;
+        }
         _sessionBloc.add(LoginRequested(
-          accessToken: outcome.accessToken!,
-          refreshToken: outcome.refreshToken!,
+          accessToken: accessToken,
+          refreshToken: refreshToken,
           customerId: outcome.customerId,
           email: outcome.email,
           displayName: outcome.displayName,

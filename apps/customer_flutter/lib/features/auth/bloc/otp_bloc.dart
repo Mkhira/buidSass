@@ -9,6 +9,11 @@ import '../data/auth_repository.dart';
 
 const _otpStateKey = 'auth.otp_resend_deadline';
 
+// Sentinel used by copyWith to distinguish "caller did not pass
+// errorReason" from "caller explicitly cleared errorReason to null".
+// Without this, a tick would silently wipe an active error banner.
+const Object _keepErrorReason = Object();
+
 @immutable
 class OtpState {
   const OtpState({
@@ -29,14 +34,16 @@ class OtpState {
     OtpChallenge? challenge,
     int? resendInSeconds,
     bool? submitting,
-    String? errorReason,
+    Object? errorReason = _keepErrorReason,
     bool? success,
   }) {
     return OtpState(
       challenge: challenge ?? this.challenge,
       resendInSeconds: resendInSeconds ?? this.resendInSeconds,
       submitting: submitting ?? this.submitting,
-      errorReason: errorReason,
+      errorReason: identical(errorReason, _keepErrorReason)
+          ? this.errorReason
+          : errorReason as String?,
       success: success ?? this.success,
     );
   }
@@ -109,8 +116,12 @@ class OtpBloc extends Bloc<OtpEvent, OtpState> {
       if (deadline == null) return;
       final remaining =
           (deadline - DateTime.now().millisecondsSinceEpoch) ~/ 1000;
-      if (remaining > 0 && !isClosed) {
-        add(_OtpRestored(remaining));
+      // Always apply the persisted deadline — including expired ones,
+      // which clamp to 0 — so a saved cooldown can never leave a
+      // stale `initial.retryAfterSeconds` countdown active longer
+      // than the persisted expiry.
+      if (!isClosed) {
+        add(_OtpRestored(remaining > 0 ? remaining : 0));
       }
     } on Object {
       // Storage read failed — keep the in-memory countdown the bloc was
@@ -119,7 +130,7 @@ class OtpBloc extends Bloc<OtpEvent, OtpState> {
   }
 
   void _onRestored(_OtpRestored event, Emitter<OtpState> emit) {
-    if (event.remainingSeconds > state.resendInSeconds) {
+    if (event.remainingSeconds != state.resendInSeconds) {
       emit(state.copyWith(resendInSeconds: event.remainingSeconds));
     }
   }
@@ -152,8 +163,11 @@ class OtpBloc extends Bloc<OtpEvent, OtpState> {
         resendInSeconds: fresh.retryAfterSeconds,
       ));
       await _persistDeadline(fresh.retryAfterSeconds);
-    } on Object catch (e) {
-      emit(state.copyWith(errorReason: e.toString()));
+    } on Object catch (e, st) {
+      if (kDebugMode) {
+        debugPrint('OtpBloc resend exception: $e\n$st');
+      }
+      emit(state.copyWith(errorReason: 'identity.gap'));
     }
   }
 
@@ -195,8 +209,11 @@ class OtpBloc extends Bloc<OtpEvent, OtpState> {
           errorReason: outcome.reasonCode ?? 'unknown',
         ));
       }
-    } on Object catch (e) {
-      emit(state.copyWith(submitting: false, errorReason: e.toString()));
+    } on Object catch (e, st) {
+      if (kDebugMode) {
+        debugPrint('OtpBloc submit exception: $e\n$st');
+      }
+      emit(state.copyWith(submitting: false, errorReason: 'identity.gap'));
     }
   }
 

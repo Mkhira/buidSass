@@ -94,8 +94,11 @@ class RegisterBloc extends Bloc<RegisterEvent, RegisterState> {
       } else {
         emit(RegisterFailure(outcome.reasonCode ?? 'unknown'));
       }
-    } on Object catch (e) {
-      emit(RegisterFailure(e.toString()));
+    } on Object catch (e, st) {
+      if (kDebugMode) {
+        debugPrint('RegisterBloc exception: $e\n$st');
+      }
+      emit(const RegisterFailure('identity.gap'));
     }
   }
 }

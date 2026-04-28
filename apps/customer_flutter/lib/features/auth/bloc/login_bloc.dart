@@ -95,9 +95,16 @@ class LoginBloc extends Bloc<LoginEvent, LoginState> {
             LoginAttemptFailed(reasonCode: outcome.reasonCode ?? 'unknown'));
         emit(LoginFailure(outcome.reasonCode ?? 'unknown'));
       }
-    } on Object catch (e) {
+    } on Object catch (e, st) {
+      // Never propagate raw exception text into the UI/state — it
+      // breaks reason-code mapping and can leak English-only or
+      // internal messages. Surface a canonical code; raw error stays
+      // in debug logs only.
+      if (kDebugMode) {
+        debugPrint('LoginBloc exception: $e\n$st');
+      }
       _sessionBloc.add(const LoginAttemptFailed(reasonCode: 'identity.gap'));
-      emit(LoginFailure(e.toString()));
+      emit(const LoginFailure('identity.gap'));
     }
   }
 }

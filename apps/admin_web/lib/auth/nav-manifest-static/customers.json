@@ -1,0 +1,17 @@
+{
+  "groupId": "customers",
+  "labelKey": "nav.group.customers",
+  "iconKey": "users",
+  "order": 500,
+  "entries": [
+    {
+      "id": "customers-list",
+      "labelKey": "nav.entry.customers_list",
+      "iconKey": "list",
+      "route": "/customers",
+      "requiredPermissions": ["customers.read"],
+      "order": 510,
+      "badgeCountKey": null
+    }
+  ]
+}

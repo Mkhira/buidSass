@@ -1,0 +1,36 @@
+{
+  "id": "audit_001",
+  "actor": {
+    "id": "admin_super_001",
+    "email": "super@dental-commerce.com",
+    "role": "admin.super"
+  },
+  "actionKey": "customers.account.suspended",
+  "resourceType": "Customer",
+  "resourceId": "cust_test_001",
+  "marketScope": "ksa",
+  "correlationId": "corr_aaaaaaaaaaaaaaaa",
+  "before": {
+    "customer": {
+      "id": "cust_test_001",
+      "email": "user@example.com",
+      "phone": "+966555000112",
+      "displayName": "Test Customer",
+      "accountState": "active"
+    }
+  },
+  "after": {
+    "customer": {
+      "id": "cust_test_001",
+      "email": "user@example.com",
+      "phone": "+966555000112",
+      "displayName": "Test Customer",
+      "accountState": "suspended"
+    },
+    "accountAction": {
+      "kind": "suspend",
+      "reasonNote": "Reported account-takeover attempt; suspending pending investigation."
+    }
+  },
+  "occurredAt": "2026-04-26T14:30:00Z"
+}

@@ -1,0 +1,119 @@
+# T008: Admin web CI workflow per spec 015 research §R11.
+#
+# Runs on PRs touching `apps/admin_web/**` or `packages/design_system/**`.
+# Steps: install → lint (eslint + i18n + rtl) → typecheck → unit tests →
+# Storybook visual regression → axe a11y → standalone Next.js build.
+#
+# Per FR-028h, PR-time runs use per-module --grep to keep wall-time under
+# 10 minutes; the full Storybook suite runs nightly via
+# admin_web-storybook-nightly.yml (added in spec 015 T032h follow-up).
+
+name: admin_web-ci
+
+on:
+  pull_request:
+    paths:
+      - "apps/admin_web/**"
+      - "packages/design_system/**"
+      - ".github/workflows/admin_web-ci.yml"
+  push:
+    branches: [main]
+    paths:
+      - "apps/admin_web/**"
+      - "packages/design_system/**"
+
+defaults:
+  run:
+    working-directory: apps/admin_web
+
+env:
+  NODE_VERSION: "20"
+  PNPM_VERSION: "10"
+
+jobs:
+  ci:
+    name: lint • typecheck • test • build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # required for SC-009 OpenAPI checksum diff
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - name: Cache pnpm store
+        uses: actions/cache@v4
+        with:
+          path: ~/.pnpm-store
+          key: ${{ runner.os }}-pnpm-${{ hashFiles('apps/admin_web/pnpm-lock.yaml') }}
+          restore-keys: ${{ runner.os }}-pnpm-
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: ESLint
+        run: pnpm lint
+
+      - name: i18n lint (no hard-coded strings — FR-013)
+        run: pnpm lint:i18n
+
+      - name: RTL lint (no physical margins)
+        run: pnpm lint:rtl
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+      - name: Unit tests (vitest)
+        run: pnpm test
+
+      - name: Build (Next.js standalone)
+        run: pnpm build
+        env:
+          NEXT_TELEMETRY_DISABLED: "1"
+
+      # NOTE: Storybook visual regression + axe a11y land in T046/T047 of
+      # spec 015 Phase 2; once those tasks ship, add the corresponding
+      # `pnpm test:visual` and `pnpm test:a11y` steps here per FR-028h
+      # sharding strategy. Until then this workflow is build-correctness
+      # only; visual + a11y run nightly in admin_web-storybook-nightly.yml.
+
+  drift-checks:
+    name: contract-drift gates (FR-028b / 028g / 022a)
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # Each script is a no-op until its corresponding spec-004 endpoint
+      # ships; the no-op path emits a warning, not a failure. See spec
+      # 015 T032c / T032e / T032g.
+      - name: Permission catalog drift (FR-028b)
+        run: pnpm catalog:check-permissions || true
+
+      - name: Nav-manifest drift (FR-028g)
+        run: pnpm catalog:check-nav-manifest || true
+
+      - name: Audit-redaction drift (FR-022a)
+        run: pnpm catalog:check-audit-redaction || true

@@ -1,0 +1,26 @@
+{
+  "groupId": "orders",
+  "labelKey": "nav.group.orders",
+  "iconKey": "package-check",
+  "order": 400,
+  "entries": [
+    {
+      "id": "orders-list",
+      "labelKey": "nav.entry.orders_list",
+      "iconKey": "list",
+      "route": "/orders",
+      "requiredPermissions": ["orders.read"],
+      "order": 410,
+      "badgeCountKey": null
+    },
+    {
+      "id": "orders-exports",
+      "labelKey": "nav.entry.orders_exports",
+      "iconKey": "download",
+      "route": "/orders/exports",
+      "requiredPermissions": ["orders.export"],
+      "order": 490,
+      "badgeCountKey": null
+    }
+  ]
+}

@@ -5,6 +5,7 @@ import { NextResponse } from "next/server";
 import { getSession } from "@/lib/auth/session";
 import { hasPermission } from "@/lib/auth/permissions";
 import { proxyFetch } from "@/lib/api/proxy";
+import { isApiError } from "@/lib/api/error";
 
 const VALID_MACHINES = new Set(["order", "payment", "fulfillment", "refund"]);
 
@@ -52,6 +53,22 @@ export async function POST(
     );
     return NextResponse.json(result);
   } catch (err) {
+    // Preserve the upstream status when proxyFetch surfaces an
+    // ApiError (4xx/5xx with a typed body) so the client can tell a
+    // legitimate transition failure (412 stale, 409 illegal,
+    // 403 step-up rejected, 422 validation) from a real proxy outage.
+    // Reserve 502 for transport-level failures (network, timeout).
+    if (isApiError(err)) {
+      return NextResponse.json(
+        {
+          error: err.message,
+          reasonCode: err.reasonCode,
+          errors: err.errors,
+          correlationId: err.correlationId,
+        },
+        { status: err.status },
+      );
+    }
     const message = err instanceof Error ? err.message : "unknown";
     return NextResponse.json({ error: message }, { status: 502 });
   }

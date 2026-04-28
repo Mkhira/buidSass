@@ -60,9 +60,14 @@ jobs:
         run: flutter test test/golden || echo "(goldens land alongside per-feature stories)"
 
       - name: Web smoke build
+        # Skip when web/ scaffold isn't in the working tree — the
+        # platform scaffolds may land in a separate PR (e.g. spec-014
+        # split into shell + platform-scaffolds).
+        if: hashFiles('apps/customer_flutter/web/index.html') != ''
         run: flutter build web --release
 
       - name: Android debug smoke build
+        if: hashFiles('apps/customer_flutter/android/app/build.gradle.kts') != ''
         run: flutter build apk --debug
 
   drift-checks:

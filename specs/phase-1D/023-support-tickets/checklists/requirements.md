@@ -34,7 +34,7 @@
 - 7 prioritised user stories (4 P1, 2 P2, 1 P3) covering: customer ticket creation + reply loop; agent queue + claim concurrency; ticket → return-request conversion + bidirectional event handling; SLA breach detection + lead reassignment; internal-note vs reply visibility; customer reopen flow + window/cap; `support-v1` seeder.
 - 41 functional requirements organised across 11 sub-sections (lifecycle / state model · customer creation · replies + attachments · queue + assignment + triage · SLA timers · cross-module linkage + conversion · audit · bilingual + RTL · notifications · multi-vendor readiness · operational safeguards).
 - 11 measurable success criteria.
-- Cross-module integration is contract-stub-friendly: every owning module is named via `IXxxLinkedReadContract` interfaces declared in `Modules/Shared/` (project pattern from specs 020 / 021 / 022).
+- Cross-module integration is contract-stub-friendly: every owning module is reached through a per-kind read contract declared in `Modules/Shared/` (`IOrderLinkedReadContract`, `IReturnLinkedReadContract`, `IQuoteLinkedReadContract`, `IReviewLinkedReadContract`, `IVerificationLinkedReadContract`); project pattern from specs 020 / 021 / 022.
 - Multi-vendor readiness via nullable `vendor_id` column (Principle 6).
 - Bilingual end-to-end with FR-032 / FR-033 (Principle 4); no machine-translation ever (Out of Scope).
 - Hard-delete forbidden (FR-005a-style preservation; consistent with specs 007-b / 022).

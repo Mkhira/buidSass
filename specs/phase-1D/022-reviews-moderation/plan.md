@@ -83,7 +83,7 @@ State writes use EF Core optimistic concurrency via Postgres `xmin` mapped as `I
 - **AR editorial**: every system-generated customer-visible string (reason codes, `Original written in {locale}` annotation, queue messages, notification copy) MUST have both `ar` and `en` ICU keys; AR strings flagged in `AR_EDITORIAL_REVIEW.md`.
 - **Single-locale review content**: customer-supplied headline + body are stored in the customer's authoring `locale` only; 022 MUST NOT auto-translate (Principle 4).
 
-**Scale/Scope**: ~22 HTTP endpoints (customer: 6, customer reports: 2, admin moderation: 6, admin notes: 2, admin policy: 4, lookups: 1, aggregate read: 1). **46 functional requirements** (FR-001–FR-042 plus FR-003a, FR-005a, FR-014a, FR-016a interleaved). 10 SCs. 7 key entities + 1 read-side aggregate. 1 five-state lifecycle. 7 net-new tables. 2 hosted workers. 8 lifecycle domain events. Target capacity at V1 launch: 5 000 reviews / day across both markets at steady state, peaks of 50 concurrent submissions, 100 concurrent storefront aggregate reads / second per market, 5 active moderators on the queue at any given time.
+**Scale/Scope**: ~22 HTTP endpoints (customer: 6, customer reports: 2, admin moderation: 6, admin notes: 2, admin policy: 4, lookups: 1, aggregate read: 1). **45 functional requirements** (FR-001–FR-042 with 3 alphas: FR-005a, FR-014a, FR-016a). 10 SCs. 7 key entities + 1 read-side aggregate. 1 five-state lifecycle. 7 net-new tables. 2 hosted workers. 8 lifecycle domain events. Target capacity at V1 launch: 5 000 reviews / day across both markets at steady state, peaks of 50 concurrent submissions, 100 concurrent storefront aggregate reads / second per market, 5 active moderators on the queue at any given time.
 
 ## Constitution Check
 

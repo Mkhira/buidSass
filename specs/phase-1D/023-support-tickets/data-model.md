@@ -378,7 +378,7 @@ All events are `INotification` records on the existing in-process MediatR bus, d
 | Category ∈ 10 fixed values | FR-007 | enum validation |
 | Priority ∈ {low, normal} for customer-side; {high, urgent} require lead override | FR-006 | OpenTicket; lead-only attribute on priority-elevation endpoint |
 | Linked entity kind consistent with category | FR-007 | OpenTicket validator + RetagCategory validator |
-| Linked entity ownership | FR-008 | per-kind `IXxxLinkedReadContract.IsOwnedByActor` |
+| Linked entity ownership | FR-008 | per-kind read contract's `IsOwnedByActor` (`IOrderLinkedReadContract`, `IReturnLinkedReadContract`, `IQuoteLinkedReadContract`, `IReviewLinkedReadContract`, `IVerificationLinkedReadContract`) |
 | Reopen window: `now() - resolved_at_utc ≤ reopen_window_days` AND `reopen_count < max_reopen_count` AND `reopen_window_days > 0` | FR-029 | ReopenTicket validator |
 | Idempotency-Key required on creation, reply, conversion, reopen | FR-040 | spec 003 platform middleware |
 | Customer rate-limits: 5 / hour creation, 30 / hour reply per ticket | FR-010 | spec 015 rate-limit middleware |

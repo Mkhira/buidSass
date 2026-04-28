@@ -370,7 +370,11 @@ Generated to `services/backend_api/openapi.reviews.json` via `dotnet swagger tof
 
 ## 10. Reason-code inventory (canonical list)
 
-ICU keys live in `Modules/Reviews/Messages/reviews.{en,ar}.icu`. ~35 owned codes:
+ICU keys live in `Modules/Reviews/Messages/reviews.{en,ar}.icu`. ~35 owned codes.
+
+**Namespace convention** (deliberate; not drift): codes prefixed `review.*` describe entity-level actions on a single `Review` row (e.g., `review.submitted`, `review.flagged`, `review.deleted` — these double as audit-event kinds). Codes prefixed `reviews.*` describe module-level concerns: RBAC role names (`reviews.moderator`, `reviews.policy_admin`), market-schema operations (`reviews.market_schema_updated`), and wordlist administration (`reviews.wordlist.term_upserted`, `reviews.wordlist.term_deleted`). Same pattern as `pricing.*` (module) vs `coupon.*` (entity) in spec 007-b.
+
+
 
 ```
 review.eligibility.no_delivered_purchase

@@ -63,7 +63,7 @@ A `verification_eligibility_cache` materialized projection (Postgres `CREATE TAB
 - **Worker idempotency**: expiry / reminder / purge workers are safe to re-run within a single window — FR-019 guarantees no duplicate reminders; expiry transition is a no-op if already in `expired`; purge is a no-op past `purge_after`.
 - **Time source**: every state transition reads `TimeProvider.System.GetUtcNow()`; tests inject `FakeTimeProvider`. No `DateTime.UtcNow` in this module.
 
-**Scale/Scope**: ~14 HTTP endpoints (8 customer, 6 admin), 39 functional requirements, 11 SCs, 6 key entities, 1 state machine, 5 tables + 1 projection, 3 hosted workers. Target capacity: 5,000 pending verifications per market, 200 concurrent submission writes, 50 concurrent reviewer queue reads, 1M eligibility-query calls per day across catalog/cart/checkout.
+**Scale/Scope**: ~14 HTTP endpoints (8 customer, 6 admin), 44 functional requirements (FR-001–FR-039 with 5 alphas: FR-006a, FR-006b, FR-015a, FR-016a, FR-016b), 11 SCs, 6 key entities, 1 state machine, 5 tables + 1 projection, 3 hosted workers. Target capacity: 5,000 pending verifications per market, 200 concurrent submission writes, 50 concurrent reviewer queue reads, 1M eligibility-query calls per day across catalog/cart/checkout.
 
 ## Constitution Check
 

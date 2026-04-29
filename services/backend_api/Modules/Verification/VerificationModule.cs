@@ -8,6 +8,10 @@ using BackendApi.Modules.Verification.Admin.DecideRevoke;
 using BackendApi.Modules.Verification.Admin.GetVerificationDetail;
 using BackendApi.Modules.Verification.Admin.ListVerificationQueue;
 using BackendApi.Modules.Verification.Admin.OpenHistoricalDocument;
+using BackendApi.Modules.Verification.Customer.AttachDocument;
+using BackendApi.Modules.Verification.Customer.GetMyActiveVerification;
+using BackendApi.Modules.Verification.Customer.GetMyVerification;
+using BackendApi.Modules.Verification.Customer.ListMyVerifications;
 using BackendApi.Modules.Verification.Customer.SubmitVerification;
 using BackendApi.Modules.Verification.Eligibility;
 using BackendApi.Modules.Verification.Persistence;
@@ -75,6 +79,10 @@ public static class VerificationModule
         // Phase 3 — customer slice handlers.
         services.AddScoped<EligibilityCacheInvalidator>();
         services.AddScoped<SubmitVerificationHandler>();
+        services.AddScoped<GetMyActiveVerificationHandler>();
+        services.AddScoped<ListMyVerificationsHandler>();
+        services.AddScoped<GetMyVerificationHandler>();
+        services.AddScoped<AttachDocumentHandler>();
 
         // Phase 4 / US2 — reviewer slice handlers.
         services.AddScoped<ListVerificationQueueHandler>();
@@ -107,6 +115,10 @@ public static class VerificationModule
     {
         var customer = endpoints.MapGroup("/api/customer/verifications");
         customer.MapSubmitVerificationEndpoint();
+        customer.MapGetMyActiveVerificationEndpoint();
+        customer.MapListMyVerificationsEndpoint();
+        customer.MapGetMyVerificationEndpoint();
+        customer.MapAttachDocumentEndpoint();
 
         var admin = endpoints.MapGroup("/api/admin/verifications");
         admin.MapListVerificationQueueEndpoint();

@@ -50,13 +50,13 @@ description: "Phase-1D Spec 020 — Professional Verification: dependency-ordere
 
 ### Primitives
 
-- [ ] T007 [P] Create `services/backend_api/Modules/Verification/Primitives/VerificationState.cs` enum: `Submitted, InReview, Approved, Rejected, InfoRequested, Expired, Revoked, Superseded, Void` (per [data-model.md §3.1](./data-model.md))
-- [ ] T008 [P] Create `services/backend_api/Modules/Verification/Primitives/VerificationActorKind.cs` enum: `Customer, Reviewer, System`
-- [ ] T009 [P] Create `services/backend_api/Modules/Verification/Primitives/VerificationReasonCode.cs` enum + ICU-key mapper for every customer-visible reason (full enum listed in [contracts/verification-contract.md §7](./contracts/verification-contract.md))
-- [ ] T010 [P] Create `services/backend_api/Modules/Verification/Primitives/EligibilityReasonCode.cs` enum + `EligibilityClass` enum + `EligibilityResult` record (per [data-model.md §4](./data-model.md) and [contracts/verification-contract.md §4.1](./contracts/verification-contract.md))
-- [ ] T011 [P] Create `services/backend_api/Modules/Verification/Primitives/VerificationStateMachine.cs`: `CanTransition(from, to, actorKind)` predicate enforcing every allowed transition + every forbidden transition listed in [data-model.md §3.2](./data-model.md); single-method API; pure, no DI
-- [ ] T012 [P] Create `services/backend_api/Modules/Verification/Primitives/BusinessDayCalculator.cs`: `AddBusinessDays(start, businessDays, weekendDays, holidaysList)` pure function; weekend defaulted to Sun–Thu working week (research.md §R2)
-- [ ] T013 [P] Create `services/backend_api/Modules/Verification/Primitives/VerificationMarketPolicy.cs` value-object resolved from a `VerificationMarketSchema` row (retention, cooldown, expiry, reminder windows, SLA bounds, holidays, allowed document types, required-fields schema)
+- [X] T007 [P] Create `services/backend_api/Modules/Verification/Primitives/VerificationState.cs` enum: `Submitted, InReview, Approved, Rejected, InfoRequested, Expired, Revoked, Superseded, Void` (per [data-model.md §3.1](./data-model.md))
+- [X] T008 [P] Create `services/backend_api/Modules/Verification/Primitives/VerificationActorKind.cs` enum: `Customer, Reviewer, System`
+- [X] T009 [P] Create `services/backend_api/Modules/Verification/Primitives/VerificationReasonCode.cs` enum + ICU-key mapper for every customer-visible reason (full enum listed in [contracts/verification-contract.md §7](./contracts/verification-contract.md))
+- [X] T010 [P] Create `services/backend_api/Modules/Verification/Primitives/EligibilityReasonCode.cs` enum + `EligibilityClass` enum + `EligibilityResult` record (per [data-model.md §4](./data-model.md) and [contracts/verification-contract.md §4.1](./contracts/verification-contract.md))
+- [X] T011 [P] Create `services/backend_api/Modules/Verification/Primitives/VerificationStateMachine.cs`: `CanTransition(from, to, actorKind)` predicate enforcing every allowed transition + every forbidden transition listed in [data-model.md §3.2](./data-model.md); single-method API; pure, no DI
+- [X] T012 [P] Create `services/backend_api/Modules/Verification/Primitives/BusinessDayCalculator.cs`: `AddBusinessDays(start, businessDays, weekendDays, holidaysList)` pure function; weekend defaulted to Sun–Thu working week (research.md §R2)
+- [X] T013 [P] Create `services/backend_api/Modules/Verification/Primitives/VerificationMarketPolicy.cs` value-object resolved from a `VerificationMarketSchema` row (retention, cooldown, expiry, reminder windows, SLA bounds, holidays, allowed document types, required-fields schema)
 
 #### Foundational unit tests
 
@@ -84,17 +84,17 @@ description: "Phase-1D Spec 020 — Professional Verification: dependency-ordere
 
 ### Cross-module hooks (live in `Modules/Shared/`)
 
-- [ ] T032 [P] Create `services/backend_api/Modules/Shared/ICustomerVerificationEligibilityQuery.cs` with `EvaluateAsync` + `EvaluateManyAsync` signatures from [contracts §4.1](./contracts/verification-contract.md); add XML doc with the SC-004 latency budget (p95 ≤ 5 ms)
-- [ ] T033 [P] Create `services/backend_api/Modules/Shared/ICustomerAccountLifecycleSubscriber.cs` + the three event records (`CustomerAccountLocked`, `CustomerAccountDeleted`, `CustomerMarketChanged`) per [contracts §4.2](./contracts/verification-contract.md)
-- [ ] T034 [P] Create `services/backend_api/Modules/Shared/IProductRestrictionPolicy.cs` + `ProductRestrictionPolicy` record per [contracts §4.3](./contracts/verification-contract.md). Implementation owned by spec 005 — declare here so 020 can consume without cycle (project-memory rule)
-- [ ] T035 [P] Create `services/backend_api/Modules/Shared/IRegulatorAssistLookup.cs` + `RegulatorAssistResult` record per [contracts §4.4](./contracts/verification-contract.md); add `NullRegulatorAssistLookup` returning `null` and register as default DI binding (FR-016a / FR-016b)
-- [ ] T036 [P] Create `services/backend_api/Modules/Shared/VerificationDomainEvents.cs` with all eight records from [data-model.md §6](./data-model.md): `VerificationApproved`, `VerificationRejected`, `VerificationInfoRequested`, `VerificationRevoked`, `VerificationExpired`, `VerificationReminderDue`, `VerificationSuperseded`, `VerificationVoided`
+- [X] T032 [P] Create `services/backend_api/Modules/Shared/ICustomerVerificationEligibilityQuery.cs` with `EvaluateAsync` + `EvaluateManyAsync` signatures from [contracts §4.1](./contracts/verification-contract.md); add XML doc with the SC-004 latency budget (p95 ≤ 5 ms)
+- [X] T033 [P] Create `services/backend_api/Modules/Shared/ICustomerAccountLifecycleSubscriber.cs` + the three event records (`CustomerAccountLocked`, `CustomerAccountDeleted`, `CustomerMarketChanged`) per [contracts §4.2](./contracts/verification-contract.md)
+- [X] T034 [P] Create `services/backend_api/Modules/Shared/IProductRestrictionPolicy.cs` + `ProductRestrictionPolicy` record per [contracts §4.3](./contracts/verification-contract.md). Implementation owned by spec 005 — declare here so 020 can consume without cycle (project-memory rule)
+- [X] T035 [P] Create `services/backend_api/Modules/Shared/IRegulatorAssistLookup.cs` + `RegulatorAssistResult` record per [contracts §4.4](./contracts/verification-contract.md); add `NullRegulatorAssistLookup` returning `null` and register as default DI binding (FR-016a / FR-016b)
+- [X] T036 [P] Create `services/backend_api/Modules/Shared/VerificationDomainEvents.cs` with all eight records from [data-model.md §6](./data-model.md): `VerificationApproved`, `VerificationRejected`, `VerificationInfoRequested`, `VerificationRevoked`, `VerificationExpired`, `VerificationReminderDue`, `VerificationSuperseded`, `VerificationVoided`
 - [ ] T037 Create `services/backend_api/Modules/Verification/Eligibility/EligibilityCacheInvalidator.cs` with `RebuildAsync(customerId, dbContext, ct)` reading authoritative state and UPSERTing `verification_eligibility_cache` (no I/O outside the passed `DbContext`); to be called inside every state-transition Tx
 
 ### Authorization + audit chokepoint
 
-- [ ] T038 [P] Create `services/backend_api/Modules/Verification/Authorization/VerificationPermissions.cs` with constants `verification.review`, `verification.revoke`, `verification.read_pii`, `verification.read_summary` (per [research.md §R9](./research.md))
-- [ ] T039 [P] Create `services/backend_api/Modules/Verification/Primitives/IPiiAccessRecorder.cs` + `PiiAccessRecorder` impl writing `verification.pii_access` events via `IAuditEventPublisher` per [research.md §R13](./research.md)
+- [X] T038 [P] Create `services/backend_api/Modules/Verification/Authorization/VerificationPermissions.cs` with constants `verification.review`, `verification.revoke`, `verification.read_pii`, `verification.read_summary` (per [research.md §R9](./research.md))
+- [X] T039 [P] Create `services/backend_api/Modules/Verification/Primitives/IPiiAccessRecorder.cs` + `PiiAccessRecorder` impl writing `verification.pii_access` events via `IAuditEventPublisher` per [research.md §R13](./research.md)
 
 ### Reference data seed
 

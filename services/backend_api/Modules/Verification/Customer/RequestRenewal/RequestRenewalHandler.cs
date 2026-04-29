@@ -5,6 +5,7 @@ using BackendApi.Modules.Verification.Persistence;
 using BackendApi.Modules.Verification.Primitives;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using Npgsql;
 
 namespace BackendApi.Modules.Verification.Customer.RequestRenewal;
 
@@ -32,12 +33,6 @@ public sealed class RequestRenewalHandler(
     TimeProvider clock,
     ILogger<RequestRenewalHandler> logger)
 {
-    public Task<RenewalResult> HandleAsync(
-        Guid customerId,
-        RequestRenewalRequest request,
-        CancellationToken ct)
-        => HandleAsync(customerId, marketCode: "ksa", request, ct);
-
     public async Task<RenewalResult> HandleAsync(
         Guid customerId,
         string marketCode,
@@ -81,7 +76,18 @@ public sealed class RequestRenewalHandler(
         var earliestReminderDays = ParseEarliestReminderWindowDays(
             approvalSchema?.ReminderWindowsDaysJson);
 
-        var renewalOpensAt = approval.ExpiresAt.Value.AddDays(-earliestReminderDays);
+        if (earliestReminderDays is null)
+        {
+            // Fail closed when reminder-window config is missing/malformed —
+            // market policy MUST drive this decision (Principle 5). Without a
+            // valid window we'd be guessing, which can open or close renewals
+            // for entire market cohorts on bad data.
+            return RenewalResult.Fail(
+                VerificationReasonCode.MarketUnsupported,
+                "Reminder-window policy is not configured for this market schema.");
+        }
+
+        var renewalOpensAt = approval.ExpiresAt.Value.AddDays(-earliestReminderDays.Value);
         if (nowUtc < renewalOpensAt)
         {
             return RenewalResult.Fail(
@@ -171,7 +177,21 @@ public sealed class RequestRenewalHandler(
             OccurredAt = nowUtc,
         });
 
-        await db.SaveChangesAsync(ct);
+        try
+        {
+            await db.SaveChangesAsync(ct);
+        }
+        catch (DbUpdateException ex) when (IsPendingRenewalUniqueViolation(ex))
+        {
+            // Concurrent RequestRenewal — the partial unique index
+            // UX_verifications_one_pending_renewal_per_approval rejected the
+            // second insert. Translate to RenewalAlreadyPending so the caller
+            // gets the same response as the AnyAsync pre-check would have
+            // produced.
+            return RenewalResult.Fail(
+                VerificationReasonCode.RenewalAlreadyPending,
+                "A non-terminal renewal already exists for this approval (concurrent request).");
+        }
 
         try
         {
@@ -206,29 +226,45 @@ public sealed class RequestRenewalHandler(
             SubmittedAt: nowUtc));
     }
 
-    private static int ParseEarliestReminderWindowDays(string? reminderWindowsJson)
+    private static bool IsPendingRenewalUniqueViolation(DbUpdateException ex)
+    {
+        if (ex.InnerException is not PostgresException pg) return false;
+        if (pg.SqlState != PostgresErrorCodes.UniqueViolation) return false;
+        // The constraint name comes through in pg.ConstraintName on Npgsql; we
+        // match by suffix to keep this resilient across schema-qualified names.
+        return pg.ConstraintName is not null
+            && pg.ConstraintName.EndsWith("UX_verifications_one_pending_renewal_per_approval", StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    /// Returns the largest reminder window from the schema's
+    /// <c>reminder_windows_days</c> jsonb. Returns <c>null</c> when the config is
+    /// missing, malformed, empty, or contains no positive value — caller MUST
+    /// fail closed (Principle 5: market behavior driven by configuration).
+    /// </summary>
+    private static int? ParseEarliestReminderWindowDays(string? reminderWindowsJson)
     {
         if (string.IsNullOrWhiteSpace(reminderWindowsJson))
         {
-            return 30;
+            return null;
         }
         try
         {
             var arr = JsonSerializer.Deserialize<int[]>(reminderWindowsJson);
             if (arr is null || arr.Length == 0)
             {
-                return 30;
+                return null;
             }
             var max = 0;
             foreach (var d in arr)
             {
                 if (d > max) max = d;
             }
-            return max == 0 ? 30 : max;
+            return max <= 0 ? null : max;
         }
         catch (JsonException)
         {
-            return 30;
+            return null;
         }
     }
 }

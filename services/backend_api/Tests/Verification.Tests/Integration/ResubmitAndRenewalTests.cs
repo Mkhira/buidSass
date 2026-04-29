@@ -227,7 +227,7 @@ public sealed class ResubmitAndRenewalTests : IAsyncLifetime
             NullLogger<RequestRenewalHandler>.Instance);
 
         var result = await handler.HandleAsync(
-            customerId, new RequestRenewalRequest(null, null), CancellationToken.None);
+            customerId, "ksa", new RequestRenewalRequest(null, null), CancellationToken.None);
 
         result.IsSuccess.Should().BeFalse();
         result.ReasonCode.Should().Be(VerificationReasonCode.RenewalNotEligible);
@@ -249,7 +249,7 @@ public sealed class ResubmitAndRenewalTests : IAsyncLifetime
             NullLogger<RequestRenewalHandler>.Instance);
 
         var result = await handler.HandleAsync(
-            customerId, new RequestRenewalRequest(null, null), CancellationToken.None);
+            customerId, "ksa", new RequestRenewalRequest(null, null), CancellationToken.None);
 
         result.IsSuccess.Should().BeTrue();
         result.Response!.SupersedesId.Should().Be(verificationId);
@@ -279,7 +279,7 @@ public sealed class ResubmitAndRenewalTests : IAsyncLifetime
             NullLogger<RequestRenewalHandler>.Instance);
 
         var result = await handler.HandleAsync(
-            customerId, new RequestRenewalRequest(null, null), CancellationToken.None);
+            customerId, "ksa", new RequestRenewalRequest(null, null), CancellationToken.None);
 
         result.IsSuccess.Should().BeTrue();
 
@@ -304,7 +304,7 @@ public sealed class ResubmitAndRenewalTests : IAsyncLifetime
                 new FakeTimeProvider(snapshot),
                 NullLogger<RequestRenewalHandler>.Instance);
             var first = await handler.HandleAsync(
-                customerId, new RequestRenewalRequest(null, null), CancellationToken.None);
+                customerId, "ksa", new RequestRenewalRequest(null, null), CancellationToken.None);
             first.IsSuccess.Should().BeTrue();
         }
 
@@ -315,7 +315,7 @@ public sealed class ResubmitAndRenewalTests : IAsyncLifetime
                 new FakeTimeProvider(snapshot.AddDays(1)),
                 NullLogger<RequestRenewalHandler>.Instance);
             var second = await handler.HandleAsync(
-                customerId, new RequestRenewalRequest(null, null), CancellationToken.None);
+                customerId, "ksa", new RequestRenewalRequest(null, null), CancellationToken.None);
 
             second.IsSuccess.Should().BeFalse();
             second.ReasonCode.Should().Be(VerificationReasonCode.RenewalAlreadyPending);
@@ -333,7 +333,7 @@ public sealed class ResubmitAndRenewalTests : IAsyncLifetime
             new FakeTimeProvider(DateTimeOffset.UtcNow),
             NullLogger<RequestRenewalHandler>.Instance);
         var result = await handler.HandleAsync(
-            customerId, new RequestRenewalRequest(null, null), CancellationToken.None);
+            customerId, "ksa", new RequestRenewalRequest(null, null), CancellationToken.None);
 
         result.IsSuccess.Should().BeFalse();
         result.ReasonCode.Should().Be(VerificationReasonCode.RenewalNotEligible);

@@ -109,6 +109,18 @@ public sealed class AttachDocumentHandler(
                 $"Document size {request.SizeBytes} exceeds the maximum of {MaxBytesPerDocument} bytes.");
         }
 
+        // Concurrency-safe count + aggregate gates: lock the parent verification
+        // row FOR UPDATE, then recompute existing-active size/count inside the
+        // same transaction. Without the lock two concurrent attaches can both
+        // observe the same existingActive snapshot and both pass the gates,
+        // leaving the row over the per-verification cap.
+        await using var tx = await db.Database.BeginTransactionAsync(ct);
+
+        await db.Database.ExecuteSqlRawAsync(
+            "SELECT \"Id\" FROM verification.verifications WHERE \"Id\" = {0} FOR UPDATE;",
+            parameters: new object[] { verificationId },
+            cancellationToken: ct);
+
         var existingActive = await db.Documents
             .Where(d => d.VerificationId == verificationId && d.PurgedAt == null)
             .Select(d => new { d.SizeBytes })
@@ -174,6 +186,7 @@ public sealed class AttachDocumentHandler(
         verification.UpdatedAt = nowUtc;
 
         await db.SaveChangesAsync(ct);
+        await tx.CommitAsync(ct);
 
         if (scanStatus == "pending")
         {

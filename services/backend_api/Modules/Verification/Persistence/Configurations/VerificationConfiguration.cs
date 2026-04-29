@@ -60,6 +60,13 @@ public sealed class VerificationConfiguration : IEntityTypeConfiguration<Entitie
         builder.HasIndex(x => x.SupersedesId)
             .HasDatabaseName("IX_verifications_supersedes")
             .HasFilter("\"SupersedesId\" IS NOT NULL");
+        // The concurrency guard — at most one non-terminal renewal pointing at
+        // a given prior approval — is a partial UNIQUE index added via raw SQL
+        // in the init migration alongside this index. EF cannot model two
+        // distinct indexes on the same column expression, so we keep this one
+        // non-unique for general supersession lookups and add the unique guard
+        // imperatively. The handler catches the unique-violation and returns
+        // RenewalAlreadyPending.
 
         // FK to market schema is composite (MarketCode, SchemaVersion) — declared as a
         // value-only relationship via HasOne to avoid duplicating the FK columns. EF

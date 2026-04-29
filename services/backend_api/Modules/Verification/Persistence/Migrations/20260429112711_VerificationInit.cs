@@ -305,6 +305,20 @@ namespace BackendApi.Modules.Verification.Persistence.Migrations
                 column: "SupersedesId",
                 filter: "\"SupersedesId\" IS NOT NULL");
 
+            // Concurrency guard on renewals: at most one non-terminal row may
+            // point at a given prior approval at any time. Without this,
+            // RequestRenewalHandler's AnyAsync pre-check is racy — two
+            // concurrent requests can both observe "no pending renewal" and
+            // both INSERT a 'submitted' row for the same SupersedesId. Raw SQL
+            // because EF cannot model two distinct indexes on the same column
+            // expression (the non-unique IX_verifications_supersedes above
+            // serves general supersession lookups).
+            migrationBuilder.Sql(@"
+CREATE UNIQUE INDEX ""UX_verifications_one_pending_renewal_per_approval""
+    ON verification.verifications (""SupersedesId"")
+    WHERE ""SupersedesId"" IS NOT NULL
+      AND ""State"" IN ('submitted','in-review','info-requested');");
+
             // Append-only enforcement on verification_state_transitions per spec 020
             // data-model §2.3. Postgres trigger blocks UPDATE/DELETE so the audit-faithful
             // history can never be silently rewritten — paired with the EF-side rule that
@@ -330,6 +344,7 @@ CREATE TRIGGER verification_state_transitions_append_only_trg
         {
             migrationBuilder.Sql(@"DROP TRIGGER IF EXISTS verification_state_transitions_append_only_trg ON verification.verification_state_transitions;");
             migrationBuilder.Sql(@"DROP FUNCTION IF EXISTS verification.verification_state_transitions_append_only();");
+            migrationBuilder.Sql(@"DROP INDEX IF EXISTS verification.""UX_verifications_one_pending_renewal_per_approval"";");
 
             migrationBuilder.DropTable(
                 name: "verification_documents",

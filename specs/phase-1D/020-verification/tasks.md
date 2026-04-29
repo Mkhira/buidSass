@@ -66,21 +66,21 @@ description: "Phase-1D Spec 020 — Professional Verification: dependency-ordere
 
 ### Persistence
 
-- [ ] T017 Create `services/backend_api/Modules/Verification/Entities/Verification.cs` with all columns from [data-model.md §2.1](./data-model.md) including `xmin` mapped via `IsRowVersion()`
-- [ ] T018 [P] Create `services/backend_api/Modules/Verification/Entities/VerificationDocument.cs` per [data-model.md §2.2](./data-model.md)
-- [ ] T019 [P] Create `services/backend_api/Modules/Verification/Entities/VerificationStateTransition.cs` per [data-model.md §2.3](./data-model.md) (append-only)
-- [ ] T020 [P] Create `services/backend_api/Modules/Verification/Entities/VerificationMarketSchema.cs` per [data-model.md §2.4](./data-model.md) (versioned)
-- [ ] T021 [P] Create `services/backend_api/Modules/Verification/Entities/VerificationReminder.cs` per [data-model.md §2.5](./data-model.md)
-- [ ] T022 [P] Create `services/backend_api/Modules/Verification/Entities/VerificationEligibilityCache.cs` projection per [data-model.md §2.6](./data-model.md)
-- [ ] T023 Create `services/backend_api/Modules/Verification/Persistence/VerificationDbContext.cs` registering all six entities + `OnConfiguring` warning suppression
-- [ ] T024 [P] Create `services/backend_api/Modules/Verification/Persistence/Configurations/VerificationConfiguration.cs` (table, indexes IX_verifications_customer_state_market / IX_verifications_state_market_submitted partial / IX_verifications_expires_at partial / IX_verifications_supersedes; xmin mapping)
-- [ ] T025 [P] Create `services/backend_api/Modules/Verification/Persistence/Configurations/VerificationDocumentConfiguration.cs` (constraints + indexes per data-model)
-- [ ] T026 [P] Create `services/backend_api/Modules/Verification/Persistence/Configurations/VerificationStateTransitionConfiguration.cs` plus EF migration that adds the `BEFORE UPDATE OR DELETE` Postgres trigger enforcing append-only semantics
-- [ ] T027 [P] Create `services/backend_api/Modules/Verification/Persistence/Configurations/VerificationMarketSchemaConfiguration.cs` (composite PK + unique partial index "one active per market")
-- [ ] T028 [P] Create `services/backend_api/Modules/Verification/Persistence/Configurations/VerificationReminderConfiguration.cs` (UNIQUE `(verification_id, window_days)`)
-- [ ] T029 [P] Create `services/backend_api/Modules/Verification/Persistence/Configurations/VerificationEligibilityCacheConfiguration.cs` (PK on `customer_id`)
-- [ ] T030 Generate initial EF migration `dotnet ef migrations add VerificationInit --context VerificationDbContext --output-dir Modules/Verification/Persistence/Migrations` and verify the migration creates 6 tables + the append-only trigger
-- [ ] T031 Add `IDbContextFactory<VerificationDbContext>` registration to `VerificationModule.cs` so background workers can construct scopes outside the request pipeline
+- [X] T017 Create `services/backend_api/Modules/Verification/Entities/Verification.cs` with all columns from [data-model.md §2.1](./data-model.md) including `xmin` mapped via `IsRowVersion()`
+- [X] T018 [P] Create `services/backend_api/Modules/Verification/Entities/VerificationDocument.cs` per [data-model.md §2.2](./data-model.md)
+- [X] T019 [P] Create `services/backend_api/Modules/Verification/Entities/VerificationStateTransition.cs` per [data-model.md §2.3](./data-model.md) (append-only)
+- [X] T020 [P] Create `services/backend_api/Modules/Verification/Entities/VerificationMarketSchema.cs` per [data-model.md §2.4](./data-model.md) (versioned)
+- [X] T021 [P] Create `services/backend_api/Modules/Verification/Entities/VerificationReminder.cs` per [data-model.md §2.5](./data-model.md)
+- [X] T022 [P] Create `services/backend_api/Modules/Verification/Entities/VerificationEligibilityCache.cs` projection per [data-model.md §2.6](./data-model.md)
+- [X] T023 Create `services/backend_api/Modules/Verification/Persistence/VerificationDbContext.cs` registering all six entities + `OnConfiguring` warning suppression
+- [X] T024 [P] Create `services/backend_api/Modules/Verification/Persistence/Configurations/VerificationConfiguration.cs` (table, indexes IX_verifications_customer_state_market / IX_verifications_state_market_submitted partial / IX_verifications_expires_at partial / IX_verifications_supersedes; xmin mapping)
+- [X] T025 [P] Create `services/backend_api/Modules/Verification/Persistence/Configurations/VerificationDocumentConfiguration.cs` (constraints + indexes per data-model)
+- [X] T026 [P] Create `services/backend_api/Modules/Verification/Persistence/Configurations/VerificationStateTransitionConfiguration.cs` plus EF migration that adds the `BEFORE UPDATE OR DELETE` Postgres trigger enforcing append-only semantics
+- [X] T027 [P] Create `services/backend_api/Modules/Verification/Persistence/Configurations/VerificationMarketSchemaConfiguration.cs` (composite PK + unique partial index "one active per market")
+- [X] T028 [P] Create `services/backend_api/Modules/Verification/Persistence/Configurations/VerificationReminderConfiguration.cs` (UNIQUE `(verification_id, window_days)`)
+- [X] T029 [P] Create `services/backend_api/Modules/Verification/Persistence/Configurations/VerificationEligibilityCacheConfiguration.cs` (PK on `customer_id`)
+- [X] T030 Generate initial EF migration `dotnet ef migrations add VerificationInit --context VerificationDbContext --output-dir Modules/Verification/Persistence/Migrations` and verify the migration creates 6 tables + the append-only trigger
+- [X] T031 Add `IDbContextFactory<VerificationDbContext>` registration to `VerificationModule.cs` so background workers can construct scopes outside the request pipeline
 
 ### Cross-module hooks (live in `Modules/Shared/`)
 
@@ -89,7 +89,7 @@ description: "Phase-1D Spec 020 — Professional Verification: dependency-ordere
 - [X] T034 [P] Create `services/backend_api/Modules/Shared/IProductRestrictionPolicy.cs` + `ProductRestrictionPolicy` record per [contracts §4.3](./contracts/verification-contract.md). Implementation owned by spec 005 — declare here so 020 can consume without cycle (project-memory rule)
 - [X] T035 [P] Create `services/backend_api/Modules/Shared/IRegulatorAssistLookup.cs` + `RegulatorAssistResult` record per [contracts §4.4](./contracts/verification-contract.md); add `NullRegulatorAssistLookup` returning `null` and register as default DI binding (FR-016a / FR-016b)
 - [X] T036 [P] Create `services/backend_api/Modules/Shared/VerificationDomainEvents.cs` with all eight records from [data-model.md §6](./data-model.md): `VerificationApproved`, `VerificationRejected`, `VerificationInfoRequested`, `VerificationRevoked`, `VerificationExpired`, `VerificationReminderDue`, `VerificationSuperseded`, `VerificationVoided`
-- [ ] T037 Create `services/backend_api/Modules/Verification/Eligibility/EligibilityCacheInvalidator.cs` with `RebuildAsync(customerId, dbContext, ct)` reading authoritative state and UPSERTing `verification_eligibility_cache` (no I/O outside the passed `DbContext`); to be called inside every state-transition Tx
+- [X] T037 Create `services/backend_api/Modules/Verification/Eligibility/EligibilityCacheInvalidator.cs` with `RebuildAsync(customerId, dbContext, ct)` reading authoritative state and UPSERTing `verification_eligibility_cache` (no I/O outside the passed `DbContext`); to be called inside every state-transition Tx
 
 ### Authorization + audit chokepoint
 
@@ -98,8 +98,8 @@ description: "Phase-1D Spec 020 — Professional Verification: dependency-ordere
 
 ### Reference data seed
 
-- [ ] T040 Create `services/backend_api/Modules/Verification/Seeding/VerificationReferenceDataSeeder.cs` implementing the platform `ISeeder` interface; idempotent INSERT of the KSA + EG schema rows from [quickstart.md §2](./quickstart.md) (KSA retention=24mo, EG retention=36mo, both reminder_windows=[30,14,7,1], SLA decision=2/warning=1, allowed types=[pdf,jpeg,png,heic])
-- [ ] T041 Register `VerificationReferenceDataSeeder` in `VerificationModule.cs` so the platform `seed --mode=apply --tag=verification-reference` includes it
+- [X] T040 Create `services/backend_api/Modules/Verification/Seeding/VerificationReferenceDataSeeder.cs` implementing the platform `ISeeder` interface; idempotent INSERT of the KSA + EG schema rows from [quickstart.md §2](./quickstart.md) (KSA retention=24mo, EG retention=36mo, both reminder_windows=[30,14,7,1], SLA decision=2/warning=1, allowed types=[pdf,jpeg,png,heic])
+- [X] T041 Register `VerificationReferenceDataSeeder` in `VerificationModule.cs` so the platform `seed --mode=apply --tag=verification-reference` includes it
 
 #### Foundational integration tests
 

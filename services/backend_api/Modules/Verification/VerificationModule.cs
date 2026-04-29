@@ -1,8 +1,15 @@
+using BackendApi.Configuration;
+using BackendApi.Features.Seeding;
+using BackendApi.Modules.Shared;
+using BackendApi.Modules.Verification.Persistence;
+using BackendApi.Modules.Verification.Seeding;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Routing;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Npgsql;
 
 namespace BackendApi.Modules.Verification;
 
@@ -13,21 +20,47 @@ public static class VerificationModule
         IConfiguration configuration,
         IHostEnvironment hostEnvironment)
     {
-        // Phase 1 (Setup) is intentionally empty.
-        //
-        // Phase 2 (Foundational) wires:
-        //   - AddDbContext<VerificationDbContext>(...) with the
-        //     ManyServiceProvidersCreatedWarning suppression (project-memory rule;
-        //     mirrors Modules/Cart/CartModule.cs).
-        //   - IDbContextFactory<VerificationDbContext> for hosted workers (tasks.md T031).
-        //   - VerificationOptions binding via configuration.GetSection(...).
-        //   - Cross-module hook implementations from Modules/Shared/.
-        //   - Reference-data + dev seeders.
-        //
-        // Subsequent phases register handlers, validators, workers, authorization
-        // policies, and the eligibility-query implementation.
-        //
-        // See specs/phase-1D/020-verification/tasks.md Phase 2 for the populated state.
+        var connectionString = configuration.ResolveRequiredDefaultConnectionString(hostEnvironment);
+
+        // Scoped DbContext for the request pipeline.
+        services.AddDbContext<VerificationDbContext>((provider, options) =>
+        {
+            var dataSource = provider.GetService<NpgsqlDataSource>();
+            if (dataSource is not null)
+            {
+                options.UseNpgsql(dataSource);
+            }
+            else
+            {
+                options.UseNpgsql(connectionString);
+            }
+            // The warning is suppressed inside VerificationDbContext.OnConfiguring as well;
+            // belt-and-braces so factories created outside the AddDbContext path also
+            // inherit it (project-memory rule).
+        });
+
+        // Factory for hosted workers (Expiry, Reminder, DocumentPurge — Phase 6) that
+        // construct scopes outside the request pipeline (T031).
+        services.AddDbContextFactory<VerificationDbContext>((provider, options) =>
+        {
+            var dataSource = provider.GetService<NpgsqlDataSource>();
+            if (dataSource is not null)
+            {
+                options.UseNpgsql(dataSource);
+            }
+            else
+            {
+                options.UseNpgsql(connectionString);
+            }
+        }, lifetime: ServiceLifetime.Singleton);
+
+        // V1 default for the regulator-assist lookup is the null implementation
+        // (FR-016a / FR-016b). Phase 1.5+ may swap a real adapter without
+        // contract changes.
+        services.AddSingleton<IRegulatorAssistLookup, NullRegulatorAssistLookup>();
+
+        // Reference-data seeder: KSA + EG market schemas.
+        services.AddScoped<ISeeder, VerificationReferenceDataSeeder>();
 
         return services;
     }

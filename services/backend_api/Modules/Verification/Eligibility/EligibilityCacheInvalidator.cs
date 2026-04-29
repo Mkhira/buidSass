@@ -35,21 +35,35 @@ public sealed class EligibilityCacheInvalidator
         // that's about to be SaveChanges'd in the same Tx (e.g., DecideApprove sets
         // State = Approved in memory, then calls this invalidator BEFORE SaveChanges)
         // is visible to the cache rebuild.
-        var pendingApprovedInMemory = db.ChangeTracker.Entries<Entities.Verification>()
+        //
+        // Critical: also EXCLUDE change-tracked rows from the committed query —
+        // otherwise a DecideRevoke that pre-saves sees the still-committed Approved
+        // row (its pending mutation to Revoked hasn't been written yet) and the
+        // cache stays incorrectly "eligible".
+        var pendingByCustomer = db.ChangeTracker.Entries<Entities.Verification>()
             .Where(e => e.State is EntityState.Modified or EntityState.Added)
             .Select(e => e.Entity)
-            .Where(v => v.CustomerId == customerId && v.State == VerificationState.Approved)
+            .Where(v => v.CustomerId == customerId)
+            .ToList();
+
+        var pendingIds = pendingByCustomer.Select(v => v.Id).ToHashSet();
+
+        var pendingApprovedInMemory = pendingByCustomer
+            .Where(v => v.State == VerificationState.Approved)
             .OrderByDescending(v => v.SubmittedAt)
             .FirstOrDefault();
 
         var committedApproved = await db.Verifications
             .AsNoTracking()
-            .Where(v => v.CustomerId == customerId && v.State == VerificationState.Approved)
+            .Where(v => v.CustomerId == customerId
+                     && v.State == VerificationState.Approved
+                     && !pendingIds.Contains(v.Id))
             .OrderByDescending(v => v.SubmittedAt)
             .FirstOrDefaultAsync(ct);
 
-        // In-memory pending change wins (it's the most-recent decision the caller is
-        // about to commit). Falls back to the latest committed approval otherwise.
+        // In-memory pending Approved wins (it's the most-recent decision the caller is
+        // about to commit). Falls back to a committed approval that has no pending
+        // mutation. Both being null means the customer has no active approval.
         var activeApproval = pendingApprovedInMemory ?? committedApproved;
 
         var nowUtc = DateTimeOffset.UtcNow;

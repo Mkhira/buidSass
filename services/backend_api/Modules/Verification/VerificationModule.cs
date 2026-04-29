@@ -4,11 +4,14 @@ using BackendApi.Modules.Shared;
 using BackendApi.Modules.Verification.Admin.DecideApprove;
 using BackendApi.Modules.Verification.Admin.DecideReject;
 using BackendApi.Modules.Verification.Admin.DecideRequestInfo;
+using BackendApi.Modules.Verification.Admin.DecideRevoke;
 using BackendApi.Modules.Verification.Admin.GetVerificationDetail;
 using BackendApi.Modules.Verification.Admin.ListVerificationQueue;
+using BackendApi.Modules.Verification.Admin.OpenHistoricalDocument;
 using BackendApi.Modules.Verification.Customer.SubmitVerification;
 using BackendApi.Modules.Verification.Eligibility;
 using BackendApi.Modules.Verification.Persistence;
+using BackendApi.Modules.Verification.Primitives;
 using BackendApi.Modules.Verification.Seeding;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Routing;
@@ -79,6 +82,13 @@ public static class VerificationModule
         services.AddScoped<DecideApproveHandler>();
         services.AddScoped<DecideRejectHandler>();
         services.AddScoped<DecideRequestInfoHandler>();
+        services.AddScoped<DecideRevokeHandler>();
+        services.AddScoped<OpenHistoricalDocumentHandler>();
+
+        // PII access recorder — single chokepoint for FR-015a-e audit invariants
+        // (research §R13).
+        services.AddScoped<IPiiAccessRecorder, PiiAccessRecorder>();
+        services.AddScoped<PiiAccessRecorder>();
 
         // Time abstraction for testability.
         services.AddSingleton(TimeProvider.System);
@@ -104,6 +114,8 @@ public static class VerificationModule
         admin.MapDecideApproveEndpoint();
         admin.MapDecideRejectEndpoint();
         admin.MapDecideRequestInfoEndpoint();
+        admin.MapDecideRevokeEndpoint();
+        admin.MapOpenHistoricalDocumentEndpoint();
 
         return endpoints;
     }

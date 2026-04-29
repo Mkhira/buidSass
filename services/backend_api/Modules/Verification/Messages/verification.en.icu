@@ -1,0 +1,6 @@
+# Verification module — English ICU keys
+# Format: key = value
+#
+# Keys are added per slice in Phase 3-7 of specs/phase-1D/020-verification/tasks.md.
+# The full inventory of customer-visible reason codes lives in
+# specs/phase-1D/020-verification/contracts/verification-contract.md §7.

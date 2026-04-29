@@ -1,0 +1,7 @@
+# Verification module — Arabic ICU keys (editorial-grade per Principle 4)
+# Format: key = value
+#
+# Every key MUST exist in BOTH verification.en.icu AND verification.ar.icu before
+# the slice that consumes it can ship at DoD. AR strings MUST be human-authored
+# (no machine translation per Principle 4) and tracked in AR_EDITORIAL_REVIEW.md
+# until editorial sign-off.

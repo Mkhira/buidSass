@@ -31,12 +31,12 @@ description: "Phase-1D Spec 020 — Professional Verification: dependency-ordere
 
 **Purpose**: Spin up the empty `Modules/Verification/` module and its sibling test project so subsequent phases land in a building tree.
 
-- [ ] T001 Create directory skeleton `services/backend_api/Modules/Verification/{Primitives,Customer,Admin,Eligibility,Workers,Authorization,Hooks,Entities,Persistence/Configurations,Persistence/Migrations,Messages,Seeding}` per [plan.md §Project Structure](./plan.md)
-- [ ] T002 Create `services/backend_api/Modules/Verification/VerificationModule.cs` with `AddVerificationModule(IServiceCollection, IConfiguration)` extension; register `AddDbContext<VerificationDbContext>` suppressing `RelationalEventId.ManyServiceProvidersCreatedWarning` (project-memory rule); leave service registrations empty for now
-- [ ] T003 Wire `AddVerificationModule` into `services/backend_api/Program.cs` and add `app.MapVerificationEndpoints()` placeholder so the module is composed at startup
-- [ ] T004 [P] Create test-project skeleton `services/backend_api/tests/Verification.Tests/{Unit,Integration,Contract,Benchmarks}` with `Verification.Tests.csproj` referencing `backend_api.csproj`, xUnit, FluentAssertions, `WebApplicationFactory<Program>`, Testcontainers.PostgreSql, `Microsoft.Extensions.TimeProvider.Testing`
-- [ ] T005 [P] Create `services/backend_api/Modules/Verification/Messages/verification.en.icu` and `verification.ar.icu` as empty ICU bundles (keys added per slice); create `services/backend_api/Modules/Verification/Messages/AR_EDITORIAL_REVIEW.md` per spec 008 pattern (tracks AR keys pending editorial sign-off)
-- [ ] T006 [P] Add `services/backend_api/openapi.verification.json` placeholder file so the OpenAPI emitter writes here (matches spec 004/008 convention)
+- [X] T001 Create directory skeleton `services/backend_api/Modules/Verification/{Primitives,Customer,Admin,Eligibility,Workers,Authorization,Hooks,Entities,Persistence/Configurations,Persistence/Migrations,Messages,Seeding}` per [plan.md §Project Structure](./plan.md)
+- [X] T002 Create `services/backend_api/Modules/Verification/VerificationModule.cs` with `AddVerificationModule(IServiceCollection, IConfiguration)` extension; register `AddDbContext<VerificationDbContext>` suppressing `RelationalEventId.ManyServiceProvidersCreatedWarning` (project-memory rule); leave service registrations empty for now
+- [X] T003 Wire `AddVerificationModule` into `services/backend_api/Program.cs` and add `app.MapVerificationEndpoints()` placeholder so the module is composed at startup
+- [X] T004 [P] Create test-project skeleton `services/backend_api/tests/Verification.Tests/{Unit,Integration,Contract,Benchmarks}` with `Verification.Tests.csproj` referencing `backend_api.csproj`, xUnit, FluentAssertions, `WebApplicationFactory<Program>`, Testcontainers.PostgreSql, `Microsoft.Extensions.TimeProvider.Testing`
+- [X] T005 [P] Create `services/backend_api/Modules/Verification/Messages/verification.en.icu` and `verification.ar.icu` as empty ICU bundles (keys added per slice); create `services/backend_api/Modules/Verification/Messages/AR_EDITORIAL_REVIEW.md` per spec 008 pattern (tracks AR keys pending editorial sign-off)
+- [X] T006 [P] Add `services/backend_api/openapi.verification.json` placeholder file so the OpenAPI emitter writes here (matches spec 004/008 convention)
 
 **Checkpoint**: `dotnet build services/backend_api` is green; `dotnet test services/backend_api/tests/Verification.Tests` runs (zero tests).
 

@@ -1,0 +1,12 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Professional Verification API",
+    "version": "0.0.0-placeholder",
+    "description": "Spec 020 (Phase 1D · Milestone 7) — placeholder stub. Endpoints land per slice in Phases 3-7 of specs/phase-1D/020-verification/tasks.md. Customer + Admin + Eligibility + Workers surfaces are owned by this module; cross-module hooks live under Modules/Shared/. Restricted-product eligibility query (ICustomerVerificationEligibilityQuery) consumed by specs 005 / 009 / 010 / 019 / 021 / 023."
+  },
+  "paths": {},
+  "components": {
+    "schemas": {}
+  }
+}

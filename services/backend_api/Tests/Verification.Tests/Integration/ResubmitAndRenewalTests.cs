@@ -91,14 +91,12 @@ public sealed class ResubmitAndRenewalTests : IAsyncLifetime
         {
             var attach = new AttachDocumentHandler(
                 db,
-                new FakeVirusScanService(ScanResult.Clean),
-                new FakeStorageService(),
                 new FakeTimeProvider(attachAt),
                 NullLogger<AttachDocumentHandler>.Instance);
             var attachResult = await attach.HandleAsync(
                 customerId, verificationId,
                 new AttachDocumentRequest(
-                    "verifications/clearer-scan.pdf", "application/pdf", 1024 * 100),
+                    "verifications/clearer-scan.pdf", "application/pdf", 1024 * 100, "clean"),
                 CancellationToken.None);
             attachResult.IsSuccess.Should().BeTrue();
         }

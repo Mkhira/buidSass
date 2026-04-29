@@ -157,8 +157,55 @@ public sealed class SubmitVerificationHappyPathTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task Renewal_submission_with_supersedes_id_bypasses_already_pending_guard()
+    public async Task Renewal_submission_with_approved_supersedes_id_bypasses_already_pending_guard()
     {
+        // Submit + approve a first verification → second submission with
+        // supersedes_id pointing at the approved row is a legitimate renewal
+        // and bypasses the AlreadyPending guard per data-model §3.2.
+        var customerId = Guid.NewGuid();
+        var clock = new FakeTimeProvider(new DateTimeOffset(2026, 5, 1, 9, 0, 0, TimeSpan.Zero));
+
+        await using var db = NewContext();
+        var handler = NewHandler(db, clock);
+
+        var first = await handler.HandleAsync(customerId, "ksa", BasicRequest(), CancellationToken.None);
+        first.IsSuccess.Should().BeTrue();
+
+        // Approve the first verification so it becomes a legitimate prior approval.
+        await using (var dbApprove = NewContext())
+        {
+            var approve = new BackendApi.Modules.Verification.Admin.DecideApprove.DecideApproveHandler(
+                dbApprove, new BackendApi.Modules.Verification.Eligibility.EligibilityCacheInvalidator(),
+                new RecordingAuditPublisher(), clock,
+                NullLogger<BackendApi.Modules.Verification.Admin.DecideApprove.DecideApproveHandler>.Instance);
+            var approveResult = await approve.HandleAsync(
+                first.Response!.Id, Guid.NewGuid(),
+                new BackendApi.Modules.Verification.Admin.DecideApprove.DecideApproveRequest(
+                    new BackendApi.Modules.Verification.Admin.DecideApprove.ReviewerReason("Verified.", null)),
+                CancellationToken.None);
+            approveResult.IsSuccess.Should().BeTrue();
+        }
+
+        await using var db2 = NewContext();
+        var handler2 = NewHandler(db2, clock);
+        var renewal = await handler2.HandleAsync(
+            customerId,
+            "ksa",
+            BasicRequest(supersedesId: first.Response!.Id),
+            CancellationToken.None);
+
+        renewal.IsSuccess.Should().BeTrue(
+            "renewals MUST be allowed alongside an active approved prior verification per data-model §3.2");
+        renewal.Response!.SupersedesId.Should().Be(first.Response.Id);
+    }
+
+    [Fact]
+    public async Task Renewal_submission_with_unapproved_supersedes_id_returns_RenewalNotEligible()
+    {
+        // Per Fix #5 (CodeRabbit review #1) — supersedes_id MUST point at a
+        // currently-approved row owned by the same customer in the same market.
+        // A non-approved prior (submitted/in-review/rejected) is not a legitimate
+        // renewal target.
         var customerId = Guid.NewGuid();
         var clock = new FakeTimeProvider(new DateTimeOffset(2026, 5, 1, 9, 0, 0, TimeSpan.Zero));
 
@@ -176,9 +223,50 @@ public sealed class SubmitVerificationHappyPathTests : IAsyncLifetime
             BasicRequest(supersedesId: first.Response!.Id),
             CancellationToken.None);
 
-        renewal.IsSuccess.Should().BeTrue(
-            "renewals MUST be allowed alongside an active prior verification per data-model §3.2");
-        renewal.Response!.SupersedesId.Should().Be(first.Response.Id);
+        renewal.IsSuccess.Should().BeFalse();
+        renewal.ReasonCode.Should().Be(VerificationReasonCode.RenewalNotEligible);
+    }
+
+    [Fact]
+    public async Task Renewal_submission_with_foreign_customer_supersedes_id_returns_RenewalNotEligible()
+    {
+        // Customer A submits + gets approved; Customer B tries to submit a
+        // "renewal" pointing at A's approval. MUST be rejected to prevent
+        // cross-customer chain forgery (security boundary, CodeRabbit Fix #5).
+        var customerA = Guid.NewGuid();
+        var customerB = Guid.NewGuid();
+        var clock = new FakeTimeProvider(new DateTimeOffset(2026, 5, 1, 9, 0, 0, TimeSpan.Zero));
+
+        Guid customerAVerificationId;
+        await using (var db = NewContext())
+        {
+            var handler = NewHandler(db, clock);
+            var first = await handler.HandleAsync(customerA, "ksa", BasicRequest(), CancellationToken.None);
+            first.IsSuccess.Should().BeTrue();
+            customerAVerificationId = first.Response!.Id;
+        }
+        await using (var dbApprove = NewContext())
+        {
+            var approve = new BackendApi.Modules.Verification.Admin.DecideApprove.DecideApproveHandler(
+                dbApprove, new BackendApi.Modules.Verification.Eligibility.EligibilityCacheInvalidator(),
+                new RecordingAuditPublisher(), clock,
+                NullLogger<BackendApi.Modules.Verification.Admin.DecideApprove.DecideApproveHandler>.Instance);
+            await approve.HandleAsync(customerAVerificationId, Guid.NewGuid(),
+                new BackendApi.Modules.Verification.Admin.DecideApprove.DecideApproveRequest(
+                    new BackendApi.Modules.Verification.Admin.DecideApprove.ReviewerReason("Verified.", null)),
+                CancellationToken.None);
+        }
+
+        await using var dbB = NewContext();
+        var handlerB = NewHandler(dbB, clock);
+        var forgedRenewal = await handlerB.HandleAsync(
+            customerB,
+            "ksa",
+            BasicRequest(supersedesId: customerAVerificationId),
+            CancellationToken.None);
+
+        forgedRenewal.IsSuccess.Should().BeFalse();
+        forgedRenewal.ReasonCode.Should().Be(VerificationReasonCode.RenewalNotEligible);
     }
 
     [Fact]

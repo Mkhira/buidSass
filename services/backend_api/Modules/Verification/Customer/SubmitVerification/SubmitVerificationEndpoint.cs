@@ -6,7 +6,18 @@ namespace BackendApi.Modules.Verification.Customer.SubmitVerification;
 /// <summary>
 /// HTTP surface for <see cref="SubmitVerificationHandler"/>. Wired by
 /// <see cref="VerificationModule.MapVerificationEndpoints"/> at module bootstrap.
-/// Requires <c>Idempotency-Key</c> header per spec 020 contracts §2.1.
+/// Requires the <c>Idempotency-Key</c> header per spec 020 contracts §2.1.
+///
+/// <para><b>Idempotency status (V1 partial):</b> the header is required and
+/// forwarded to the handler, which stamps the key on the initial state-
+/// transition row's metadata jsonb for audit-trail traceability. Full
+/// <c>IdempotencyStore</c> semantics — body fingerprint, cached response
+/// replay across instances, <c>409 idempotency_key_conflict</c> on body
+/// mismatch — match the Checkout module's pattern and ship in a follow-up
+/// (tracked: spec 003 platform middleware integration). Until then, naive
+/// duplicate POSTs in quick succession will create separate verification
+/// rows; the AlreadyPending guard in the handler catches the most-common
+/// retry case (second submission while first is non-terminal returns 409).</para>
 /// </summary>
 public static class SubmitVerificationEndpoint
 {
@@ -43,7 +54,8 @@ public static class SubmitVerificationEndpoint
                 detail);
         }
 
-        if (string.IsNullOrWhiteSpace(context.Request.Headers["Idempotency-Key"].ToString()))
+        var idempotencyKey = context.Request.Headers["Idempotency-Key"].ToString();
+        if (string.IsNullOrWhiteSpace(idempotencyKey))
         {
             return VerificationResponseFactory.Problem(
                 context, 400,
@@ -52,7 +64,7 @@ public static class SubmitVerificationEndpoint
         }
 
         var marketCode = VerificationResponseFactory.ResolveMarketCode(context);
-        var result = await handler.HandleAsync(customerId.Value, marketCode, body!, ct);
+        var result = await handler.HandleAsync(customerId.Value, marketCode, body!, idempotencyKey, ct);
 
         if (!result.IsSuccess)
         {

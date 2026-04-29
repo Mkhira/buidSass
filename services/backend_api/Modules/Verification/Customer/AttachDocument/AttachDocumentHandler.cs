@@ -1,5 +1,4 @@
 using System.Text.Json;
-using BackendApi.Modules.Storage;
 using BackendApi.Modules.Verification.Entities;
 using BackendApi.Modules.Verification.Persistence;
 using BackendApi.Modules.Verification.Primitives;
@@ -18,13 +17,15 @@ namespace BackendApi.Modules.Verification.Customer.AttachDocument;
 ///   <item>MIME against the schema's <c>allowed_document_types</c>;</item>
 ///   <item>per-doc size ≤ 10 MB and cumulative ≤ 25 MB per verification;</item>
 ///   <item>per-verification document count ≤ 5;</item>
-///   <item>virus scan via spec 015 — only <c>clean</c> rows persist.</item>
+///   <item>scan status — supplied by the caller (read from spec 015 storage
+///         abstraction's async scanner output). <c>infected</c> rejects;
+///         <c>clean</c> and <c>pending</c> persist; <c>error</c> rejects as
+///         transient. Scanning itself is upstream of this handler — see
+///         <see cref="AttachDocumentRequest"/> docstring.</item>
 /// </list>
 /// </summary>
 public sealed class AttachDocumentHandler(
     VerificationDbContext db,
-    IVirusScanService virusScanner,
-    IStorageService storage,
     TimeProvider clock,
     ILogger<AttachDocumentHandler> logger)
 {
@@ -100,28 +101,31 @@ public sealed class AttachDocumentHandler(
                 $"Aggregate document size {newAggregate} exceeds {MaxAggregateBytesPerVerification} bytes.");
         }
 
-        // 5. Virus scan via spec 015. Only "clean" results persist; "infected"
-        //    rejects up-front; "error" / "pending" reject as a transient.
-        var scanResult = await ScanAsync(request.StorageKey, ct);
-        var scanStatus = scanResult switch
-        {
-            ScanResult.Clean => "clean",
-            ScanResult.Infected => "infected",
-            ScanResult.ServiceUnavailable => "error",
-            _ => "pending",
-        };
-
-        if (scanStatus != "clean")
+        // 5. Scan status from upstream (spec 015 storage abstraction's async
+        //    scanner). Defaults to "pending" when caller omits — keeps the
+        //    contract honest about scanning being a separate concern.
+        var scanStatus = (request.ScanStatus ?? "pending").Trim().ToLowerInvariant();
+        if (scanStatus is not ("clean" or "pending" or "infected" or "error"))
         {
             return AttachResult.Fail(
-                scanStatus switch
-                {
-                    "infected" => VerificationReasonCode.DocumentScanInfected,
-                    "error" => VerificationReasonCode.DocumentsInvalid,
-                    _ => VerificationReasonCode.DocumentScanPending,
-                },
-                $"Document scan returned '{scanStatus}'.");
+                VerificationReasonCode.DocumentsInvalid,
+                $"scan_status '{request.ScanStatus}' is not one of clean | pending | infected | error.");
         }
+        if (scanStatus == "infected")
+        {
+            return AttachResult.Fail(
+                VerificationReasonCode.DocumentScanInfected,
+                "Document failed virus scan upstream.");
+        }
+        if (scanStatus == "error")
+        {
+            return AttachResult.Fail(
+                VerificationReasonCode.DocumentsInvalid,
+                "Upstream virus scanner returned an error; please retry.");
+        }
+        // "clean" and "pending" both persist — pending rows surface their
+        // status in the row's scan_status column; submission downstream blocks
+        // until the async scanner flips them to "clean".
 
         // 6. Persist.
         var nowUtc = clock.GetUtcNow();
@@ -132,7 +136,7 @@ public sealed class AttachDocumentHandler(
             StorageKey = request.StorageKey,
             ContentType = request.ContentType,
             SizeBytes = request.SizeBytes,
-            ScanStatus = "clean",
+            ScanStatus = scanStatus,    // honest pass-through: clean | pending
             UploadedAt = nowUtc,
             PurgeAfter = null,
             PurgedAt = null,
@@ -144,6 +148,13 @@ public sealed class AttachDocumentHandler(
 
         await db.SaveChangesAsync(ct);
 
+        if (scanStatus == "pending")
+        {
+            logger.LogInformation(
+                "Verification {VerificationId} document {DocumentId} attached with scan_status=pending; submission downstream will block until upstream scanner flips to clean.",
+                verification.Id, doc.Id);
+        }
+
         return AttachResult.Ok(new AttachDocumentResponse(
             DocumentId: doc.Id,
             VerificationId: verification.Id,
@@ -151,28 +162,6 @@ public sealed class AttachDocumentHandler(
             SizeBytes: doc.SizeBytes,
             ScanStatus: doc.ScanStatus,
             UploadedAt: doc.UploadedAt));
-    }
-
-    private async Task<ScanResult> ScanAsync(string storageKey, CancellationToken ct)
-    {
-        // Real impl streams the bytes from spec 015 storage to the scanner.
-        // Phase 3 batch 2 ships a placeholder that resolves "scan via key" through
-        // the storage abstraction's signed-url path; full streaming wires up in
-        // the polish pass when the storage abstraction's read-stream API is
-        // finalized.
-        try
-        {
-            await storage.GetSignedUrlAsync(storageKey, TimeSpan.FromMinutes(5), ct);
-            using var emptyStream = new MemoryStream();
-            return await virusScanner.ScanAsync(emptyStream, ct);
-        }
-        catch (Exception ex)
-        {
-            logger.LogWarning(ex,
-                "Document scan failed for storage_key {StorageKey}; treating as ServiceUnavailable.",
-                storageKey);
-            return ScanResult.ServiceUnavailable;
-        }
     }
 
     private static IReadOnlyCollection<string> ParseAllowedMimes(string allowedJson)

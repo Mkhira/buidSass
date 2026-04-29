@@ -27,10 +27,18 @@ public sealed class SubmitVerificationHandler(
     TimeProvider clock,
     ILogger<SubmitVerificationHandler> logger)
 {
+    public Task<SubmitResult> HandleAsync(
+        Guid customerId,
+        string marketCode,
+        SubmitVerificationRequest request,
+        CancellationToken ct)
+        => HandleAsync(customerId, marketCode, request, idempotencyKey: null, ct);
+
     public async Task<SubmitResult> HandleAsync(
         Guid customerId,
         string marketCode,
         SubmitVerificationRequest request,
+        string? idempotencyKey,
         CancellationToken ct)
     {
         var nowUtc = clock.GetUtcNow();
@@ -48,10 +56,43 @@ public sealed class SubmitVerificationHandler(
                 $"No active verification schema is configured for market '{marketCode}'.");
         }
 
-        // 2. No-other-non-terminal guard (per data-model §3.2). Renewals (with
-        //    SupersedesId set) are exempt — the renewal goes through the normal
-        //    flow while the prior approval remains active.
-        if (request.SupersedesId is null)
+        // 2. Validate SupersedesId before any guard bypass. A non-null
+        //    SupersedesId is the renewal entry-point (data-model §3.2 renewal
+        //    exception), but ONLY when it points to a row that:
+        //      (a) exists,
+        //      (b) belongs to the SAME customer (else the request is forging
+        //          a renewal of someone else's approval — security boundary),
+        //      (c) is currently in `approved` state (a renewal of a rejected /
+        //          expired / revoked / superseded / void row is not a legitimate
+        //          renewal — the customer must submit fresh),
+        //      (d) is in the SAME market as this submission (cross-market
+        //          renewals are out of scope V1; markets are independently
+        //          regulated).
+        //    Without all four, we fall through to the AlreadyPending check
+        //    (treated as a fresh submission) — and reject with
+        //    RenewalNotEligible so the caller knows the bypass attempt failed.
+        Entities.Verification? priorApproval = null;
+        if (request.SupersedesId is { } supersedesId)
+        {
+            priorApproval = await db.Verifications
+                .AsNoTracking()
+                .SingleOrDefaultAsync(v => v.Id == supersedesId, ct);
+
+            if (priorApproval is null
+                || priorApproval.CustomerId != customerId
+                || priorApproval.State != VerificationState.Approved
+                || priorApproval.MarketCode != schema.MarketCode)
+            {
+                return SubmitResult.Fail(
+                    VerificationReasonCode.RenewalNotEligible,
+                    "supersedes_id does not reference an active approval owned by this customer in this market.");
+            }
+        }
+
+        // 3. No-other-non-terminal guard (per data-model §3.2). Validated renewals
+        //    (priorApproval non-null) are exempt — the renewal proceeds while the
+        //    prior approval remains active until the renewal is approved.
+        if (priorApproval is null)
         {
             var hasOpen = await db.Verifications.AnyAsync(
                 v => v.CustomerId == customerId
@@ -100,7 +141,7 @@ public sealed class SubmitVerificationHandler(
             ActorKind = VerificationActorKind.Customer.ToWireValue(),
             ActorId = customerId,
             Reason = "customer_submission",
-            MetadataJson = SerializeSubmissionMetadata(request),
+            MetadataJson = SerializeSubmissionMetadata(request, idempotencyKey),
             OccurredAt = nowUtc,
         };
 
@@ -151,13 +192,19 @@ public sealed class SubmitVerificationHandler(
             SupersedesId: request.SupersedesId));
     }
 
-    private static string SerializeSubmissionMetadata(SubmitVerificationRequest request)
+    private static string SerializeSubmissionMetadata(SubmitVerificationRequest request, string? idempotencyKey)
     {
         // Light-weight metadata sidecar; full document linkage lands with the
         // AttachDocument slice (T054) once the storage path is wired.
+        // idempotency_key is captured for audit-trail traceability — full
+        // distributed dedup ships with the platform IdempotencyStore in a
+        // follow-up (per Checkout's pattern).
         var docs = string.Join(",", request.DocumentIds.Select(d => $"\"{d}\""));
         var supersedes = request.SupersedesId is { } sid ? $"\"{sid}\"" : "null";
-        return $"{{\"document_ids\":[{docs}],\"supersedes_id\":{supersedes}}}";
+        var idemKey = string.IsNullOrWhiteSpace(idempotencyKey)
+            ? "null"
+            : $"\"{idempotencyKey.Replace("\"", "\\\"")}\"";
+        return $"{{\"document_ids\":[{docs}],\"supersedes_id\":{supersedes},\"idempotency_key\":{idemKey}}}";
     }
 }
 

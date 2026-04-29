@@ -265,8 +265,6 @@ public sealed class CustomerReadAndAttachTests : IAsyncLifetime
         await using var db = NewContext();
         var handler = new AttachDocumentHandler(
             db,
-            new FakeVirusScanService(ScanResult.Clean),
-            new FakeStorageService(),
             clock,
             NullLogger<AttachDocumentHandler>.Instance);
 
@@ -275,7 +273,8 @@ public sealed class CustomerReadAndAttachTests : IAsyncLifetime
             new AttachDocumentRequest(
                 StorageKey: "verifications/test-doc.pdf",
                 ContentType: "application/pdf",
-                SizeBytes: 1024 * 100), // 100 KB
+                SizeBytes: 1024 * 100, // 100 KB
+                ScanStatus: "clean"),
             CancellationToken.None);
 
         result.IsSuccess.Should().BeTrue();
@@ -296,13 +295,13 @@ public sealed class CustomerReadAndAttachTests : IAsyncLifetime
 
         await using var db = NewContext();
         var handler = new AttachDocumentHandler(
-            db, new FakeVirusScanService(ScanResult.Clean), new FakeStorageService(),
+            db,
             new FakeTimeProvider(DateTimeOffset.UtcNow),
             NullLogger<AttachDocumentHandler>.Instance);
 
         var result = await handler.HandleAsync(
             customerId, verificationId,
-            new AttachDocumentRequest("verifications/test.exe", "application/x-msdownload", 1024),
+            new AttachDocumentRequest("verifications/test.exe", "application/x-msdownload", 1024, "clean"),
             CancellationToken.None);
 
         result.IsSuccess.Should().BeFalse();
@@ -316,13 +315,13 @@ public sealed class CustomerReadAndAttachTests : IAsyncLifetime
 
         await using var db = NewContext();
         var handler = new AttachDocumentHandler(
-            db, new FakeVirusScanService(ScanResult.Clean), new FakeStorageService(),
+            db,
             new FakeTimeProvider(DateTimeOffset.UtcNow),
             NullLogger<AttachDocumentHandler>.Instance);
 
         var result = await handler.HandleAsync(
             customerId, verificationId,
-            new AttachDocumentRequest("verifications/big.pdf", "application/pdf", 11 * 1024 * 1024),
+            new AttachDocumentRequest("verifications/big.pdf", "application/pdf", 11 * 1024 * 1024, "clean"),
             CancellationToken.None);
 
         result.IsSuccess.Should().BeFalse();
@@ -336,13 +335,13 @@ public sealed class CustomerReadAndAttachTests : IAsyncLifetime
 
         await using var db = NewContext();
         var handler = new AttachDocumentHandler(
-            db, new FakeVirusScanService(ScanResult.Infected), new FakeStorageService(),
+            db,
             new FakeTimeProvider(DateTimeOffset.UtcNow),
             NullLogger<AttachDocumentHandler>.Instance);
 
         var result = await handler.HandleAsync(
             customerId, verificationId,
-            new AttachDocumentRequest("verifications/malware.pdf", "application/pdf", 1024),
+            new AttachDocumentRequest("verifications/malware.pdf", "application/pdf", 1024, "infected"),
             CancellationToken.None);
 
         result.IsSuccess.Should().BeFalse();
@@ -362,13 +361,13 @@ public sealed class CustomerReadAndAttachTests : IAsyncLifetime
 
         await using var db = NewContext();
         var handler = new AttachDocumentHandler(
-            db, new FakeVirusScanService(ScanResult.Clean), new FakeStorageService(),
+            db,
             new FakeTimeProvider(DateTimeOffset.UtcNow),
             NullLogger<AttachDocumentHandler>.Instance);
 
         var result = await handler.HandleAsync(
             foreignCustomer, verificationId,
-            new AttachDocumentRequest("verifications/x.pdf", "application/pdf", 1024),
+            new AttachDocumentRequest("verifications/x.pdf", "application/pdf", 1024, "clean"),
             CancellationToken.None);
 
         result.IsNotFound.Should().BeTrue();

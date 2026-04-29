@@ -97,32 +97,53 @@ public sealed class DecideApproveHandler(
         db.StateTransitions.Add(transition);
 
         // Supersession path — if this verification has a SupersedesId, transition
-        // the prior approval to superseded atomically.
+        // the prior approval to superseded atomically. Defense-in-depth: validate
+        // the chain invariants on the prior row even though SubmitVerificationHandler
+        // already gated SupersedesId at submission time. A mismatch at this stage
+        // means the chain has been corrupted between submit and approve (e.g.,
+        // supersedes_id manually altered in the DB) — fail the approval rather
+        // than silently mutate an unrelated row's state.
         Entities.Verification? superseded = null;
         if (verification.SupersedesId is { } supersedesId)
         {
             superseded = await db.Verifications
                 .SingleOrDefaultAsync(v => v.Id == supersedesId, ct);
 
-            if (superseded is not null && superseded.State == VerificationState.Approved)
+            if (superseded is null
+                || superseded.CustomerId != verification.CustomerId
+                || superseded.MarketCode != verification.MarketCode
+                || superseded.State != VerificationState.Approved)
             {
-                superseded.State = VerificationState.Superseded;
-                superseded.SupersededById = verification.Id;
-                superseded.UpdatedAt = nowUtc;
+                logger.LogWarning(
+                    "Verification {VerificationId} approval blocked: supersedes_id={SupersedesId} chain invariants failed (exists={Exists}, customer_match={CustomerMatch}, market_match={MarketMatch}, state={State}).",
+                    verification.Id,
+                    supersedesId,
+                    superseded is not null,
+                    superseded?.CustomerId == verification.CustomerId,
+                    superseded?.MarketCode == verification.MarketCode,
+                    superseded?.State.ToWireValue() ?? "null");
 
-                db.StateTransitions.Add(new VerificationStateTransition
-                {
-                    Id = Guid.NewGuid(),
-                    VerificationId = superseded.Id,
-                    PriorState = VerificationState.Approved.ToWireValue(),
-                    NewState = VerificationState.Superseded.ToWireValue(),
-                    ActorKind = VerificationActorKind.System.ToWireValue(),
-                    ActorId = null,
-                    Reason = "renewal_approved",
-                    MetadataJson = $"{{\"renewal_id\":\"{verification.Id}\"}}",
-                    OccurredAt = nowUtc,
-                });
+                return DecideApproveResult.Fail(
+                    VerificationReasonCode.InvalidStateForAction,
+                    "supersession chain is invalid — the prior approval is missing, owned by another customer, in a different market, or no longer in approved state.");
             }
+
+            superseded.State = VerificationState.Superseded;
+            superseded.SupersededById = verification.Id;
+            superseded.UpdatedAt = nowUtc;
+
+            db.StateTransitions.Add(new VerificationStateTransition
+            {
+                Id = Guid.NewGuid(),
+                VerificationId = superseded.Id,
+                PriorState = VerificationState.Approved.ToWireValue(),
+                NewState = VerificationState.Superseded.ToWireValue(),
+                ActorKind = VerificationActorKind.System.ToWireValue(),
+                ActorId = null,
+                Reason = "renewal_approved",
+                MetadataJson = $"{{\"renewal_id\":\"{verification.Id}\"}}",
+                OccurredAt = nowUtc,
+            });
         }
 
         // Rebuild eligibility cache — the customer's eligibility just changed.

@@ -57,19 +57,19 @@ public sealed class VerificationReferenceDataSeeder : ISeeder
         DateTimeOffset effectiveFrom,
         int retentionMonths,
         string requiredFieldsJson) => new()
-    {
-        MarketCode = marketCode,
-        Version = version,
-        EffectiveFrom = effectiveFrom,
-        EffectiveTo = null,
-        RequiredFieldsJson = requiredFieldsJson,
-        // Defaults match the entity defaults (allowed types / reminder windows / SLA / holidays).
-        RetentionMonths = retentionMonths,
-        CooldownDays = 7,
-        ExpiryDays = 365,
-        SlaDecisionBusinessDays = 2,
-        SlaWarningBusinessDays = 1,
-    };
+        {
+            MarketCode = marketCode,
+            Version = version,
+            EffectiveFrom = effectiveFrom,
+            EffectiveTo = null,
+            RequiredFieldsJson = requiredFieldsJson,
+            // Defaults match the entity defaults (allowed types / reminder windows / SLA / holidays).
+            RetentionMonths = retentionMonths,
+            CooldownDays = 7,
+            ExpiryDays = 365,
+            SlaDecisionBusinessDays = 2,
+            SlaWarningBusinessDays = 1,
+        };
 
     /// <summary>
     /// KSA schema v1 — SCFHS license format (`SCFHS-` prefix + 7-digit number is

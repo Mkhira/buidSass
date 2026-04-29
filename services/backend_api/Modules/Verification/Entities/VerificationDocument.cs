@@ -11,6 +11,14 @@ public sealed class VerificationDocument
     public Guid Id { get; set; }
     public Guid VerificationId { get; set; }
 
+    /// <summary>
+    /// Market this document belongs to (ADR-010 logical partitioning). Always
+    /// equals the parent verification's market — denormalized here for
+    /// market-scoped retention/purge, audit, and ops reporting without joining
+    /// back to <c>verifications</c>.
+    /// </summary>
+    public string MarketCode { get; set; } = string.Empty;
+
     /// <summary>Storage abstraction key. NULL once purged; the row remains.</summary>
     public string? StorageKey { get; set; }
 

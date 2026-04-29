@@ -71,6 +71,7 @@ public sealed class DecideRequestInfoHandler(
         {
             Id = Guid.NewGuid(),
             VerificationId = verification.Id,
+            MarketCode = verification.MarketCode,
             PriorState = priorState.ToWireValue(),
             NewState = VerificationState.InfoRequested.ToWireValue(),
             ActorKind = VerificationActorKind.Reviewer.ToWireValue(),

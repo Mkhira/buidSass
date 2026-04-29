@@ -19,7 +19,9 @@ public sealed class VerificationEligibilityCacheConfiguration : IEntityTypeConfi
                 "\"MarketCode\" IN ('eg','ksa')");
         });
 
-        builder.HasKey(x => x.CustomerId);
+        // Composite PK per ADR-010 — markets are independent partitions; a
+        // customer can hold separate eligibility rows for EG and KSA.
+        builder.HasKey(x => new { x.CustomerId, x.MarketCode });
 
         builder.Property(x => x.CustomerId).IsRequired();
         builder.Property(x => x.MarketCode).HasColumnType("text").IsRequired();

@@ -67,7 +67,16 @@ public sealed class AttachDocumentHandler(
                 VerificationReasonCode.MarketUnsupported,
                 "Schema referenced by the verification could not be loaded.");
         }
-        var allowedMimes = ParseAllowedMimes(schema.AllowedDocumentTypesJson);
+        // Fail-closed on missing/invalid schema config (Principle 5: market behavior
+        // MUST be driven by configuration). A blank or malformed
+        // allowed_document_types is a market-config error, not a license to fall
+        // back to a hardcoded MIME allowlist.
+        if (!TryParseAllowedMimes(schema.AllowedDocumentTypesJson, out var allowedMimes))
+        {
+            return AttachResult.Fail(
+                VerificationReasonCode.MarketUnsupported,
+                $"Schema for market '{verification.MarketCode}' has no valid allowed_document_types configuration.");
+        }
         if (!allowedMimes.Contains(request.ContentType, StringComparer.OrdinalIgnoreCase))
         {
             return AttachResult.Fail(
@@ -133,6 +142,7 @@ public sealed class AttachDocumentHandler(
         {
             Id = Guid.NewGuid(),
             VerificationId = verification.Id,
+            MarketCode = verification.MarketCode,
             StorageKey = request.StorageKey,
             ContentType = request.ContentType,
             SizeBytes = request.SizeBytes,
@@ -164,22 +174,28 @@ public sealed class AttachDocumentHandler(
             UploadedAt: doc.UploadedAt));
     }
 
-    private static IReadOnlyCollection<string> ParseAllowedMimes(string allowedJson)
+    private static bool TryParseAllowedMimes(string allowedJson, out IReadOnlyCollection<string> allowedMimes)
     {
         if (string.IsNullOrWhiteSpace(allowedJson))
         {
-            return new[] { "application/pdf", "image/jpeg", "image/png", "image/heic" };
+            allowedMimes = Array.Empty<string>();
+            return false;
         }
         try
         {
             var arr = JsonSerializer.Deserialize<string[]>(allowedJson);
-            return arr is null || arr.Length == 0
-                ? new[] { "application/pdf", "image/jpeg", "image/png", "image/heic" }
-                : arr;
+            if (arr is null || arr.Length == 0)
+            {
+                allowedMimes = Array.Empty<string>();
+                return false;
+            }
+            allowedMimes = arr;
+            return true;
         }
         catch (JsonException)
         {
-            return new[] { "application/pdf", "image/jpeg", "image/png", "image/heic" };
+            allowedMimes = Array.Empty<string>();
+            return false;
         }
     }
 }

@@ -294,6 +294,7 @@ public sealed class AdminRevokeAndOpenHistoricalDocTests : IAsyncLifetime
         {
             Id = Guid.NewGuid(),
             VerificationId = verificationId,
+            MarketCode = "ksa",
             StorageKey = storageKey,
             ContentType = "application/pdf",
             SizeBytes = 1024,

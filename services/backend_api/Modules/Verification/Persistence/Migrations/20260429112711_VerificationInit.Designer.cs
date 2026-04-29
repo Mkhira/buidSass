@@ -12,7 +12,7 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace BackendApi.Modules.Verification.Persistence.Migrations
 {
     [DbContext(typeof(VerificationDbContext))]
-    [Migration("20260429053436_VerificationInit")]
+    [Migration("20260429112711_VerificationInit")]
     partial class VerificationInit
     {
         /// <inheritdoc />
@@ -131,6 +131,10 @@ namespace BackendApi.Modules.Verification.Persistence.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
+                    b.Property<string>("MarketCode")
+                        .IsRequired()
+                        .HasColumnType("text");
+
                     b.Property<DateTimeOffset?>("PurgeAfter")
                         .HasColumnType("timestamp with time zone");
 
@@ -164,9 +168,14 @@ namespace BackendApi.Modules.Verification.Persistence.Migrations
                     b.HasIndex("VerificationId")
                         .HasDatabaseName("IX_verification_documents_verification");
 
+                    b.HasIndex("MarketCode", "VerificationId")
+                        .HasDatabaseName("IX_verification_documents_market_verification");
+
                     b.ToTable("verification_documents", "verification", t =>
                         {
                             t.HasCheckConstraint("CK_verification_documents_content_type_allowlist", "\"ContentType\" IN ('application/pdf','image/jpeg','image/png','image/heic')");
+
+                            t.HasCheckConstraint("CK_verification_documents_market_code_enum", "\"MarketCode\" IN ('eg','ksa')");
 
                             t.HasCheckConstraint("CK_verification_documents_scan_status_enum", "\"ScanStatus\" IN ('pending','clean','infected','error')");
 
@@ -177,8 +186,10 @@ namespace BackendApi.Modules.Verification.Persistence.Migrations
             modelBuilder.Entity("BackendApi.Modules.Verification.Entities.VerificationEligibilityCache", b =>
                 {
                     b.Property<Guid>("CustomerId")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
+
+                    b.Property<string>("MarketCode")
+                        .HasColumnType("text");
 
                     b.Property<DateTimeOffset>("ComputedAt")
                         .HasColumnType("timestamp with time zone");
@@ -190,10 +201,6 @@ namespace BackendApi.Modules.Verification.Persistence.Migrations
                     b.Property<DateTimeOffset?>("ExpiresAt")
                         .HasColumnType("timestamp with time zone");
 
-                    b.Property<string>("MarketCode")
-                        .IsRequired()
-                        .HasColumnType("text");
-
                     b.Property<string>("ProfessionsJson")
                         .IsRequired()
                         .ValueGeneratedOnAdd()
@@ -204,7 +211,7 @@ namespace BackendApi.Modules.Verification.Persistence.Migrations
                     b.Property<string>("ReasonCode")
                         .HasColumnType("text");
 
-                    b.HasKey("CustomerId");
+                    b.HasKey("CustomerId", "MarketCode");
 
                     b.HasIndex("MarketCode", "EligibilityClass")
                         .HasDatabaseName("IX_verification_eligibility_cache_market_class");
@@ -300,6 +307,10 @@ namespace BackendApi.Modules.Verification.Persistence.Migrations
                     b.Property<DateTimeOffset>("EmittedAt")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<string>("MarketCode")
+                        .IsRequired()
+                        .HasColumnType("text");
+
                     b.Property<string>("SkipReason")
                         .HasColumnType("text");
 
@@ -316,12 +327,17 @@ namespace BackendApi.Modules.Verification.Persistence.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("MarketCode", "VerificationId")
+                        .HasDatabaseName("IX_verification_reminders_market_verification");
+
                     b.HasIndex("VerificationId", "WindowDays")
                         .IsUnique()
                         .HasDatabaseName("UX_verification_reminders_verification_window");
 
                     b.ToTable("verification_reminders", "verification", t =>
                         {
+                            t.HasCheckConstraint("CK_verification_reminders_market_code_enum", "\"MarketCode\" IN ('eg','ksa')");
+
                             t.HasCheckConstraint("CK_verification_reminders_skip_reason_when_skipped", "\"Skipped\" = false OR (\"Skipped\" = true AND \"SkipReason\" IS NOT NULL)");
 
                             t.HasCheckConstraint("CK_verification_reminders_window_positive", "\"WindowDays\" > 0");
@@ -338,6 +354,10 @@ namespace BackendApi.Modules.Verification.Persistence.Migrations
                         .HasColumnType("uuid");
 
                     b.Property<string>("ActorKind")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("MarketCode")
                         .IsRequired()
                         .HasColumnType("text");
 
@@ -368,12 +388,21 @@ namespace BackendApi.Modules.Verification.Persistence.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("MarketCode", "OccurredAt")
+                        .HasDatabaseName("IX_verification_state_transitions_market_occurred");
+
                     b.HasIndex("VerificationId", "OccurredAt")
                         .HasDatabaseName("IX_verification_state_transitions_verification_occurred");
 
                     b.ToTable("verification_state_transitions", "verification", t =>
                         {
                             t.HasCheckConstraint("CK_verification_state_transitions_actor_kind_enum", "\"ActorKind\" IN ('customer','reviewer','system')");
+
+                            t.HasCheckConstraint("CK_verification_state_transitions_market_code_enum", "\"MarketCode\" IN ('eg','ksa')");
+
+                            t.HasCheckConstraint("CK_verification_state_transitions_new_state_enum", "\"NewState\" IN ('submitted','in-review','info-requested','approved','rejected','expired','revoked','superseded','void')");
+
+                            t.HasCheckConstraint("CK_verification_state_transitions_prior_state_enum", "\"PriorState\" IN ('__none__','submitted','in-review','info-requested','approved','rejected','expired','revoked','superseded','void')");
                         });
                 });
 

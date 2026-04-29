@@ -75,34 +75,11 @@ public sealed class DecideApproveHandler(
         }
 
         var priorState = verification.State;
-        verification.State = VerificationState.Approved;
-        verification.DecidedAt = nowUtc;
-        verification.DecidedBy = reviewerId;
-        verification.ExpiresAt = nowUtc.AddDays(schema.ExpiryDays);
-        verification.UpdatedAt = nowUtc;
 
-        // Append the state-transition ledger row in the same Tx.
-        var transition = new VerificationStateTransition
-        {
-            Id = Guid.NewGuid(),
-            VerificationId = verification.Id,
-            PriorState = priorState.ToWireValue(),
-            NewState = VerificationState.Approved.ToWireValue(),
-            ActorKind = VerificationActorKind.Reviewer.ToWireValue(),
-            ActorId = reviewerId,
-            Reason = ComposeReasonForLedger(request.Reason),
-            MetadataJson = SerializeReasonMetadata(request.Reason),
-            OccurredAt = nowUtc,
-        };
-        db.StateTransitions.Add(transition);
-
-        // Supersession path — if this verification has a SupersedesId, transition
-        // the prior approval to superseded atomically. Defense-in-depth: validate
-        // the chain invariants on the prior row even though SubmitVerificationHandler
-        // already gated SupersedesId at submission time. A mismatch at this stage
-        // means the chain has been corrupted between submit and approve (e.g.,
-        // supersedes_id manually altered in the DB) — fail the approval rather
-        // than silently mutate an unrelated row's state.
+        // Supersession path — validate chain invariants BEFORE mutating any rows.
+        // CodeRabbit R2-5: defer state mutations until checks pass; otherwise a
+        // failed-invariant return leaves dirty change-tracker state in this scope
+        // that another caller might accidentally persist.
         Entities.Verification? superseded = null;
         if (verification.SupersedesId is { } supersedesId)
         {
@@ -127,7 +104,31 @@ public sealed class DecideApproveHandler(
                     VerificationReasonCode.InvalidStateForAction,
                     "supersession chain is invalid — the prior approval is missing, owned by another customer, in a different market, or no longer in approved state.");
             }
+        }
 
+        // All invariants passed — now mutate state and stage transitions atomically.
+        verification.State = VerificationState.Approved;
+        verification.DecidedAt = nowUtc;
+        verification.DecidedBy = reviewerId;
+        verification.ExpiresAt = nowUtc.AddDays(schema.ExpiryDays);
+        verification.UpdatedAt = nowUtc;
+
+        db.StateTransitions.Add(new VerificationStateTransition
+        {
+            Id = Guid.NewGuid(),
+            VerificationId = verification.Id,
+            MarketCode = verification.MarketCode,
+            PriorState = priorState.ToWireValue(),
+            NewState = VerificationState.Approved.ToWireValue(),
+            ActorKind = VerificationActorKind.Reviewer.ToWireValue(),
+            ActorId = reviewerId,
+            Reason = ComposeReasonForLedger(request.Reason),
+            MetadataJson = SerializeReasonMetadata(request.Reason),
+            OccurredAt = nowUtc,
+        });
+
+        if (superseded is not null)
+        {
             superseded.State = VerificationState.Superseded;
             superseded.SupersededById = verification.Id;
             superseded.UpdatedAt = nowUtc;
@@ -136,18 +137,19 @@ public sealed class DecideApproveHandler(
             {
                 Id = Guid.NewGuid(),
                 VerificationId = superseded.Id,
+                MarketCode = superseded.MarketCode,
                 PriorState = VerificationState.Approved.ToWireValue(),
                 NewState = VerificationState.Superseded.ToWireValue(),
                 ActorKind = VerificationActorKind.System.ToWireValue(),
                 ActorId = null,
                 Reason = "renewal_approved",
-                MetadataJson = $"{{\"renewal_id\":\"{verification.Id}\"}}",
+                MetadataJson = JsonSerializer.Serialize(new { renewal_id = verification.Id }),
                 OccurredAt = nowUtc,
             });
         }
 
-        // Rebuild eligibility cache — the customer's eligibility just changed.
-        await eligibilityInvalidator.RebuildAsync(verification.CustomerId, db, ct);
+        // Rebuild eligibility cache — the customer's eligibility just changed in this market.
+        await eligibilityInvalidator.RebuildAsync(verification.CustomerId, verification.MarketCode, db, ct);
 
         try
         {

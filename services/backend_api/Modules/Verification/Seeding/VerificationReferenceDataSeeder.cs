@@ -3,6 +3,7 @@ using BackendApi.Modules.Verification.Entities;
 using BackendApi.Modules.Verification.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using Npgsql;
 
 namespace BackendApi.Modules.Verification.Seeding;
 
@@ -24,32 +25,57 @@ public sealed class VerificationReferenceDataSeeder : ISeeder
         var db = ctx.Services.GetRequiredService<VerificationDbContext>();
         var nowUtc = DateTimeOffset.UtcNow;
 
-        var ksaExists = await db.MarketSchemas
-            .AnyAsync(s => s.MarketCode == "ksa" && s.Version == 1, ct);
-        if (!ksaExists)
-        {
-            db.MarketSchemas.Add(BuildSchema(
-                marketCode: "ksa",
-                version: 1,
-                effectiveFrom: nowUtc,
-                retentionMonths: 24,
-                requiredFieldsJson: KsaRequiredFieldsJson));
-        }
+        // Conflict-tolerant insert per row. The check-then-add pattern races under
+        // concurrent seeder runs (two nodes both pass AnyAsync, both call Add, the
+        // second SaveChanges fails on the (MarketCode, Version) PK). Inserting one
+        // row at a time and swallowing the unique-violation lets concurrent runs
+        // converge to a clean no-op without sacrificing isolation.
+        await TryInsertAsync(db, BuildSchema(
+            marketCode: "ksa",
+            version: 1,
+            effectiveFrom: nowUtc,
+            retentionMonths: 24,
+            requiredFieldsJson: KsaRequiredFieldsJson), ct);
 
-        var egExists = await db.MarketSchemas
-            .AnyAsync(s => s.MarketCode == "eg" && s.Version == 1, ct);
-        if (!egExists)
-        {
-            db.MarketSchemas.Add(BuildSchema(
-                marketCode: "eg",
-                version: 1,
-                effectiveFrom: nowUtc,
-                retentionMonths: 36,
-                requiredFieldsJson: EgRequiredFieldsJson));
-        }
-
-        await db.SaveChangesAsync(ct);
+        await TryInsertAsync(db, BuildSchema(
+            marketCode: "eg",
+            version: 1,
+            effectiveFrom: nowUtc,
+            retentionMonths: 36,
+            requiredFieldsJson: EgRequiredFieldsJson), ct);
     }
+
+    private static async Task TryInsertAsync(
+        VerificationDbContext db,
+        VerificationMarketSchema schema,
+        CancellationToken ct)
+    {
+        // Cheap pre-check first — the common path (already seeded) avoids an
+        // exception and keeps logs quiet.
+        var exists = await db.MarketSchemas
+            .AnyAsync(s => s.MarketCode == schema.MarketCode && s.Version == schema.Version, ct);
+        if (exists)
+        {
+            return;
+        }
+
+        db.MarketSchemas.Add(schema);
+        try
+        {
+            await db.SaveChangesAsync(ct);
+        }
+        catch (DbUpdateException ex) when (IsUniqueViolation(ex))
+        {
+            // Another seeder process won the race and inserted the same PK first.
+            // Detach the entity so this DbContext stays clean, then continue —
+            // the desired terminal state ("row exists") is achieved.
+            db.Entry(schema).State = EntityState.Detached;
+        }
+    }
+
+    private static bool IsUniqueViolation(DbUpdateException ex) =>
+        ex.InnerException is PostgresException pg
+        && pg.SqlState == PostgresErrorCodes.UniqueViolation;
 
     private static VerificationMarketSchema BuildSchema(
         string marketCode,

@@ -1,3 +1,4 @@
+using System.Text.Json;
 using BackendApi.Modules.AuditLog;
 using BackendApi.Modules.Verification.Eligibility;
 using BackendApi.Modules.Verification.Entities;
@@ -89,9 +90,18 @@ public sealed class SubmitVerificationHandler(
             }
         }
 
-        // 3. No-other-non-terminal guard (per data-model §3.2). Validated renewals
-        //    (priorApproval non-null) are exempt — the renewal proceeds while the
-        //    prior approval remains active until the renewal is approved.
+        // 3. In-flight guard (per data-model §3.2). Two modes:
+        //
+        //    Fresh submission (priorApproval is null): block if the customer
+        //    already has any non-terminal verification.
+        //
+        //    Validated renewal (priorApproval non-null): the prior approval is
+        //    expected to be in flight, so it doesn't count. But we MUST still
+        //    block a duplicate pending renewal — i.e., another non-terminal
+        //    row for this customer that isn't the prior approval itself. Without
+        //    this check, a direct SubmitVerification with SupersedesId could
+        //    bypass renewal policy and create stacked pending renewals (which
+        //    RequestRenewalHandler is supposed to police).
         if (priorApproval is null)
         {
             var hasOpen = await db.Verifications.AnyAsync(
@@ -108,6 +118,30 @@ public sealed class SubmitVerificationHandler(
                 return SubmitResult.Fail(
                     VerificationReasonCode.AlreadyPending,
                     "Customer already has a non-terminal verification in flight.");
+            }
+        }
+        else
+        {
+            // Renewal mode: the prior approval is excluded from the in-flight set
+            // (it's in Approved which is non-terminal). Anything else non-terminal
+            // is a duplicate pending renewal — reject.
+            var priorApprovalId = priorApproval.Id;
+            var hasOpenRenewal = await db.Verifications.AnyAsync(
+                v => v.CustomerId == customerId
+                  && v.Id != priorApprovalId
+                  && v.State != VerificationState.Approved
+                  && v.State != VerificationState.Rejected
+                  && v.State != VerificationState.Expired
+                  && v.State != VerificationState.Revoked
+                  && v.State != VerificationState.Superseded
+                  && v.State != VerificationState.Void,
+                ct);
+
+            if (hasOpenRenewal)
+            {
+                return SubmitResult.Fail(
+                    VerificationReasonCode.AlreadyPending,
+                    "A non-terminal renewal already exists for this customer.");
             }
         }
 
@@ -136,6 +170,7 @@ public sealed class SubmitVerificationHandler(
         {
             Id = Guid.NewGuid(),
             VerificationId = verificationId,
+            MarketCode = schema.MarketCode,
             PriorState = VerificationStateMachine.PriorStateNoneWire,
             NewState = VerificationState.Submitted.ToWireValue(),
             ActorKind = VerificationActorKind.Customer.ToWireValue(),
@@ -150,7 +185,7 @@ public sealed class SubmitVerificationHandler(
 
         // 4. Rebuild eligibility cache inside the same DbContext (Phase 2 stub no-ops
         //    until Phase 5 fills in the read-and-UPSERT path).
-        await eligibilityInvalidator.RebuildAsync(customerId, db, ct);
+        await eligibilityInvalidator.RebuildAsync(customerId, schema.MarketCode, db, ct);
 
         await db.SaveChangesAsync(ct);
 
@@ -195,16 +230,18 @@ public sealed class SubmitVerificationHandler(
     private static string SerializeSubmissionMetadata(SubmitVerificationRequest request, string? idempotencyKey)
     {
         // Light-weight metadata sidecar; full document linkage lands with the
-        // AttachDocument slice (T054) once the storage path is wired.
-        // idempotency_key is captured for audit-trail traceability — full
-        // distributed dedup ships with the platform IdempotencyStore in a
-        // follow-up (per Checkout's pattern).
-        var docs = string.Join(",", request.DocumentIds.Select(d => $"\"{d}\""));
-        var supersedes = request.SupersedesId is { } sid ? $"\"{sid}\"" : "null";
-        var idemKey = string.IsNullOrWhiteSpace(idempotencyKey)
-            ? "null"
-            : $"\"{idempotencyKey.Replace("\"", "\\\"")}\"";
-        return $"{{\"document_ids\":[{docs}],\"supersedes_id\":{supersedes},\"idempotency_key\":{idemKey}}}";
+        // AttachDocument slice once the storage path is wired. idempotency_key
+        // is captured for audit-trail traceability — full distributed dedup
+        // ships with the platform IdempotencyStore in a follow-up (per Checkout's
+        // pattern). Use JsonSerializer (not string concat) so customer-controlled
+        // header values containing quotes / backslashes / control chars produce
+        // valid jsonb (Principle 25 — audit trail traceability).
+        return JsonSerializer.Serialize(new
+        {
+            document_ids = request.DocumentIds,
+            supersedes_id = request.SupersedesId,
+            idempotency_key = string.IsNullOrWhiteSpace(idempotencyKey) ? null : idempotencyKey,
+        });
     }
 }
 

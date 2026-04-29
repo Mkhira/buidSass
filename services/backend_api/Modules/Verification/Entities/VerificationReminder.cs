@@ -10,6 +10,13 @@ public sealed class VerificationReminder
     public Guid Id { get; set; }
     public Guid VerificationId { get; set; }
 
+    /// <summary>
+    /// Market this reminder belongs to (ADR-010 logical partitioning). Always
+    /// equals the parent verification's market — denormalized here for
+    /// market-scoped retention and ops reporting.
+    /// </summary>
+    public string MarketCode { get; set; } = string.Empty;
+
     /// <summary>Must match an entry in the verification's snapshotted <c>reminder_windows_days</c>.</summary>
     public int WindowDays { get; set; }
 

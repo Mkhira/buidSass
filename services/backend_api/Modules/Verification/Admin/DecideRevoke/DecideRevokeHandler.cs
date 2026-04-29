@@ -62,6 +62,7 @@ public sealed class DecideRevokeHandler(
         {
             Id = Guid.NewGuid(),
             VerificationId = verification.Id,
+            MarketCode = verification.MarketCode,
             PriorState = priorState.ToWireValue(),
             NewState = VerificationState.Revoked.ToWireValue(),
             ActorKind = VerificationActorKind.Reviewer.ToWireValue(),
@@ -73,7 +74,7 @@ public sealed class DecideRevokeHandler(
 
         // Eligibility cache rebuild — customer goes from eligible → ineligible
         // (assuming no other active approval covers them).
-        await eligibilityInvalidator.RebuildAsync(verification.CustomerId, db, ct);
+        await eligibilityInvalidator.RebuildAsync(verification.CustomerId, verification.MarketCode, db, ct);
 
         try
         {

@@ -136,6 +136,7 @@ public sealed class RequestRenewalHandler(
         {
             Id = Guid.NewGuid(),
             VerificationId = renewalId,
+            MarketCode = approval.MarketCode,
             PriorState = VerificationStateMachine.PriorStateNoneWire,
             NewState = VerificationState.Submitted.ToWireValue(),
             ActorKind = VerificationActorKind.Customer.ToWireValue(),

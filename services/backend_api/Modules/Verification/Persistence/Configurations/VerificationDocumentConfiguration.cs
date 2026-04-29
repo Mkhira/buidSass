@@ -20,10 +20,14 @@ public sealed class VerificationDocumentConfiguration : IEntityTypeConfiguration
             t.HasCheckConstraint(
                 "CK_verification_documents_scan_status_enum",
                 "\"ScanStatus\" IN ('pending','clean','infected','error')");
+            t.HasCheckConstraint(
+                "CK_verification_documents_market_code_enum",
+                "\"MarketCode\" IN ('eg','ksa')");
         });
 
         builder.HasKey(x => x.Id);
         builder.Property(x => x.VerificationId).IsRequired();
+        builder.Property(x => x.MarketCode).HasColumnType("text").IsRequired();
         builder.Property(x => x.StorageKey).HasColumnType("text");
         builder.Property(x => x.ContentType).HasColumnType("text").IsRequired();
         builder.Property(x => x.SizeBytes).IsRequired();
@@ -32,6 +36,9 @@ public sealed class VerificationDocumentConfiguration : IEntityTypeConfiguration
 
         builder.HasIndex(x => x.VerificationId)
             .HasDatabaseName("IX_verification_documents_verification");
+
+        builder.HasIndex(x => new { x.MarketCode, x.VerificationId })
+            .HasDatabaseName("IX_verification_documents_market_verification");
 
         builder.HasIndex(x => x.PurgeAfter)
             .HasDatabaseName("IX_verification_documents_purge_after")

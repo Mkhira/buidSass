@@ -107,6 +107,7 @@ public sealed class ResubmitWithInfoHandler(
         {
             Id = Guid.NewGuid(),
             VerificationId = verification.Id,
+            MarketCode = verification.MarketCode,
             PriorState = priorState.ToWireValue(),
             NewState = VerificationState.InReview.ToWireValue(),
             ActorKind = VerificationActorKind.Customer.ToWireValue(),

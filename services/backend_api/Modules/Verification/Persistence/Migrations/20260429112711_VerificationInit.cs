@@ -29,7 +29,7 @@ namespace BackendApi.Modules.Verification.Persistence.Migrations
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_verification_eligibility_cache", x => x.CustomerId);
+                    table.PrimaryKey("PK_verification_eligibility_cache", x => new { x.CustomerId, x.MarketCode });
                     table.CheckConstraint("CK_verification_eligibility_cache_class_enum", "\"EligibilityClass\" IN ('eligible','ineligible','unrestricted_only')");
                     table.CheckConstraint("CK_verification_eligibility_cache_market_code_enum", "\"MarketCode\" IN ('eg','ksa')");
                 });
@@ -122,6 +122,7 @@ namespace BackendApi.Modules.Verification.Persistence.Migrations
                 {
                     Id = table.Column<Guid>(type: "uuid", nullable: false),
                     VerificationId = table.Column<Guid>(type: "uuid", nullable: false),
+                    MarketCode = table.Column<string>(type: "text", nullable: false),
                     StorageKey = table.Column<string>(type: "text", nullable: true),
                     ContentType = table.Column<string>(type: "text", nullable: false),
                     SizeBytes = table.Column<long>(type: "bigint", nullable: false),
@@ -134,6 +135,7 @@ namespace BackendApi.Modules.Verification.Persistence.Migrations
                 {
                     table.PrimaryKey("PK_verification_documents", x => x.Id);
                     table.CheckConstraint("CK_verification_documents_content_type_allowlist", "\"ContentType\" IN ('application/pdf','image/jpeg','image/png','image/heic')");
+                    table.CheckConstraint("CK_verification_documents_market_code_enum", "\"MarketCode\" IN ('eg','ksa')");
                     table.CheckConstraint("CK_verification_documents_scan_status_enum", "\"ScanStatus\" IN ('pending','clean','infected','error')");
                     table.CheckConstraint("CK_verification_documents_size_bytes_limit", "\"SizeBytes\" > 0 AND \"SizeBytes\" <= 10485760");
                     table.ForeignKey(
@@ -152,6 +154,7 @@ namespace BackendApi.Modules.Verification.Persistence.Migrations
                 {
                     Id = table.Column<Guid>(type: "uuid", nullable: false),
                     VerificationId = table.Column<Guid>(type: "uuid", nullable: false),
+                    MarketCode = table.Column<string>(type: "text", nullable: false),
                     WindowDays = table.Column<int>(type: "integer", nullable: false),
                     EmittedAt = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false),
                     Skipped = table.Column<bool>(type: "boolean", nullable: false, defaultValue: false),
@@ -160,6 +163,7 @@ namespace BackendApi.Modules.Verification.Persistence.Migrations
                 constraints: table =>
                 {
                     table.PrimaryKey("PK_verification_reminders", x => x.Id);
+                    table.CheckConstraint("CK_verification_reminders_market_code_enum", "\"MarketCode\" IN ('eg','ksa')");
                     table.CheckConstraint("CK_verification_reminders_skip_reason_when_skipped", "\"Skipped\" = false OR (\"Skipped\" = true AND \"SkipReason\" IS NOT NULL)");
                     table.CheckConstraint("CK_verification_reminders_window_positive", "\"WindowDays\" > 0");
                     table.ForeignKey(
@@ -178,6 +182,7 @@ namespace BackendApi.Modules.Verification.Persistence.Migrations
                 {
                     Id = table.Column<Guid>(type: "uuid", nullable: false),
                     VerificationId = table.Column<Guid>(type: "uuid", nullable: false),
+                    MarketCode = table.Column<string>(type: "text", nullable: false),
                     PriorState = table.Column<string>(type: "text", nullable: false),
                     NewState = table.Column<string>(type: "text", nullable: false),
                     ActorKind = table.Column<string>(type: "text", nullable: false),
@@ -190,6 +195,9 @@ namespace BackendApi.Modules.Verification.Persistence.Migrations
                 {
                     table.PrimaryKey("PK_verification_state_transitions", x => x.Id);
                     table.CheckConstraint("CK_verification_state_transitions_actor_kind_enum", "\"ActorKind\" IN ('customer','reviewer','system')");
+                    table.CheckConstraint("CK_verification_state_transitions_market_code_enum", "\"MarketCode\" IN ('eg','ksa')");
+                    table.CheckConstraint("CK_verification_state_transitions_new_state_enum", "\"NewState\" IN ('submitted','in-review','info-requested','approved','rejected','expired','revoked','superseded','void')");
+                    table.CheckConstraint("CK_verification_state_transitions_prior_state_enum", "\"PriorState\" IN ('__none__','submitted','in-review','info-requested','approved','rejected','expired','revoked','superseded','void')");
                     table.ForeignKey(
                         name: "FK_verification_state_transitions_verifications_VerificationId",
                         column: x => x.VerificationId,
@@ -198,6 +206,12 @@ namespace BackendApi.Modules.Verification.Persistence.Migrations
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Restrict);
                 });
+
+            migrationBuilder.CreateIndex(
+                name: "IX_verification_documents_market_verification",
+                schema: "verification",
+                table: "verification_documents",
+                columns: new[] { "MarketCode", "VerificationId" });
 
             migrationBuilder.CreateIndex(
                 name: "IX_verification_documents_purge_after",
@@ -227,11 +241,23 @@ namespace BackendApi.Modules.Verification.Persistence.Migrations
                 filter: "\"EffectiveTo\" IS NULL");
 
             migrationBuilder.CreateIndex(
+                name: "IX_verification_reminders_market_verification",
+                schema: "verification",
+                table: "verification_reminders",
+                columns: new[] { "MarketCode", "VerificationId" });
+
+            migrationBuilder.CreateIndex(
                 name: "UX_verification_reminders_verification_window",
                 schema: "verification",
                 table: "verification_reminders",
                 columns: new[] { "VerificationId", "WindowDays" },
                 unique: true);
+
+            migrationBuilder.CreateIndex(
+                name: "IX_verification_state_transitions_market_occurred",
+                schema: "verification",
+                table: "verification_state_transitions",
+                columns: new[] { "MarketCode", "OccurredAt" });
 
             migrationBuilder.CreateIndex(
                 name: "IX_verification_state_transitions_verification_occurred",

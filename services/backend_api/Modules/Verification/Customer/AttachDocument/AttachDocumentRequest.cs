@@ -7,11 +7,14 @@ namespace BackendApi.Modules.Verification.Customer.AttachDocument;
 /// <para>The actual virus scan happens UPSTREAM of this endpoint, in the
 /// storage abstraction (spec 015) — typically via an async scanner that runs
 /// when the storage object lands. The customer's client receives the resulting
-/// <see cref="ScanStatus"/> from the upload step and forwards it here. This
-/// endpoint records metadata + persists only when the upstream scanner has
-/// returned <c>clean</c>; <c>pending</c> rows are accepted and surface in the
-/// row's <see cref="Entities.VerificationDocument.ScanStatus"/> until the async
-/// scanner updates them; <c>infected</c> rejects with no row written.</para>
+/// <see cref="ScanStatus"/> from the upload step and forwards it here.</para>
+///
+/// <para><b>Persistence contract:</b> the endpoint persists rows for BOTH
+/// <c>clean</c> and <c>pending</c> scan results. Pending rows surface their
+/// status via <see cref="Entities.VerificationDocument.ScanStatus"/> until the
+/// async scanner flips them to <c>clean</c> (or <c>infected</c>, in which case
+/// downstream submission is blocked). <c>infected</c> and <c>error</c> are
+/// rejected at attach time and no row is written.</para>
 ///
 /// <para>This contract is deliberately honest about where scanning lives —
 /// previously an in-handler <c>IVirusScanService</c> call ran against an

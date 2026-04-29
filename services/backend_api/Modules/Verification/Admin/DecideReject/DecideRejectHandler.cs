@@ -78,6 +78,7 @@ public sealed class DecideRejectHandler(
         {
             Id = Guid.NewGuid(),
             VerificationId = verification.Id,
+            MarketCode = verification.MarketCode,
             PriorState = priorState.ToWireValue(),
             NewState = VerificationState.Rejected.ToWireValue(),
             ActorKind = VerificationActorKind.Reviewer.ToWireValue(),
@@ -90,7 +91,7 @@ public sealed class DecideRejectHandler(
         });
 
         // Eligibility cache rebuild — rejection means no active approval.
-        await eligibilityInvalidator.RebuildAsync(verification.CustomerId, db, ct);
+        await eligibilityInvalidator.RebuildAsync(verification.CustomerId, verification.MarketCode, db, ct);
 
         try
         {

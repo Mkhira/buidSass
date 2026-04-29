@@ -17,10 +17,14 @@ public sealed class VerificationReminderConfiguration : IEntityTypeConfiguration
             t.HasCheckConstraint(
                 "CK_verification_reminders_skip_reason_when_skipped",
                 "\"Skipped\" = false OR (\"Skipped\" = true AND \"SkipReason\" IS NOT NULL)");
+            t.HasCheckConstraint(
+                "CK_verification_reminders_market_code_enum",
+                "\"MarketCode\" IN ('eg','ksa')");
         });
 
         builder.HasKey(x => x.Id);
         builder.Property(x => x.VerificationId).IsRequired();
+        builder.Property(x => x.MarketCode).HasColumnType("text").IsRequired();
         builder.Property(x => x.WindowDays).IsRequired();
         builder.Property(x => x.EmittedAt).IsRequired();
         builder.Property(x => x.Skipped).HasDefaultValue(false).IsRequired();
@@ -30,6 +34,9 @@ public sealed class VerificationReminderConfiguration : IEntityTypeConfiguration
         builder.HasIndex(x => new { x.VerificationId, x.WindowDays })
             .IsUnique()
             .HasDatabaseName("UX_verification_reminders_verification_window");
+
+        builder.HasIndex(x => new { x.MarketCode, x.VerificationId })
+            .HasDatabaseName("IX_verification_reminders_market_verification");
 
         builder.HasOne<Entities.Verification>()
             .WithMany()

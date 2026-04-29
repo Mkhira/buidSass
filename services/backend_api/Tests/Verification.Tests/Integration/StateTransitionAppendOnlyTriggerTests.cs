@@ -97,6 +97,7 @@ public sealed class StateTransitionAppendOnlyTriggerTests : IAsyncLifetime
         {
             Id = Guid.NewGuid(),
             VerificationId = verificationId,
+            MarketCode = "ksa",
             PriorState = VerificationStateMachine.PriorStateNoneWire,
             NewState = "submitted",
             ActorKind = "customer",
@@ -147,6 +148,7 @@ public sealed class StateTransitionAppendOnlyTriggerTests : IAsyncLifetime
         {
             Id = Guid.NewGuid(),
             VerificationId = verificationId,
+            MarketCode = "ksa",
             PriorState = VerificationStateMachine.PriorStateNoneWire,
             NewState = "submitted",
             ActorKind = "customer",

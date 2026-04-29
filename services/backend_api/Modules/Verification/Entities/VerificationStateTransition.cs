@@ -10,6 +10,14 @@ public sealed class VerificationStateTransition
     public Guid Id { get; set; }
     public Guid VerificationId { get; set; }
 
+    /// <summary>
+    /// Market this transition belongs to (ADR-010 logical partitioning). Always
+    /// equals the parent verification's market — denormalized here so retention,
+    /// audit, and ops queries can scope by market without joining back to
+    /// <c>verifications</c>.
+    /// </summary>
+    public string MarketCode { get; set; } = string.Empty;
+
     /// <summary>Use the literal <c>__none__</c> for the initial submission insert.</summary>
     public string PriorState { get; set; } = string.Empty;
 

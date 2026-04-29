@@ -60,9 +60,9 @@ description: "Phase-1D Spec 020 — Professional Verification: dependency-ordere
 
 #### Foundational unit tests
 
-- [ ] T014 [P] Create `services/backend_api/tests/Verification.Tests/Unit/VerificationStateMachineTests.cs`: every allowed transition returns true; every forbidden transition (terminal→non-terminal, any→Submitted, InfoRequested→Approved/Rejected/Revoked direct) returns false
-- [ ] T015 [P] Create `services/backend_api/tests/Verification.Tests/Unit/BusinessDayCalculatorTests.cs`: Sun–Thu week; spans across weekends; respects holidays list; SLA `T0+1` and `T0+2` arithmetic deterministic per [research.md §R2](./research.md)
-- [ ] T016 [P] Create `services/backend_api/tests/Verification.Tests/Unit/EligibilityReasonCodeIcuKeysTests.cs`: every `EligibilityReasonCode` enum value has an entry in both `verification.en.icu` and `verification.ar.icu`
+- [X] T014 [P] Create `services/backend_api/tests/Verification.Tests/Unit/VerificationStateMachineTests.cs`: every allowed transition returns true; every forbidden transition (terminal→non-terminal, any→Submitted, InfoRequested→Approved/Rejected/Revoked direct) returns false
+- [X] T015 [P] Create `services/backend_api/tests/Verification.Tests/Unit/BusinessDayCalculatorTests.cs`: Sun–Thu week; spans across weekends; respects holidays list; SLA `T0+1` and `T0+2` arithmetic deterministic per [research.md §R2](./research.md)
+- [X] T016 [P] Create `services/backend_api/tests/Verification.Tests/Unit/EligibilityReasonCodeIcuKeysTests.cs`: every `EligibilityReasonCode` enum value has an entry in both `verification.en.icu` and `verification.ar.icu`
 
 ### Persistence
 

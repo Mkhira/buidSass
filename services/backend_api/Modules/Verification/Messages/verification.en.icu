@@ -1,0 +1,68 @@
+# Verification module — English ICU keys
+# Format: key = value
+#
+# Keys are added per slice as customer-visible reason codes are introduced.
+# Maintained alongside verification.ar.icu — every key MUST exist in both
+# bundles before its slice ships at DoD (Principle 4 / SC-008).
+
+# Eligibility class messages (data-model §4)
+verification.eligibility.eligible = You are eligible to purchase this product.
+verification.eligibility.unrestricted = This product is not restricted.
+verification.eligibility.required = Verify your professional credentials to purchase this product.
+verification.eligibility.pending = Your verification is under review.
+verification.eligibility.info_requested = We need more information to complete your verification.
+verification.eligibility.rejected = Your verification was not approved. You may resubmit on {cooldown_until}.
+verification.eligibility.expired = Your verification expired on {expired_at}. Renew to continue.
+verification.eligibility.revoked = Your verification has been revoked. {reason}
+verification.eligibility.profession_mismatch = This product is restricted to {required_profession}.
+verification.eligibility.market_mismatch = Your verification was issued for {old_market}. Please verify for {new_market}.
+verification.eligibility.account_inactive = Your account is not active.
+
+# Submission validation
+verification.required_field_missing = A required field is missing.
+verification.regulator_identifier_invalid = The regulator identifier is invalid.
+verification.documents_invalid = One or more documents are invalid.
+verification.document.scan_infected = A document failed the malware scan and was rejected.
+verification.document.scan_pending = A document is still being scanned. Please wait and try again.
+verification.document.size_exceeded = A document exceeds the maximum size of 10 MB.
+verification.document.count_exceeded = Too many documents — maximum 5 per submission.
+verification.document.aggregate_size_exceeded = Documents total too much — maximum 25 MB per submission.
+verification.document.mime_forbidden = This file type is not allowed.
+
+# Submission lifecycle
+verification.already_pending = You already have a verification under review. Wait for the current decision before submitting again.
+verification.cooldown_active = You may submit again on {cooldown_until}.
+verification.account_inactive = Your account is not active.
+verification.market_unsupported = Verification is not configured for your market.
+verification.renewal_not_eligible = This verification is not yet eligible for renewal.
+verification.renewal_already_pending = You already have a renewal under review.
+
+# Reviewer-side
+verification.already_decided = This verification has already been decided.
+verification.invalid_state_for_action = This action is not allowed for the verification's current state.
+verification.review.reason_required = A reason is required for this decision.
+verification.reviewer.scope_mismatch = This verification is in a market outside your assigned scope.
+verification.pii.access_forbidden = You don't have permission to read this protected information.
+
+# Concurrency + idempotency
+verification.row.version_conflict = This verification was changed by another reviewer. Please reload and retry.
+verification.idempotency.key_missing = This action requires an Idempotency-Key header.
+verification.idempotency.key_conflict = This idempotency key was used with a different request body.
+
+# Cross-module / system
+verification.linked_entity_unavailable = A required cross-module record is unavailable. Please retry shortly.
+verification.eligibility.cache_stale = The eligibility cache is being refreshed. Please retry shortly.
+
+# Reviewer permission gates (US2)
+verification.review_permission_required = You don't have the verification.review permission.
+verification.revoke_permission_required = You don't have the verification.revoke permission required to revoke an approval.
+
+# Document open path (US2 / contracts §3.7)
+verification.document_not_found = The requested document was not found.
+verification.document_purged = The document body has been purged per the market's retention policy.
+verification.not_found = Verification not found.
+
+# Required field labels (referenced from market_schemas required_fields jsonb)
+verification.field.profession.label = Profession
+verification.field.regulator_identifier.ksa.label = SCFHS license number
+verification.field.regulator_identifier.eg.label = Egyptian Medical Syndicate registration

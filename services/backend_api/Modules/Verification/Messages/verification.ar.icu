@@ -1,0 +1,73 @@
+# Verification module — Arabic ICU keys (editorial-grade per Principle 4)
+# Format: key = value
+#
+# Every key MUST exist in BOTH verification.en.icu AND verification.ar.icu before
+# the slice that consumes it can ship at DoD. AR strings MUST be human-authored
+# (no machine translation per Principle 4) and tracked in AR_EDITORIAL_REVIEW.md
+# until editorial sign-off.
+#
+# DRAFT STATUS: the keys below are first-pass technical translations; they are
+# tracked in AR_EDITORIAL_REVIEW.md and require sign-off from the AR editorial
+# reviewer before the spec hits DoD. SC-008 verifies all entries are signed off.
+
+# Eligibility class messages
+verification.eligibility.eligible = أنت مؤهل لشراء هذا المنتج.
+verification.eligibility.unrestricted = هذا المنتج غير مقيد.
+verification.eligibility.required = يرجى التحقق من بيانات اعتمادك المهنية لشراء هذا المنتج.
+verification.eligibility.pending = جاري مراجعة طلب التحقق الخاص بك.
+verification.eligibility.info_requested = نحتاج إلى مزيد من المعلومات لإكمال التحقق.
+verification.eligibility.rejected = لم تتم الموافقة على التحقق. يمكنك إعادة التقديم في {cooldown_until}.
+verification.eligibility.expired = انتهت صلاحية التحقق في {expired_at}. يرجى التجديد للمتابعة.
+verification.eligibility.revoked = تم إلغاء التحقق الخاص بك. {reason}
+verification.eligibility.profession_mismatch = هذا المنتج مقيد على {required_profession}.
+verification.eligibility.market_mismatch = تم إصدار التحقق لـ {old_market}. يرجى التحقق لـ {new_market}.
+verification.eligibility.account_inactive = حسابك غير نشط.
+
+# Submission validation
+verification.required_field_missing = حقل مطلوب مفقود.
+verification.regulator_identifier_invalid = رقم تسجيل الهيئة غير صالح.
+verification.documents_invalid = واحد أو أكثر من المستندات غير صالح.
+verification.document.scan_infected = فشل المستند في فحص البرامج الضارة.
+verification.document.scan_pending = ما زال المستند قيد الفحص. يرجى المحاولة لاحقاً.
+verification.document.size_exceeded = حجم المستند يتجاوز الحد الأقصى (10 ميغابايت).
+verification.document.count_exceeded = عدد المستندات يتجاوز الحد الأقصى — 5 لكل طلب.
+verification.document.aggregate_size_exceeded = الحجم الإجمالي للمستندات يتجاوز 25 ميغابايت.
+verification.document.mime_forbidden = نوع هذا الملف غير مسموح به.
+
+# Submission lifecycle
+verification.already_pending = لديك طلب تحقق قيد المراجعة بالفعل.
+verification.cooldown_active = يمكنك التقديم مرة أخرى في {cooldown_until}.
+verification.account_inactive = حسابك غير نشط.
+verification.market_unsupported = خدمة التحقق غير مهيأة لسوقك.
+verification.renewal_not_eligible = هذا التحقق غير مؤهل للتجديد بعد.
+verification.renewal_already_pending = لديك طلب تجديد قيد المراجعة بالفعل.
+
+# Reviewer-side
+verification.already_decided = تم اتخاذ قرار بشأن هذا التحقق بالفعل.
+verification.invalid_state_for_action = هذا الإجراء غير مسموح به للحالة الحالية للتحقق.
+verification.review.reason_required = سبب القرار مطلوب.
+verification.reviewer.scope_mismatch = هذا التحقق في سوق خارج نطاقك المخصص.
+verification.pii.access_forbidden = ليس لديك صلاحية لقراءة هذه المعلومات المحمية.
+
+# Concurrency + idempotency
+verification.row.version_conflict = تم تغيير هذا التحقق بواسطة مراجع آخر. يرجى إعادة التحميل والمحاولة.
+verification.idempotency.key_missing = هذا الإجراء يتطلب رأس Idempotency-Key.
+verification.idempotency.key_conflict = تم استخدام مفتاح Idempotency هذا مع طلب مختلف.
+
+# Cross-module / system
+verification.linked_entity_unavailable = سجل ضروري بين الوحدات غير متاح. يرجى المحاولة بعد قليل.
+verification.eligibility.cache_stale = جاري تحديث ذاكرة الأهلية. يرجى المحاولة بعد قليل.
+
+# Reviewer permission gates (US2)
+verification.review_permission_required = ليس لديك صلاحية verification.review.
+verification.revoke_permission_required = ليس لديك صلاحية verification.revoke المطلوبة لإلغاء الموافقة.
+
+# Document open path (US2 / contracts §3.7)
+verification.document_not_found = المستند المطلوب غير موجود.
+verification.document_purged = تم حذف محتوى المستند وفقاً لسياسة الاحتفاظ في السوق.
+verification.not_found = لم يتم العثور على التحقق.
+
+# Required field labels
+verification.field.profession.label = المهنة
+verification.field.regulator_identifier.ksa.label = رقم رخصة هيئة التخصصات الصحية (SCFHS)
+verification.field.regulator_identifier.eg.label = رقم تسجيل النقابة الطبية المصرية

@@ -1,6 +1,8 @@
 using BackendApi.Configuration;
 using BackendApi.Features.Seeding;
 using BackendApi.Modules.Shared;
+using BackendApi.Modules.Verification.Customer.SubmitVerification;
+using BackendApi.Modules.Verification.Eligibility;
 using BackendApi.Modules.Verification.Persistence;
 using BackendApi.Modules.Verification.Seeding;
 using Microsoft.AspNetCore.Builder;
@@ -62,13 +64,27 @@ public static class VerificationModule
         // Reference-data seeder: KSA + EG market schemas.
         services.AddScoped<ISeeder, VerificationReferenceDataSeeder>();
 
+        // Phase 3 — customer slice handlers.
+        services.AddScoped<EligibilityCacheInvalidator>();
+        services.AddScoped<SubmitVerificationHandler>();
+
+        // Time abstraction for testability.
+        services.AddSingleton(TimeProvider.System);
+
         return services;
     }
 
+    /// <summary>
+    /// Mounts the verification HTTP surface. Phase 3 ships the customer
+    /// submission endpoint under <c>/api/customer/verifications</c>; later
+    /// phases attach the read endpoints + admin queue under their respective
+    /// route groups.
+    /// </summary>
     public static IEndpointRouteBuilder MapVerificationEndpoints(
         this IEndpointRouteBuilder endpoints)
     {
-        // Phase 1 placeholder. Customer + Admin slice endpoints land in Phases 3-5.
+        var customer = endpoints.MapGroup("/api/customer/verifications");
+        customer.MapSubmitVerificationEndpoint();
         return endpoints;
     }
 }

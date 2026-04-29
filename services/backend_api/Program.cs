@@ -109,6 +109,7 @@ if (app.Environment.IsDevelopment())
 }
 
 app.MapHealthChecks("/health");
+app.MapVerificationEndpoints();
 
 await app.RunAsync();
 return 0;

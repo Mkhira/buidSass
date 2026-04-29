@@ -103,8 +103,8 @@ description: "Phase-1D Spec 020 — Professional Verification: dependency-ordere
 
 #### Foundational integration tests
 
-- [ ] T042 [P] Create `services/backend_api/tests/Verification.Tests/Integration/VerificationDbContextSmokeTests.cs`: spins up Testcontainers Postgres, applies migrations, runs the seeder, asserts `verification_market_schemas` has 2 rows (KSA v1 + EG v1) and the unique-active partial index rejects a second active row per market
-- [ ] T043 [P] Create `services/backend_api/tests/Verification.Tests/Integration/StateTransitionAppendOnlyTriggerTests.cs`: verify the append-only Postgres trigger raises on UPDATE / DELETE of `verification_state_transitions`
+- [X] T042 [P] Create `services/backend_api/tests/Verification.Tests/Integration/VerificationDbContextSmokeTests.cs`: spins up Testcontainers Postgres, applies migrations, runs the seeder, asserts `verification_market_schemas` has 2 rows (KSA v1 + EG v1) and the unique-active partial index rejects a second active row per market
+- [X] T043 [P] Create `services/backend_api/tests/Verification.Tests/Integration/StateTransitionAppendOnlyTriggerTests.cs`: verify the append-only Postgres trigger raises on UPDATE / DELETE of `verification_state_transitions`
 
 **Checkpoint**: Foundation ready. `dotnet test` passes T014–T016 + T042–T043. User story implementation can now begin.
 

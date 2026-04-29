@@ -1,6 +1,8 @@
 using BackendApi.Modules.Verification.Entities;
+using BackendApi.Modules.Verification.Primitives;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
+using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 namespace BackendApi.Modules.Verification.Persistence.Configurations;
 
@@ -26,7 +28,14 @@ public sealed class VerificationConfiguration : IEntityTypeConfiguration<Entitie
         builder.Property(x => x.SchemaVersion).IsRequired();
         builder.Property(x => x.Profession).HasColumnType("text").IsRequired();
         builder.Property(x => x.RegulatorIdentifier).HasColumnType("text").IsRequired();
-        builder.Property(x => x.State).HasColumnType("text").IsRequired();
+        // CHECK constraint matches the enum's wire-format mapper exactly. Conversion
+        // ensures EF persists the snake-case slug, not the C# enum name or integer.
+        builder.Property(x => x.State)
+            .HasConversion(new ValueConverter<VerificationState, string>(
+                v => v.ToWireValue(),
+                s => ParseStateWireValue(s)))
+            .HasColumnType("text")
+            .IsRequired();
         builder.Property(x => x.SubmittedAt).IsRequired();
         builder.Property(x => x.RestrictionPolicySnapshotJson)
             .HasColumnType("jsonb")
@@ -70,5 +79,15 @@ public sealed class VerificationConfiguration : IEntityTypeConfiguration<Entitie
             .WithMany()
             .HasForeignKey(x => x.SupersededById)
             .OnDelete(DeleteBehavior.Restrict);
+    }
+
+    private static VerificationState ParseStateWireValue(string wire)
+    {
+        if (!VerificationStateExtensions.TryParseWireValue(wire, out var parsed))
+        {
+            throw new InvalidOperationException(
+                $"Unknown VerificationState wire value: '{wire}'.");
+        }
+        return parsed;
     }
 }

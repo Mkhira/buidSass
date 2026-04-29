@@ -1,5 +1,6 @@
 using BackendApi.Modules.AuditLog;
 using BackendApi.Modules.Verification.Admin.Common;
+using BackendApi.Modules.Verification.Eligibility;
 using BackendApi.Modules.Verification.Entities;
 using BackendApi.Modules.Verification.Persistence;
 using BackendApi.Modules.Verification.Primitives;
@@ -22,12 +23,14 @@ namespace BackendApi.Modules.Verification.Admin.DecideRequestInfo;
 ///         stamps decided_at. The transition row's <c>occurred_at</c> is the
 ///         authoritative pause timestamp.</item>
 /// </list>
-/// No eligibility-cache rebuild is needed (the customer has no active approval
-/// either before or after this transition, so the ineligible row stays
-/// ineligible).
+/// Cache rebuild runs anyway per T085 — the invariant is "every transition
+/// rebuilds authority in the same Tx" rather than "rebuild only when the
+/// outcome would differ". A no-op rebuild is cheap and keeps the contract
+/// uniform across handlers.
 /// </summary>
 public sealed class DecideRequestInfoHandler(
     VerificationDbContext db,
+    EligibilityCacheInvalidator eligibilityInvalidator,
     IAuditEventPublisher auditPublisher,
     TimeProvider clock,
     ILogger<DecideRequestInfoHandler> logger)
@@ -86,6 +89,11 @@ public sealed class DecideRequestInfoHandler(
                 }),
             OccurredAt = nowUtc,
         });
+
+        // Rebuild eligibility cache inside the same Tx (T085). info_requested
+        // doesn't change ineligibility class, but the rebuild keeps every
+        // transition path uniform.
+        await eligibilityInvalidator.RebuildAsync(verification.CustomerId, verification.MarketCode, db, ct);
 
         try
         {

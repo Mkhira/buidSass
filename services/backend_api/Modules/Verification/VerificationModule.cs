@@ -24,6 +24,7 @@ using Microsoft.AspNetCore.Routing;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
 using Npgsql;
 
@@ -77,6 +78,12 @@ public static class VerificationModule
 
         // Reference-data seeder: KSA + EG market schemas.
         services.AddScoped<ISeeder, VerificationReferenceDataSeeder>();
+
+        // Phase 5 / US3 — eligibility query for catalog/cart/checkout.
+        // Null IProductRestrictionPolicy is a safe fallback until spec 005's
+        // production binding ships. TryAddSingleton lets spec 005 override.
+        services.TryAddSingleton<IProductRestrictionPolicy, NullProductRestrictionPolicy>();
+        services.AddScoped<ICustomerVerificationEligibilityQuery, CustomerVerificationEligibilityQuery>();
 
         // Phase 3 — customer slice handlers.
         services.AddScoped<EligibilityCacheInvalidator>();

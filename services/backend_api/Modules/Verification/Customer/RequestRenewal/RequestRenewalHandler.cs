@@ -1,5 +1,6 @@
 using System.Text.Json;
 using BackendApi.Modules.AuditLog;
+using BackendApi.Modules.Verification.Eligibility;
 using BackendApi.Modules.Verification.Entities;
 using BackendApi.Modules.Verification.Persistence;
 using BackendApi.Modules.Verification.Primitives;
@@ -29,6 +30,7 @@ namespace BackendApi.Modules.Verification.Customer.RequestRenewal;
 /// </summary>
 public sealed class RequestRenewalHandler(
     VerificationDbContext db,
+    EligibilityCacheInvalidator eligibilityInvalidator,
     IAuditEventPublisher auditPublisher,
     TimeProvider clock,
     ILogger<RequestRenewalHandler> logger)
@@ -176,6 +178,12 @@ public sealed class RequestRenewalHandler(
             }),
             OccurredAt = nowUtc,
         });
+
+        // Rebuild eligibility cache inside the same Tx (T085). Customer's
+        // existing approval keeps them eligible until the renewal is decided —
+        // the rebuild is invariant-preserving but uniform with every other
+        // transition handler.
+        await eligibilityInvalidator.RebuildAsync(customerId, approval.MarketCode, db, ct);
 
         try
         {

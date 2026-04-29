@@ -39,6 +39,23 @@ public sealed class AttachDocumentHandler(
         AttachDocumentRequest request,
         CancellationToken ct)
     {
+        // 0. Required-field validation — both StorageKey and ContentType are
+        //    load-bearing for downstream MIME/size/scan checks and document
+        //    persistence. Reject blanks early with a precise reason code rather
+        //    than letting them flow into Contains() / EF.
+        if (string.IsNullOrWhiteSpace(request.StorageKey))
+        {
+            return AttachResult.Fail(
+                VerificationReasonCode.RequiredFieldMissing,
+                "storage_key is required.");
+        }
+        if (string.IsNullOrWhiteSpace(request.ContentType))
+        {
+            return AttachResult.Fail(
+                VerificationReasonCode.RequiredFieldMissing,
+                "content_type is required.");
+        }
+
         // 1. Owner gate — 404 (not 403) avoids leaking row existence to a foreign customer.
         var verification = await db.Verifications
             .Where(v => v.Id == verificationId && v.CustomerId == customerId)

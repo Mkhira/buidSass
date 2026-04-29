@@ -194,6 +194,7 @@ namespace BackendApi.Modules.Verification.Persistence.Migrations
                 constraints: table =>
                 {
                     table.PrimaryKey("PK_verification_state_transitions", x => x.Id);
+                    table.CheckConstraint("CK_verification_state_transitions_actor_id_by_kind", "(\"ActorKind\" = 'system' AND \"ActorId\" IS NULL) OR (\"ActorKind\" IN ('customer','reviewer') AND \"ActorId\" IS NOT NULL)");
                     table.CheckConstraint("CK_verification_state_transitions_actor_kind_enum", "\"ActorKind\" IN ('customer','reviewer','system')");
                     table.CheckConstraint("CK_verification_state_transitions_market_code_enum", "\"MarketCode\" IN ('eg','ksa')");
                     table.CheckConstraint("CK_verification_state_transitions_new_state_enum", "\"NewState\" IN ('submitted','in-review','info-requested','approved','rejected','expired','revoked','superseded','void')");

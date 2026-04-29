@@ -18,6 +18,14 @@ public sealed class VerificationStateTransitionConfiguration : IEntityTypeConfig
             t.HasCheckConstraint(
                 "CK_verification_state_transitions_actor_kind_enum",
                 "\"ActorKind\" IN ('customer','reviewer','system')");
+            // Actor attribution invariant (Principle 25). Append-only ledger —
+            // a system row must NOT carry an actor id, and customer/reviewer
+            // rows MUST carry one. Without this guard a single bad insert
+            // becomes a permanent unauditable verification decision.
+            t.HasCheckConstraint(
+                "CK_verification_state_transitions_actor_id_by_kind",
+                "(\"ActorKind\" = 'system' AND \"ActorId\" IS NULL) "
+                + "OR (\"ActorKind\" IN ('customer','reviewer') AND \"ActorId\" IS NOT NULL)");
             // CodeRabbit R2-3: pin PriorState/NewState to the state-machine wire
             // values at insert time. Append-only table — without DB-side guards a
             // single bad insert becomes a permanent invalid audit row. PriorState

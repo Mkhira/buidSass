@@ -40,7 +40,8 @@ public static class RequestRenewalEndpoint
         // Empty body is fine — both fields are optional.
         var request = body ?? new RequestRenewalRequest(null, null);
 
-        var result = await handler.HandleAsync(customerId.Value, request, ct);
+        var marketCode = VerificationResponseFactory.ResolveMarketCode(context);
+        var result = await handler.HandleAsync(customerId.Value, marketCode, request, ct);
         if (!result.IsSuccess)
         {
             var status = result.ReasonCode switch

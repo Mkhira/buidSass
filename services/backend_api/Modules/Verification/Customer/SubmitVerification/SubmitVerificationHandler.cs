@@ -102,10 +102,15 @@ public sealed class SubmitVerificationHandler(
         //    this check, a direct SubmitVerification with SupersedesId could
         //    bypass renewal policy and create stacked pending renewals (which
         //    RequestRenewalHandler is supposed to police).
+        // Both branches are scoped to the current market — markets are
+        // independently regulated (ADR-010), so a non-terminal KSA verification
+        // must not block an unrelated EG submission/renewal.
+        var marketScope = schema.MarketCode;
         if (priorApproval is null)
         {
             var hasOpen = await db.Verifications.AnyAsync(
                 v => v.CustomerId == customerId
+                  && v.MarketCode == marketScope
                   && v.State != VerificationState.Rejected
                   && v.State != VerificationState.Expired
                   && v.State != VerificationState.Revoked
@@ -117,17 +122,18 @@ public sealed class SubmitVerificationHandler(
             {
                 return SubmitResult.Fail(
                     VerificationReasonCode.AlreadyPending,
-                    "Customer already has a non-terminal verification in flight.");
+                    "Customer already has a non-terminal verification in flight for this market.");
             }
         }
         else
         {
             // Renewal mode: the prior approval is excluded from the in-flight set
             // (it's in Approved which is non-terminal). Anything else non-terminal
-            // is a duplicate pending renewal — reject.
+            // in the same market is a duplicate pending renewal — reject.
             var priorApprovalId = priorApproval.Id;
             var hasOpenRenewal = await db.Verifications.AnyAsync(
                 v => v.CustomerId == customerId
+                  && v.MarketCode == marketScope
                   && v.Id != priorApprovalId
                   && v.State != VerificationState.Approved
                   && v.State != VerificationState.Rejected
@@ -141,7 +147,7 @@ public sealed class SubmitVerificationHandler(
             {
                 return SubmitResult.Fail(
                     VerificationReasonCode.AlreadyPending,
-                    "A non-terminal renewal already exists for this customer.");
+                    "A non-terminal renewal already exists for this customer in this market.");
             }
         }
 

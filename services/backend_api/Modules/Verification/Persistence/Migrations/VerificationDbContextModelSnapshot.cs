@@ -393,6 +393,8 @@ namespace BackendApi.Modules.Verification.Persistence.Migrations
 
                     b.ToTable("verification_state_transitions", "verification", t =>
                         {
+                            t.HasCheckConstraint("CK_verification_state_transitions_actor_id_by_kind", "(\"ActorKind\" = 'system' AND \"ActorId\" IS NULL) OR (\"ActorKind\" IN ('customer','reviewer') AND \"ActorId\" IS NOT NULL)");
+
                             t.HasCheckConstraint("CK_verification_state_transitions_actor_kind_enum", "\"ActorKind\" IN ('customer','reviewer','system')");
 
                             t.HasCheckConstraint("CK_verification_state_transitions_market_code_enum", "\"MarketCode\" IN ('eg','ksa')");

@@ -32,16 +32,27 @@ public sealed class RequestRenewalHandler(
     TimeProvider clock,
     ILogger<RequestRenewalHandler> logger)
 {
+    public Task<RenewalResult> HandleAsync(
+        Guid customerId,
+        RequestRenewalRequest request,
+        CancellationToken ct)
+        => HandleAsync(customerId, marketCode: "ksa", request, ct);
+
     public async Task<RenewalResult> HandleAsync(
         Guid customerId,
+        string marketCode,
         RequestRenewalRequest request,
         CancellationToken ct)
     {
         var nowUtc = clock.GetUtcNow();
 
-        // 1. Find customer's active approval — most recent, not superseded.
+        // 1. Find customer's active approval IN THIS MARKET — most recent, not
+        //    superseded. Customers can hold independent EG/KSA approvals; the
+        //    handler MUST renew the right one (ADR-010).
         var approval = await db.Verifications
-            .Where(v => v.CustomerId == customerId && v.State == VerificationState.Approved)
+            .Where(v => v.CustomerId == customerId
+                     && v.MarketCode == marketCode
+                     && v.State == VerificationState.Approved)
             .OrderByDescending(v => v.SubmittedAt)
             .FirstOrDefaultAsync(ct);
 
@@ -49,7 +60,7 @@ public sealed class RequestRenewalHandler(
         {
             return RenewalResult.Fail(
                 VerificationReasonCode.RenewalNotEligible,
-                "no_active_approval — customer has no approved verification to renew.");
+                "no_active_approval — customer has no approved verification to renew in this market.");
         }
 
         // 2. Inside earliest reminder window?
@@ -127,7 +138,16 @@ public sealed class RequestRenewalHandler(
             State = VerificationState.Submitted,
             SubmittedAt = nowUtc,
             SupersedesId = approval.Id,
-            RestrictionPolicySnapshotJson = "{}",
+            // Carry the prior approval's restriction-policy snapshot forward so
+            // the renewal is reviewed against the same restriction context the
+            // approval was granted under (Principle 8 — reusable restriction +
+            // eligibility model). The reviewer's approval handler refreshes the
+            // snapshot via IProductRestrictionPolicy at decision time per the
+            // submission flow; until then renewal audit replay keeps a non-empty
+            // policy view.
+            RestrictionPolicySnapshotJson = string.IsNullOrWhiteSpace(approval.RestrictionPolicySnapshotJson)
+                ? "{}"
+                : approval.RestrictionPolicySnapshotJson,
             CreatedAt = nowUtc,
             UpdatedAt = nowUtc,
         });

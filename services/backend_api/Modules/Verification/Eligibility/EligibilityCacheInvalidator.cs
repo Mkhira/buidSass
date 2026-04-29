@@ -3,6 +3,7 @@ using BackendApi.Modules.Verification.Entities;
 using BackendApi.Modules.Verification.Persistence;
 using BackendApi.Modules.Verification.Primitives;
 using Microsoft.EntityFrameworkCore;
+using Npgsql;
 
 namespace BackendApi.Modules.Verification.Eligibility;
 
@@ -82,59 +83,69 @@ public sealed class EligibilityCacheInvalidator
 
         var nowUtc = DateTimeOffset.UtcNow;
 
-        var existing = await db.EligibilityCache
-            .SingleOrDefaultAsync(c => c.CustomerId == customerId && c.MarketCode == marketCode, ct);
+        string eligibilityClass;
+        DateTimeOffset? expiresAt;
+        string? reasonCode;
+        string professionsJson;
 
         if (activeApproval is null)
         {
-            // No active approval in this market — record as ineligible.
-            if (existing is null)
-            {
-                db.EligibilityCache.Add(new VerificationEligibilityCache
-                {
-                    CustomerId = customerId,
-                    MarketCode = marketCode,
-                    EligibilityClass = "ineligible",
-                    ExpiresAt = null,
-                    ReasonCode = EligibilityReasonCode.VerificationRequired.ToWireValue(),
-                    ProfessionsJson = "[]",
-                    ComputedAt = nowUtc,
-                });
-            }
-            else
-            {
-                existing.EligibilityClass = "ineligible";
-                existing.ExpiresAt = null;
-                existing.ReasonCode = EligibilityReasonCode.VerificationRequired.ToWireValue();
-                existing.ProfessionsJson = "[]";
-                existing.ComputedAt = nowUtc;
-            }
-            return;
-        }
-
-        var professionsJson = JsonSerializer.Serialize(new[] { activeApproval.Profession });
-
-        if (existing is null)
-        {
-            db.EligibilityCache.Add(new VerificationEligibilityCache
-            {
-                CustomerId = customerId,
-                MarketCode = activeApproval.MarketCode,
-                EligibilityClass = "eligible",
-                ExpiresAt = activeApproval.ExpiresAt,
-                ReasonCode = null,
-                ProfessionsJson = professionsJson,
-                ComputedAt = nowUtc,
-            });
+            eligibilityClass = "ineligible";
+            expiresAt = null;
+            reasonCode = EligibilityReasonCode.VerificationRequired.ToWireValue();
+            professionsJson = "[]";
         }
         else
         {
-            existing.EligibilityClass = "eligible";
-            existing.ExpiresAt = activeApproval.ExpiresAt;
-            existing.ReasonCode = null;
-            existing.ProfessionsJson = professionsJson;
-            existing.ComputedAt = nowUtc;
+            eligibilityClass = "eligible";
+            expiresAt = activeApproval.ExpiresAt;
+            reasonCode = null;
+            professionsJson = JsonSerializer.Serialize(new[] { activeApproval.Profession });
         }
+
+        // Real UPSERT against the (CustomerId, MarketCode) composite PK. Two
+        // concurrent transitions rebuilding the same cache row no longer race
+        // each other (read-then-insert/update could blow up on PK conflict and
+        // roll back the whole verification transition). ON CONFLICT DO UPDATE
+        // is atomic at the storage layer and runs in the ambient EF
+        // transaction, so the caller's SaveChanges still commits everything
+        // together.
+        //
+        // Also detach any change-tracked cache row to avoid double-writes — we
+        // own all writes to this row from this method.
+        var trackedExisting = db.ChangeTracker.Entries<VerificationEligibilityCache>()
+            .FirstOrDefault(e => e.Entity.CustomerId == customerId
+                              && e.Entity.MarketCode == marketCode);
+        if (trackedExisting is not null)
+        {
+            trackedExisting.State = EntityState.Detached;
+        }
+
+        const string upsertSql = """
+            INSERT INTO verification.verification_eligibility_cache
+                ("CustomerId", "MarketCode", "EligibilityClass", "ExpiresAt", "ReasonCode", "Professions", "ComputedAt")
+            VALUES (@p_customer, @p_market, @p_class, @p_expires, @p_reason, @p_professions::jsonb, @p_now)
+            ON CONFLICT ("CustomerId", "MarketCode") DO UPDATE SET
+                "EligibilityClass" = EXCLUDED."EligibilityClass",
+                "ExpiresAt"        = EXCLUDED."ExpiresAt",
+                "ReasonCode"       = EXCLUDED."ReasonCode",
+                "Professions"      = EXCLUDED."Professions",
+                "ComputedAt"       = EXCLUDED."ComputedAt";
+            """;
+
+        await db.Database.ExecuteSqlRawAsync(
+            upsertSql,
+            parameters: new object[]
+            {
+                new NpgsqlParameter("p_customer", customerId),
+                new NpgsqlParameter("p_market", marketCode),
+                new NpgsqlParameter("p_class", eligibilityClass),
+                new NpgsqlParameter("p_expires", (object?)expiresAt ?? DBNull.Value),
+                new NpgsqlParameter("p_reason", (object?)reasonCode ?? DBNull.Value),
+                new NpgsqlParameter("p_professions", professionsJson),
+                new NpgsqlParameter("p_now", nowUtc),
+            },
+            cancellationToken: ct);
     }
 }
 

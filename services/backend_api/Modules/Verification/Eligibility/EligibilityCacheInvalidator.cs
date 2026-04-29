@@ -78,7 +78,7 @@ public sealed class EligibilityCacheInvalidator
         // In-memory pending Approved wins (it's the most-recent decision the caller is
         // about to commit). Falls back to a committed approval that has no pending
         // mutation. Both being null means the customer has no active approval in this
-        // market.
+        // market — fall through to nuanced reason-code resolution.
         var activeApproval = pendingApprovedInMemory ?? committedApproved;
 
         var nowUtc = DateTimeOffset.UtcNow;
@@ -88,19 +88,49 @@ public sealed class EligibilityCacheInvalidator
         string? reasonCode;
         string professionsJson;
 
-        if (activeApproval is null)
-        {
-            eligibilityClass = "ineligible";
-            expiresAt = null;
-            reasonCode = EligibilityReasonCode.VerificationRequired.ToWireValue();
-            professionsJson = "[]";
-        }
-        else
+        if (activeApproval is not null)
         {
             eligibilityClass = "eligible";
             expiresAt = activeApproval.ExpiresAt;
             reasonCode = null;
             professionsJson = JsonSerializer.Serialize(new[] { activeApproval.Profession });
+        }
+        else
+        {
+            // No active approval — find the customer's MOST RECENT verification in
+            // this market (any state), considering both pending and committed rows.
+            // The reason code reflects that row's state so the eligibility query can
+            // surface a precise error to the customer (Pending / InfoRequested /
+            // Rejected / Revoked / Expired) rather than a generic "Required".
+            var pendingMostRecent = pendingInMarket
+                .OrderByDescending(v => v.SubmittedAt)
+                .FirstOrDefault();
+            var committedMostRecent = await db.Verifications
+                .AsNoTracking()
+                .Where(v => v.CustomerId == customerId
+                         && v.MarketCode == marketCode
+                         && !pendingIds.Contains(v.Id))
+                .OrderByDescending(v => v.SubmittedAt)
+                .FirstOrDefaultAsync(ct);
+
+            // Both candidates compete by SubmittedAt; pending wins ties (it's the
+            // about-to-commit row that the caller wants reflected).
+            Entities.Verification? mostRecent = null;
+            if (pendingMostRecent is not null && committedMostRecent is not null)
+            {
+                mostRecent = pendingMostRecent.SubmittedAt >= committedMostRecent.SubmittedAt
+                    ? pendingMostRecent
+                    : committedMostRecent;
+            }
+            else
+            {
+                mostRecent = pendingMostRecent ?? committedMostRecent;
+            }
+
+            eligibilityClass = "ineligible";
+            expiresAt = null;
+            professionsJson = "[]";
+            reasonCode = MapStateToReasonCode(mostRecent?.State).ToWireValue();
         }
 
         // Real UPSERT against the (CustomerId, MarketCode) composite PK. Two
@@ -147,6 +177,27 @@ public sealed class EligibilityCacheInvalidator
             },
             cancellationToken: ct);
     }
+
+    /// <summary>
+    /// Maps a verification's state to the matching <see cref="EligibilityReasonCode"/>
+    /// for cache rows where <c>eligibility_class = 'ineligible'</c>. The customer's
+    /// most-recent verification (in this market) drives the choice — its state tells
+    /// the customer why they can't purchase the SKU right now.
+    /// </summary>
+    private static EligibilityReasonCode MapStateToReasonCode(VerificationState? state) => state switch
+    {
+        null => EligibilityReasonCode.VerificationRequired,
+        VerificationState.Submitted => EligibilityReasonCode.VerificationPending,
+        VerificationState.InReview => EligibilityReasonCode.VerificationPending,
+        VerificationState.InfoRequested => EligibilityReasonCode.VerificationInfoRequested,
+        VerificationState.Rejected => EligibilityReasonCode.VerificationRejected,
+        VerificationState.Revoked => EligibilityReasonCode.VerificationRevoked,
+        VerificationState.Expired => EligibilityReasonCode.VerificationExpired,
+        // Superseded / Void are terminal markers without a customer-visible blocker
+        // of their own — fall back to "verification required" so the customer is
+        // prompted to start fresh.
+        _ => EligibilityReasonCode.VerificationRequired,
+    };
 }
 
 internal static class EligibilityReasonCodeWireMapper

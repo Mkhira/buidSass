@@ -74,6 +74,20 @@ public sealed class DecideRejectHandler(
 
         var cooldownUntil = nowUtc.AddDays(schema.CooldownDays);
 
+        // T096 retention wiring: stamp purge_after on every non-purged document
+        // so the daily VerificationDocumentPurgeWorker reaps the bodies once
+        // the market's retention window elapses. We only set when null so a
+        // re-decision (theoretically blocked, but safe-guard) doesn't extend
+        // an already-stamped retention.
+        var purgeAfter = nowUtc.AddMonths(schema.RetentionMonths);
+        var documents = await db.Documents
+            .Where(d => d.VerificationId == verification.Id && d.PurgedAt == null && d.PurgeAfter == null)
+            .ToListAsync(ct);
+        foreach (var doc in documents)
+        {
+            doc.PurgeAfter = purgeAfter;
+        }
+
         db.StateTransitions.Add(new VerificationStateTransition
         {
             Id = Guid.NewGuid(),

@@ -147,7 +147,7 @@ public sealed class AdminQueueSlaBreachTests : IAsyncLifetime
         await using (var db = NewContext())
         {
             var requestInfo = new DecideRequestInfoHandler(
-                db, new RecordingAuditPublisher(),
+                db, new EligibilityCacheInvalidator(), new RecordingAuditPublisher(),
                 new FakeTimeProvider(requestInfoTime),
                 NullLogger<DecideRequestInfoHandler>.Instance);
             await requestInfo.HandleAsync(verificationId, Guid.NewGuid(),

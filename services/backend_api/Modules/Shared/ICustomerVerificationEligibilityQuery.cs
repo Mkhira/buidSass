@@ -26,9 +26,17 @@ public interface ICustomerVerificationEligibilityQuery
     /// <summary>
     /// Single-SKU evaluation. See <see cref="ICustomerVerificationEligibilityQuery"/>
     /// for the latency contract.
+    ///
+    /// <para><paramref name="customerCurrentMarket"/> is the customer's
+    /// market-of-record (per ADR-010). Markets are independently regulated, so
+    /// eligibility is evaluated against the cache row for
+    /// <c>(customerId, customerCurrentMarket)</c> — a customer's KSA approval
+    /// does NOT grant eligibility for an EG-restricted purchase. Callers
+    /// resolve this from the JWT or the platform's market-of-record service.</para>
     /// </summary>
     ValueTask<EligibilityResult> EvaluateAsync(
         Guid customerId,
+        string customerCurrentMarket,
         string sku,
         CancellationToken cancellationToken);
 
@@ -38,6 +46,7 @@ public interface ICustomerVerificationEligibilityQuery
     /// </summary>
     ValueTask<IReadOnlyDictionary<string, EligibilityResult>> EvaluateManyAsync(
         Guid customerId,
+        string customerCurrentMarket,
         IReadOnlyCollection<string> skus,
         CancellationToken cancellationToken);
 }

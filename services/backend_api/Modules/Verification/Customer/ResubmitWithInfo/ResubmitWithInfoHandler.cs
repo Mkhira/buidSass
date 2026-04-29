@@ -1,5 +1,6 @@
 using System.Text.Json;
 using BackendApi.Modules.AuditLog;
+using BackendApi.Modules.Verification.Eligibility;
 using BackendApi.Modules.Verification.Entities;
 using BackendApi.Modules.Verification.Persistence;
 using BackendApi.Modules.Verification.Primitives;
@@ -26,6 +27,7 @@ namespace BackendApi.Modules.Verification.Customer.ResubmitWithInfo;
 /// </summary>
 public sealed class ResubmitWithInfoHandler(
     VerificationDbContext db,
+    EligibilityCacheInvalidator eligibilityInvalidator,
     IAuditEventPublisher auditPublisher,
     TimeProvider clock,
     ILogger<ResubmitWithInfoHandler> logger)
@@ -120,6 +122,12 @@ public sealed class ResubmitWithInfoHandler(
             }),
             OccurredAt = nowUtc,
         });
+
+        // Rebuild eligibility cache inside the same Tx (T085 — every transition
+        // handler MUST refresh authority). Resubmit doesn't change the customer's
+        // ineligible/pending state, but the rebuild is invariant-preserving and
+        // future-proofs the contract if reason_code semantics evolve.
+        await eligibilityInvalidator.RebuildAsync(verification.CustomerId, verification.MarketCode, db, ct);
 
         try
         {

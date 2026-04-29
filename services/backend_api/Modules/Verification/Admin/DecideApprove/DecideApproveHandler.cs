@@ -133,6 +133,21 @@ public sealed class DecideApproveHandler(
             superseded.SupersededById = verification.Id;
             superseded.UpdatedAt = nowUtc;
 
+            // T096 retention wiring: stamp purge_after on the superseded
+            // verification's documents using its OWN snapshotted schema (not
+            // the renewal's), since retention semantics belong to the row
+            // entering the terminal state. Same MarketCode + SchemaVersion
+            // tuple — we already have `schema` loaded for that lookup.
+            var supersededRetentionMonths = schema.RetentionMonths;
+            var supersededPurgeAfter = nowUtc.AddMonths(supersededRetentionMonths);
+            var supersededDocs = await db.Documents
+                .Where(d => d.VerificationId == superseded.Id && d.PurgedAt == null && d.PurgeAfter == null)
+                .ToListAsync(ct);
+            foreach (var doc in supersededDocs)
+            {
+                doc.PurgeAfter = supersededPurgeAfter;
+            }
+
             db.StateTransitions.Add(new VerificationStateTransition
             {
                 Id = Guid.NewGuid(),

@@ -73,7 +73,7 @@ public sealed class AdminRequestInfoHandlerTests : IAsyncLifetime
 
         await using var db = NewContext();
         var handler = new DecideRequestInfoHandler(
-            db, new RecordingAuditPublisher(), clock,
+            db, new EligibilityCacheInvalidator(), new RecordingAuditPublisher(), clock,
             NullLogger<DecideRequestInfoHandler>.Instance);
 
         var result = await handler.HandleAsync(
@@ -121,7 +121,7 @@ public sealed class AdminRequestInfoHandlerTests : IAsyncLifetime
         await using (var db = NewContext())
         {
             var h = new DecideRequestInfoHandler(
-                db, new RecordingAuditPublisher(),
+                db, new EligibilityCacheInvalidator(), new RecordingAuditPublisher(),
                 new FakeTimeProvider(new DateTimeOffset(2026, 5, 1, 14, 0, 0, TimeSpan.Zero)),
                 NullLogger<DecideRequestInfoHandler>.Instance);
             await h.HandleAsync(verificationId, Guid.NewGuid(),
@@ -181,7 +181,7 @@ public sealed class AdminRequestInfoHandlerTests : IAsyncLifetime
         await using (var db = NewContext())
         {
             var h = new DecideRequestInfoHandler(
-                db, new RecordingAuditPublisher(),
+                db, new EligibilityCacheInvalidator(), new RecordingAuditPublisher(),
                 new FakeTimeProvider(new DateTimeOffset(2026, 5, 1, 14, 0, 0, TimeSpan.Zero)),
                 NullLogger<DecideRequestInfoHandler>.Instance);
             var result = await h.HandleAsync(verificationId, Guid.NewGuid(),

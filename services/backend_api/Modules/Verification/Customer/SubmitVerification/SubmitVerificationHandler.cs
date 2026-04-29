@@ -164,10 +164,20 @@ public sealed class SubmitVerificationHandler(
             State = VerificationState.Submitted,
             SubmittedAt = nowUtc,
             SupersedesId = request.SupersedesId,
-            // Phase 5 will populate this from IProductRestrictionPolicy at the right
-            // chokepoint. Phase 3 ships an empty snapshot so the audit-replay shape
-            // is stable.
-            RestrictionPolicySnapshotJson = "{}",
+            // Phase 5 / US3: capture the restriction-policy view at submission
+            // time for FR-026 audit replay. IProductRestrictionPolicy itself is
+            // per-SKU (declared in Modules/Shared/, owned by spec 005), so the
+            // snapshot here records the *context* a future replay needs to
+            // re-derive the decision: the contract version, the market, the
+            // profession, and the timestamp. When spec 005 ships its production
+            // binding, the snapshot can be enriched with the policy registry's
+            // identity/version. Voided rows keep this snapshot per FR-027 so
+            // the audit history retains the customer's submission context even
+            // when they cannot resubmit against the row.
+            RestrictionPolicySnapshotJson = SerializeRestrictionPolicySnapshot(
+                schema.MarketCode,
+                request.Profession,
+                nowUtc),
             CreatedAt = nowUtc,
             UpdatedAt = nowUtc,
         };
@@ -232,6 +242,26 @@ public sealed class SubmitVerificationHandler(
             SubmittedAt: nowUtc,
             SupersedesId: request.SupersedesId));
     }
+
+    /// <summary>
+    /// Captures the per-(market, profession, contract-version) view at
+    /// submission time so FR-026 audit-replay can reconstruct the eligibility
+    /// context this row was decided under. The shape is forward-compatible:
+    /// when spec 005 ships its policy registry, the snapshot can carry the
+    /// registry's identity/version too without breaking older rows.
+    /// </summary>
+    private static string SerializeRestrictionPolicySnapshot(
+        string marketCode,
+        string profession,
+        DateTimeOffset capturedAt) =>
+        JsonSerializer.Serialize(new
+        {
+            version = "v1",
+            market_code = marketCode,
+            profession,
+            captured_at = capturedAt,
+            policy_source = "verification_submission_v1",
+        });
 
     private static string SerializeSubmissionMetadata(SubmitVerificationRequest request, string? idempotencyKey)
     {

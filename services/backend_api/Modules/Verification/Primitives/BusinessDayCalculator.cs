@@ -63,8 +63,10 @@ public static class BusinessDayCalculator
 
     /// <summary>
     /// Returns the count of business days between two instants (signed).
-    /// Inclusive of <paramref name="from"/>, exclusive of <paramref name="to"/>.
-    /// Useful for SLA breach evaluation.
+    /// Compares calendar dates: same calendar day → 0; one business day later
+    /// → 1; etc. The "from" calendar day is counted; the "to" calendar day is
+    /// excluded (matches SLA breach intuition — "submitted today, snapshot
+    /// today" means 0 business days have elapsed).
     /// </summary>
     public static int BusinessDaysBetween(
         DateTimeOffset from,
@@ -82,15 +84,19 @@ public static class BusinessDayCalculator
         var sign = to >= from ? 1 : -1;
         var (lo, hi) = to >= from ? (from, to) : (to, from);
 
+        // Compare calendar dates so sub-day spans on the same business day
+        // count as 0 (the SLA-signal contract).
+        var cursorDate = DateOnly.FromDateTime(lo.UtcDateTime);
+        var hiDate = DateOnly.FromDateTime(hi.UtcDateTime);
+
         var count = 0;
-        var cursor = lo;
-        while (cursor < hi)
+        while (cursorDate < hiDate)
         {
-            if (IsBusinessDay(cursor, weekend, holidaySet))
+            if (IsBusinessDay(cursorDate, weekend, holidaySet))
             {
                 count++;
             }
-            cursor = cursor.AddDays(1);
+            cursorDate = cursorDate.AddDays(1);
         }
 
         return sign * count;
@@ -100,17 +106,29 @@ public static class BusinessDayCalculator
         DateTimeOffset instant,
         IReadOnlySet<DayOfWeek> weekend,
         IReadOnlySet<DateOnly>? holidays)
+        => IsBusinessDay(DateOnly.FromDateTime(instant.UtcDateTime),
+            instant.UtcDateTime.DayOfWeek, weekend, holidays);
+
+    private static bool IsBusinessDay(
+        DateOnly date,
+        IReadOnlySet<DayOfWeek> weekend,
+        IReadOnlySet<DateOnly>? holidays)
+        => IsBusinessDay(date, date.DayOfWeek, weekend, holidays);
+
+    private static bool IsBusinessDay(
+        DateOnly date,
+        DayOfWeek dow,
+        IReadOnlySet<DayOfWeek> weekend,
+        IReadOnlySet<DateOnly>? holidays)
     {
-        if (weekend.Contains(instant.UtcDateTime.DayOfWeek))
+        if (weekend.Contains(dow))
         {
             return false;
         }
-
-        if (holidays is not null && holidays.Contains(DateOnly.FromDateTime(instant.UtcDateTime)))
+        if (holidays is not null && holidays.Contains(date))
         {
             return false;
         }
-
         return true;
     }
 }

@@ -1,17 +1,12 @@
 using BackendApi.Modules.Verification.Admin.Common;
 using BackendApi.Modules.Verification.Primitives;
 
-namespace BackendApi.Modules.Verification.Admin.DecideApprove;
+namespace BackendApi.Modules.Verification.Admin.DecideReject;
 
-/// <summary>
-/// Slice-level validator wrapper. Delegates to the shared
-/// <see cref="ReviewerReasonValidator"/> so the approve / reject / request-info
-/// trio stay in sync on FR-033 reason validation.
-/// </summary>
-public static class DecideApproveValidator
+public static class DecideRejectValidator
 {
     public static (bool ok, VerificationReasonCode? reason, string? detail) Validate(
-        DecideApproveRequest? request)
+        DecideRejectRequest? request)
     {
         if (request is null)
         {

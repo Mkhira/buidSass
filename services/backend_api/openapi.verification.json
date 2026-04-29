@@ -2,11 +2,558 @@
   "openapi": "3.0.3",
   "info": {
     "title": "Professional Verification API",
-    "version": "0.0.0-placeholder",
-    "description": "Spec 020 (Phase 1D · Milestone 7) — placeholder stub. Endpoints land per slice in Phases 3-7 of specs/phase-1D/020-verification/tasks.md. Customer + Admin + Eligibility + Workers surfaces are owned by this module; cross-module hooks live under Modules/Shared/. Restricted-product eligibility query (ICustomerVerificationEligibilityQuery) consumed by specs 005 / 009 / 010 / 019 / 021 / 023."
+    "version": "1.0.0",
+    "description": "Spec 020 — Professional Verification. Customer, Admin, and cross-module eligibility surfaces. Versioned per spec 020 contracts §1; the eligibility query (ICustomerVerificationEligibilityQuery) lives in Modules/Shared/ and is consumed by specs 005 / 009 / 010 / 019 / 021 / 023."
   },
-  "paths": {},
+  "servers": [
+    {
+      "url": "/",
+      "description": "Same-origin"
+    }
+  ],
+  "tags": [
+    { "name": "verification.customer", "description": "Customer-facing surface (CustomerJwt)." },
+    { "name": "verification.admin", "description": "Admin reviewer surface (AdminJwt + verification.review/revoke/read_pii permissions)." }
+  ],
+  "paths": {
+    "/api/customer/verifications": {
+      "post": {
+        "tags": ["verification.customer"],
+        "summary": "Submit verification (contracts §2.1)",
+        "description": "Creates a new verification in `submitted` state. Requires `Idempotency-Key`. Returns 201 + the row's id. Errors: required_field_missing, regulator_identifier_invalid, documents_invalid, already_pending, cooldown_active, account_inactive, market_unsupported, idempotency.key_missing.",
+        "parameters": [{ "$ref": "#/components/parameters/IdempotencyKey" }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/SubmitVerificationRequest" }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/SubmitVerificationResponse" }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/ProblemBadRequest" },
+          "401": { "$ref": "#/components/responses/ProblemUnauthorized" },
+          "409": { "$ref": "#/components/responses/ProblemConflict" }
+        }
+      },
+      "get": {
+        "tags": ["verification.customer"],
+        "summary": "List my verifications (contracts §2.3)",
+        "responses": {
+          "200": {
+            "description": "List page",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/VerificationListPage" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/customer/verifications/active": {
+      "get": {
+        "tags": ["verification.customer"],
+        "summary": "Get my active verification (contracts §2.2)",
+        "description": "Returns the most recent non-terminal verification or active approval; null if none.",
+        "responses": {
+          "200": {
+            "description": "Active verification or null",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    { "$ref": "#/components/schemas/ActiveVerificationView" },
+                    { "type": "null" }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/customer/verifications/schema": {
+      "get": {
+        "tags": ["verification.customer"],
+        "summary": "Get active per-market schema (US5 / T100)",
+        "description": "Returns the active per-market verification schema (required_fields, allowed document types, expiry/cooldown). Used by the customer-app form renderer.",
+        "responses": {
+          "200": {
+            "description": "Active schema",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/MarketSchemaView" }
+              }
+            }
+          },
+          "404": { "$ref": "#/components/responses/ProblemNotFound" }
+        }
+      }
+    },
+    "/api/customer/verifications/{id}": {
+      "get": {
+        "tags": ["verification.customer"],
+        "summary": "Get my verification detail (contracts §2.4)",
+        "parameters": [{ "$ref": "#/components/parameters/VerificationId" }],
+        "responses": {
+          "200": {
+            "description": "Verification detail",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/CustomerVerificationDetail" } } }
+          },
+          "404": { "$ref": "#/components/responses/ProblemNotFound" }
+        }
+      }
+    },
+    "/api/customer/verifications/{id}/documents": {
+      "post": {
+        "tags": ["verification.customer"],
+        "summary": "Attach a document (contracts §2.5)",
+        "description": "Records a pre-uploaded storage object as a verification document. Persists rows for both clean and pending scan results; rejects infected/error.",
+        "parameters": [{ "$ref": "#/components/parameters/VerificationId" }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/AttachDocumentRequest" }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Document attached",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/AttachDocumentResponse" }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/ProblemBadRequest" },
+          "404": { "$ref": "#/components/responses/ProblemNotFound" }
+        }
+      }
+    },
+    "/api/customer/verifications/{id}/resubmit": {
+      "post": {
+        "tags": ["verification.customer"],
+        "summary": "Resubmit after info request (contracts §2.6)",
+        "parameters": [
+          { "$ref": "#/components/parameters/IdempotencyKey" },
+          { "$ref": "#/components/parameters/VerificationId" }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/ResubmitWithInfoRequest" }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Resubmitted" },
+          "400": { "$ref": "#/components/responses/ProblemBadRequest" },
+          "404": { "$ref": "#/components/responses/ProblemNotFound" }
+        }
+      }
+    },
+    "/api/customer/verifications/renew": {
+      "post": {
+        "tags": ["verification.customer"],
+        "summary": "Request renewal (contracts §2.7)",
+        "parameters": [{ "$ref": "#/components/parameters/IdempotencyKey" }],
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/RequestRenewalRequest" }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Renewal created",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/RequestRenewalResponse" }
+              }
+            }
+          },
+          "409": { "$ref": "#/components/responses/ProblemConflict" }
+        }
+      }
+    },
+    "/api/admin/verifications": {
+      "get": {
+        "tags": ["verification.admin"],
+        "summary": "Reviewer queue (contracts §3.1)",
+        "description": "Requires `verification.review`. Market-scoped to reviewer's claims. Default oldest-first. Per-row sla_signal: ok | warning | breach.",
+        "parameters": [
+          { "in": "query", "name": "state", "schema": { "$ref": "#/components/schemas/VerificationState" } },
+          { "in": "query", "name": "page", "schema": { "type": "integer", "minimum": 1, "default": 1 } },
+          { "in": "query", "name": "page_size", "schema": { "type": "integer", "minimum": 1, "maximum": 100, "default": 20 } }
+        ],
+        "responses": {
+          "200": {
+            "description": "Queue page",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/AdminQueuePage" }
+              }
+            }
+          },
+          "403": { "$ref": "#/components/responses/ProblemForbidden" }
+        }
+      }
+    },
+    "/api/admin/verifications/{id}": {
+      "get": {
+        "tags": ["verification.admin"],
+        "summary": "Submission detail (contracts §3.2)",
+        "parameters": [{ "$ref": "#/components/parameters/VerificationId" }],
+        "responses": {
+          "200": {
+            "description": "Detail (renders schema-as-submitted per FR-026)",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/AdminVerificationDetail" }
+              }
+            }
+          },
+          "403": { "$ref": "#/components/responses/ProblemForbidden" },
+          "404": { "$ref": "#/components/responses/ProblemNotFound" }
+        }
+      }
+    },
+    "/api/admin/verifications/{id}/approve": {
+      "post": {
+        "tags": ["verification.admin"],
+        "summary": "Approve (contracts §3.3)",
+        "description": "xmin optimistic concurrency. Sets expires_at = now + market.expiry_days. If supersedes_id is non-null, transitions prior approval to superseded in the same Tx.",
+        "parameters": [
+          { "$ref": "#/components/parameters/IdempotencyKey" },
+          { "$ref": "#/components/parameters/VerificationId" }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ReviewerDecisionRequest" } } }
+        },
+        "responses": {
+          "200": { "description": "Approved" },
+          "403": { "$ref": "#/components/responses/ProblemForbidden" },
+          "409": { "$ref": "#/components/responses/ProblemConflict" }
+        }
+      }
+    },
+    "/api/admin/verifications/{id}/reject": {
+      "post": {
+        "tags": ["verification.admin"],
+        "summary": "Reject (contracts §3.4)",
+        "parameters": [
+          { "$ref": "#/components/parameters/IdempotencyKey" },
+          { "$ref": "#/components/parameters/VerificationId" }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ReviewerDecisionRequest" } } }
+        },
+        "responses": {
+          "200": { "description": "Rejected" },
+          "403": { "$ref": "#/components/responses/ProblemForbidden" },
+          "409": { "$ref": "#/components/responses/ProblemConflict" }
+        }
+      }
+    },
+    "/api/admin/verifications/{id}/request-info": {
+      "post": {
+        "tags": ["verification.admin"],
+        "summary": "Request info (contracts §3.5)",
+        "description": "SLA timer pauses on this transition (FR-039). Customer must resubmit before review continues.",
+        "parameters": [
+          { "$ref": "#/components/parameters/IdempotencyKey" },
+          { "$ref": "#/components/parameters/VerificationId" }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ReviewerDecisionRequest" } } }
+        },
+        "responses": {
+          "200": { "description": "Info requested" },
+          "403": { "$ref": "#/components/responses/ProblemForbidden" },
+          "409": { "$ref": "#/components/responses/ProblemConflict" }
+        }
+      }
+    },
+    "/api/admin/verifications/{id}/revoke": {
+      "post": {
+        "tags": ["verification.admin"],
+        "summary": "Revoke an active approval (contracts §3.6)",
+        "description": "Requires `verification.revoke`. Only `approved` is revocable. FR-009: revoked customers may resubmit immediately (no cooldown).",
+        "parameters": [
+          { "$ref": "#/components/parameters/IdempotencyKey" },
+          { "$ref": "#/components/parameters/VerificationId" }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ReviewerDecisionRequest" } } }
+        },
+        "responses": {
+          "200": { "description": "Revoked" },
+          "403": { "$ref": "#/components/responses/ProblemForbidden" },
+          "409": { "$ref": "#/components/responses/ProblemConflict" }
+        }
+      }
+    },
+    "/api/admin/verifications/{id}/documents/{documentId}/open": {
+      "get": {
+        "tags": ["verification.admin"],
+        "summary": "Open historical document (contracts §3.7)",
+        "description": "Requires `verification.read_pii`. Records a `verification.pii_access` audit event on every read. Returns 410 verification.document_purged once retention has elapsed.",
+        "parameters": [
+          { "$ref": "#/components/parameters/VerificationId" },
+          { "in": "path", "name": "documentId", "required": true, "schema": { "type": "string", "format": "uuid" } }
+        ],
+        "responses": {
+          "200": {
+            "description": "Signed-URL response",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/OpenHistoricalDocumentResponse" }
+              }
+            }
+          },
+          "403": { "$ref": "#/components/responses/ProblemForbidden" },
+          "404": { "$ref": "#/components/responses/ProblemNotFound" },
+          "410": { "$ref": "#/components/responses/ProblemGone" }
+        }
+      }
+    }
+  },
   "components": {
-    "schemas": {}
+    "parameters": {
+      "IdempotencyKey": {
+        "in": "header",
+        "name": "Idempotency-Key",
+        "required": true,
+        "schema": { "type": "string", "minLength": 1, "maxLength": 64 }
+      },
+      "VerificationId": {
+        "in": "path",
+        "name": "id",
+        "required": true,
+        "schema": { "type": "string", "format": "uuid" }
+      }
+    },
+    "responses": {
+      "ProblemBadRequest":  { "description": "Bad request",  "content": { "application/problem+json": { "schema": { "$ref": "#/components/schemas/Problem" } } } },
+      "ProblemUnauthorized": { "description": "Unauthorized", "content": { "application/problem+json": { "schema": { "$ref": "#/components/schemas/Problem" } } } },
+      "ProblemForbidden":   { "description": "Forbidden",    "content": { "application/problem+json": { "schema": { "$ref": "#/components/schemas/Problem" } } } },
+      "ProblemNotFound":    { "description": "Not found",    "content": { "application/problem+json": { "schema": { "$ref": "#/components/schemas/Problem" } } } },
+      "ProblemConflict":    { "description": "Conflict",     "content": { "application/problem+json": { "schema": { "$ref": "#/components/schemas/Problem" } } } },
+      "ProblemGone":        { "description": "Gone",         "content": { "application/problem+json": { "schema": { "$ref": "#/components/schemas/Problem" } } } }
+    },
+    "schemas": {
+      "Problem": {
+        "type": "object",
+        "required": ["type", "title", "status"],
+        "properties": {
+          "type":   { "type": "string" },
+          "title":  { "type": "string" },
+          "status": { "type": "integer" },
+          "detail": { "type": "string", "nullable": true },
+          "code":   { "type": "string", "nullable": true, "description": "Stable reason code; see VerificationReasonCode enum." }
+        }
+      },
+      "VerificationState": {
+        "type": "string",
+        "enum": ["submitted","in-review","info-requested","approved","rejected","expired","revoked","superseded","void"]
+      },
+      "EligibilityClass": {
+        "type": "string",
+        "enum": ["Eligible","Ineligible","Unrestricted"]
+      },
+      "EligibilityReasonCode": {
+        "type": "string",
+        "enum": [
+          "Eligible","Unrestricted","VerificationRequired","VerificationPending","VerificationInfoRequested",
+          "VerificationRejected","VerificationExpired","VerificationRevoked","ProfessionMismatch","MarketMismatch","AccountInactive"
+        ]
+      },
+      "SubmitVerificationRequest": {
+        "type": "object",
+        "required": ["profession","regulator_identifier","document_ids"],
+        "properties": {
+          "profession":            { "type": "string" },
+          "regulator_identifier":  { "type": "string" },
+          "document_ids":          { "type": "array", "items": { "type": "string", "format": "uuid" } },
+          "supersedes_id":         { "type": "string", "format": "uuid", "nullable": true }
+        }
+      },
+      "SubmitVerificationResponse": {
+        "type": "object",
+        "required": ["id","market_code","schema_version","state","submitted_at"],
+        "properties": {
+          "id":               { "type": "string", "format": "uuid" },
+          "market_code":      { "type": "string" },
+          "schema_version":   { "type": "integer" },
+          "state":            { "$ref": "#/components/schemas/VerificationState" },
+          "submitted_at":     { "type": "string", "format": "date-time" },
+          "supersedes_id":    { "type": "string", "format": "uuid", "nullable": true }
+        }
+      },
+      "ActiveVerificationView": {
+        "type": "object",
+        "required": ["id","state","submitted_at","next_action","renewal_open"],
+        "properties": {
+          "id":            { "type": "string", "format": "uuid" },
+          "state":         { "$ref": "#/components/schemas/VerificationState" },
+          "submitted_at":  { "type": "string", "format": "date-time" },
+          "expires_at":    { "type": "string", "format": "date-time", "nullable": true },
+          "next_action":   { "type": "string" },
+          "renewal_open":  { "type": "boolean" }
+        }
+      },
+      "VerificationListItem": {
+        "type": "object",
+        "required": ["id","state","submitted_at"],
+        "properties": {
+          "id":            { "type": "string", "format": "uuid" },
+          "state":         { "$ref": "#/components/schemas/VerificationState" },
+          "submitted_at":  { "type": "string", "format": "date-time" },
+          "decided_at":    { "type": "string", "format": "date-time", "nullable": true },
+          "expires_at":    { "type": "string", "format": "date-time", "nullable": true }
+        }
+      },
+      "VerificationListPage": {
+        "type": "object",
+        "required": ["items","page","page_size","total"],
+        "properties": {
+          "items":     { "type": "array", "items": { "$ref": "#/components/schemas/VerificationListItem" } },
+          "page":      { "type": "integer" },
+          "page_size": { "type": "integer" },
+          "total":     { "type": "integer" }
+        }
+      },
+      "MarketSchemaView": {
+        "type": "object",
+        "required": ["market_code","version","effective_from","required_fields_json","allowed_document_types_json","expiry_days","cooldown_days"],
+        "properties": {
+          "market_code":                  { "type": "string" },
+          "version":                      { "type": "integer" },
+          "effective_from":               { "type": "string", "format": "date-time" },
+          "required_fields_json":         { "type": "string", "description": "jsonb — array of RequiredFieldSpec entries" },
+          "allowed_document_types_json":  { "type": "string", "description": "jsonb — array of MIME strings" },
+          "expiry_days":                  { "type": "integer" },
+          "cooldown_days":                { "type": "integer" }
+        }
+      },
+      "AttachDocumentRequest": {
+        "type": "object",
+        "required": ["storage_key","content_type","size_bytes"],
+        "properties": {
+          "storage_key":  { "type": "string" },
+          "content_type": { "type": "string" },
+          "size_bytes":   { "type": "integer", "format": "int64" },
+          "scan_status":  { "type": "string", "enum": ["clean","pending","infected","error"], "nullable": true }
+        }
+      },
+      "AttachDocumentResponse": {
+        "type": "object",
+        "required": ["document_id","verification_id","content_type","size_bytes","scan_status","uploaded_at"],
+        "properties": {
+          "document_id":     { "type": "string", "format": "uuid" },
+          "verification_id": { "type": "string", "format": "uuid" },
+          "content_type":    { "type": "string" },
+          "size_bytes":      { "type": "integer", "format": "int64" },
+          "scan_status":     { "type": "string" },
+          "uploaded_at":     { "type": "string", "format": "date-time" }
+        }
+      },
+      "ResubmitWithInfoRequest": {
+        "type": "object",
+        "required": ["acknowledgement"],
+        "properties": {
+          "acknowledgement": { "type": "string", "minLength": 1 }
+        }
+      },
+      "RequestRenewalRequest": {
+        "type": "object",
+        "properties": {
+          "profession":           { "type": "string", "nullable": true },
+          "regulator_identifier": { "type": "string", "nullable": true }
+        }
+      },
+      "RequestRenewalResponse": {
+        "type": "object",
+        "required": ["id","supersedes_id","state","submitted_at"],
+        "properties": {
+          "id":            { "type": "string", "format": "uuid" },
+          "supersedes_id": { "type": "string", "format": "uuid" },
+          "state":         { "$ref": "#/components/schemas/VerificationState" },
+          "submitted_at":  { "type": "string", "format": "date-time" }
+        }
+      },
+      "ReviewerDecisionRequest": {
+        "type": "object",
+        "required": ["reason"],
+        "properties": {
+          "reason": {
+            "type": "object",
+            "description": "FR-033 — at least one locale required",
+            "properties": {
+              "en": { "type": "string", "nullable": true },
+              "ar": { "type": "string", "nullable": true }
+            }
+          }
+        }
+      },
+      "AdminQueueRow": {
+        "type": "object",
+        "required": ["id","customer_id","market_code","state","submitted_at","sla_signal"],
+        "properties": {
+          "id":            { "type": "string", "format": "uuid" },
+          "customer_id":   { "type": "string", "format": "uuid" },
+          "market_code":   { "type": "string" },
+          "state":         { "$ref": "#/components/schemas/VerificationState" },
+          "submitted_at":  { "type": "string", "format": "date-time" },
+          "sla_signal":    { "type": "string", "enum": ["ok","warning","breach"] }
+        }
+      },
+      "AdminQueuePage": {
+        "type": "object",
+        "required": ["items","page","page_size","total"],
+        "properties": {
+          "items":     { "type": "array", "items": { "$ref": "#/components/schemas/AdminQueueRow" } },
+          "page":      { "type": "integer" },
+          "page_size": { "type": "integer" },
+          "total":     { "type": "integer" }
+        }
+      },
+      "AdminVerificationDetail": {
+        "type": "object",
+        "description": "Full reviewer detail with schema-as-submitted (FR-026), transition history, and document metadata.",
+        "additionalProperties": true
+      },
+      "CustomerVerificationDetail": {
+        "type": "object",
+        "description": "Owner-only detail with transition history and document metadata.",
+        "additionalProperties": true
+      },
+      "OpenHistoricalDocumentResponse": {
+        "type": "object",
+        "required": ["url","expires_at"],
+        "properties": {
+          "url":        { "type": "string", "format": "uri" },
+          "expires_at": { "type": "string", "format": "date-time" }
+        }
+      }
+    }
   }
 }

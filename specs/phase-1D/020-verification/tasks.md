@@ -137,9 +137,9 @@ description: "Phase-1D Spec 020 — Professional Verification: dependency-ordere
 - [X] T057 [P] [US1] Create slice `services/backend_api/Modules/Verification/Customer/GetMyVerification/{Request,Handler,Endpoint}.cs` enforcing owner check, returning transitions + documents metadata per [contracts §2.4](./contracts/verification-contract.md)
 - [X] T058 [US1] Create slice `services/backend_api/Modules/Verification/Customer/ResubmitWithInfo/{Request,Validator,Handler,Endpoint}.cs` per [contracts §2.6](./contracts/verification-contract.md) — preserves original `submitted_at`, transitions `info-requested → in-review`, requires at least one change since the info-request
 - [X] T059 [US1] Create slice `services/backend_api/Modules/Verification/Customer/RequestRenewal/{Request,Validator,Handler,Endpoint}.cs` per [contracts §2.7](./contracts/verification-contract.md) — opens `RequestRenewal` only inside the earliest reminder window; sets `supersedes_id`; existing approval stays active until renewal decides
-- [ ] T060 [US1] Add ICU keys for every customer-visible reason code touched by US1 to `Modules/Verification/Messages/verification.en.icu`
-- [ ] T061 [US1] Add Arabic ICU keys to `verification.ar.icu` and append the keys to `AR_EDITORIAL_REVIEW.md` for editorial sign-off (Principle 4)
-- [ ] T062 [US1] Re-emit `services/backend_api/openapi.verification.json` to reflect every customer endpoint added in this phase; intermediate regenerations across phases land at every story phase boundary (T078 / T103 / T109) and a final consolidated pass at T116 verifies Guardrail #2 contract diff
+- [X] T060 [US1] Add ICU keys for every customer-visible reason code touched by US1 to `Modules/Verification/Messages/verification.en.icu`
+- [X] T061 [US1] Add Arabic ICU keys to `verification.ar.icu` and append the keys to `AR_EDITORIAL_REVIEW.md` for editorial sign-off (Principle 4)
+- [X] T062 [US1] Re-emit `services/backend_api/openapi.verification.json` to reflect every customer endpoint added in this phase; intermediate regenerations across phases land at every story phase boundary (T078 / T103 / T109) and a final consolidated pass at T116 verifies Guardrail #2 contract diff
 
 **Checkpoint**: Customer surface is fully functional in isolation — a customer can submit, list, view, attach documents, resubmit, and request renewal. Independent test (per spec.md US1) becomes possible once US2 lands the admin approval.
 
@@ -173,7 +173,7 @@ description: "Phase-1D Spec 020 — Professional Verification: dependency-ordere
 - [X] T075 [US2] Create slice `services/backend_api/Modules/Verification/Admin/OpenHistoricalDocument/{Request,Handler,Endpoint}.cs` per [contracts §3.7](./contracts/verification-contract.md); call `IPiiAccessRecorder` on every read; return `410` when `purged_at IS NOT NULL`
 - [X] T076 [US2] Wire `[RequirePermission("verification.review")]` and (where appropriate) `[RequirePermission("verification.revoke")]` attributes on every admin endpoint; verify by integration test that omitting the permission returns 403
 - [X] T077 [US2] Add ICU keys + AR translations for every reviewer-facing string + every customer-visible decision reason summary; append AR keys to `AR_EDITORIAL_REVIEW.md`
-- [ ] T078 [US2] Re-emit `openapi.verification.json` to include admin endpoints; verify contract diff
+- [X] T078 [US2] Re-emit `openapi.verification.json` to include admin endpoints; verify contract diff
 
 **Checkpoint**: US1 + US2 together complete the customer-and-reviewer round trip end-to-end. The MVP audit story (FR-028 / SC-003) is now testable: replay any verification's history from `audit_log_entries` alone.
 
@@ -238,15 +238,15 @@ description: "Phase-1D Spec 020 — Professional Verification: dependency-ordere
 
 ### Tests for User Story 5
 
-- [ ] T098 [P] [US5] Create `services/backend_api/tests/Verification.Tests/Integration/MarketSchemaVersioningTests.cs`: insert v2 schema for KSA; new KSA submission validates against v2; existing in-flight v1 submission's reviewer detail renders v1 fields and labels (SC-010)
-- [ ] T099 [P] [US5] Create `services/backend_api/tests/Verification.Tests/Integration/MarketSchemaActiveConstraintTests.cs`: attempting to INSERT a second `effective_to IS NULL` row for the same market is rejected by the unique-partial-index
+- [X] T098 [P] [US5] Create `services/backend_api/tests/Verification.Tests/Integration/MarketSchemaVersioningTests.cs`: insert v2 schema for KSA; new KSA submission validates against v2; existing in-flight v1 submission's reviewer detail renders v1 fields and labels (SC-010)
+- [X] T099 [P] [US5] Create `services/backend_api/tests/Verification.Tests/Integration/MarketSchemaActiveConstraintTests.cs`: attempting to INSERT a second `effective_to IS NULL` row for the same market is rejected by the unique-partial-index
 
 ### Implementation for User Story 5
 
-- [ ] T100 [US5] Create `services/backend_api/Modules/Verification/Customer/GetMarketSchema/{Request,Handler,Endpoint}.cs` exposing `GET /api/customer/verifications/schema` returning the active schema for the customer's market — used by the customer app to render the form dynamically
-- [ ] T101 [US5] Update `SubmitVerificationValidator` from US1 (T051) to read `required_fields` jsonb from the active schema and validate dynamically (instead of hardcoded fields)
-- [ ] T102 [US5] Update `GetVerificationDetail` (T071) to resolve the verification's `schema_version` and return the schema-as-submitted in the response payload so reviewers see the labels and types the customer saw
-- [ ] T103 [US5] Document the schema-update procedure in `services/backend_api/Modules/Verification/Seeding/SCHEMA_UPDATE_RUNBOOK.md`: INSERT new version + UPDATE old `effective_to=now()` in one Tx; idempotency rules; testing checklist. Also re-emit `services/backend_api/openapi.verification.json` to include the new `GET /api/customer/verifications/schema` endpoint (T100)
+- [X] T100 [US5] Create `services/backend_api/Modules/Verification/Customer/GetMarketSchema/{Request,Handler,Endpoint}.cs` exposing `GET /api/customer/verifications/schema` returning the active schema for the customer's market — used by the customer app to render the form dynamically
+- [X] T101 [US5] Update `SubmitVerificationValidator` from US1 (T051) to read `required_fields` jsonb from the active schema and validate dynamically (instead of hardcoded fields)
+- [X] T102 [US5] Update `GetVerificationDetail` (T071) to resolve the verification's `schema_version` and return the schema-as-submitted in the response payload so reviewers see the labels and types the customer saw
+- [X] T103 [US5] Document the schema-update procedure in `services/backend_api/Modules/Verification/Seeding/SCHEMA_UPDATE_RUNBOOK.md`: INSERT new version + UPDATE old `effective_to=now()` in one Tx; idempotency rules; testing checklist. Also re-emit `services/backend_api/openapi.verification.json` to include the new `GET /api/customer/verifications/schema` endpoint (T100)
 
 **Checkpoint**: Per-market schema versioning works without a code deploy; reviewer detail honors schema-as-submitted (FR-026).
 
@@ -261,14 +261,14 @@ description: "Phase-1D Spec 020 — Professional Verification: dependency-ordere
 ### Tests for User Story 6
 
 - [ ] T104 [P] [US6] Create `services/backend_api/tests/Verification.Tests/Contract/AdminRevokeContractTests.cs` covering [contracts §3.6](./contracts/verification-contract.md): `verification.revoke_permission_required` (403), reason required, only `approved` is revocable (other states reject with `invalid_state_for_action`), `verification.already_decided` on optimistic-concurrency loss
-- [ ] T105 [P] [US6] Create `services/backend_api/tests/Verification.Tests/Integration/RevokeNoCooldownTests.cs`: a customer whose verification was revoked may submit a new verification immediately (FR-009 — no cool-down after revoke)
+- [X] T105 [P] [US6] Create `services/backend_api/tests/Verification.Tests/Integration/RevokeNoCooldownTests.cs`: a customer whose verification was revoked may submit a new verification immediately (FR-009 — no cool-down after revoke)
 
 ### Implementation for User Story 6
 
-- [ ] T106 [US6] Create slice `services/backend_api/Modules/Verification/Admin/DecideRevoke/{Request,Validator,Handler,Endpoint}.cs` per [contracts §3.6](./contracts/verification-contract.md): same `{ reason: { en?, ar? } }` body shape as T072 (FR-033 — at least one locale required); requires `verification.revoke`; xmin guard; transitions `approved → revoked`; rebuilds eligibility cache; sets `purge_after` on documents (per T096); publishes `VerificationRevoked`
-- [ ] T107 [US6] Update `SubmitVerificationHandler` (T052) cool-down check to skip the cool-down branch when the customer's most recent terminal state is `revoked` (FR-009)
-- [ ] T108 [US6] Add ICU keys for revoke reason rendering in both locales; append AR keys to `AR_EDITORIAL_REVIEW.md`
-- [ ] T109 [US6] Re-emit `openapi.verification.json` to include the revoke endpoint
+- [X] T106 [US6] Create slice `services/backend_api/Modules/Verification/Admin/DecideRevoke/{Request,Validator,Handler,Endpoint}.cs` per [contracts §3.6](./contracts/verification-contract.md): same `{ reason: { en?, ar? } }` body shape as T072 (FR-033 — at least one locale required); requires `verification.revoke`; xmin guard; transitions `approved → revoked`; rebuilds eligibility cache; sets `purge_after` on documents (per T096); publishes `VerificationRevoked`
+- [X] T107 [US6] Update `SubmitVerificationHandler` (T052) cool-down check to skip the cool-down branch when the customer's most recent terminal state is `revoked` (FR-009)
+- [X] T108 [US6] Add ICU keys for revoke reason rendering in both locales; append AR keys to `AR_EDITORIAL_REVIEW.md`
+- [X] T109 [US6] Re-emit `openapi.verification.json` to include the revoke endpoint
 
 **Checkpoint**: All six user stories are independently functional. The full spec 020 surface is buildable, testable, and reviewable.
 
@@ -280,23 +280,23 @@ description: "Phase-1D Spec 020 — Professional Verification: dependency-ordere
 
 ### Account-lifecycle hook (cross-cutting; consumed by US1/US2/US3)
 
-- [ ] T110 Create `services/backend_api/Modules/Verification/Hooks/AccountLifecycleHandler.cs` implementing `ICustomerAccountLifecycleSubscriber` per [research.md §R6 + §R7](./research.md): on locked/deleted → void all non-terminal verifications + active approval → reason `account_inactive` / `account_deleted`; on market-changed → void non-terminal + supersede active → reason `customer_market_changed`; on deleted → expedite document purge by setting `purge_after = now`
-- [ ] T111 Register `AccountLifecycleHandler` as the `ICustomerAccountLifecycleSubscriber` binding in `VerificationModule.cs`; coordinate with spec 004 to confirm the publisher fires the events (in spec 004's PR, not here)
-- [ ] T112 [P] Create `services/backend_api/tests/Verification.Tests/Integration/AccountLifecycleHandlerTests.cs`: covers the three event paths; verifies eligibility flips, document purge expedition, and no orphaned non-terminal rows after a deletion
+- [X] T110 Create `services/backend_api/Modules/Verification/Hooks/AccountLifecycleHandler.cs` implementing `ICustomerAccountLifecycleSubscriber` per [research.md §R6 + §R7](./research.md): on locked/deleted → void all non-terminal verifications + active approval → reason `account_inactive` / `account_deleted`; on market-changed → void non-terminal + supersede active → reason `customer_market_changed`; on deleted → expedite document purge by setting `purge_after = now`
+- [X] T111 Register `AccountLifecycleHandler` as the `ICustomerAccountLifecycleSubscriber` binding in `VerificationModule.cs`; coordinate with spec 004 to confirm the publisher fires the events (in spec 004's PR, not here)
+- [X] T112 [P] Create `services/backend_api/tests/Verification.Tests/Integration/AccountLifecycleHandlerTests.cs`: covers the three event paths; verifies eligibility flips, document purge expedition, and no orphaned non-terminal rows after a deletion
 
 ### Dev seeder + manual smoke
 
-- [ ] T113 [P] Create `services/backend_api/Modules/Verification/Seeding/VerificationDevDataSeeder.cs` (Dev-gated via `SeedGuard` per spec 003) seeding synthetic submissions across every state (`submitted`, `in-review`, `info-requested`, `approved` near-expiry, `rejected` in cool-down, `expired`, `revoked`, `superseded`, `void`) + sample documents — supports demo + manual QA; idempotent
+- [X] T113 [P] Create `services/backend_api/Modules/Verification/Seeding/VerificationDevDataSeeder.cs` (Dev-gated via `SeedGuard` per spec 003) seeding synthetic submissions across every state (`submitted`, `in-review`, `info-requested`, `approved` near-expiry, `rejected` in cool-down, `expired`, `revoked`, `superseded`, `void`) + sample documents — supports demo + manual QA; idempotent
 - [ ] T114 [P] Update `services/backend_api/seed-data/README.md` (per spec 003 convention) with the `verification-v1` synthetic dataset description
 
 ### AR editorial sweep + OpenAPI
 
 - [ ] T115 Run an AR editorial pass over every key in `Modules/Verification/Messages/verification.ar.icu`; clear the `AR_EDITORIAL_REVIEW.md` queue; commit reviewer sign-off (Principle 4, SC-006)
-- [ ] T116 Regenerate the final `services/backend_api/openapi.verification.json`; CI Guardrail #2 must show no unexpected diff
+- [X] T116 Regenerate the final `services/backend_api/openapi.verification.json`; CI Guardrail #2 must show no unexpected diff
 
 ### Audit + DoD
 
-- [ ] T117 Create `scripts/audit-spot-check-verification.sh` (matches spec 004's pattern): replays a synthetic verification's lifecycle and asserts the expected `audit_log_entries` rows exist for every transition + every PII read + every reminder + every purge
+- [X] T117 Create `scripts/audit-spot-check-verification.sh` (matches spec 004's pattern): replays a synthetic verification's lifecycle and asserts the expected `audit_log_entries` rows exist for every transition + every PII read + every reminder + every purge
 - [ ] T118 Run the full DoD walkthrough per `docs/dod.md`: every FR traced to a passing test (matrix in `services/backend_api/tests/Verification.Tests/coverage-matrix.md`); every SC measurable; constitution + ADR fingerprint computed via `scripts/compute-fingerprint.sh`; impeccable scan N/A (backend-only spec per `docs/design-agent-skills.md`)
 - [ ] T119 [P] Performance verification: run the `EligibilityBench` benchmark on the staging-equivalent dev box; record p95 + p99; commit the result to `services/backend_api/tests/Verification.Tests/Benchmarks/baselines.md`
 - [ ] T120 Run `quickstart.md` end-to-end against a fresh local Postgres + a fresh module checkout to verify the implementer walkthrough still works after all phases land

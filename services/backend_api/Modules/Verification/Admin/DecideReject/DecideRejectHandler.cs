@@ -1,4 +1,5 @@
 using BackendApi.Modules.AuditLog;
+using BackendApi.Modules.Shared;
 using BackendApi.Modules.Verification.Admin.Common;
 using BackendApi.Modules.Verification.Eligibility;
 using BackendApi.Modules.Verification.Entities;
@@ -24,12 +25,21 @@ public sealed class DecideRejectHandler(
     VerificationDbContext db,
     EligibilityCacheInvalidator eligibilityInvalidator,
     IAuditEventPublisher auditPublisher,
+    IVerificationDomainEventPublisher domainPublisher,
     TimeProvider clock,
     ILogger<DecideRejectHandler> logger)
 {
+    public Task<DecideRejectResult> HandleAsync(
+        Guid verificationId,
+        Guid reviewerId,
+        DecideRejectRequest request,
+        CancellationToken ct)
+        => HandleAsync(verificationId, reviewerId, reviewerMarkets: null, request, ct);
+
     public async Task<DecideRejectResult> HandleAsync(
         Guid verificationId,
         Guid reviewerId,
+        IReadOnlySet<string>? reviewerMarkets,
         DecideRejectRequest request,
         CancellationToken ct)
     {
@@ -39,6 +49,13 @@ public sealed class DecideRejectHandler(
             .SingleOrDefaultAsync(v => v.Id == verificationId, ct);
 
         if (verification is null)
+        {
+            return DecideRejectResult.Fail(
+                VerificationReasonCode.InvalidStateForAction,
+                "Verification not found.");
+        }
+
+        if (reviewerMarkets is not null && !reviewerMarkets.Contains(verification.MarketCode))
         {
             return DecideRejectResult.Fail(
                 VerificationReasonCode.InvalidStateForAction,
@@ -145,6 +162,23 @@ public sealed class DecideRejectHandler(
         {
             logger.LogWarning(ex,
                 "Verification {VerificationId} rejected but audit publish failed; subscriber catch-up will reconcile.",
+                verification.Id);
+        }
+
+        // Domain event for spec 025 — best-effort publish (FR-034).
+        try
+        {
+            await domainPublisher.PublishAsync(new VerificationDomainEvents.VerificationRejected(
+                VerificationId: verification.Id,
+                CustomerId: verification.CustomerId,
+                MarketCode: verification.MarketCode,
+                Reason: ReviewerReasonValidator.ComposeLedgerSummary(request.Reason, "reviewer_reject"),
+                LocaleHint: "en"), ct);
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex,
+                "Verification {VerificationId} rejected but domain publish failed.",
                 verification.Id);
         }
 

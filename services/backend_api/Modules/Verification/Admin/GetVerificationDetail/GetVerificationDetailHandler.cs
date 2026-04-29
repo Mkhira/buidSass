@@ -13,7 +13,8 @@ namespace BackendApi.Modules.Verification.Admin.GetVerificationDetail;
 /// </summary>
 public sealed class GetVerificationDetailHandler(
     VerificationDbContext db,
-    IRegulatorAssistLookup regulatorAssist)
+    IRegulatorAssistLookup regulatorAssist,
+    IPiiAccessRecorder piiRecorder)
 {
     public async Task<DetailResult> HandleAsync(
         Guid verificationId,
@@ -74,6 +75,17 @@ public sealed class GetVerificationDetailHandler(
             .Select(d => new DocumentMetadataPayload(
                 d.Id, d.ContentType, d.SizeBytes, d.ScanStatus, d.UploadedAt, d.PurgedAt))
             .ToListAsync(ct);
+
+        // FR-015a-e: every read of a regulator identifier (LicenseNumber) or
+        // document metadata MUST flow through IPiiAccessRecorder so the
+        // verification.pii_access audit row is written. The reviewer detail
+        // payload exposes both, so we record one event per kind. The recorder
+        // is idempotent on (verification, kind, request-correlation).
+        await piiRecorder.RecordAsync(PiiAccessKind.LicenseNumberRead, verificationId, documentId: null, ct);
+        if (documents.Count > 0)
+        {
+            await piiRecorder.RecordAsync(PiiAccessKind.DocumentMetadataRead, verificationId, documentId: null, ct);
+        }
 
         // Regulator-assist (FR-016b). V1 default is null; never blocks.
         object? regulatorAssistResult = null;

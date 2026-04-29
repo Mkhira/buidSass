@@ -1,4 +1,5 @@
 using BackendApi.Modules.AuditLog;
+using BackendApi.Modules.Shared;
 using BackendApi.Modules.Verification.Admin.Common;
 using BackendApi.Modules.Verification.Eligibility;
 using BackendApi.Modules.Verification.Entities;
@@ -32,12 +33,21 @@ public sealed class DecideRequestInfoHandler(
     VerificationDbContext db,
     EligibilityCacheInvalidator eligibilityInvalidator,
     IAuditEventPublisher auditPublisher,
+    IVerificationDomainEventPublisher domainPublisher,
     TimeProvider clock,
     ILogger<DecideRequestInfoHandler> logger)
 {
+    public Task<DecideRequestInfoResult> HandleAsync(
+        Guid verificationId,
+        Guid reviewerId,
+        DecideRequestInfoRequest request,
+        CancellationToken ct)
+        => HandleAsync(verificationId, reviewerId, reviewerMarkets: null, request, ct);
+
     public async Task<DecideRequestInfoResult> HandleAsync(
         Guid verificationId,
         Guid reviewerId,
+        IReadOnlySet<string>? reviewerMarkets,
         DecideRequestInfoRequest request,
         CancellationToken ct)
     {
@@ -47,6 +57,13 @@ public sealed class DecideRequestInfoHandler(
             .SingleOrDefaultAsync(v => v.Id == verificationId, ct);
 
         if (verification is null)
+        {
+            return DecideRequestInfoResult.Fail(
+                VerificationReasonCode.InvalidStateForAction,
+                "Verification not found.");
+        }
+
+        if (reviewerMarkets is not null && !reviewerMarkets.Contains(verification.MarketCode))
         {
             return DecideRequestInfoResult.Fail(
                 VerificationReasonCode.InvalidStateForAction,
@@ -131,6 +148,22 @@ public sealed class DecideRequestInfoHandler(
         {
             logger.LogWarning(ex,
                 "Verification {VerificationId} request-info'd but audit publish failed.",
+                verification.Id);
+        }
+
+        try
+        {
+            await domainPublisher.PublishAsync(new VerificationDomainEvents.VerificationInfoRequested(
+                VerificationId: verification.Id,
+                CustomerId: verification.CustomerId,
+                MarketCode: verification.MarketCode,
+                Reason: ReviewerReasonValidator.ComposeLedgerSummary(request.Reason, "reviewer_request_info"),
+                LocaleHint: "en"), ct);
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex,
+                "Verification {VerificationId} request-info'd but domain publish failed.",
                 verification.Id);
         }
 

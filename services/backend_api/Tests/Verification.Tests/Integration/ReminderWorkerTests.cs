@@ -191,6 +191,7 @@ public sealed class ReminderWorkerTests : IAsyncLifetime
         {
             var approve = new DecideApproveHandler(
                 db, new EligibilityCacheInvalidator(), new ExpiryWorkerTests.RecordingAuditPublisher(),
+                new NullVerificationDomainEventPublisher(),
                 new FakeTimeProvider(new DateTimeOffset(2026, 5, 1, 9, 0, 0, TimeSpan.Zero)),
                 NullLogger<DecideApproveHandler>.Instance);
             var result = await approve.HandleAsync(verificationId, Guid.NewGuid(),

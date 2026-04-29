@@ -78,6 +78,7 @@ public sealed class ResubmitAndRenewalTests : IAsyncLifetime
         {
             var reqInfo = new DecideRequestInfoHandler(
                 db, new EligibilityCacheInvalidator(), new RecordingAuditPublisher(),
+                new NullVerificationDomainEventPublisher(),
                 new FakeTimeProvider(infoRequestedAt),
                 NullLogger<DecideRequestInfoHandler>.Instance);
             await reqInfo.HandleAsync(verificationId, reviewerId,
@@ -147,6 +148,7 @@ public sealed class ResubmitAndRenewalTests : IAsyncLifetime
         {
             var reqInfo = new DecideRequestInfoHandler(
                 db, new EligibilityCacheInvalidator(), new RecordingAuditPublisher(),
+                new NullVerificationDomainEventPublisher(),
                 new FakeTimeProvider(new DateTimeOffset(2026, 5, 5, 14, 0, 0, TimeSpan.Zero)),
                 NullLogger<DecideRequestInfoHandler>.Instance);
             await reqInfo.HandleAsync(verificationId, reviewerId,
@@ -358,7 +360,7 @@ public sealed class ResubmitAndRenewalTests : IAsyncLifetime
             new SubmitVerificationRequest(
                 Profession: profession,
                 RegulatorIdentifier: regulatorIdentifier
-                    ?? $"SCFHS-{Guid.NewGuid():N}".Substring(0, 16),
+                    ?? $"SCFHS-{Guid.NewGuid():N}".Substring(0, 16).ToUpperInvariant(),
                 DocumentIds: Array.Empty<Guid>(),
                 SupersedesId: null),
             CancellationToken.None);
@@ -372,6 +374,7 @@ public sealed class ResubmitAndRenewalTests : IAsyncLifetime
         var approve = new DecideApproveHandler(
             db, new EligibilityCacheInvalidator(),
             new RecordingAuditPublisher(),
+            new NullVerificationDomainEventPublisher(),
             new FakeTimeProvider(new DateTimeOffset(2026, 5, 1, 9, 0, 0, TimeSpan.Zero)),
             NullLogger<DecideApproveHandler>.Instance);
         var result = await approve.HandleAsync(verificationId, Guid.NewGuid(),

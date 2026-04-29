@@ -60,7 +60,8 @@ public static class DecideRevokeEndpoint
                 context, 400, reason!.Value, "Revoke validation failed.", detail);
         }
 
-        var result = await handler.HandleAsync(id, reviewerId.Value, body!, ct);
+        var reviewerMarkets = AdminVerificationResponseFactory.ResolveAssignedMarkets(context);
+        var result = await handler.HandleAsync(id, reviewerId.Value, reviewerMarkets, body!, ct);
         if (!result.IsSuccess)
         {
             var status = result.ReasonCode switch

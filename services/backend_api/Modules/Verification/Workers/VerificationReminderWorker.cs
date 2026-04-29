@@ -222,7 +222,7 @@ public sealed class VerificationReminderWorker(
         try
         {
             await auditPublisher.PublishAsync(new AuditEvent(
-                ActorId: Guid.Empty,
+                ActorId: VerificationSystemActor.Id,
                 ActorRole: "system",
                 Action: "verification.reminder_emitted",
                 EntityType: "verification",
@@ -290,7 +290,7 @@ public sealed class VerificationReminderWorker(
         try
         {
             await auditPublisher.PublishAsync(new AuditEvent(
-                ActorId: Guid.Empty,
+                ActorId: VerificationSystemActor.Id,
                 ActorRole: "system",
                 Action: "verification.reminder_emitted",
                 EntityType: "verification",

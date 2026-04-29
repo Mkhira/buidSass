@@ -93,15 +93,29 @@ public sealed class PiiAccessRecorder(
         var ctx = httpContextAccessor.HttpContext;
         if (ctx is null)
         {
-            return (Guid.Empty, "system", "unknown");
+            // No HTTP scope — system-driven access (background workers / hooks).
+            // AuditEventPublisher rejects Guid.Empty so we use the reserved
+            // verification system actor id (Principle 25 — every audit row
+            // must be attributable).
+            return (VerificationSystemActor.Id, "system", "system");
         }
 
         var sub = ctx.User.FindFirst("sub")?.Value
             ?? ctx.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
-        var actorId = Guid.TryParse(sub, out var id) ? id : Guid.Empty;
+        // Fall back to the system actor id if the JWT lacks a parseable sub.
+        // The audit publisher would otherwise reject Guid.Empty and the
+        // event would silently drop — a worse outcome than logging an
+        // attributable-to-system row. When we DO use the system fallback,
+        // the actor_role MUST also be "system" so audit consumers don't see
+        // a mismatched (system_actor_id, reviewer/customer role) tuple
+        // (CR R1 Major — Principle 25 attribution invariant).
+        var hasHumanActor = Guid.TryParse(sub, out var id) && id != Guid.Empty;
+        var actorId = hasHumanActor ? id : VerificationSystemActor.Id;
 
-        var actorRole = ctx.User.FindFirst("role")?.Value
-            ?? (ctx.Request.Path.StartsWithSegments("/api/admin") ? "reviewer" : "customer");
+        var actorRole = hasHumanActor
+            ? (ctx.User.FindFirst("role")?.Value
+                ?? (ctx.Request.Path.StartsWithSegments("/api/admin") ? "reviewer" : "customer"))
+            : "system";
 
         var surface = ctx.Request.Path.StartsWithSegments("/api/admin/verifications")
             ? "admin_review"

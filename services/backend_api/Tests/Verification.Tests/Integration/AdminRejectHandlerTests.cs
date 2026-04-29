@@ -138,7 +138,7 @@ public sealed class AdminRejectHandlerTests : IAsyncLifetime
             var clock = new FakeTimeProvider(new DateTimeOffset(2026, 5, 1, 9, 0, 0, TimeSpan.Zero));
             var approveHandler = new DecideApproveHandler(
                 db, new EligibilityCacheInvalidator(),
-                new RecordingAuditPublisher(), clock,
+                new RecordingAuditPublisher(), new NullVerificationDomainEventPublisher(), clock,
                 NullLogger<DecideApproveHandler>.Instance);
             await approveHandler.HandleAsync(priorId, reviewerId,
                 new DecideApproveRequest(new ReviewerReason("Verified.", null)),
@@ -197,7 +197,7 @@ public sealed class AdminRejectHandlerTests : IAsyncLifetime
         var result = await submit.HandleAsync(customerId, "ksa",
             new SubmitVerificationRequest(
                 Profession: "dentist",
-                RegulatorIdentifier: $"SCFHS-{Guid.NewGuid():N}".Substring(0, 16),
+                RegulatorIdentifier: $"SCFHS-{Guid.NewGuid():N}".Substring(0, 16).ToUpperInvariant(),
                 DocumentIds: Array.Empty<Guid>(),
                 SupersedesId: null),
             CancellationToken.None);
@@ -211,7 +211,7 @@ public sealed class AdminRejectHandlerTests : IAsyncLifetime
     {
         var audit = new RecordingAuditPublisher();
         var handler = new DecideRejectHandler(
-            db, new EligibilityCacheInvalidator(), audit, clock,
+            db, new EligibilityCacheInvalidator(), audit, new NullVerificationDomainEventPublisher(), clock,
             NullLogger<DecideRejectHandler>.Instance);
         return (handler, audit);
     }

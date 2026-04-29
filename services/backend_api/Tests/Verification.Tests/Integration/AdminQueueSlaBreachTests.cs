@@ -148,6 +148,7 @@ public sealed class AdminQueueSlaBreachTests : IAsyncLifetime
         {
             var requestInfo = new DecideRequestInfoHandler(
                 db, new EligibilityCacheInvalidator(), new RecordingAuditPublisher(),
+                new NullVerificationDomainEventPublisher(),
                 new FakeTimeProvider(requestInfoTime),
                 NullLogger<DecideRequestInfoHandler>.Instance);
             await requestInfo.HandleAsync(verificationId, Guid.NewGuid(),
@@ -186,7 +187,7 @@ public sealed class AdminQueueSlaBreachTests : IAsyncLifetime
         var result = await submit.HandleAsync(customerId, "ksa",
             new SubmitVerificationRequest(
                 Profession: "dentist",
-                RegulatorIdentifier: $"SCFHS-{Guid.NewGuid():N}".Substring(0, 16),
+                RegulatorIdentifier: $"SCFHS-{Guid.NewGuid():N}".Substring(0, 16).ToUpperInvariant(),
                 DocumentIds: Array.Empty<Guid>(),
                 SupersedesId: null),
             CancellationToken.None);

@@ -147,6 +147,26 @@ public sealed class VerificationExpiryWorker(
             return false;
         }
 
+        // Renewal-in-flight invariant (research §R10 / FR-010): the prior
+        // approval stays active while a renewal is non-terminal. Without
+        // this guard, the expiry worker races the reviewer's decision and
+        // breaks the supersession chain (DecideApproveHandler rejects the
+        // renewal because the prior is now Expired, not Approved).
+        var hasInFlightRenewal = await db.Verifications
+            .AsNoTracking()
+            .AnyAsync(v => v.SupersedesId == verificationId
+                        && (v.State == VerificationState.Submitted
+                         || v.State == VerificationState.InReview
+                         || v.State == VerificationState.InfoRequested),
+                ct);
+        if (hasInFlightRenewal)
+        {
+            logger.LogDebug(
+                "VerificationExpiryWorker — skipping {VerificationId}; non-terminal renewal in flight (R10).",
+                verificationId);
+            return false;
+        }
+
         var schema = await db.MarketSchemas
             .AsNoTracking()
             .Where(s => s.MarketCode == row.MarketCode && s.Version == row.SchemaVersion)
@@ -188,7 +208,7 @@ public sealed class VerificationExpiryWorker(
         try
         {
             await auditPublisher.PublishAsync(new AuditEvent(
-                ActorId: Guid.Empty,
+                ActorId: VerificationSystemActor.Id,
                 ActorRole: "system",
                 Action: "verification.state_changed",
                 EntityType: "verification",

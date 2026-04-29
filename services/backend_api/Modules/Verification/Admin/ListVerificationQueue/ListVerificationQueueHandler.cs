@@ -86,8 +86,13 @@ public sealed class ListVerificationQueueHandler(VerificationDbContext db, TimeP
 
         if (!string.IsNullOrWhiteSpace(query.Search))
         {
-            var search = query.Search.Trim();
             // Exact match on regulator_identifier — never substring (PII surface).
+            // Normalize to uppercase: the submission validator enforces
+            // ^[A-Z0-9-]{6,20}$ via the schema's required_fields jsonb, so
+            // stored values are always uppercase. Reviewer search input may
+            // arrive in any case (paste from email, user-typed); normalizing
+            // here means a lowercased "scfhs-1234567" still finds the row.
+            var search = query.Search.Trim().ToUpperInvariant();
             baseQuery = baseQuery.Where(v => v.RegulatorIdentifier == search);
         }
 

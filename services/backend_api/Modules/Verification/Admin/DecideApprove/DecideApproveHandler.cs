@@ -1,5 +1,6 @@
 using System.Text.Json;
 using BackendApi.Modules.AuditLog;
+using BackendApi.Modules.Shared;
 using BackendApi.Modules.Verification.Eligibility;
 using BackendApi.Modules.Verification.Entities;
 using BackendApi.Modules.Verification.Persistence;
@@ -29,12 +30,21 @@ public sealed class DecideApproveHandler(
     VerificationDbContext db,
     EligibilityCacheInvalidator eligibilityInvalidator,
     IAuditEventPublisher auditPublisher,
+    IVerificationDomainEventPublisher domainPublisher,
     TimeProvider clock,
     ILogger<DecideApproveHandler> logger)
 {
+    public Task<DecideApproveResult> HandleAsync(
+        Guid verificationId,
+        Guid reviewerId,
+        DecideApproveRequest request,
+        CancellationToken ct)
+        => HandleAsync(verificationId, reviewerId, reviewerMarkets: null, request, ct);
+
     public async Task<DecideApproveResult> HandleAsync(
         Guid verificationId,
         Guid reviewerId,
+        IReadOnlySet<string>? reviewerMarkets,
         DecideApproveRequest request,
         CancellationToken ct)
     {
@@ -44,6 +54,17 @@ public sealed class DecideApproveHandler(
             .SingleOrDefaultAsync(v => v.Id == verificationId, ct);
 
         if (verification is null)
+        {
+            return DecideApproveResult.Fail(
+                VerificationReasonCode.InvalidStateForAction,
+                "Verification not found.");
+        }
+
+        // Reviewer market scope (security boundary): a KSA reviewer must not
+        // be able to act on an EG row. Use the same "404-style not-found"
+        // signal that GetVerificationDetail uses to avoid leaking row
+        // existence to a foreign-market reviewer.
+        if (reviewerMarkets is not null && !reviewerMarkets.Contains(verification.MarketCode))
         {
             return DecideApproveResult.Fail(
                 VerificationReasonCode.InvalidStateForAction,
@@ -72,6 +93,30 @@ public sealed class DecideApproveHandler(
             return DecideApproveResult.Fail(
                 VerificationReasonCode.MarketUnsupported,
                 "Schema referenced by the verification could not be loaded.");
+        }
+
+        // Document scan-status invariant per AttachDocumentRequest contract:
+        // every non-purged document must be `clean` before the reviewer can
+        // approve. We reject on anything-but-`clean` (pending OR a row that
+        // somehow flipped to infected/error post-attach) so the approval
+        // can't land against a file the async scanner later flags. CR R1
+        // Critical: previously this only rejected `pending`, leaving a
+        // window where an infected row that was attached as clean and
+        // later updated could still be approved.
+        var nonCleanScan = await db.Documents
+            .AsNoTracking()
+            .Where(d => d.VerificationId == verification.Id
+                     && d.PurgedAt == null
+                     && d.ScanStatus != "clean")
+            .Select(d => d.ScanStatus)
+            .FirstOrDefaultAsync(ct);
+        if (nonCleanScan is not null)
+        {
+            return DecideApproveResult.Fail(
+                nonCleanScan == "pending"
+                    ? VerificationReasonCode.DocumentScanPending
+                    : VerificationReasonCode.DocumentScanInfected,
+                $"Cannot approve while one or more attached documents have scan_status='{nonCleanScan}'.");
         }
 
         var priorState = verification.State;
@@ -225,6 +270,32 @@ public sealed class DecideApproveHandler(
         {
             logger.LogWarning(ex,
                 "Verification {VerificationId} approved but audit publish failed; subscriber catch-up will reconcile.",
+                verification.Id);
+        }
+
+        // In-process domain events (spec contracts §5). Best-effort publish per
+        // FR-034; subscriber failure does NOT roll back the approval. Spec 025
+        // (Notifications) consumes these to drive customer-facing emails/push.
+        try
+        {
+            await domainPublisher.PublishAsync(new VerificationDomainEvents.VerificationApproved(
+                VerificationId: verification.Id,
+                CustomerId: verification.CustomerId,
+                MarketCode: verification.MarketCode,
+                LocaleHint: "en"), ct);
+            if (superseded is not null)
+            {
+                await domainPublisher.PublishAsync(new VerificationDomainEvents.VerificationSuperseded(
+                    PriorVerificationId: superseded.Id,
+                    NewVerificationId: verification.Id,
+                    CustomerId: verification.CustomerId,
+                    MarketCode: superseded.MarketCode), ct);
+            }
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex,
+                "Verification {VerificationId} approved but domain publish failed; subscriber catch-up will reconcile.",
                 verification.Id);
         }
 

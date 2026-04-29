@@ -85,7 +85,7 @@ public sealed class AdminRevokeAndOpenHistoricalDocTests : IAsyncLifetime
         {
             var approve = new DecideApproveHandler(
                 db, new EligibilityCacheInvalidator(),
-                new RecordingAuditPublisher(), clock,
+                new RecordingAuditPublisher(), new NullVerificationDomainEventPublisher(), clock,
                 NullLogger<DecideApproveHandler>.Instance);
             await approve.HandleAsync(verificationId, reviewerId,
                 new DecideApproveRequest(new ReviewerReason("Verified.", null)),
@@ -99,6 +99,7 @@ public sealed class AdminRevokeAndOpenHistoricalDocTests : IAsyncLifetime
             var audit = new RecordingAuditPublisher();
             var revoke = new DecideRevokeHandler(
                 db, new EligibilityCacheInvalidator(), audit,
+                new NullVerificationDomainEventPublisher(),
                 new FakeTimeProvider(revokeAt),
                 NullLogger<DecideRevokeHandler>.Instance);
 
@@ -144,7 +145,8 @@ public sealed class AdminRevokeAndOpenHistoricalDocTests : IAsyncLifetime
         await using var db = NewContext();
         var revoke = new DecideRevokeHandler(
             db, new EligibilityCacheInvalidator(), new RecordingAuditPublisher(),
-            new FakeTimeProvider(new DateTimeOffset(2026, 5, 1, 9, 0, 0, TimeSpan.Zero)),
+            new NullVerificationDomainEventPublisher(),
+                new FakeTimeProvider(new DateTimeOffset(2026, 5, 1, 9, 0, 0, TimeSpan.Zero)),
             NullLogger<DecideRevokeHandler>.Instance);
 
         var result = await revoke.HandleAsync(verificationId, reviewerId,
@@ -195,6 +197,7 @@ public sealed class AdminRevokeAndOpenHistoricalDocTests : IAsyncLifetime
             var approve = new DecideApproveHandler(
                 db, new EligibilityCacheInvalidator(),
                 new RecordingAuditPublisher(),
+                new NullVerificationDomainEventPublisher(),
                 new FakeTimeProvider(new DateTimeOffset(2026, 5, 1, 9, 0, 0, TimeSpan.Zero)),
                 NullLogger<DecideApproveHandler>.Instance);
             await approve.HandleAsync(verificationId, reviewerId,
@@ -207,6 +210,7 @@ public sealed class AdminRevokeAndOpenHistoricalDocTests : IAsyncLifetime
             var revoke = new DecideRevokeHandler(
                 db, new EligibilityCacheInvalidator(),
                 new RecordingAuditPublisher(),
+                new NullVerificationDomainEventPublisher(),
                 new FakeTimeProvider(new DateTimeOffset(2026, 6, 1, 9, 0, 0, TimeSpan.Zero)),
                 NullLogger<DecideRevokeHandler>.Instance);
             await revoke.HandleAsync(verificationId, reviewerId,
@@ -321,7 +325,7 @@ public sealed class AdminRevokeAndOpenHistoricalDocTests : IAsyncLifetime
         var result = await submit.HandleAsync(customerId, market,
             new SubmitVerificationRequest(
                 Profession: "dentist",
-                RegulatorIdentifier: $"SCFHS-{Guid.NewGuid():N}".Substring(0, 16),
+                RegulatorIdentifier: $"SCFHS-{Guid.NewGuid():N}".Substring(0, 16).ToUpperInvariant(),
                 DocumentIds: Array.Empty<Guid>(),
                 SupersedesId: null),
             CancellationToken.None);
@@ -337,7 +341,7 @@ public sealed class AdminRevokeAndOpenHistoricalDocTests : IAsyncLifetime
         var clock = new FakeTimeProvider(new DateTimeOffset(2026, 5, 1, 9, 0, 0, TimeSpan.Zero));
         var db = NewContext();
         var revoke = new DecideRevokeHandler(
-            db, new EligibilityCacheInvalidator(), audit, clock,
+            db, new EligibilityCacheInvalidator(), audit, new NullVerificationDomainEventPublisher(), clock,
             NullLogger<DecideRevokeHandler>.Instance);
         return (revoke, audit);
     }

@@ -176,7 +176,7 @@ public sealed class SubmitVerificationHappyPathTests : IAsyncLifetime
         {
             var approve = new BackendApi.Modules.Verification.Admin.DecideApprove.DecideApproveHandler(
                 dbApprove, new BackendApi.Modules.Verification.Eligibility.EligibilityCacheInvalidator(),
-                new RecordingAuditPublisher(), clock,
+                new RecordingAuditPublisher(), new NullVerificationDomainEventPublisher(), clock,
                 NullLogger<BackendApi.Modules.Verification.Admin.DecideApprove.DecideApproveHandler>.Instance);
             var approveResult = await approve.HandleAsync(
                 first.Response!.Id, Guid.NewGuid(),
@@ -249,7 +249,7 @@ public sealed class SubmitVerificationHappyPathTests : IAsyncLifetime
         {
             var approve = new BackendApi.Modules.Verification.Admin.DecideApprove.DecideApproveHandler(
                 dbApprove, new BackendApi.Modules.Verification.Eligibility.EligibilityCacheInvalidator(),
-                new RecordingAuditPublisher(), clock,
+                new RecordingAuditPublisher(), new NullVerificationDomainEventPublisher(), clock,
                 NullLogger<BackendApi.Modules.Verification.Admin.DecideApprove.DecideApproveHandler>.Instance);
             await approve.HandleAsync(customerAVerificationId, Guid.NewGuid(),
                 new BackendApi.Modules.Verification.Admin.DecideApprove.DecideApproveRequest(

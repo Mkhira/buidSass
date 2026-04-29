@@ -57,6 +57,18 @@ public sealed class SubmitVerificationHandler(
                 $"No active verification schema is configured for market '{marketCode}'.");
         }
 
+        // 1.5. US5 / T101 dynamic schema validation. The endpoint already
+        // enforced shape (non-null body, length caps); this pass walks the
+        // active schema's required_fields jsonb so a market schema bump (new
+        // field, tighter regex, different enum) takes effect without code
+        // changes (FR-026 / FR-029 — schema-driven submission).
+        var (schemaOk, schemaReason, schemaDetail) =
+            SubmitVerificationValidator.ValidateAgainstSchema(request, schema.RequiredFieldsJson);
+        if (!schemaOk)
+        {
+            return SubmitResult.Fail(schemaReason!.Value, schemaDetail ?? "Submission failed schema validation.");
+        }
+
         // 2. Validate SupersedesId before any guard bypass. A non-null
         //    SupersedesId is the renewal entry-point (data-model §3.2 renewal
         //    exception), but ONLY when it points to a row that:
@@ -123,6 +135,17 @@ public sealed class SubmitVerificationHandler(
                 return SubmitResult.Fail(
                     VerificationReasonCode.AlreadyPending,
                     "Customer already has a non-terminal verification in flight for this market.");
+            }
+
+            // US6 / T107 — cooldown check with FR-009 exception for revoked.
+            // The most-recent terminal verification in this market drives the
+            // policy: if it's rejected and inside the cooldown window, block;
+            // if the customer was instead revoked (admin action) the cooldown
+            // does NOT apply — the customer may submit fresh immediately.
+            var cooldownDecision = await EvaluateCooldownAsync(customerId, marketScope, schema.CooldownDays, nowUtc, ct);
+            if (cooldownDecision is { } block)
+            {
+                return block;
             }
         }
         else
@@ -241,6 +264,64 @@ public sealed class SubmitVerificationHandler(
             State: VerificationState.Submitted.ToWireValue(),
             SubmittedAt: nowUtc,
             SupersedesId: request.SupersedesId));
+    }
+
+    /// <summary>
+    /// US6 / T107 — evaluate FR-009 cooldown. Looks up the customer's
+    /// most-recent terminal verification in this market and:
+    /// <list type="bullet">
+    ///   <item>If <c>rejected</c> AND inside the cooldown window → block.</item>
+    ///   <item>If <c>revoked</c> → no cooldown (FR-009).</item>
+    ///   <item>Otherwise (expired / superseded / void) → no cooldown.</item>
+    /// </list>
+    /// The cooldown window is computed from the row's own DecidedAt + the
+    /// snapshotted CooldownDays (we use the CURRENT schema's CooldownDays as
+    /// the default — the rejected row's snapshot is canonical but a small
+    /// drift between snapshots is acceptable for a customer-facing window).
+    /// </summary>
+    private async Task<SubmitResult?> EvaluateCooldownAsync(
+        Guid customerId,
+        string marketCode,
+        int cooldownDays,
+        DateTimeOffset nowUtc,
+        CancellationToken ct)
+    {
+        if (cooldownDays <= 0)
+        {
+            return null;
+        }
+
+        var mostRecentTerminal = await db.Verifications
+            .AsNoTracking()
+            .Where(v => v.CustomerId == customerId
+                     && v.MarketCode == marketCode
+                     && (v.State == VerificationState.Rejected
+                         || v.State == VerificationState.Revoked))
+            .OrderByDescending(v => v.DecidedAt ?? v.UpdatedAt)
+            .Select(v => new { v.State, DecidedAt = v.DecidedAt ?? v.UpdatedAt })
+            .FirstOrDefaultAsync(ct);
+
+        if (mostRecentTerminal is null)
+        {
+            return null;
+        }
+
+        // FR-009 — revoked customers may resubmit immediately.
+        if (mostRecentTerminal.State == VerificationState.Revoked)
+        {
+            return null;
+        }
+
+        // Rejected — block until DecidedAt + cooldownDays.
+        var cooldownUntil = mostRecentTerminal.DecidedAt.AddDays(cooldownDays);
+        if (nowUtc < cooldownUntil)
+        {
+            return SubmitResult.Fail(
+                VerificationReasonCode.CooldownActive,
+                $"Customer is in cooldown after a rejection. Cooldown ends at {cooldownUntil:u}.");
+        }
+
+        return null;
     }
 
     /// <summary>

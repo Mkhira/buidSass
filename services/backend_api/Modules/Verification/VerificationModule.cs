@@ -9,6 +9,7 @@ using BackendApi.Modules.Verification.Admin.GetVerificationDetail;
 using BackendApi.Modules.Verification.Admin.ListVerificationQueue;
 using BackendApi.Modules.Verification.Admin.OpenHistoricalDocument;
 using BackendApi.Modules.Verification.Customer.AttachDocument;
+using BackendApi.Modules.Verification.Customer.GetMarketSchema;
 using BackendApi.Modules.Verification.Customer.GetMyActiveVerification;
 using BackendApi.Modules.Verification.Customer.GetMyVerification;
 using BackendApi.Modules.Verification.Customer.ListMyVerifications;
@@ -16,6 +17,7 @@ using BackendApi.Modules.Verification.Customer.RequestRenewal;
 using BackendApi.Modules.Verification.Customer.ResubmitWithInfo;
 using BackendApi.Modules.Verification.Customer.SubmitVerification;
 using BackendApi.Modules.Verification.Eligibility;
+using BackendApi.Modules.Verification.Hooks;
 using BackendApi.Modules.Verification.Persistence;
 using BackendApi.Modules.Verification.Primitives;
 using BackendApi.Modules.Verification.Workers;
@@ -79,6 +81,35 @@ public static class VerificationModule
 
         // Reference-data seeder: KSA + EG market schemas.
         services.AddScoped<ISeeder, VerificationReferenceDataSeeder>();
+        // Dev-only synthetic dataset (T113). SeedGuard + IsDevelopment check
+        // gate this in the seeder body — registration is unconditional.
+        services.AddScoped<ISeeder, VerificationDevDataSeeder>();
+
+        // Phase 5 / US3 — eligibility query for catalog/cart/checkout.
+        // Null IProductRestrictionPolicy is a safe fallback until spec 005's
+        // production binding ships. TryAddSingleton lets spec 005 override.
+        services.TryAddSingleton<IProductRestrictionPolicy, NullProductRestrictionPolicy>();
+        services.AddScoped<ICustomerVerificationEligibilityQuery, CustomerVerificationEligibilityQuery>();
+
+        // Domain event publisher — Null fallback until spec 025 (Notifications).
+        services.TryAddSingleton<IVerificationDomainEventPublisher, NullVerificationDomainEventPublisher>();
+
+        // Phase 6 / US4 — lifecycle workers (research §R12). Daily cadence,
+        // advisory-locked, FakeTimeProvider-friendly. Bind options from
+        // configuration; defaults match research §R12 if config is absent.
+        services.AddOptions<VerificationWorkerOptions>()
+            .Bind(configuration.GetSection("Verification:Workers"));
+        services.AddHostedService<VerificationExpiryWorker>();
+        services.AddHostedService<VerificationReminderWorker>();
+        services.AddHostedService<VerificationDocumentPurgeWorker>();
+
+        // Polish T110/T111 — account-lifecycle subscriber. Spec 004 publishes
+        // the events; this binding processes them within the verification
+        // module. Multiple subscribers can co-exist; we use TryAddEnumerable to
+        // avoid clobbering future overrides.
+        services.AddScoped<AccountLifecycleHandler>();
+        services.AddScoped<ICustomerAccountLifecycleSubscriber>(sp =>
+            sp.GetRequiredService<AccountLifecycleHandler>());
 
         // Phase 5 / US3 — eligibility query for catalog/cart/checkout.
         // Null IProductRestrictionPolicy is a safe fallback until spec 005's
@@ -102,6 +133,7 @@ public static class VerificationModule
         services.AddScoped<EligibilityCacheInvalidator>();
         services.AddScoped<SubmitVerificationHandler>();
         services.AddScoped<GetMyActiveVerificationHandler>();
+        services.AddScoped<GetMarketSchemaHandler>();
         services.AddScoped<ListMyVerificationsHandler>();
         services.AddScoped<GetMyVerificationHandler>();
         services.AddScoped<AttachDocumentHandler>();
@@ -139,6 +171,7 @@ public static class VerificationModule
     {
         var customer = endpoints.MapGroup("/api/customer/verifications");
         customer.MapSubmitVerificationEndpoint();
+        customer.MapGetMarketSchemaEndpoint();
         customer.MapGetMyActiveVerificationEndpoint();
         customer.MapListMyVerificationsEndpoint();
         customer.MapGetMyVerificationEndpoint();

@@ -1,6 +1,7 @@
 using BackendApi.Modules.AuditLog;
 using BackendApi.Modules.Storage;
 using BackendApi.Modules.Verification.Persistence;
+using BackendApi.Modules.Verification.Primitives;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -156,7 +157,7 @@ public sealed class VerificationDocumentPurgeWorker(
         try
         {
             await auditPublisher.PublishAsync(new AuditEvent(
-                ActorId: Guid.Empty,
+                ActorId: VerificationSystemActor.Id,
                 ActorRole: "system",
                 Action: "verification.document_purged",
                 EntityType: "verification.document",

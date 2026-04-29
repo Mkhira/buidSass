@@ -330,6 +330,7 @@ public sealed class AdminApproveHandlerTests : IAsyncLifetime
             db: db,
             eligibilityInvalidator: new EligibilityCacheInvalidator(),
             auditPublisher: audit,
+            domainPublisher: new NullVerificationDomainEventPublisher(),
             clock: clock,
             logger: NullLogger<DecideApproveHandler>.Instance);
         return (handler, audit);

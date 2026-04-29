@@ -107,8 +107,8 @@ public sealed class EligibilityQueryMatrixTests : IAsyncLifetime
         var result = await query.EvaluateAsync(customerId, "ksa", "KSA-restricted-anesthetic", default);
 
         result.Class.Should().Be(EligibilityClass.Ineligible);
-        result.ReasonCode.Should().Be(EligibilityReasonCode.VerificationRequired,
-            "no cache row for (customer, ksa) → required is the closest reason in V1; an explicit MarketMismatch path requires the cache to track the customer's roaming context");
+        result.ReasonCode.Should().Be(EligibilityReasonCode.MarketMismatch,
+            "customer is approved in EG but currently in KSA buying a KSA-restricted SKU — spec.md §Edge Cases mandates MarketMismatch (not VerificationRequired)");
     }
 
     [Fact]
@@ -261,7 +261,8 @@ public sealed class EligibilityQueryMatrixTests : IAsyncLifetime
         await using var db = NewContext();
         var approve = new DecideApproveHandler(
             db, new EligibilityCacheInvalidator(), new RecordingAuditPublisher(),
-            new FakeTimeProvider(new DateTimeOffset(2026, 6, 1, 9, 0, 0, TimeSpan.Zero)),
+            new NullVerificationDomainEventPublisher(),
+                new FakeTimeProvider(new DateTimeOffset(2026, 6, 1, 9, 0, 0, TimeSpan.Zero)),
             NullLogger<DecideApproveHandler>.Instance);
         var result = await approve.HandleAsync(verificationId, Guid.NewGuid(),
             new DecideApproveRequest(new ReviewerReason("Verified.", null)),
@@ -274,7 +275,8 @@ public sealed class EligibilityQueryMatrixTests : IAsyncLifetime
         await using var db = NewContext();
         var reject = new DecideRejectHandler(
             db, new EligibilityCacheInvalidator(), new RecordingAuditPublisher(),
-            new FakeTimeProvider(new DateTimeOffset(2026, 6, 1, 9, 0, 0, TimeSpan.Zero)),
+            new NullVerificationDomainEventPublisher(),
+                new FakeTimeProvider(new DateTimeOffset(2026, 6, 1, 9, 0, 0, TimeSpan.Zero)),
             NullLogger<DecideRejectHandler>.Instance);
         var result = await reject.HandleAsync(verificationId, Guid.NewGuid(),
             new DecideRejectRequest(new ReviewerReason("Not approved.", null)),
@@ -287,7 +289,8 @@ public sealed class EligibilityQueryMatrixTests : IAsyncLifetime
         await using var db = NewContext();
         var revoke = new DecideRevokeHandler(
             db, new EligibilityCacheInvalidator(), new RecordingAuditPublisher(),
-            new FakeTimeProvider(new DateTimeOffset(2026, 6, 15, 9, 0, 0, TimeSpan.Zero)),
+            new NullVerificationDomainEventPublisher(),
+                new FakeTimeProvider(new DateTimeOffset(2026, 6, 15, 9, 0, 0, TimeSpan.Zero)),
             NullLogger<DecideRevokeHandler>.Instance);
         var result = await revoke.HandleAsync(verificationId, Guid.NewGuid(),
             new DecideRevokeRequest(new ReviewerReason("Compliance issue.", null)),
@@ -300,7 +303,8 @@ public sealed class EligibilityQueryMatrixTests : IAsyncLifetime
         await using var db = NewContext();
         var info = new DecideRequestInfoHandler(
             db, new EligibilityCacheInvalidator(), new RecordingAuditPublisher(),
-            new FakeTimeProvider(new DateTimeOffset(2026, 5, 5, 9, 0, 0, TimeSpan.Zero)),
+            new NullVerificationDomainEventPublisher(),
+                new FakeTimeProvider(new DateTimeOffset(2026, 5, 5, 9, 0, 0, TimeSpan.Zero)),
             NullLogger<DecideRequestInfoHandler>.Instance);
         var result = await info.HandleAsync(verificationId, Guid.NewGuid(),
             new DecideRequestInfoRequest(new ReviewerReason("Need clearer scan.", null)),

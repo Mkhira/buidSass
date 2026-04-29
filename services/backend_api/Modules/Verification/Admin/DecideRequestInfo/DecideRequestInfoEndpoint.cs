@@ -58,7 +58,8 @@ public static class DecideRequestInfoEndpoint
                 context, 400, reason!.Value, "Request-info validation failed.", detail);
         }
 
-        var result = await handler.HandleAsync(id, reviewerId.Value, body!, ct);
+        var reviewerMarkets = AdminVerificationResponseFactory.ResolveAssignedMarkets(context);
+        var result = await handler.HandleAsync(id, reviewerId.Value, reviewerMarkets, body!, ct);
         if (!result.IsSuccess)
         {
             var status = result.ReasonCode switch

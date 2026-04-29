@@ -106,6 +106,7 @@ public sealed class CustomerReadAndAttachTests : IAsyncLifetime
             var approve = new DecideApproveHandler(
                 db, new EligibilityCacheInvalidator(),
                 new RecordingAuditPublisher(),
+                new NullVerificationDomainEventPublisher(),
                 new FakeTimeProvider(new DateTimeOffset(2026, 5, 1, 9, 0, 0, TimeSpan.Zero)),
                 NullLogger<DecideApproveHandler>.Instance);
             await approve.HandleAsync(verificationId, Guid.NewGuid(),
@@ -141,6 +142,7 @@ public sealed class CustomerReadAndAttachTests : IAsyncLifetime
             var approve = new DecideApproveHandler(
                 db, new EligibilityCacheInvalidator(),
                 new RecordingAuditPublisher(),
+                new NullVerificationDomainEventPublisher(),
                 new FakeTimeProvider(new DateTimeOffset(2026, 5, 1, 9, 0, 0, TimeSpan.Zero)),
                 NullLogger<DecideApproveHandler>.Instance);
             await approve.HandleAsync(priorId, reviewerId,
@@ -394,7 +396,7 @@ public sealed class CustomerReadAndAttachTests : IAsyncLifetime
         var result = await submit.HandleAsync(customerId, "ksa",
             new SubmitVerificationRequest(
                 Profession: "dentist",
-                RegulatorIdentifier: $"SCFHS-{Guid.NewGuid():N}".Substring(0, 16),
+                RegulatorIdentifier: $"SCFHS-{Guid.NewGuid():N}".Substring(0, 16).ToUpperInvariant(),
                 DocumentIds: Array.Empty<Guid>(),
                 SupersedesId: supersedesId),
             CancellationToken.None);
@@ -408,6 +410,7 @@ public sealed class CustomerReadAndAttachTests : IAsyncLifetime
         var approve = new DecideApproveHandler(
             db, new EligibilityCacheInvalidator(),
             new RecordingAuditPublisher(),
+            new NullVerificationDomainEventPublisher(),
             new FakeTimeProvider(new DateTimeOffset(2026, 6, 1, 9, 0, 0, TimeSpan.Zero)),
             NullLogger<DecideApproveHandler>.Instance);
         var result = await approve.HandleAsync(verificationId, Guid.NewGuid(),

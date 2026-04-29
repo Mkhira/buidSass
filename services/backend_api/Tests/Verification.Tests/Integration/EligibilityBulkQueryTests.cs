@@ -177,6 +177,7 @@ public sealed class EligibilityBulkQueryTests : IAsyncLifetime
         {
             var approve = new DecideApproveHandler(
                 db, new EligibilityCacheInvalidator(), new RecordingAuditPublisher(),
+                new NullVerificationDomainEventPublisher(),
                 new FakeTimeProvider(new DateTimeOffset(2026, 5, 1, 9, 0, 0, TimeSpan.Zero)),
                 NullLogger<DecideApproveHandler>.Instance);
             var result = await approve.HandleAsync(verificationId, Guid.NewGuid(),

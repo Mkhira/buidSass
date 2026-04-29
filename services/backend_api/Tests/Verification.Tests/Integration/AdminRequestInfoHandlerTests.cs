@@ -73,7 +73,7 @@ public sealed class AdminRequestInfoHandlerTests : IAsyncLifetime
 
         await using var db = NewContext();
         var handler = new DecideRequestInfoHandler(
-            db, new EligibilityCacheInvalidator(), new RecordingAuditPublisher(), clock,
+            db, new EligibilityCacheInvalidator(), new RecordingAuditPublisher(), new NullVerificationDomainEventPublisher(), clock,
             NullLogger<DecideRequestInfoHandler>.Instance);
 
         var result = await handler.HandleAsync(
@@ -122,6 +122,7 @@ public sealed class AdminRequestInfoHandlerTests : IAsyncLifetime
         {
             var h = new DecideRequestInfoHandler(
                 db, new EligibilityCacheInvalidator(), new RecordingAuditPublisher(),
+                new NullVerificationDomainEventPublisher(),
                 new FakeTimeProvider(new DateTimeOffset(2026, 5, 1, 14, 0, 0, TimeSpan.Zero)),
                 NullLogger<DecideRequestInfoHandler>.Instance);
             await h.HandleAsync(verificationId, Guid.NewGuid(),
@@ -169,6 +170,7 @@ public sealed class AdminRequestInfoHandlerTests : IAsyncLifetime
             var rejectHandler = new BackendApi.Modules.Verification.Admin.DecideReject.DecideRejectHandler(
                 db, new EligibilityCacheInvalidator(),
                 new RecordingAuditPublisher(),
+                new NullVerificationDomainEventPublisher(),
                 new FakeTimeProvider(new DateTimeOffset(2026, 5, 1, 9, 0, 0, TimeSpan.Zero)),
                 NullLogger<BackendApi.Modules.Verification.Admin.DecideReject.DecideRejectHandler>.Instance);
             await rejectHandler.HandleAsync(verificationId, Guid.NewGuid(),
@@ -182,6 +184,7 @@ public sealed class AdminRequestInfoHandlerTests : IAsyncLifetime
         {
             var h = new DecideRequestInfoHandler(
                 db, new EligibilityCacheInvalidator(), new RecordingAuditPublisher(),
+                new NullVerificationDomainEventPublisher(),
                 new FakeTimeProvider(new DateTimeOffset(2026, 5, 1, 14, 0, 0, TimeSpan.Zero)),
                 NullLogger<DecideRequestInfoHandler>.Instance);
             var result = await h.HandleAsync(verificationId, Guid.NewGuid(),
@@ -205,7 +208,7 @@ public sealed class AdminRequestInfoHandlerTests : IAsyncLifetime
         var result = await submit.HandleAsync(customerId, "ksa",
             new SubmitVerificationRequest(
                 Profession: "dentist",
-                RegulatorIdentifier: $"SCFHS-{Guid.NewGuid():N}".Substring(0, 16),
+                RegulatorIdentifier: $"SCFHS-{Guid.NewGuid():N}".Substring(0, 16).ToUpperInvariant(),
                 DocumentIds: Array.Empty<Guid>(),
                 SupersedesId: null),
             CancellationToken.None);

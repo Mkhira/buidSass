@@ -1,4 +1,5 @@
 using BackendApi.Modules.AuditLog;
+using BackendApi.Modules.Shared;
 using BackendApi.Modules.Verification.Admin.Common;
 using BackendApi.Modules.Verification.Eligibility;
 using BackendApi.Modules.Verification.Entities;
@@ -20,12 +21,21 @@ public sealed class DecideRevokeHandler(
     VerificationDbContext db,
     EligibilityCacheInvalidator eligibilityInvalidator,
     IAuditEventPublisher auditPublisher,
+    IVerificationDomainEventPublisher domainPublisher,
     TimeProvider clock,
     ILogger<DecideRevokeHandler> logger)
 {
+    public Task<DecideRevokeResult> HandleAsync(
+        Guid verificationId,
+        Guid reviewerId,
+        DecideRevokeRequest request,
+        CancellationToken ct)
+        => HandleAsync(verificationId, reviewerId, reviewerMarkets: null, request, ct);
+
     public async Task<DecideRevokeResult> HandleAsync(
         Guid verificationId,
         Guid reviewerId,
+        IReadOnlySet<string>? reviewerMarkets,
         DecideRevokeRequest request,
         CancellationToken ct)
     {
@@ -35,6 +45,13 @@ public sealed class DecideRevokeHandler(
             .SingleOrDefaultAsync(v => v.Id == verificationId, ct);
 
         if (verification is null)
+        {
+            return DecideRevokeResult.Fail(
+                VerificationReasonCode.InvalidStateForAction,
+                "Verification not found.");
+        }
+
+        if (reviewerMarkets is not null && !reviewerMarkets.Contains(verification.MarketCode))
         {
             return DecideRevokeResult.Fail(
                 VerificationReasonCode.InvalidStateForAction,
@@ -128,6 +145,22 @@ public sealed class DecideRevokeHandler(
         {
             logger.LogWarning(ex,
                 "Verification {VerificationId} revoked but audit publish failed.",
+                verification.Id);
+        }
+
+        try
+        {
+            await domainPublisher.PublishAsync(new VerificationDomainEvents.VerificationRevoked(
+                VerificationId: verification.Id,
+                CustomerId: verification.CustomerId,
+                MarketCode: verification.MarketCode,
+                Reason: ReviewerReasonValidator.ComposeLedgerSummary(request.Reason, "reviewer_revoke"),
+                LocaleHint: "en"), ct);
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex,
+                "Verification {VerificationId} revoked but domain publish failed.",
                 verification.Id);
         }
 

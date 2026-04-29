@@ -133,6 +133,25 @@ public sealed class RequestRenewalHandler(
             ? approval.RegulatorIdentifier
             : request.RegulatorIdentifier;
 
+        // 5.5. Validate the (possibly-overridden) values against the CURRENT
+        // schema's required_fields (US5 dynamic validation parity with submit).
+        // Catches a v2 schema bump that tightens regex / changes enum without
+        // forcing the customer to discover the failure at reviewer-decision time.
+        var validationProbe = new SubmitVerification.SubmitVerificationRequest(
+            Profession: profession,
+            RegulatorIdentifier: regulatorIdentifier,
+            DocumentIds: Array.Empty<Guid>(),
+            SupersedesId: approval.Id);
+        var (schemaOk, schemaReason, schemaDetail) =
+            SubmitVerification.SubmitVerificationValidator.ValidateAgainstSchema(
+                validationProbe, currentSchema.RequiredFieldsJson);
+        if (!schemaOk)
+        {
+            return RenewalResult.Fail(
+                schemaReason!.Value,
+                schemaDetail ?? "Renewal failed schema validation against current market schema.");
+        }
+
         // 6. Insert the renewal row + initial state-transition.
         var renewalId = Guid.NewGuid();
         db.Verifications.Add(new Entities.Verification

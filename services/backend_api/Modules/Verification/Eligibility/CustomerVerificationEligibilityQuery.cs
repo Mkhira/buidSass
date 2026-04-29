@@ -56,6 +56,26 @@ public sealed class CustomerVerificationEligibilityQuery(
             .Select(c => new CacheRow(c.EligibilityClass, c.ReasonCode, c.ExpiresAt, c.ProfessionsJson))
             .SingleOrDefaultAsync(cancellationToken);
 
+        if (cache is null)
+        {
+            // No cache row for this (customer, current market). Disambiguate
+            // VerificationRequired vs MarketMismatch by checking whether the
+            // customer is eligible in ANY OTHER market — that's the spec
+            // edge case (spec.md §Edge Cases): customer has approval in EG
+            // but is currently in KSA buying a KSA-restricted SKU →
+            // MarketMismatch, not VerificationRequired.
+            var hasApprovalInOtherMarket = await db.EligibilityCache
+                .AsNoTracking()
+                .AnyAsync(c => c.CustomerId == customerId
+                            && c.MarketCode != customerCurrentMarket
+                            && c.EligibilityClass == "eligible",
+                    cancellationToken);
+            if (hasApprovalInOtherMarket)
+            {
+                return Build(EligibilityClass.Ineligible, EligibilityReasonCode.MarketMismatch, expiresAt: null);
+            }
+        }
+
         return EvaluateFromCacheRow(cache, policy);
     }
 
@@ -78,6 +98,24 @@ public sealed class CustomerVerificationEligibilityQuery(
             .Select(c => new CacheRow(c.EligibilityClass, c.ReasonCode, c.ExpiresAt, c.ProfessionsJson))
             .SingleOrDefaultAsync(cancellationToken);
 
+        // Cross-market edge case: when the customer has no cache row for
+        // their current market but DOES have an approval in another market,
+        // restricted SKUs map to MarketMismatch (not VerificationRequired).
+        // ONE extra read per call, only when needed.
+        bool? hasApprovalInOtherMarket = null;
+        async ValueTask<bool> ResolveOtherMarketApprovalAsync()
+        {
+            if (hasApprovalInOtherMarket is { } cached) return cached;
+            var any = await db.EligibilityCache
+                .AsNoTracking()
+                .AnyAsync(c => c.CustomerId == customerId
+                            && c.MarketCode != customerCurrentMarket
+                            && c.EligibilityClass == "eligible",
+                    cancellationToken);
+            hasApprovalInOtherMarket = any;
+            return any;
+        }
+
         // ONE policy lookup per SKU. Spec 005 may later expose a bulk-policy
         // entrypoint; this implementation calls the single-SKU API per the
         // current contract — let spec 005 decide whether to batch internally.
@@ -92,6 +130,11 @@ public sealed class CustomerVerificationEligibilityQuery(
             if (!policy.RestrictedInMarkets.Contains(customerCurrentMarket))
             {
                 results[sku] = Build(EligibilityClass.Unrestricted, EligibilityReasonCode.Unrestricted, expiresAt: null);
+                continue;
+            }
+            if (cache is null && await ResolveOtherMarketApprovalAsync())
+            {
+                results[sku] = Build(EligibilityClass.Ineligible, EligibilityReasonCode.MarketMismatch, expiresAt: null);
                 continue;
             }
             results[sku] = EvaluateFromCacheRow(cache, policy);

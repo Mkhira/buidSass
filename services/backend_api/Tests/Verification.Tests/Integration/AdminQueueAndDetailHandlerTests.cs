@@ -145,7 +145,7 @@ public sealed class AdminQueueAndDetailHandlerTests : IAsyncLifetime
         var (_, verificationId, _) = await SubmitAsync(market: "ksa");
 
         await using var db = NewContext();
-        var handler = new GetVerificationDetailHandler(db, new NullRegulatorAssistLookup());
+        var handler = new GetVerificationDetailHandler(db, new BackendApi.Modules.Shared.NullRegulatorAssistLookup(), new TestPiiRecorder());
 
         var result = await handler.HandleAsync(
             verificationId, new HashSet<string> { "ksa" }, CancellationToken.None);
@@ -172,7 +172,7 @@ public sealed class AdminQueueAndDetailHandlerTests : IAsyncLifetime
         var (_, verificationId, _) = await SubmitAsync(market: "ksa");
 
         await using var db = NewContext();
-        var handler = new GetVerificationDetailHandler(db, new NullRegulatorAssistLookup());
+        var handler = new GetVerificationDetailHandler(db, new BackendApi.Modules.Shared.NullRegulatorAssistLookup(), new TestPiiRecorder());
 
         var result = await handler.HandleAsync(
             verificationId, new HashSet<string> { "eg" }, CancellationToken.None);
@@ -199,7 +199,7 @@ public sealed class AdminQueueAndDetailHandlerTests : IAsyncLifetime
             customerId, market,
             new SubmitVerificationRequest(
                 Profession: "dentist",
-                RegulatorIdentifier: $"SCFHS-{Guid.NewGuid():N}".Substring(0, 16),
+                RegulatorIdentifier: $"SCFHS-{Guid.NewGuid():N}".Substring(0, 16).ToUpperInvariant(),
                 DocumentIds: Array.Empty<Guid>(),
                 SupersedesId: null),
             CancellationToken.None);
@@ -211,6 +211,12 @@ public sealed class AdminQueueAndDetailHandlerTests : IAsyncLifetime
     private sealed class NoOpAuditPublisher : IAuditEventPublisher
     {
         public Task PublishAsync(AuditEvent auditEvent, CancellationToken cancellationToken)
+            => Task.CompletedTask;
+    }
+
+    private sealed class TestPiiRecorder : BackendApi.Modules.Verification.Primitives.IPiiAccessRecorder
+    {
+        public Task RecordAsync(BackendApi.Modules.Verification.Primitives.PiiAccessKind kind, Guid verificationId, Guid? documentId, CancellationToken ct)
             => Task.CompletedTask;
     }
 

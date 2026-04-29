@@ -1,6 +1,9 @@
 using BackendApi.Configuration;
 using BackendApi.Features.Seeding;
 using BackendApi.Modules.Shared;
+using BackendApi.Modules.Verification.Admin.DecideApprove;
+using BackendApi.Modules.Verification.Admin.GetVerificationDetail;
+using BackendApi.Modules.Verification.Admin.ListVerificationQueue;
 using BackendApi.Modules.Verification.Customer.SubmitVerification;
 using BackendApi.Modules.Verification.Eligibility;
 using BackendApi.Modules.Verification.Persistence;
@@ -68,6 +71,11 @@ public static class VerificationModule
         services.AddScoped<EligibilityCacheInvalidator>();
         services.AddScoped<SubmitVerificationHandler>();
 
+        // Phase 4 / US2 — reviewer slice handlers (Batch 1: queue + detail + approve).
+        services.AddScoped<ListVerificationQueueHandler>();
+        services.AddScoped<GetVerificationDetailHandler>();
+        services.AddScoped<DecideApproveHandler>();
+
         // Time abstraction for testability.
         services.AddSingleton(TimeProvider.System);
 
@@ -85,6 +93,12 @@ public static class VerificationModule
     {
         var customer = endpoints.MapGroup("/api/customer/verifications");
         customer.MapSubmitVerificationEndpoint();
+
+        var admin = endpoints.MapGroup("/api/admin/verifications");
+        admin.MapListVerificationQueueEndpoint();
+        admin.MapGetVerificationDetailEndpoint();
+        admin.MapDecideApproveEndpoint();
+
         return endpoints;
     }
 }

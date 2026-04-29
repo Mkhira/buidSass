@@ -18,6 +18,7 @@ using BackendApi.Modules.Verification.Customer.SubmitVerification;
 using BackendApi.Modules.Verification.Eligibility;
 using BackendApi.Modules.Verification.Persistence;
 using BackendApi.Modules.Verification.Primitives;
+using BackendApi.Modules.Verification.Workers;
 using BackendApi.Modules.Verification.Seeding;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Routing;
@@ -84,6 +85,18 @@ public static class VerificationModule
         // production binding ships. TryAddSingleton lets spec 005 override.
         services.TryAddSingleton<IProductRestrictionPolicy, NullProductRestrictionPolicy>();
         services.AddScoped<ICustomerVerificationEligibilityQuery, CustomerVerificationEligibilityQuery>();
+
+        // Domain event publisher — Null fallback until spec 025 (Notifications).
+        services.TryAddSingleton<IVerificationDomainEventPublisher, NullVerificationDomainEventPublisher>();
+
+        // Phase 6 / US4 — lifecycle workers (research §R12). Daily cadence,
+        // advisory-locked, FakeTimeProvider-friendly. Bind options from
+        // configuration; defaults match research §R12 if config is absent.
+        services.AddOptions<VerificationWorkerOptions>()
+            .Bind(configuration.GetSection("Verification:Workers"));
+        services.AddHostedService<VerificationExpiryWorker>();
+        services.AddHostedService<VerificationReminderWorker>();
+        services.AddHostedService<VerificationDocumentPurgeWorker>();
 
         // Phase 3 — customer slice handlers.
         services.AddScoped<EligibilityCacheInvalidator>();

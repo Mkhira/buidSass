@@ -58,6 +58,21 @@ public sealed class DecideRevokeHandler(
         // don't overwrite them — the audit trail captures the revocation moment
         // separately via the state-transition row.
 
+        // T096 retention wiring: stamp purge_after on every non-purged document.
+        var schema = await db.MarketSchemas
+            .AsNoTracking()
+            .Where(s => s.MarketCode == verification.MarketCode && s.Version == verification.SchemaVersion)
+            .SingleOrDefaultAsync(ct);
+        var retentionMonths = schema?.RetentionMonths ?? 24;
+        var purgeAfter = nowUtc.AddMonths(retentionMonths);
+        var documents = await db.Documents
+            .Where(d => d.VerificationId == verification.Id && d.PurgedAt == null && d.PurgeAfter == null)
+            .ToListAsync(ct);
+        foreach (var doc in documents)
+        {
+            doc.PurgeAfter = purgeAfter;
+        }
+
         db.StateTransitions.Add(new VerificationStateTransition
         {
             Id = Guid.NewGuid(),

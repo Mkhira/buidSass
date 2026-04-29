@@ -12,6 +12,8 @@ using BackendApi.Modules.Verification.Customer.AttachDocument;
 using BackendApi.Modules.Verification.Customer.GetMyActiveVerification;
 using BackendApi.Modules.Verification.Customer.GetMyVerification;
 using BackendApi.Modules.Verification.Customer.ListMyVerifications;
+using BackendApi.Modules.Verification.Customer.RequestRenewal;
+using BackendApi.Modules.Verification.Customer.ResubmitWithInfo;
 using BackendApi.Modules.Verification.Customer.SubmitVerification;
 using BackendApi.Modules.Verification.Eligibility;
 using BackendApi.Modules.Verification.Persistence;
@@ -83,6 +85,8 @@ public static class VerificationModule
         services.AddScoped<ListMyVerificationsHandler>();
         services.AddScoped<GetMyVerificationHandler>();
         services.AddScoped<AttachDocumentHandler>();
+        services.AddScoped<ResubmitWithInfoHandler>();
+        services.AddScoped<RequestRenewalHandler>();
 
         // Phase 4 / US2 — reviewer slice handlers.
         services.AddScoped<ListVerificationQueueHandler>();
@@ -119,6 +123,8 @@ public static class VerificationModule
         customer.MapListMyVerificationsEndpoint();
         customer.MapGetMyVerificationEndpoint();
         customer.MapAttachDocumentEndpoint();
+        customer.MapResubmitWithInfoEndpoint();
+        customer.MapRequestRenewalEndpoint();
 
         var admin = endpoints.MapGroup("/api/admin/verifications");
         admin.MapListVerificationQueueEndpoint();

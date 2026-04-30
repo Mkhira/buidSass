@@ -36,7 +36,7 @@ public sealed class CustomerAccountLifecycleHandler : ICustomerAccountLifecycleS
         AutoHideAsync(evt.CustomerId, ReviewTriggerKind.AccountLocked, "account_locked", ct);
 
     public Task OnAccountDeletedAsync(CustomerAccountDeleted evt, CancellationToken ct) =>
-        AutoHideAsync(evt.CustomerId, ReviewTriggerKind.AccountLocked, "account_deleted", ct);
+        AutoHideAsync(evt.CustomerId, ReviewTriggerKind.AccountDeleted, "account_deleted", ct);
 
     public Task OnMarketChangedAsync(CustomerMarketChanged evt, CancellationToken ct) =>
         Task.CompletedTask;

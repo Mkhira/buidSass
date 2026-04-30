@@ -37,6 +37,7 @@ public static class ReviewReasonCode
     // Row-level (entity)
     public const string RowVersionConflict = "review.row.version_conflict";
     public const string RowDeleteForbidden = "review.row.delete_forbidden";
+    public const string RowNotFound = "review.row.not_found";
 
     // Reporting (entity)
     public const string ReportCannotReportOwnReview = "review.report.cannot_report_own_review";

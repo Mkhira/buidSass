@@ -28,12 +28,33 @@ public static class ListMyReviewsEndpoint
                 "Authentication required.");
         }
 
+        // Reject unknown `state` at the boundary instead of silently treating
+        // it as "no filter" — eliminates ambiguity for clients.
+        if (!string.IsNullOrWhiteSpace(state))
+        {
+            var normalized = state.ToLowerInvariant();
+            if (normalized is not ("pending_moderation" or "visible" or "flagged" or "hidden" or "deleted"))
+            {
+                return ReviewsResponseFactory.Problem(context, 400,
+                    Primitives.ReviewReasonCode.LocaleInvalid,
+                    "state must be one of: pending_moderation, visible, flagged, hidden, deleted.");
+            }
+        }
+
         // Reject malformed cursor / limit at the boundary so the handler doesn't
         // pre-emptively coerce — caller gets a stable 400 with reasonCode.
         DateTimeOffset? cursorBefore = null;
         if (!string.IsNullOrWhiteSpace(cursor))
         {
-            if (!DateTimeOffset.TryParse(cursor, out var parsed))
+            // Strict ISO-8601 round-trip ("O") — DateTimeOffset.TryParse is too
+            // permissive (accepts e.g. "2026/04/30 10:00") and drifts from the
+            // contract-level message.
+            if (!DateTimeOffset.TryParseExact(
+                    cursor,
+                    "O",
+                    System.Globalization.CultureInfo.InvariantCulture,
+                    System.Globalization.DateTimeStyles.RoundtripKind,
+                    out var parsed))
             {
                 return ReviewsResponseFactory.Problem(context, 400,
                     Primitives.ReviewReasonCode.MediaInvalidSignedUrl,

@@ -29,14 +29,17 @@ public static class ListMyReviewsEndpoint
         }
 
         // Reject unknown `state` at the boundary instead of silently treating
-        // it as "no filter" — eliminates ambiguity for clients.
+        // it as "no filter" — eliminates ambiguity for clients. Canonicalize
+        // the value so the handler sees a single normalized form regardless of
+        // input casing (CodeRabbit PR #47 round 2).
+        string? canonicalState = null;
         if (!string.IsNullOrWhiteSpace(state))
         {
-            var normalized = state.ToLowerInvariant();
-            if (normalized is not ("pending_moderation" or "visible" or "flagged" or "hidden" or "deleted"))
+            canonicalState = state.Trim().ToLowerInvariant();
+            if (canonicalState is not ("pending_moderation" or "visible" or "flagged" or "hidden" or "deleted"))
             {
                 return ReviewsResponseFactory.Problem(context, 400,
-                    Primitives.ReviewReasonCode.LocaleInvalid,
+                    Primitives.ReviewReasonCode.ModerationInvalidState,
                     "state must be one of: pending_moderation, visible, flagged, hidden, deleted.");
             }
         }
@@ -69,7 +72,7 @@ public static class ListMyReviewsEndpoint
                 "limit must be between 1 and 100.");
         }
 
-        var response = await handler.HandleAsync(customerId.Value, state, cursorBefore, limit, ct);
+        var response = await handler.HandleAsync(customerId.Value, canonicalState, cursorBefore, limit, ct);
         return Results.Ok(response);
     }
 }

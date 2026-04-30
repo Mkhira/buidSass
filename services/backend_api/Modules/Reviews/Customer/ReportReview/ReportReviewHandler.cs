@@ -148,15 +148,18 @@ public sealed class ReportReviewHandler
                     catch (DbUpdateConcurrencyException)
                     {
                         // Another reporter raced past the threshold first — review already
-                        // transitioned to Flagged. Treat as success: the report was accepted
-                        // and the moderation step is observably complete.
-                        if (tx is not null) await tx.RollbackAsync(ct);
-                        return ReportReviewResult.Success(new ReportReviewResponse(
-                            FlagId: flag.Id,
-                            Qualified: qualified,
-                            ThresholdProgress: new ThresholdProgress(
-                                QualifiedCount: qualifiedCount,
-                                Threshold: policy.CommunityReportThreshold)));
+                        // transitioned to Flagged. EF rolled back the failed update + the
+                        // moderation-decision insert (both shared the failed SaveChanges),
+                        // but the flag insert above committed in its own SaveChanges and
+                        // is still in the outer transaction. Detach the unsaved entities,
+                        // treat as success, and fall through to commit so the flag is
+                        // persisted. (CodeRabbit PR #47 round 2: rolling back the outer tx
+                        // would silently discard the flag the user just submitted.)
+                        _db.Entry(review).State = EntityState.Unchanged;
+                        foreach (var entry in _db.ChangeTracker.Entries<ReviewModerationDecision>().ToList())
+                        {
+                            if (entry.State == EntityState.Added) entry.State = EntityState.Detached;
+                        }
                     }
                     // Aggregate is unchanged because Visible and Flagged both count.
                 }

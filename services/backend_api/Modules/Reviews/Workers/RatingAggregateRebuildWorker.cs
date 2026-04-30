@@ -5,6 +5,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using Npgsql;
 
 namespace BackendApi.Modules.Reviews.Workers;
 
@@ -59,8 +60,9 @@ public sealed class RatingAggregateRebuildWorker(
         var db = scope.ServiceProvider.GetRequiredService<ReviewsDbContext>();
         var recomputer = scope.ServiceProvider.GetRequiredService<RatingAggregateRecomputer>();
 
+        var dataSource = scope.ServiceProvider.GetService<NpgsqlDataSource>();
         await using var lockHandle = await ReviewsAdvisoryLock.TryAcquireAsync(
-            db, ReviewsAdvisoryLock.Keys.RatingAggregateRebuild, ct);
+            db, ReviewsAdvisoryLock.Keys.RatingAggregateRebuild, ct, dataSource);
         if (!lockHandle.Acquired)
         {
             logger.LogInformation(

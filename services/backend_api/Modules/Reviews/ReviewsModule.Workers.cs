@@ -15,7 +15,16 @@ public static partial class ReviewsModule
     static partial void AddWorkers(IServiceCollection services)
     {
         services.AddOptions<ReviewsWorkerOptions>()
-            .BindConfiguration(ReviewsWorkerOptions.SectionName);
+            .BindConfiguration(ReviewsWorkerOptions.SectionName)
+            .Validate(o =>
+            {
+                // Fail fast on misconfigured schedules instead of letting
+                // Period<=0 spin a hot loop or InitialDelay<0 throw at runtime.
+                o.RatingAggregateRebuild.Validate($"{ReviewsWorkerOptions.SectionName}:RatingAggregateRebuild");
+                o.ReviewIntegrityScan.Validate($"{ReviewsWorkerOptions.SectionName}:ReviewIntegrityScan");
+                return true;
+            }, "Reviews worker schedules must have Period > 0 and InitialDelay >= 0.")
+            .ValidateOnStart();
 
         services.TryAddScoped<IRefundedOrderLineLookup, NullRefundedOrderLineLookup>();
 

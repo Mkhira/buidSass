@@ -63,6 +63,7 @@ public static class ReviewReasonCode
     public const string PolicyForbidden = "reviews.policy.forbidden";
     public const string PolicyWordlistTermInvalid = "reviews.policy.wordlist.term_invalid";
     public const string PolicyMarketValueOutOfRange = "reviews.policy.market.value_out_of_range";
+    public const string PolicyBodyRequired = "reviews.policy.body_required";
 
     // Aggregate (module)
     public const string AggregateMarketInvalid = "reviews.aggregate.market_invalid";
@@ -78,7 +79,7 @@ public static class ReviewReasonCode
         RateLimitSubmissionExceeded, RateLimitEditExceeded, RateLimitReportExceeded,
         ModerationForbidden, ModerationDeleteRequiresSuperAdmin, ModerationReasonRequired, ModerationInvalidState,
         ModerationDeleteTerminal, ModerationVersionConflict, ModerationRateLimitExceeded,
-        PolicyForbidden, PolicyWordlistTermInvalid, PolicyMarketValueOutOfRange,
+        PolicyForbidden, PolicyWordlistTermInvalid, PolicyMarketValueOutOfRange, PolicyBodyRequired,
         AggregateMarketInvalid,
     };
 }

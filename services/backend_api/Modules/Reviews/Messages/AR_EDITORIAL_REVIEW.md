@@ -28,6 +28,7 @@ sign-off status; SC-008 verifies the table is fully ticked at launch time.
 | review.edit.deleted_terminal | ⬜ pending | — | — | |
 | review.row.version_conflict | ⬜ pending | — | — | |
 | review.row.delete_forbidden | ⬜ pending | — | — | |
+| review.row.not_found | ⬜ pending | — | — | |
 | review.report.cannot_report_own_review | ⬜ pending | — | — | |
 | review.report.reason_invalid | ⬜ pending | — | — | |
 | review.report.note_required | ⬜ pending | — | — | |
@@ -46,6 +47,7 @@ sign-off status; SC-008 verifies the table is fully ticked at launch time.
 | reviews.policy.forbidden | ⬜ pending | — | — | |
 | reviews.policy.wordlist.term_invalid | ⬜ pending | — | — | |
 | reviews.policy.market.value_out_of_range | ⬜ pending | — | — | |
+| reviews.policy.body_required | ⬜ pending | — | — | |
 | reviews.aggregate.market_invalid | ⬜ pending | — | — | |
 
 ## Procedure

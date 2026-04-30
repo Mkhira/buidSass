@@ -46,7 +46,10 @@ public sealed class UpsertWordlistTermHandler
                 "Term must not be empty.");
         }
 
-        var normalized = _normalizer.Normalize(body.Term).ToLowerInvariant();
+        // Trim BEFORE normalize+lowercase so " fraud " and "fraud" canonicalize to
+        // the same key — preventing near-duplicate policy entries that would also
+        // miss expected matches at filter time.
+        var normalized = _normalizer.Normalize(body.Term.Trim()).ToLowerInvariant();
         if (string.IsNullOrEmpty(normalized) || normalized.Length > 200)
         {
             return UpsertWordlistTermResult.Reject(400,

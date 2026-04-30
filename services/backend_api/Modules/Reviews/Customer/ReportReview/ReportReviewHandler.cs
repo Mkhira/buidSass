@@ -127,7 +127,18 @@ public sealed class ReportReviewHandler
                     CreatedAtUtc = nowUtc,
                 });
 
-                await _db.SaveChangesAsync(ct);
+                try
+                {
+                    await _db.SaveChangesAsync(ct);
+                }
+                catch (DbUpdateConcurrencyException)
+                {
+                    // Race: another concurrent reporter already crossed the threshold
+                    // and flipped the row to Flagged. The flag insert above is already
+                    // committed, so the report itself succeeded; the threshold
+                    // transition is intentionally idempotent across concurrent writers
+                    // and we treat the loser as a no-op.
+                }
                 // Aggregate is unchanged because Visible and Flagged both count.
             }
         }

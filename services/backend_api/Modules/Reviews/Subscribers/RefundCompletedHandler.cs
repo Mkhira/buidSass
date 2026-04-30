@@ -21,15 +21,18 @@ public sealed class RefundCompletedHandler : IRefundCompletedSubscriber
 {
     private readonly ReviewsDbContext _db;
     private readonly RatingAggregateRecomputer _aggregate;
+    private readonly IReviewDomainEventPublisher _events;
     private readonly TimeProvider _time;
 
     public RefundCompletedHandler(
         ReviewsDbContext db,
         RatingAggregateRecomputer aggregate,
+        IReviewDomainEventPublisher events,
         TimeProvider time)
     {
         _db = db;
         _aggregate = aggregate;
+        _events = events;
         _time = time;
     }
 
@@ -74,6 +77,15 @@ public sealed class RefundCompletedHandler : IRefundCompletedSubscriber
         foreach (var (productId, marketCode) in aggregateRefreshes)
         {
             await _aggregate.RecomputeAsync(productId, marketCode, ct);
+        }
+
+        // FR-038 — fire after commit, one event per affected review.
+        foreach (var review in affected)
+        {
+            await _events.PublishAsync(new ReviewAutoHidden(
+                ReviewId: review.Id,
+                Trigger: ReviewTriggerKind.RefundEvent,
+                SourceEventId: null), ct);
         }
     }
 }

@@ -1,3 +1,4 @@
+using BackendApi.Modules.Reviews.Hooks;
 using BackendApi.Modules.Reviews.Admin.ListModerationQueue;
 using BackendApi.Modules.Reviews.Aggregate;
 using BackendApi.Modules.Reviews.Customer.SubmitReview;
@@ -107,7 +108,7 @@ public sealed class QueueSurfaceFunctionalLatencyTests : IAsyncLifetime
         var aggregate = new RatingAggregateRecomputer(db, clock);
         var submit = new SubmitReviewHandler(db,
             new FakeOrderLineDeliveryEligibilityQuery(true, null, clock.GetUtcNow().AddDays(-1), Guid.NewGuid()),
-            profanity, aggregate, clock);
+            profanity, aggregate, new NullReviewDomainEventPublisher(), clock);
 
         var body = hasMedia
             ? "Clean text but with a media attachment"

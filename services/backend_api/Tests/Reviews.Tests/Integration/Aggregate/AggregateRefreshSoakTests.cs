@@ -1,3 +1,4 @@
+using BackendApi.Modules.Reviews.Hooks;
 using BackendApi.Modules.Reviews.Admin.DecideModeration;
 using BackendApi.Modules.Reviews.Aggregate;
 using BackendApi.Modules.Reviews.Customer.SubmitReview;
@@ -152,7 +153,7 @@ public sealed class AggregateRefreshSoakTests : IAsyncLifetime
         var aggregate = new RatingAggregateRecomputer(db, clock);
         var submit = new SubmitReviewHandler(db,
             new FakeOrderLineDeliveryEligibilityQuery(true, null, clock.GetUtcNow().AddDays(-1), Guid.NewGuid()),
-            profanity, aggregate, clock);
+            profanity, aggregate, new NullReviewDomainEventPublisher(), clock);
         var result = await submit.HandleAsync(customerId, "SA",
             new SubmitReviewRequest(productId, rating, $"R{rating}",
                 "Long-enough body to satisfy validation.", "en", null),
@@ -166,7 +167,7 @@ public sealed class AggregateRefreshSoakTests : IAsyncLifetime
     {
         await using var db = NewContext();
         var aggregate = new RatingAggregateRecomputer(db, clock);
-        var handler = new DecideModerationHandler(db, aggregate, clock);
+        var handler = new DecideModerationHandler(db, aggregate, new NullReviewDomainEventPublisher(), clock);
         var result = await handler.HandleAsync(
             Guid.NewGuid(), hasModerator: true, hasSuperAdmin: false,
             reviewId, ifMatchRowVersion: null,
@@ -179,7 +180,7 @@ public sealed class AggregateRefreshSoakTests : IAsyncLifetime
     {
         await using var db = NewContext();
         var aggregate = new RatingAggregateRecomputer(db, clock);
-        var handler = new DecideModerationHandler(db, aggregate, clock);
+        var handler = new DecideModerationHandler(db, aggregate, new NullReviewDomainEventPublisher(), clock);
         var result = await handler.HandleAsync(
             Guid.NewGuid(), hasModerator: true, hasSuperAdmin: false,
             reviewId, ifMatchRowVersion: null,

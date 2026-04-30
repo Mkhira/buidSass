@@ -33,12 +33,18 @@ public sealed class ReportReviewHandler
 {
     private readonly ReviewsDbContext _db;
     private readonly IReviewReporterFactsQuery _facts;
+    private readonly IReviewDomainEventPublisher _events;
     private readonly TimeProvider _time;
 
-    public ReportReviewHandler(ReviewsDbContext db, IReviewReporterFactsQuery facts, TimeProvider time)
+    public ReportReviewHandler(
+        ReviewsDbContext db,
+        IReviewReporterFactsQuery facts,
+        IReviewDomainEventPublisher events,
+        TimeProvider time)
     {
         _db = db;
         _facts = facts;
+        _events = events;
         _time = time;
     }
 
@@ -127,9 +133,11 @@ public sealed class ReportReviewHandler
                     CreatedAtUtc = nowUtc,
                 });
 
+                var transitioned = false;
                 try
                 {
                     await _db.SaveChangesAsync(ct);
+                    transitioned = true;
                 }
                 catch (DbUpdateConcurrencyException)
                 {
@@ -138,6 +146,14 @@ public sealed class ReportReviewHandler
                     // committed, so the report itself succeeded; the threshold
                     // transition is intentionally idempotent across concurrent writers
                     // and we treat the loser as a no-op.
+                }
+
+                if (transitioned)
+                {
+                    await _events.PublishAsync(new ReviewFlagged(
+                        ReviewId: reviewId,
+                        QualifiedReportCount: qualifiedCount,
+                        Threshold: policy.CommunityReportThreshold), ct);
                 }
                 // Aggregate is unchanged because Visible and Flagged both count.
             }

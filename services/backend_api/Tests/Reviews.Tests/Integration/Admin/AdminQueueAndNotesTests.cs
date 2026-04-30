@@ -1,3 +1,4 @@
+using BackendApi.Modules.Reviews.Hooks;
 using BackendApi.Features.Seeding;
 using BackendApi.Features.Seeding.Datasets;
 using BackendApi.Modules.Reviews.Admin.AddAdminNote;
@@ -230,7 +231,7 @@ public sealed class AdminQueueAndNotesTests : IAsyncLifetime
         var provider = services.BuildServiceProvider();
         var profanity = new ProfanityFilter(provider.GetRequiredService<IServiceScopeFactory>(), new ArabicNormalizer(), TimeSpan.Zero);
         var aggregate = new RatingAggregateRecomputer(db, clock);
-        var submit = new SubmitReviewHandler(db, new FakeEligibility(true, deliveredAt, Guid.NewGuid()), profanity, aggregate, clock);
+        var submit = new SubmitReviewHandler(db, new FakeEligibility(true, deliveredAt, Guid.NewGuid()), profanity, aggregate, new NullReviewDomainEventPublisher(), clock);
 
         var result = await submit.HandleAsync(customerId, market,
             new SubmitReviewRequest(productId, rating, "headline", body, "en", mediaUrls),

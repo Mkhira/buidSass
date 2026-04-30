@@ -1,4 +1,5 @@
 using BackendApi.Modules.Reviews.Primitives;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Routing;
 
@@ -16,7 +17,7 @@ public static class ListReviewsByCustomerEndpoint
     private static async Task<IResult> HandleAsync(
         Guid customerId,
         HttpContext context,
-        ListReviewsByCustomerHandler handler,
+ [FromServices] ListReviewsByCustomerHandler handler,
         CancellationToken ct,
         string? state = null,
         string? cursor = null,

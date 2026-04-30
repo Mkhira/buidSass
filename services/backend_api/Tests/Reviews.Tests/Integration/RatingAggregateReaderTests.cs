@@ -1,3 +1,4 @@
+using BackendApi.Modules.Reviews.Hooks;
 using BackendApi.Modules.Reviews.Aggregate;
 using BackendApi.Modules.Reviews.Aggregate.ReadProductRating;
 using BackendApi.Modules.Reviews.Customer.SubmitReview;
@@ -141,8 +142,7 @@ public sealed class RatingAggregateReaderTests
             var db = _fx.NewContext();
             var aggregate = new RatingAggregateRecomputer(db, clock);
             var submit = new SubmitReviewHandler(db,
-                new FakeEligibility(true, deliveredAt, Guid.NewGuid()),
-                profanity, aggregate, clock);
+            new FakeEligibility(true, deliveredAt, Guid.NewGuid()), profanity, aggregate, new NullReviewDomainEventPublisher(), clock);
             var result = await submit.HandleAsync(customer, market,
                 new SubmitReviewRequest(productId, rating, $"R{rating}",
                     "Long-enough body to satisfy the CHECK constraint.", "en", null),

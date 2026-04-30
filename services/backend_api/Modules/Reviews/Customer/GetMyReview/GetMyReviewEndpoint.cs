@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Routing;
 
@@ -15,7 +16,7 @@ public static class GetMyReviewEndpoint
     private static async Task<IResult> HandleAsync(
         Guid id,
         HttpContext context,
-        GetMyReviewHandler handler,
+ [FromServices] GetMyReviewHandler handler,
         CancellationToken ct)
     {
         var customerId = ReviewsResponseFactory.ResolveCustomerId(context);

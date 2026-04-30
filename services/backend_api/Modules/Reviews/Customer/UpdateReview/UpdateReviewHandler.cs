@@ -28,17 +28,20 @@ public sealed class UpdateReviewHandler
     private readonly ReviewsDbContext _db;
     private readonly ProfanityFilter _profanity;
     private readonly RatingAggregateRecomputer _aggregate;
+    private readonly BackendApi.Modules.Shared.IReviewDomainEventPublisher _events;
     private readonly TimeProvider _time;
 
     public UpdateReviewHandler(
         ReviewsDbContext db,
         ProfanityFilter profanity,
         RatingAggregateRecomputer aggregate,
+        BackendApi.Modules.Shared.IReviewDomainEventPublisher events,
         TimeProvider time)
     {
         _db = db;
         _profanity = profanity;
         _aggregate = aggregate;
+        _events = events;
         _time = time;
     }
 
@@ -186,6 +189,18 @@ public sealed class UpdateReviewHandler
         if (ReviewStateMachine.TransitionAffectsAggregate(fromState, toState))
         {
             await _aggregate.RecomputeAsync(review.ProductId, review.MarketCode, ct);
+        }
+
+        // FR-038 — fire after commit. ReviewHeldForModeration only when this
+        // edit landed in pending_moderation (either via filter trip or via
+        // re-stamp on an already-pending row).
+        if (toState == ReviewState.PendingModeration)
+        {
+            await _events.PublishAsync(new BackendApi.Modules.Shared.ReviewHeldForModeration(
+                ReviewId: review.Id,
+                CustomerId: customerId,
+                HoldReason: profanityResult.Tripped ? "edit_trip" : "media_attachment",
+                TermCount: profanityResult.MatchedTerms.Count), ct);
         }
 
         return UpdateReviewResult.Success(new UpdateReviewResponse(

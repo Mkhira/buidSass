@@ -1,3 +1,4 @@
+using BackendApi.Modules.Reviews.Hooks;
 using BackendApi.Features.Seeding;
 using BackendApi.Features.Seeding.Datasets;
 using BackendApi.Modules.Reviews.Aggregate;
@@ -54,7 +55,7 @@ public sealed class RefundAndAccountLockedSubscriberTests : IAsyncLifetime
         var clock = new FakeTimeProvider(DateTimeOffset.UtcNow);
         await using var db = NewContext();
         var aggregate = new RatingAggregateRecomputer(db, clock);
-        var handler = new RefundCompletedHandler(db, aggregate, clock);
+        var handler = new RefundCompletedHandler(db, aggregate, new NullReviewDomainEventPublisher(), clock);
 
         await handler.OnRefundCompletedAsync(
             new RefundCompletedEvent(orderLineId, customerId, clock.GetUtcNow(), Guid.NewGuid()),
@@ -87,7 +88,7 @@ public sealed class RefundAndAccountLockedSubscriberTests : IAsyncLifetime
         var clock = new FakeTimeProvider(DateTimeOffset.UtcNow);
         await using var db = NewContext();
         var aggregate = new RatingAggregateRecomputer(db, clock);
-        var handler = new RefundCompletedHandler(db, aggregate, clock);
+        var handler = new RefundCompletedHandler(db, aggregate, new NullReviewDomainEventPublisher(), clock);
         var evt = new RefundCompletedEvent(orderLineId, customerId, clock.GetUtcNow(), Guid.NewGuid());
 
         await handler.OnRefundCompletedAsync(evt, CancellationToken.None);
@@ -95,7 +96,7 @@ public sealed class RefundAndAccountLockedSubscriberTests : IAsyncLifetime
         // Second delivery — handler must short-circuit (review is already hidden).
         await using var db2 = NewContext();
         var aggregate2 = new RatingAggregateRecomputer(db2, clock);
-        var handler2 = new RefundCompletedHandler(db2, aggregate2, clock);
+        var handler2 = new RefundCompletedHandler(db2, aggregate, new NullReviewDomainEventPublisher(), clock);
         await handler2.OnRefundCompletedAsync(evt, CancellationToken.None);
 
         await using var verifyDb = NewContext();
@@ -113,16 +114,14 @@ public sealed class RefundAndAccountLockedSubscriberTests : IAsyncLifetime
         // First hide via refund_completed.
         var clock = new FakeTimeProvider(DateTimeOffset.UtcNow);
         await using var hideDb = NewContext();
-        var hideHandler = new RefundCompletedHandler(hideDb,
-            new RatingAggregateRecomputer(hideDb, clock), clock);
+        var hideHandler = new RefundCompletedHandler(hideDb, new RatingAggregateRecomputer(hideDb, clock), new NullReviewDomainEventPublisher(), clock);
         await hideHandler.OnRefundCompletedAsync(
             new RefundCompletedEvent(orderLineId, customerId, clock.GetUtcNow(), Guid.NewGuid()),
             CancellationToken.None);
 
         // Now reverse the refund — review should STAY hidden but get an advisory note.
         await using var reverseDb = NewContext();
-        var reverseHandler = new RefundReversedHandler(reverseDb,
-            NullLogger<RefundReversedHandler>.Instance, clock);
+        var reverseHandler = new RefundReversedHandler(reverseDb, NullLogger<RefundReversedHandler>.Instance, clock);
         await reverseHandler.OnRefundReversedAsync(
             new RefundReversedEvent(orderLineId, customerId, clock.GetUtcNow(),
                 Guid.NewGuid(), "Returned by customer for partial refund."),
@@ -150,7 +149,7 @@ public sealed class RefundAndAccountLockedSubscriberTests : IAsyncLifetime
         var clock = new FakeTimeProvider(DateTimeOffset.UtcNow);
         await using var db = NewContext();
         var aggregate = new RatingAggregateRecomputer(db, clock);
-        var handler = new CustomerAccountLifecycleHandler(db, aggregate, clock);
+        var handler = new CustomerAccountLifecycleHandler(db, aggregate, new NullReviewDomainEventPublisher(), clock);
 
         await handler.OnAccountLockedAsync(
             new CustomerAccountLocked(customerId, "Suspicious activity.", clock.GetUtcNow()),
@@ -180,7 +179,7 @@ public sealed class RefundAndAccountLockedSubscriberTests : IAsyncLifetime
         var clock = new FakeTimeProvider(DateTimeOffset.UtcNow);
         await using var db = NewContext();
         var aggregate = new RatingAggregateRecomputer(db, clock);
-        var handler = new CustomerAccountLifecycleHandler(db, aggregate, clock);
+        var handler = new CustomerAccountLifecycleHandler(db, aggregate, new NullReviewDomainEventPublisher(), clock);
 
         await handler.OnAccountDeletedAsync(
             new CustomerAccountDeleted(customerId, clock.GetUtcNow()),
@@ -199,8 +198,7 @@ public sealed class RefundAndAccountLockedSubscriberTests : IAsyncLifetime
 
         var clock = new FakeTimeProvider(DateTimeOffset.UtcNow);
         await using var db = NewContext();
-        var handler = new CustomerAccountLifecycleHandler(db,
-            new RatingAggregateRecomputer(db, clock), clock);
+        var handler = new CustomerAccountLifecycleHandler(db, new RatingAggregateRecomputer(db, clock), new NullReviewDomainEventPublisher(), clock);
 
         await handler.OnMarketChangedAsync(
             new CustomerMarketChanged(customerId, "SA", "EG", Guid.NewGuid(), clock.GetUtcNow()),
@@ -241,7 +239,7 @@ public sealed class RefundAndAccountLockedSubscriberTests : IAsyncLifetime
         var provider = services.BuildServiceProvider();
         var profanity = new ProfanityFilter(provider.GetRequiredService<IServiceScopeFactory>(), new ArabicNormalizer(), TimeSpan.Zero);
         var aggregate = new RatingAggregateRecomputer(db, clock);
-        var submit = new SubmitReviewHandler(db, new FakeEligibility(deliveredAt, orderLineId), profanity, aggregate, clock);
+        var submit = new SubmitReviewHandler(db, new FakeEligibility(deliveredAt, orderLineId), profanity, aggregate, new NullReviewDomainEventPublisher(), clock);
 
         var result = await submit.HandleAsync(customerId, "SA",
             new SubmitReviewRequest(productId, 5, "Headline",

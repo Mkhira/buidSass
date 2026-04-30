@@ -1,5 +1,7 @@
 using BackendApi.Modules.Reviews.Primitives;
+using BackendApi.Modules.Reviews.RateLimit;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Routing;
 
 namespace BackendApi.Modules.Reviews.Admin.DecideModeration;
@@ -15,9 +17,10 @@ public static class DecideModerationEndpoint
 
     private static async Task<IResult> HandleAsync(
         Guid id,
-        DecideModerationRequest? body,
+ [FromBody] DecideModerationRequest? body,
         HttpContext context,
-        DecideModerationHandler handler,
+ [FromServices] DecideModerationHandler handler,
+ [FromServices] ReviewRateLimiter rateLimiter,
         CancellationToken ct)
     {
         var actorId = AdminReviewsResponseFactory.ResolveActorId(context);
@@ -25,6 +28,14 @@ public static class DecideModerationEndpoint
         {
             return AdminReviewsResponseFactory.Problem(context, 401,
                 ReviewReasonCode.ModerationForbidden, "Admin authentication required.");
+        }
+
+        if (!rateLimiter.TryAcquire(ReviewRateLimits.ModerationDecision, actorId.Value,
+                ReviewRateLimits.ModeratorCapacityPerHour, ReviewRateLimits.Window))
+        {
+            return AdminReviewsResponseFactory.Problem(context, 429,
+                ReviewReasonCode.ModerationRateLimitExceeded,
+                "Moderation decision rate limit exceeded.");
         }
 
         var (ok, reason, detail) = DecideModerationValidator.Validate(body);

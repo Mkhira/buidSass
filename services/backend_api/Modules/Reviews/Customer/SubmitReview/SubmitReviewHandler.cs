@@ -34,6 +34,7 @@ public sealed class SubmitReviewHandler
     private readonly IOrderLineDeliveryEligibilityQuery _eligibility;
     private readonly ProfanityFilter _profanity;
     private readonly RatingAggregateRecomputer _aggregate;
+    private readonly IReviewDomainEventPublisher _events;
     private readonly TimeProvider _time;
 
     public SubmitReviewHandler(
@@ -41,12 +42,14 @@ public sealed class SubmitReviewHandler
         IOrderLineDeliveryEligibilityQuery eligibility,
         ProfanityFilter profanity,
         RatingAggregateRecomputer aggregate,
+        IReviewDomainEventPublisher events,
         TimeProvider time)
     {
         _db = db;
         _eligibility = eligibility;
         _profanity = profanity;
         _aggregate = aggregate;
+        _events = events;
         _time = time;
     }
 
@@ -149,6 +152,40 @@ public sealed class SubmitReviewHandler
         if (Primitives.ReviewStateMachine.CountsInAggregate(initialState))
         {
             await _aggregate.RecomputeAsync(review.ProductId, marketCode, ct);
+        }
+
+        // FR-038 — domain events fire AFTER the lifecycle commit. The publisher
+        // is responsible for catching its own failures so the customer never
+        // sees a 5xx because of a downstream notification glitch.
+        await _events.PublishAsync(new ReviewSubmitted(
+            ReviewId: review.Id,
+            CustomerId: customerId,
+            ProductId: body.ProductId,
+            MarketCode: marketCode,
+            Locale: body.Locale,
+            Rating: body.Rating,
+            HasMedia: hasMedia,
+            WasHeld: holdForModeration), ct);
+
+        if (initialState == Primitives.ReviewState.Visible)
+        {
+            await _events.PublishAsync(new ReviewPublished(
+                ReviewId: review.Id,
+                ProductId: body.ProductId,
+                MarketCode: marketCode,
+                Rating: body.Rating,
+                TransitionedAtUtc: nowUtc), ct);
+        }
+        else if (initialState == Primitives.ReviewState.PendingModeration)
+        {
+            var holdReason = profanityResult.Tripped
+                ? "filter_trip"
+                : "media_attachment";
+            await _events.PublishAsync(new ReviewHeldForModeration(
+                ReviewId: review.Id,
+                CustomerId: customerId,
+                HoldReason: holdReason,
+                TermCount: profanityResult.MatchedTerms.Count), ct);
         }
 
         return SubmitReviewResult.Success(new SubmitReviewResponse(

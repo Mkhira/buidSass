@@ -2,6 +2,7 @@ using BackendApi.Modules.Reviews.Admin;
 using BackendApi.Modules.Reviews.Authorization;
 using BackendApi.Modules.Reviews.Customer;
 using BackendApi.Modules.Reviews.Primitives;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Routing;
 
@@ -18,7 +19,7 @@ public static class ListWordlistTermsEndpoint
 
     private static async Task<IResult> HandleAsync(
         HttpContext context,
-        ListWordlistTermsHandler handler,
+ [FromServices] ListWordlistTermsHandler handler,
         CancellationToken ct,
         string? market_code = null)
     {

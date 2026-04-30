@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Routing;
 
@@ -14,7 +15,7 @@ public static class ListMyReviewsEndpoint
 
     private static async Task<IResult> HandleAsync(
         HttpContext context,
-        ListMyReviewsHandler handler,
+ [FromServices] ListMyReviewsHandler handler,
         CancellationToken ct,
         string? state = null,
         string? cursor = null,

@@ -1,3 +1,4 @@
+using BackendApi.Modules.Reviews.Hooks;
 using BackendApi.Features.Seeding;
 using BackendApi.Features.Seeding.Datasets;
 using BackendApi.Modules.Reviews.Aggregate;
@@ -61,7 +62,7 @@ public sealed class ConcurrentReportsTests : IAsyncLifetime
             var db = NewContext();
             try
             {
-                var handler = new ReportReviewHandler(db, new FakeQualifiedFacts(), TimeProviderFor());
+                var handler = new ReportReviewHandler(db, new FakeQualifiedFacts(), new NullReviewDomainEventPublisher(), TimeProviderFor());
                 return await handler.HandleAsync(r, reviewId,
                     new ReportReviewRequest("personal_attack", null), CancellationToken.None);
             }
@@ -101,7 +102,7 @@ public sealed class ConcurrentReportsTests : IAsyncLifetime
             var db = NewContext();
             try
             {
-                var handler = new ReportReviewHandler(db, new FakeQualifiedFacts(), TimeProviderFor());
+                var handler = new ReportReviewHandler(db, new FakeQualifiedFacts(), new NullReviewDomainEventPublisher(), TimeProviderFor());
                 return await handler.HandleAsync(reporter, reviewId,
                     new ReportReviewRequest("spam_or_irrelevant", null), CancellationToken.None);
             }
@@ -149,7 +150,7 @@ public sealed class ConcurrentReportsTests : IAsyncLifetime
         var profanity = new ProfanityFilter(provider.GetRequiredService<IServiceScopeFactory>(), new ArabicNormalizer(), TimeSpan.Zero);
         var aggregate = new RatingAggregateRecomputer(db, clock);
         var submit = new SubmitReviewHandler(db,
-            new FakeEligibility(deliveredAt, Guid.NewGuid()), profanity, aggregate, clock);
+            new FakeEligibility(deliveredAt, Guid.NewGuid()), profanity, aggregate, new NullReviewDomainEventPublisher(), clock);
         var result = await submit.HandleAsync(customerId, "SA",
             new SubmitReviewRequest(productId, 4, "headline",
                 "Long-enough body to satisfy validation.", "en", null),

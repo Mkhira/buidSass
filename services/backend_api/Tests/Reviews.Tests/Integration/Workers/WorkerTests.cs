@@ -1,3 +1,4 @@
+using BackendApi.Modules.Reviews.Hooks;
 using BackendApi.Modules.Reviews.Aggregate;
 using BackendApi.Modules.Reviews.Customer.SubmitReview;
 using BackendApi.Modules.Reviews.Filtering;
@@ -184,7 +185,7 @@ public sealed class WorkerTests : IAsyncLifetime
             var profanity = new ProfanityFilter(provider.GetRequiredService<IServiceScopeFactory>(), new ArabicNormalizer(), TimeSpan.Zero);
             var aggregate = new RatingAggregateRecomputer(db, clock);
             var submit = new SubmitReviewHandler(db,
-                new FakeEligibility(deliveredAt, Guid.NewGuid()), profanity, aggregate, clock);
+                new FakeEligibility(deliveredAt, Guid.NewGuid()), profanity, aggregate, new NullReviewDomainEventPublisher(), clock);
             var result = await submit.HandleAsync(customerId, "SA",
                 new SubmitReviewRequest(productId, rating, $"R{rating}",
                     "Long-enough body to satisfy validation.", "en", null),

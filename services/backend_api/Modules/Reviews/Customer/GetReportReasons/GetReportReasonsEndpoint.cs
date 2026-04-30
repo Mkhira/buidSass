@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Routing;
 
@@ -12,7 +13,7 @@ public static class GetReportReasonsEndpoint
         return builder;
     }
 
-    private static IResult HandleAsync(GetReportReasonsHandler handler)
+    private static IResult HandleAsync([FromServices] GetReportReasonsHandler handler)
     {
         return Results.Ok(handler.Handle());
     }

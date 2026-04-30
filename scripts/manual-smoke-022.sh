@@ -44,8 +44,12 @@ echo "  HTTP ${EDIT_CODE}"
 echo "== 3. Customer list-mine =="
 LIST=$(curl -sS -w '\n%{http_code}' "${BASE_URL}/api/customer/reviews/me" "${CUST_HEADERS[@]}")
 LIST_CODE=$(echo "$LIST" | tail -n1)
+LIST_BODY=$(echo "$LIST" | sed '$d')
 echo "  HTTP ${LIST_CODE}"
 [[ "$LIST_CODE" == "200" ]] || { echo "  EXPECTED 200"; exit 1; }
+# Semantic — the just-submitted review must appear in the caller's list.
+LIST_HAS=$(echo "$LIST_BODY" | jq --arg id "$REVIEW_ID" '[.items[]? | select(.id == $id)] | length' 2>/dev/null || echo 0)
+[[ "$LIST_HAS" == "1" ]] || { echo "  EXPECTED submitted review ${REVIEW_ID} to appear in /me list (got $LIST_HAS)"; exit 1; }
 
 echo "== 4. Customer report (skipped — needs a second customer + a different review id) =="
 
@@ -58,11 +62,18 @@ echo "  HTTP ${QUEUE_CODE}"
 echo "== 6. Admin decide (skipped — would mutate live state; run manually if a flagged review exists) =="
 
 echo "== 7. Public aggregate read =="
-AGG=$(curl -sS -w '\n%{http_code}' "${BASE_URL}/api/public/reviews/aggregates/${PRODUCT_ID}?market_code=SA")
-AGG_CODE=$(echo "$AGG" | tail -n1)
-AGG_BODY=$(echo "$AGG" | sed '$d')
-echo "  HTTP ${AGG_CODE} — $(echo "$AGG_BODY" | jq -c '{reviewCount, avgRating}' 2>/dev/null || echo "$AGG_BODY")"
+AGG=$(curl -sS -i "${BASE_URL}/api/public/reviews/aggregates/${PRODUCT_ID}?market_code=SA")
+AGG_CODE=$(printf '%s' "$AGG" | awk 'NR==1{print $2; exit}')
+AGG_BODY=$(printf '%s' "$AGG" | awk 'BEGIN{b=0} /^\r?$/{b=1; next} b{print}')
+AGG_CACHE=$(printf '%s' "$AGG" | awk 'tolower($1)=="cache-control:" {sub(/^[^:]*:[ \t]*/, ""); print; exit}')
+echo "  HTTP ${AGG_CODE} — $(echo "$AGG_BODY" | jq -c '{reviewCount, avgRating}' 2>/dev/null || echo "$AGG_BODY") cache=${AGG_CACHE}"
 [[ "$AGG_CODE" == "200" ]] || { echo "  EXPECTED 200"; exit 1; }
+# Semantic — aggregate response must expose the documented shape.
+echo "$AGG_BODY" | jq -e '(.reviewCount | type == "number") and (has("avgRating"))' >/dev/null \
+  || { echo "  EXPECTED { reviewCount: number, avgRating: number|null }"; exit 1; }
+# Semantic — Cache-Control: public, max-age=60 per contract §6.1.
+[[ "$AGG_CACHE" =~ public ]] && [[ "$AGG_CACHE" =~ max-age=60 ]] \
+  || { echo "  EXPECTED Cache-Control: public, max-age=60 (got '${AGG_CACHE}')"; exit 1; }
 
 echo
 echo "Smoke complete. Paste this output into the merge PR description."

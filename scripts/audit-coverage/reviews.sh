@@ -27,16 +27,17 @@ echo
 # AuditCoverageTests exercises the full surface (submit, edit, threshold,
 # decide, refund, admin-note, wordlist upsert, market-schema update) and
 # asserts every one of the 14 audit-event kinds is reachable.
-dotnet test "$TEST_PROJ" \
+# Use `if !` so set -e doesn't exit before the diagnostic prints —
+# under `set -euo pipefail`, a failing command short-circuits the script
+# before the legacy `status=$?` branch could ever run.
+if ! dotnet test "$TEST_PROJ" \
   --nologo \
   --filter 'FullyQualifiedName~AuditCoverageTests' \
-  -- RunConfiguration.TreatNoTestsAsError=true
-
-status=$?
-if [[ $status -ne 0 ]]; then
+  -- RunConfiguration.TreatNoTestsAsError=true; then
+  status=$?
   echo
   echo "FAIL: audit coverage gap detected — see test output above."
-  exit $status
+  exit "$status"
 fi
 
 echo

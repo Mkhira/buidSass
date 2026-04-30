@@ -32,9 +32,9 @@ public sealed class NullReviewReporterFactsQuery : IReviewReporterFactsQuery
 
     public Task<ReviewReporterFacts> GetAsync(Guid customerId, CancellationToken ct)
     {
+        // Raw customer ID intentionally omitted — high-cardinality warning noise.
         _logger?.LogWarning(
-            "NullReviewReporterFactsQuery hit for customer {CustomerId} — community-report threshold escalation disabled until specs 004 + 011 ship their composed reporter-facts binding.",
-            customerId);
+            "NullReviewReporterFactsQuery hit — community-report threshold escalation disabled until specs 004 + 011 ship their composed reporter-facts binding.");
         return Task.FromResult(new ReviewReporterFacts(AccountAgeDays: 0, HasDeliveredOrder: false));
     }
 }

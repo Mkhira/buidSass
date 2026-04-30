@@ -35,9 +35,10 @@ public sealed class NullOrderLineDeliveryEligibilityQuery : IOrderLineDeliveryEl
         Guid productId,
         CancellationToken ct)
     {
+        // Raw customer/product IDs intentionally omitted — high-cardinality
+        // warning noise + unnecessary identifier exposure on every hit.
         _logger?.LogWarning(
-            "NullOrderLineDeliveryEligibilityQuery hit for customer {CustomerId} / product {ProductId} — review submission disabled until spec 011 ships its real eligibility binding.",
-            customerId, productId);
+            "NullOrderLineDeliveryEligibilityQuery hit — review submission disabled until spec 011 ships its real eligibility binding.");
 
         return Task.FromResult(new OrderLineDeliveryEligibilityResult(
             Eligible: false,

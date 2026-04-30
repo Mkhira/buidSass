@@ -68,6 +68,11 @@ public static partial class ReviewsModule
         // VerificationModule's NullProductRestrictionPolicy / NullRegulatorAssistLookup.
         services.TryAddScoped<IOrderLineDeliveryEligibilityQuery, NullOrderLineDeliveryEligibilityQuery>();
 
+        // Startup-time production guard — refuses to start if either Null fallback
+        // is still bound in Production. Pairs with the TryAdd pattern: real bindings
+        // win at registration, and the guard catches misconfig at host-start.
+        services.AddHostedService<Hooks.ReviewsFallbackProductionGuard>();
+
         // Per-phase slice registrations — each US lives in its own companion partial file.
         // C# allows at most ONE body per partial method, so each phase declares its own.
         AddUs1Slices(services);

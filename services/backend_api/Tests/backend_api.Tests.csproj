@@ -59,6 +59,11 @@
     <EmbeddedResource Remove="TaxInvoices.Tests\**" />
     <None Remove="TaxInvoices.Tests\**" />
     <Content Remove="TaxInvoices.Tests\**" />
+
+    <Compile Remove="Reviews.Tests\**" />
+    <EmbeddedResource Remove="Reviews.Tests\**" />
+    <None Remove="Reviews.Tests\**" />
+    <Content Remove="Reviews.Tests\**" />
   </ItemGroup>
 
   <ItemGroup>

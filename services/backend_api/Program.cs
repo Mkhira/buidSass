@@ -13,6 +13,7 @@ using BackendApi.Modules.Orders;
 using BackendApi.Modules.Returns;
 using BackendApi.Modules.TaxInvoices;
 using BackendApi.Modules.Shared;
+using BackendApi.Modules.Reviews;
 using BackendApi.Modules.Verification;
 using Microsoft.EntityFrameworkCore;
 using Serilog;
@@ -77,6 +78,7 @@ builder.Services.AddOrdersModule(builder.Configuration, builder.Environment);
 builder.Services.AddTaxInvoicesModule(builder.Configuration, builder.Environment);
 builder.Services.AddReturnsModule(builder.Configuration, builder.Environment);
 builder.Services.AddVerificationModule(builder.Configuration, builder.Environment);
+builder.Services.AddReviewsModule(builder.Configuration, builder.Environment);
 builder.Services.AddSeeding(builder.Configuration);
 
 var app = builder.Build();
@@ -110,6 +112,7 @@ if (app.Environment.IsDevelopment())
 
 app.MapHealthChecks("/health");
 app.MapVerificationEndpoints();
+app.MapReviewsEndpoints();
 
 await app.RunAsync();
 return 0;

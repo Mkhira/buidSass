@@ -3,7 +3,12 @@ using System.Text.RegularExpressions;
 
 namespace BackendApi.Modules.Search.Primitives.Normalization;
 
-public sealed class ArabicNormalizer
+public interface IArabicNormalizer
+{
+    string Normalize(string? input);
+}
+
+public sealed class ArabicNormalizer : IArabicNormalizer
 {
     private static readonly Regex WhitespaceRegex = new("\\s+", RegexOptions.Compiled);
 

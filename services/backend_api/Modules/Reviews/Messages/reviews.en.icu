@@ -1,0 +1,58 @@
+# Reviews module — English ICU keys per spec 022 contract §10.
+#
+# Every key here MUST exist in reviews.ar.icu before the slice that consumes
+# it ships at DoD (Principle 4). The ICU-key parity test in
+# Tests/Reviews.Tests/Unit/Primitives/ReviewReasonCodeIcuKeysTests.cs holds
+# the line; AR_EDITORIAL_REVIEW.md tracks editorial sign-off per row.
+
+# Eligibility (entity)
+review.eligibility.no_delivered_purchase = You can only review a product after a delivered, non-refunded order.
+review.eligibility.refunded             = You cannot review a product that was refunded.
+review.eligibility.window_closed        = The review window for this purchase has closed.
+review.eligibility.already_reviewed     = You have already reviewed this product.
+
+# Field validation (entity)
+review.headline.length_invalid          = Headline must be between 1 and 100 characters.
+review.body.length_invalid              = Body must be between 1 and 4000 characters.
+review.rating.out_of_range              = Rating must be a whole number between 1 and 5.
+review.locale.invalid                   = Review locale must be either Arabic or English.
+review.media.too_many                   = You can attach at most 4 images.
+review.media.invalid_signed_url         = One of the attached media URLs is invalid.
+
+# Edit (entity)
+review.edit.window_closed               = The edit window for this review has closed.
+review.edit.not_author                  = Only the original author can edit this review.
+review.edit.deleted_terminal            = This review has been deleted and can no longer be edited.
+
+# Row-level (entity)
+review.row.version_conflict             = This review was changed by someone else. Please reload and try again.
+review.row.delete_forbidden             = Reviews cannot be hard-deleted; soft-state deletion is the only path.
+
+# Reporting (entity)
+review.report.cannot_report_own_review  = You cannot report your own review.
+review.report.reason_invalid            = Choose one of the available report reasons.
+review.report.note_required             = This reason requires an explanation of at least 10 characters.
+review.report.already_reported_by_actor = You have already reported this review.
+review.report.unauthenticated           = You must be signed in to report a review.
+
+# Rate-limit (entity)
+review.rate_limit.submission_exceeded   = You have submitted too many reviews recently. Please try again later.
+review.rate_limit.edit_exceeded         = You have edited reviews too many times recently. Please try again later.
+review.rate_limit.report_exceeded       = You have reported too many reviews recently. Please try again later.
+
+# Moderation (module)
+reviews.moderation.forbidden                  = You do not have permission to moderate reviews.
+reviews.moderation.delete_requires_super_admin = Only a super-admin can delete a review.
+reviews.moderation.reason_required            = A reason of at least 10 characters is required for this decision.
+reviews.moderation.invalid_state              = This decision cannot be applied from the current state.
+reviews.moderation.delete_terminal            = This review has already been deleted.
+reviews.moderation.version_conflict           = This review was changed during your moderation. Please reload.
+reviews.moderation.rate_limit_exceeded        = You have made too many moderation decisions recently. Please slow down.
+
+# Policy admin (module)
+reviews.policy.forbidden                = You do not have permission to manage review policy.
+reviews.policy.wordlist.term_invalid    = Wordlist terms must be 1–200 characters after normalization.
+reviews.policy.market.value_out_of_range = One of the market policy values is outside the allowed range.
+
+# Aggregate (module)
+reviews.aggregate.market_invalid        = Unknown market code.

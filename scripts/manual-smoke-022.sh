@@ -56,8 +56,15 @@ echo "== 4. Customer report (skipped — needs a second customer + a different r
 echo "== 5. Admin queue =="
 QUEUE=$(curl -sS -w '\n%{http_code}' "${BASE_URL}/api/admin/reviews/queue?state=pending_moderation" "${ADMIN_HEADERS[@]}")
 QUEUE_CODE=$(echo "$QUEUE" | tail -n1)
+QUEUE_BODY=$(echo "$QUEUE" | sed '$d')
 echo "  HTTP ${QUEUE_CODE}"
 [[ "$QUEUE_CODE" == "200" ]] || { echo "  EXPECTED 200"; exit 1; }
+# Semantic — queue response must expose the documented shape (items[] + nextCursor).
+echo "$QUEUE_BODY" | jq -e '(.items | type == "array") and (has("nextCursor"))' >/dev/null \
+  || { echo "  EXPECTED { items: array, nextCursor: string|null }"; exit 1; }
+# Semantic — every queued row must surface the moderator-relevant fields.
+QUEUE_FIELDS_OK=$(echo "$QUEUE_BODY" | jq '[.items[]? | (has("id") and has("state") and has("rating") and has("createdAtUtc"))] | all' 2>/dev/null || echo false)
+[[ "$QUEUE_FIELDS_OK" == "true" ]] || { echo "  EXPECTED queue items to expose id/state/rating/createdAtUtc"; exit 1; }
 
 echo "== 6. Admin decide (skipped — would mutate live state; run manually if a flagged review exists) =="
 

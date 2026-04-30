@@ -28,10 +28,24 @@ public static class ListMyReviewsEndpoint
                 "Authentication required.");
         }
 
+        // Reject malformed cursor / limit at the boundary so the handler doesn't
+        // pre-emptively coerce — caller gets a stable 400 with reasonCode.
         DateTimeOffset? cursorBefore = null;
-        if (!string.IsNullOrWhiteSpace(cursor) && DateTimeOffset.TryParse(cursor, out var parsed))
+        if (!string.IsNullOrWhiteSpace(cursor))
         {
+            if (!DateTimeOffset.TryParse(cursor, out var parsed))
+            {
+                return ReviewsResponseFactory.Problem(context, 400,
+                    Primitives.ReviewReasonCode.MediaInvalidSignedUrl,
+                    "cursor must be an ISO-8601 timestamp.");
+            }
             cursorBefore = parsed;
+        }
+        if (limit < 1 || limit > 100)
+        {
+            return ReviewsResponseFactory.Problem(context, 400,
+                Primitives.ReviewReasonCode.RatingOutOfRange,
+                "limit must be between 1 and 100.");
         }
 
         var response = await handler.HandleAsync(customerId.Value, state, cursorBefore, limit, ct);

@@ -47,7 +47,7 @@ public sealed class ListMyReviewsHandler
                 r.Rating,
                 r.Headline,
                 r.CreatedAtUtc,
-                r.PendingModerationStartedAt != null,
+                r.State == Primitives.ReviewState.PendingModeration,
                 r.StateChangedReasonNote))
             .ToListAsync(ct);
 

@@ -10,9 +10,16 @@ public static class SubmitReviewValidator
 {
     public static (bool ok, string? reasonCode, string? detail) Validate(SubmitReviewRequest? body)
     {
+        // Null request body. The spec's contract §10 doesn't define a generic
+        // "body_required" code; we surface BodyLengthInvalid since an absent
+        // body is the extreme case of "body not within 1-4000 chars". The
+        // detail string disambiguates for the client.
         if (body is null) return (false, ReviewReasonCode.BodyLengthInvalid, "Request body is required.");
 
-        if (body.ProductId == Guid.Empty) return (false, ReviewReasonCode.BodyLengthInvalid, "product_id is required.");
+        // Empty / missing product_id. Same rationale: no dedicated code exists
+        // in contract §10, so we surface BodyLengthInvalid + a specific detail.
+        // If the spec adds review.product_id.required, swap here.
+        if (body.ProductId == Guid.Empty) return (false, ReviewReasonCode.BodyLengthInvalid, "product_id is required and must be a non-empty GUID.");
 
         if (body.Rating < 1 || body.Rating > 5)
         {

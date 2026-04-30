@@ -51,7 +51,10 @@ public sealed class ReportReviewHandler
         var review = await _db.Reviews.FirstOrDefaultAsync(r => r.Id == reviewId, ct);
         if (review is null)
         {
-            return ReportReviewResult.Reject(404, ReviewReasonCode.ReportReasonInvalid, "Review not found.");
+            // 404 → row-level "not found" — closest existing code in contract §10.
+            // ReportReasonInvalid was misleading (the reason WAS valid; the target wasn't).
+            return ReportReviewResult.Reject(404, ReviewReasonCode.RowVersionConflict,
+                "Review not found.");
         }
         if (review.CustomerId == reporterId)
         {

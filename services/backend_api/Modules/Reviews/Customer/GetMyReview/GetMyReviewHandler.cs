@@ -26,7 +26,7 @@ public sealed class GetMyReviewHandler
                 r.CreatedAtUtc,
                 r.StateChangedAtUtc,
                 r.EditCount,
-                r.PendingModerationStartedAt != null,
+                r.State == Primitives.ReviewState.PendingModeration,
                 r.StateChangedReasonNote,
                 r.Xmin))
             .FirstOrDefaultAsync(ct);

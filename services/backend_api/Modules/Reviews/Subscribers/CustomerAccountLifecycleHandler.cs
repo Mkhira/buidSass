@@ -78,11 +78,28 @@ public sealed class CustomerAccountLifecycleHandler : ICustomerAccountLifecycleS
             aggregateRefreshes.Add((review.ProductId, review.MarketCode));
         }
 
-        await _db.SaveChangesAsync(ct);
-
-        foreach (var (productId, marketCode) in aggregateRefreshes)
+        // Hide + aggregate refresh must be atomic — otherwise an aggregate
+        // recompute failure leaves the review hidden but the public rating
+        // aggregate stale (CodeRabbit PR #48 round 2; mirrors the pattern in
+        // RefundCompletedHandler).
+        var supportsTransactions = _db.Database.ProviderName != "Microsoft.EntityFrameworkCore.InMemory";
+        var tx = supportsTransactions
+            ? await _db.Database.BeginTransactionAsync(ct)
+            : null;
+        try
         {
-            await _aggregate.RecomputeAsync(productId, marketCode, ct);
+            await _db.SaveChangesAsync(ct);
+
+            foreach (var (productId, marketCode) in aggregateRefreshes)
+            {
+                await _aggregate.RecomputeAsync(productId, marketCode, ct);
+            }
+
+            if (tx is not null) await tx.CommitAsync(ct);
+        }
+        finally
+        {
+            if (tx is not null) await tx.DisposeAsync();
         }
     }
 }

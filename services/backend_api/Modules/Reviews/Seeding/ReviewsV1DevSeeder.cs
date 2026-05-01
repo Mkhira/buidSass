@@ -258,40 +258,40 @@ public sealed class ReviewsV1DevSeeder : ISeeder
     private static Review NewReview(
         Guid id, Guid customerId, Guid productId, string market, int rating,
         string headline, string body, ReviewState state, string triggeredBy) => new()
-    {
-        Id = id,
-        CustomerId = customerId,
-        ProductId = productId,
-        OrderLineId = Guid.NewGuid(),
-        MarketCode = market,
-        Rating = rating,
-        Headline = headline,
-        Body = body,
-        Locale = market == "EG" ? "ar" : "en",
-        MediaUrlsJson = "[]",
-        State = state,
-        StateChangedAtUtc = BaseTime,
-        StateChangedByActorId = customerId,
-        TriggeredBy = triggeredBy,
-        FilterTripTerms = Array.Empty<string>(),
-        EditCount = 0,
-        CreatedAtUtc = BaseTime,
-        DeliveredAtUtc = BaseTime.AddDays(-7),
-    };
+        {
+            Id = id,
+            CustomerId = customerId,
+            ProductId = productId,
+            OrderLineId = Guid.NewGuid(),
+            MarketCode = market,
+            Rating = rating,
+            Headline = headline,
+            Body = body,
+            Locale = market == "EG" ? "ar" : "en",
+            MediaUrlsJson = "[]",
+            State = state,
+            StateChangedAtUtc = BaseTime,
+            StateChangedByActorId = customerId,
+            TriggeredBy = triggeredBy,
+            FilterTripTerms = Array.Empty<string>(),
+            EditCount = 0,
+            CreatedAtUtc = BaseTime,
+            DeliveredAtUtc = BaseTime.AddDays(-7),
+        };
 
     private static ReviewModerationDecision NewTransition(
         Guid reviewId, Guid actorId, string actorRole,
         ReviewState fromState, ReviewState toState, string trigger) => new()
-    {
-        Id = Guid.NewGuid(),
-        ReviewId = reviewId,
-        ActorId = actorId,
-        ActorRole = actorRole,
-        FromState = fromState,
-        ToState = toState,
-        TriggeredBy = trigger,
-        CreatedAtUtc = BaseTime,
-    };
+        {
+            Id = Guid.NewGuid(),
+            ReviewId = reviewId,
+            ActorId = actorId,
+            ActorRole = actorRole,
+            FromState = fromState,
+            ToState = toState,
+            TriggeredBy = trigger,
+            CreatedAtUtc = BaseTime,
+        };
 
     private sealed record SyntheticReview(
         Review Review,

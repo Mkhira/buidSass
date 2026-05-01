@@ -21,7 +21,7 @@ public static class ReviewsAdvisoryLock
         // Hash-stable picks; values fit comfortably below int max so the
         // bigint encoding is unambiguous across Npgsql versions.
         public const long RatingAggregateRebuild = 0x022_F1_00L; // 36_245_248
-        public const long ReviewIntegrityScan    = 0x022_F2_00L; // 36_245_504
+        public const long ReviewIntegrityScan = 0x022_F2_00L; // 36_245_504
     }
 
     public static async Task<AdvisoryLockHandle> TryAcquireAsync(

@@ -54,7 +54,7 @@ public sealed class ReportReviewHandlerTests : IAsyncLifetime
         var handler = NewReportHandler(qualified: true, out _);
 
         var result = await handler.HandleAsync(
-            authorId, reviewId,
+            authorId, "SA", reviewId,
             new ReportReviewRequest("personal_attack", null),
             CancellationToken.None);
 
@@ -70,9 +70,9 @@ public sealed class ReportReviewHandlerTests : IAsyncLifetime
         var reporter = Guid.NewGuid();
         var handler = NewReportHandler(qualified: true, out _);
 
-        var first = await handler.HandleAsync(reporter, reviewId,
+        var first = await handler.HandleAsync(reporter, "SA", reviewId,
             new ReportReviewRequest("spam_or_irrelevant", null), CancellationToken.None);
-        var second = await handler.HandleAsync(reporter, reviewId,
+        var second = await handler.HandleAsync(reporter, "SA", reviewId,
             new ReportReviewRequest("spam_or_irrelevant", null), CancellationToken.None);
 
         first.IsSuccess.Should().BeTrue();
@@ -93,7 +93,7 @@ public sealed class ReportReviewHandlerTests : IAsyncLifetime
 
         for (var i = 0; i < 3; i++)
         {
-            var result = await handler.HandleAsync(Guid.NewGuid(), reviewId,
+            var result = await handler.HandleAsync(Guid.NewGuid(), "SA", reviewId,
                 new ReportReviewRequest("personal_attack", null), CancellationToken.None);
             result.IsSuccess.Should().BeTrue();
         }
@@ -125,7 +125,7 @@ public sealed class ReportReviewHandlerTests : IAsyncLifetime
 
         for (var i = 0; i < 5; i++)
         {
-            var result = await handler.HandleAsync(Guid.NewGuid(), reviewId,
+            var result = await handler.HandleAsync(Guid.NewGuid(), "SA", reviewId,
                 new ReportReviewRequest("spam_or_irrelevant", null), CancellationToken.None);
             result.IsSuccess.Should().BeTrue();
             result.Response!.Qualified.Should().BeFalse();
@@ -150,7 +150,7 @@ public sealed class ReportReviewHandlerTests : IAsyncLifetime
         var (_, reviewId, _) = await SubmitVisibleReviewAsync();
         var handler = NewReportHandler(qualified: true, out _);
 
-        var result = await handler.HandleAsync(Guid.NewGuid(), reviewId,
+        var result = await handler.HandleAsync(Guid.NewGuid(), "SA", reviewId,
             new ReportReviewRequest("false_or_misleading", null), CancellationToken.None);
         result.IsSuccess.Should().BeTrue();
 
@@ -191,12 +191,12 @@ public sealed class ReportReviewHandlerTests : IAsyncLifetime
         var (_, reviewId, _) = await SubmitVisibleReviewAsync();
         var handler = NewReportHandler(qualified: true, out _);
 
-        var first = await handler.HandleAsync(Guid.NewGuid(), reviewId,
+        var first = await handler.HandleAsync(Guid.NewGuid(), "SA", reviewId,
             new ReportReviewRequest("spam_or_irrelevant", null), CancellationToken.None);
         first.Response!.ThresholdProgress.QualifiedCount.Should().Be(1);
         first.Response.ThresholdProgress.Threshold.Should().Be(3);
 
-        var second = await handler.HandleAsync(Guid.NewGuid(), reviewId,
+        var second = await handler.HandleAsync(Guid.NewGuid(), "SA", reviewId,
             new ReportReviewRequest("spam_or_irrelevant", null), CancellationToken.None);
         second.Response!.ThresholdProgress.QualifiedCount.Should().Be(2);
     }
@@ -209,12 +209,12 @@ public sealed class ReportReviewHandlerTests : IAsyncLifetime
         var handler = NewReportHandler(qualified: true, out _);
         for (var i = 0; i < 3; i++)
         {
-            await handler.HandleAsync(Guid.NewGuid(), reviewId,
+            await handler.HandleAsync(Guid.NewGuid(), "SA", reviewId,
                 new ReportReviewRequest("personal_attack", null), CancellationToken.None);
         }
 
         // 4th report should succeed but not write a second visible→flagged decision.
-        var result = await handler.HandleAsync(Guid.NewGuid(), reviewId,
+        var result = await handler.HandleAsync(Guid.NewGuid(), "SA", reviewId,
             new ReportReviewRequest("personal_attack", null), CancellationToken.None);
         result.IsSuccess.Should().BeTrue();
 

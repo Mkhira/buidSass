@@ -33,31 +33,35 @@ public sealed class ReportReviewHandler
 {
     private readonly ReviewsDbContext _db;
     private readonly IReviewReporterFactsQuery _facts;
-    private readonly IReviewDomainEventPublisher _events;
     private readonly TimeProvider _time;
 
-    public ReportReviewHandler(
-        ReviewsDbContext db,
-        IReviewReporterFactsQuery facts,
-        IReviewDomainEventPublisher events,
-        TimeProvider time)
+    public ReportReviewHandler(ReviewsDbContext db, IReviewReporterFactsQuery facts, TimeProvider time)
     {
         _db = db;
         _facts = facts;
-        _events = events;
         _time = time;
     }
 
     public async Task<ReportReviewResult> HandleAsync(
         Guid reporterId,
+        string marketCode,
         Guid reviewId,
         ReportReviewRequest body,
         CancellationToken ct)
     {
-        var review = await _db.Reviews.FirstOrDefaultAsync(r => r.Id == reviewId, ct);
+        // Constrain the lookup by both Id AND MarketCode so a known review GUID
+        // from another market cannot be reported across tenants — Constitution
+        // ADR-010 requires per-market logical partitioning on every tenant-owned
+        // entity (CodeRabbit PR #47 round 4 advisory).
+        var review = await _db.Reviews
+            .FirstOrDefaultAsync(r => r.Id == reviewId && r.MarketCode == marketCode, ct);
         if (review is null)
         {
-            return ReportReviewResult.Reject(404, ReviewReasonCode.ReportReasonInvalid, "Review not found.");
+            // 404 → dedicated row.not_found code so consumers/telemetry don't
+            // misclassify it as an optimistic-concurrency failure. Also covers
+            // cross-market reports (review exists in a different market).
+            return ReportReviewResult.Reject(404, ReviewReasonCode.RowNotFound,
+                "Review not found.");
         }
         if (review.CustomerId == reporterId)
         {
@@ -92,79 +96,95 @@ public sealed class ReportReviewHandler
             QualifyingEvaluationJson = evaluationJson,
             CreatedAtUtc = nowUtc,
         };
-        _db.Flags.Add(flag);
 
+        // Wrap insert + threshold transition in one transaction so a concurrency
+        // failure on the moderation step does not leave the flag persisted while
+        // the visible→flagged transition is silently dropped (CodeRabbit PR #47).
+        // InMemory provider used by some tests can't begin a transaction; fall
+        // back to non-transactional path there.
+        var supportsTransactions = _db.Database.ProviderName != "Microsoft.EntityFrameworkCore.InMemory";
+        var tx = supportsTransactions
+            ? await _db.Database.BeginTransactionAsync(ct)
+            : null;
         try
         {
-            await _db.SaveChangesAsync(ct);
-        }
-        catch (DbUpdateException ex) when (IsUniqueViolation(ex))
-        {
-            _db.Entry(flag).State = EntityState.Detached;
-            return ReportReviewResult.Reject(409, ReviewReasonCode.ReportAlreadyReportedByActor,
-                "You have already reported this review.");
-        }
-
-        // Threshold evaluation — only meaningful when the just-inserted flag is qualified
-        // AND the review is in a state from which the system can transition to Flagged.
-        var qualifiedCount = await CountQualifiedFlagsAsync(reviewId, nowUtc, policy.CommunityReportWindowDays, ct);
-        if (qualified && review.State == ReviewState.Visible && qualifiedCount >= policy.CommunityReportThreshold)
-        {
-            // State-machine guard — system actor + community_report_threshold trigger.
-            var allowed = ReviewStateMachine.TryTransition(
-                ReviewState.Visible, ReviewState.Flagged,
-                ReviewTriggerKind.CommunityReportThreshold, ReviewActorKind.System, out _);
-            if (allowed)
+            _db.Flags.Add(flag);
+            try
             {
-                review.State = ReviewState.Flagged;
-                review.StateChangedAtUtc = nowUtc;
-                review.StateChangedByActorId = Guid.Empty; // system actor
-                review.TriggeredBy = ReviewTriggerKind.CommunityReportThreshold;
-
-                _db.ModerationDecisions.Add(new ReviewModerationDecision
-                {
-                    Id = Guid.NewGuid(),
-                    ReviewId = reviewId,
-                    ActorId = Guid.Empty,
-                    ActorRole = "system",
-                    FromState = ReviewState.Visible,
-                    ToState = ReviewState.Flagged,
-                    TriggeredBy = ReviewTriggerKind.CommunityReportThreshold,
-                    CreatedAtUtc = nowUtc,
-                });
-
-                var transitioned = false;
-                try
-                {
-                    await _db.SaveChangesAsync(ct);
-                    transitioned = true;
-                }
-                catch (DbUpdateConcurrencyException)
-                {
-                    // Race: another concurrent reporter already crossed the threshold
-                    // and flipped the row to Flagged. The flag insert above is already
-                    // committed, so the report itself succeeded; the threshold
-                    // transition is intentionally idempotent across concurrent writers
-                    // and we treat the loser as a no-op.
-                }
-
-                if (transitioned)
-                {
-                    await _events.PublishAsync(new ReviewFlagged(
-                        ReviewId: reviewId,
-                        QualifiedReportCount: qualifiedCount,
-                        Threshold: policy.CommunityReportThreshold), ct);
-                }
-                // Aggregate is unchanged because Visible and Flagged both count.
+                await _db.SaveChangesAsync(ct);
             }
-        }
+            catch (DbUpdateException ex) when (IsUniqueViolation(ex))
+            {
+                _db.Entry(flag).State = EntityState.Detached;
+                if (tx is not null) await tx.RollbackAsync(ct);
+                return ReportReviewResult.Reject(409, ReviewReasonCode.ReportAlreadyReportedByActor,
+                    "You have already reported this review.");
+            }
 
-        return ReportReviewResult.Success(new ReportReviewResponse(
-            FlagId: flag.Id,
-            Qualified: qualified,
-            ThresholdProgress: new ThresholdProgress(
-                QualifiedCount: qualifiedCount,
-                Threshold: policy.CommunityReportThreshold)));
+            // Threshold evaluation — only meaningful when the just-inserted flag is qualified
+            // AND the review is in a state from which the system can transition to Flagged.
+            var qualifiedCount = await CountQualifiedFlagsAsync(reviewId, nowUtc, policy.CommunityReportWindowDays, ct);
+            if (qualified && review.State == ReviewState.Visible && qualifiedCount >= policy.CommunityReportThreshold)
+            {
+                var allowed = ReviewStateMachine.TryTransition(
+                    ReviewState.Visible, ReviewState.Flagged,
+                    ReviewTriggerKind.CommunityReportThreshold, ReviewActorKind.System, out _);
+                if (allowed)
+                {
+                    review.State = ReviewState.Flagged;
+                    review.StateChangedAtUtc = nowUtc;
+                    review.StateChangedByActorId = Guid.Empty; // system actor
+                    review.TriggeredBy = ReviewTriggerKind.CommunityReportThreshold;
+
+                    _db.ModerationDecisions.Add(new ReviewModerationDecision
+                    {
+                        Id = Guid.NewGuid(),
+                        ReviewId = reviewId,
+                        ActorId = Guid.Empty,
+                        ActorRole = "system",
+                        FromState = ReviewState.Visible,
+                        ToState = ReviewState.Flagged,
+                        TriggeredBy = ReviewTriggerKind.CommunityReportThreshold,
+                        CreatedAtUtc = nowUtc,
+                    });
+
+                    try
+                    {
+                        await _db.SaveChangesAsync(ct);
+                    }
+                    catch (DbUpdateConcurrencyException)
+                    {
+                        // Another reporter raced past the threshold first — review already
+                        // transitioned to Flagged. EF rolled back the failed update + the
+                        // moderation-decision insert (both shared the failed SaveChanges),
+                        // but the flag insert above committed in its own SaveChanges and
+                        // is still in the outer transaction. Detach the unsaved entities,
+                        // treat as success, and fall through to commit so the flag is
+                        // persisted. (CodeRabbit PR #47 round 2: rolling back the outer tx
+                        // would silently discard the flag the user just submitted.)
+                        _db.Entry(review).State = EntityState.Unchanged;
+                        foreach (var entry in _db.ChangeTracker.Entries<ReviewModerationDecision>().ToList())
+                        {
+                            if (entry.State == EntityState.Added) entry.State = EntityState.Detached;
+                        }
+                    }
+                    // Aggregate is unchanged because Visible and Flagged both count.
+                }
+            }
+
+            if (tx is not null) await tx.CommitAsync(ct);
+
+            return ReportReviewResult.Success(new ReportReviewResponse(
+                FlagId: flag.Id,
+                Qualified: qualified,
+                ThresholdProgress: new ThresholdProgress(
+                    QualifiedCount: qualifiedCount,
+                    Threshold: policy.CommunityReportThreshold)));
+        }
+        finally
+        {
+            if (tx is not null) await tx.DisposeAsync();
+        }
     }
 
     private async Task<int> CountQualifiedFlagsAsync(

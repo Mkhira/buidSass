@@ -4,6 +4,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using Npgsql;
 
 namespace BackendApi.Modules.Reviews.Workers;
 
@@ -98,8 +99,9 @@ public sealed class ReviewIntegrityScanWorker(
         using var scope = scopeFactory.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<ReviewsDbContext>();
 
+        var dataSource = scope.ServiceProvider.GetService<NpgsqlDataSource>();
         await using var lockHandle = await ReviewsAdvisoryLock.TryAcquireAsync(
-            db, ReviewsAdvisoryLock.Keys.ReviewIntegrityScan, ct);
+            db, ReviewsAdvisoryLock.Keys.ReviewIntegrityScan, ct, dataSource);
         if (!lockHandle.Acquired)
         {
             logger.LogInformation(

@@ -3,6 +3,7 @@ using System;
 using BackendApi.Modules.Reviews.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace BackendApi.Modules.Reviews.Persistence.Migrations
 {
     [DbContext(typeof(ReviewsDbContext))]
-    partial class ReviewsDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260430172143_AddReviewsAggregateAndSchemaCheckConstraints")]
+    partial class AddReviewsAggregateAndSchemaCheckConstraints
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -211,7 +214,7 @@ namespace BackendApi.Modules.Reviews.Persistence.Migrations
 
                             t.HasCheckConstraint("CK_reviews_state", "\"State\" IN ('pending_moderation','visible','flagged','hidden','deleted')");
 
-                            t.HasCheckConstraint("CK_reviews_triggered_by", "\"TriggeredBy\" IN ('customer_submission','customer_edit','community_report_threshold','refund_event','account_locked','account_deleted','moderator_action','manual_super_admin')");
+                            t.HasCheckConstraint("CK_reviews_triggered_by", "\"TriggeredBy\" IN ('customer_submission','customer_edit','community_report_threshold','refund_event','account_locked','moderator_action','manual_super_admin')");
                         });
                 });
 

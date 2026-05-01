@@ -1,4 +1,3 @@
-using BackendApi.Modules.Reviews.Hooks;
 using BackendApi.Features.Seeding;
 using BackendApi.Features.Seeding.Datasets;
 using BackendApi.Modules.Reviews.Admin.DecideModeration;
@@ -308,7 +307,7 @@ public sealed class DecideModerationHandlerTests : IAsyncLifetime
         var provider = services.BuildServiceProvider();
         var profanity = new ProfanityFilter(provider.GetRequiredService<IServiceScopeFactory>(), new ArabicNormalizer(), TimeSpan.Zero);
         var aggregate = new RatingAggregateRecomputer(db, clock);
-        var submit = new SubmitReviewHandler(db, new FakeEligibility(true, deliveredAt, Guid.NewGuid()), profanity, aggregate, new NullReviewDomainEventPublisher(), clock);
+        var submit = new SubmitReviewHandler(db, new FakeEligibility(true, deliveredAt, Guid.NewGuid()), profanity, aggregate, clock);
 
         var result = await submit.HandleAsync(customerId, "SA",
             new SubmitReviewRequest(productId, 5, "Headline",
@@ -331,7 +330,7 @@ public sealed class DecideModerationHandlerTests : IAsyncLifetime
         var provider = services.BuildServiceProvider();
         var profanity = new ProfanityFilter(provider.GetRequiredService<IServiceScopeFactory>(), new ArabicNormalizer(), TimeSpan.Zero);
         var aggregate = new RatingAggregateRecomputer(db, clock);
-        var submit = new SubmitReviewHandler(db, new FakeEligibility(true, deliveredAt, Guid.NewGuid()), profanity, aggregate, new NullReviewDomainEventPublisher(), clock);
+        var submit = new SubmitReviewHandler(db, new FakeEligibility(true, deliveredAt, Guid.NewGuid()), profanity, aggregate, clock);
 
         var result = await submit.HandleAsync(customerId, "SA",
             new SubmitReviewRequest(productId, 4, "With media", "Clean text + media attached.", "en",
@@ -347,7 +346,7 @@ public sealed class DecideModerationHandlerTests : IAsyncLifetime
         var clock = new FakeTimeProvider(DateTimeOffset.UtcNow);
         var db = NewContext();
         var aggregate = new RatingAggregateRecomputer(db, clock);
-        return (new DecideModerationHandler(db, aggregate, new NullReviewDomainEventPublisher(), clock), clock);
+        return (new DecideModerationHandler(db, aggregate, clock), clock);
     }
 
     private sealed class FakeEligibility : IOrderLineDeliveryEligibilityQuery

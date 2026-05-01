@@ -218,6 +218,13 @@ jobs:
                   else
                     echo "No backend project found; skipping backend build/test."
                   fi
+                  # Per-module test projects are excluded from the umbrella backend_api.Tests.csproj
+                  # via Compile Remove="ModuleName.Tests\**" entries — they need their own dotnet test
+                  # invocation to run in CI. Add new module test projects here as they're added.
+                  if [ -f "services/backend_api/Tests/Reviews.Tests/Reviews.Tests.csproj" ]; then
+                    dotnet restore services/backend_api/Tests/Reviews.Tests/Reviews.Tests.csproj
+                    dotnet test services/backend_api/Tests/Reviews.Tests/Reviews.Tests.csproj --configuration Release
+                  fi
 
             - name: Emit OpenAPI artifact for shared contracts
               if: steps.changes.outputs.build_targets == 'true'

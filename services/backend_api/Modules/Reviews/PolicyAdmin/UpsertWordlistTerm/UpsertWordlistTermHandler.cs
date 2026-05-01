@@ -4,6 +4,7 @@ using BackendApi.Modules.Reviews.Persistence;
 using BackendApi.Modules.Reviews.Primitives;
 using BackendApi.Modules.Search.Primitives.Normalization;
 using Microsoft.EntityFrameworkCore;
+using Npgsql;
 
 namespace BackendApi.Modules.Reviews.PolicyAdmin.UpsertWordlistTerm;
 
@@ -46,7 +47,10 @@ public sealed class UpsertWordlistTermHandler
                 "Term must not be empty.");
         }
 
-        var normalized = _normalizer.Normalize(body.Term).ToLowerInvariant();
+        // Trim BEFORE normalize+lowercase so " fraud " and "fraud" canonicalize to
+        // the same key — preventing near-duplicate policy entries that would also
+        // miss expected matches at filter time.
+        var normalized = _normalizer.Normalize(body.Term.Trim()).ToLowerInvariant();
         if (string.IsNullOrEmpty(normalized) || normalized.Length > 200)
         {
             return UpsertWordlistTermResult.Reject(400,
@@ -55,25 +59,50 @@ public sealed class UpsertWordlistTermHandler
         }
 
         var nowUtc = _time.GetUtcNow();
-        var existing = await _db.Wordlists
-            .FirstOrDefaultAsync(w => w.MarketCode == body.MarketCode && w.Term == normalized, ct);
-        if (existing is null)
+        // Read-then-write would race two concurrent admin requests on the same
+        // (market, term) pair: both miss FirstOrDefaultAsync, both try to Add,
+        // one trips PK_reviews_filter_wordlists. Wrap the read+write in a retry
+        // loop that converts the unique-violation into an update — preserves
+        // upsert semantics under concurrency (CodeRabbit PR #49 round 2 Major).
+        const int MaxRetries = 2;
+        for (var attempt = 0; ; attempt++)
         {
-            _db.Wordlists.Add(new ReviewsFilterWordlist
+            var existing = await _db.Wordlists
+                .FirstOrDefaultAsync(w => w.MarketCode == body.MarketCode && w.Term == normalized, ct);
+            if (existing is null)
             {
-                MarketCode = body.MarketCode,
-                Term = normalized,
-                Severity = body.Severity,
-                CreatedByActorId = actorId,
-                CreatedAtUtc = nowUtc,
-            });
-        }
-        else
-        {
-            existing.Severity = body.Severity;
-        }
+                _db.Wordlists.Add(new ReviewsFilterWordlist
+                {
+                    MarketCode = body.MarketCode,
+                    Term = normalized,
+                    Severity = body.Severity,
+                    CreatedByActorId = actorId,
+                    CreatedAtUtc = nowUtc,
+                });
+            }
+            else
+            {
+                existing.Severity = body.Severity;
+            }
 
-        await _db.SaveChangesAsync(ct);
+            try
+            {
+                await _db.SaveChangesAsync(ct);
+                break;
+            }
+            catch (DbUpdateException ex) when (IsUniqueViolation(ex) && attempt < MaxRetries)
+            {
+                // Concurrent insert won — detach our pending insert and retry as update.
+                if (existing is null)
+                {
+                    var entry = _db.ChangeTracker.Entries<ReviewsFilterWordlist>()
+                        .FirstOrDefault(e => e.State == EntityState.Added
+                            && e.Entity.MarketCode == body.MarketCode
+                            && e.Entity.Term == normalized);
+                    if (entry is not null) entry.State = EntityState.Detached;
+                }
+            }
+        }
 
         // Invalidate in-process cache so subsequent submissions see the new term.
         _filter.Invalidate(body.MarketCode);
@@ -81,6 +110,9 @@ public sealed class UpsertWordlistTermHandler
         return UpsertWordlistTermResult.Success(new UpsertWordlistTermResponse(
             body.MarketCode, normalized, body.Severity, nowUtc));
     }
+
+    private static bool IsUniqueViolation(DbUpdateException ex) =>
+        ex.InnerException is PostgresException pg && pg.SqlState == PostgresErrorCodes.UniqueViolation;
 }
 
 public sealed record UpsertWordlistTermRequest(string MarketCode, string Term, string? Severity);

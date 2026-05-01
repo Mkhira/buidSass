@@ -45,13 +45,11 @@ public sealed class GetReviewDetailHandler
         var other = await _db.Reviews.AsNoTracking()
             .Where(r => r.CustomerId == review.CustomerId
                      && r.Id != review.Id
-                     && r.State != ReviewState.Deleted)
+                     && (r.State == ReviewState.Visible || r.State == ReviewState.Flagged))
             .GroupBy(r => 1)
             .Select(g => new CustomerReviewsSummary(
                 g.Count(),
-                g.Where(r => r.State == ReviewState.Visible || r.State == ReviewState.Flagged)
-                 .Select(r => (decimal?)r.Rating)
-                 .Average() ?? null))
+                g.Select(r => (decimal?)r.Rating).Average()))
             .FirstOrDefaultAsync(ct)
             ?? new CustomerReviewsSummary(0, null);
 

@@ -57,5 +57,6 @@ public static class AdminReviewsResponseFactory
     /// </summary>
     public static bool HasPermissionClaim(HttpContext context, string permission) =>
         context.User.HasClaim("permission", permission)
-        || context.User.HasClaim("permissions", permission);
+        || context.User.HasClaim("permissions", permission)
+        || context.User.HasClaim("perm", permission);
 }

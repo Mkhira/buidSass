@@ -1,5 +1,4 @@
 using BackendApi.Modules.Reviews.Primitives;
-using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Routing;
 
@@ -16,7 +15,7 @@ public static class ListModerationQueueEndpoint
 
     private static async Task<IResult> HandleAsync(
         HttpContext context,
- [FromServices] ListModerationQueueHandler handler,
+        ListModerationQueueHandler handler,
         CancellationToken ct,
         string? state = null,
         string? market_code = null,

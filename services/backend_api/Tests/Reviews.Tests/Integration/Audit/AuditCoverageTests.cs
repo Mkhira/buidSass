@@ -1,4 +1,3 @@
-using BackendApi.Modules.Reviews.Hooks;
 using BackendApi.Modules.Reviews.Admin.AddAdminNote;
 using BackendApi.Modules.Reviews.Admin.DecideModeration;
 using BackendApi.Modules.Reviews.Aggregate;
@@ -84,7 +83,7 @@ public sealed class AuditCoverageTests : IAsyncLifetime
         {
             var profanity = NewProfanity();
             var aggregate = new RatingAggregateRecomputer(editDb, clock);
-            var update = new UpdateReviewHandler(editDb, profanity, aggregate, new NullReviewDomainEventPublisher(), clock);
+            var update = new UpdateReviewHandler(editDb, profanity, aggregate, clock);
             var editResult = await update.HandleAsync(
                 customerId, visibleId, ifMatchRowVersion: null,
                 new UpdateReviewRequest(Rating: 4, null, null, null, null),
@@ -96,8 +95,8 @@ public sealed class AuditCoverageTests : IAsyncLifetime
         for (var i = 0; i < 3; i++)
         {
             await using var reportDb = NewContext();
-            var report = new ReportReviewHandler(reportDb, FakeReviewReporterFactsQuery.Qualified, new NullReviewDomainEventPublisher(), clock);
-            await report.HandleAsync(Guid.NewGuid(), visibleId,
+            var report = new ReportReviewHandler(reportDb, FakeReviewReporterFactsQuery.Qualified, clock);
+            await report.HandleAsync(Guid.NewGuid(), "SA", visibleId,
                 new ReportReviewRequest("personal_attack", null), CancellationToken.None);
         }
 
@@ -127,7 +126,7 @@ public sealed class AuditCoverageTests : IAsyncLifetime
         await using (var refundDb = NewContext())
         {
             var aggregate = new RatingAggregateRecomputer(refundDb, clock);
-            var handler = new RefundCompletedHandler(refundDb, aggregate, new NullReviewDomainEventPublisher(), clock);
+            var handler = new RefundCompletedHandler(refundDb, aggregate, clock);
             await handler.OnRefundCompletedAsync(
                 new RefundCompletedEvent(refundOrderLineId, refundCustomerId, clock.GetUtcNow(), Guid.NewGuid()),
                 CancellationToken.None);
@@ -246,7 +245,7 @@ public sealed class AuditCoverageTests : IAsyncLifetime
         var aggregate = new RatingAggregateRecomputer(db, clock);
         var submit = new SubmitReviewHandler(db,
             new FakeOrderLineDeliveryEligibilityQuery(true, null, clock.GetUtcNow().AddDays(-1), orderLineId),
-            profanity, aggregate, new NullReviewDomainEventPublisher(), clock);
+            profanity, aggregate, clock);
         var result = await submit.HandleAsync(customerId, "SA",
             new SubmitReviewRequest(productId, 4, "Headline", body, "en", null),
             CancellationToken.None);
@@ -259,7 +258,7 @@ public sealed class AuditCoverageTests : IAsyncLifetime
     {
         await using var db = NewContext();
         var aggregate = new RatingAggregateRecomputer(db, clock);
-        var handler = new DecideModerationHandler(db, aggregate, new NullReviewDomainEventPublisher(), clock);
+        var handler = new DecideModerationHandler(db, aggregate, clock);
         var result = await handler.HandleAsync(
             Guid.NewGuid(), hasModerator: true, hasSuperAdmin: hasSuperAdmin,
             reviewId, ifMatchRowVersion: null,

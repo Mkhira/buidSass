@@ -1,4 +1,5 @@
 using BackendApi.Modules.AuditLog;
+using BackendApi.Modules.Cms.LegalOwner;
 using BackendApi.Modules.Cms.Persistence;
 using BackendApi.Modules.Cms.Primitives;
 using BackendApi.Modules.Cms.Services;
@@ -95,6 +96,153 @@ public sealed class CmsScheduledPublishWorker : BackgroundService
         var nowUtc = _clock.GetUtcNow();
         await PromoteScheduledBannersToLiveAsync(sp, db, nowUtc, ct);
         await PromoteLiveBannersToArchivedAsync(sp, db, nowUtc, ct);
+        await PromoteScheduledLegalPageVersionsToLiveAsync(sp, db, nowUtc, ct);
+    }
+
+    // ── scheduled → live (legal page versions) ───────────────────────────
+    //
+    // Atomic supersession: when a Scheduled→Live transition fires, the prior
+    // Live version of the same (legal_page_kind, market_code) is flipped to
+    // Superseded in the SAME DB transaction (via
+    // <see cref="LegalPageSupersessionTransaction"/>). Concurrent publishes
+    // serialize behind the per-(kind, market) advisory lock + the partial
+    // unique index on cms.legal_page_versions; the loser is left in
+    // Scheduled and will be retried on the next tick.
+
+    private async Task PromoteScheduledLegalPageVersionsToLiveAsync(
+        IServiceProvider sp,
+        CmsDbContext db,
+        DateTimeOffset nowUtc,
+        CancellationToken ct)
+    {
+        var scheduledWire = ContentLifecycleState.Scheduled.ToWire();
+
+        var due = await db.LegalPageVersions
+            .Where(v => v.StateWire == scheduledWire)
+            .Where(v => v.EffectiveAtUtc != null && v.EffectiveAtUtc <= nowUtc)
+            .OrderBy(v => v.EffectiveAtUtc)
+            .Take(50)
+            .ToListAsync(ct);
+
+        if (due.Count == 0) return;
+
+        var supersession = sp.GetRequiredService<LegalPageSupersessionTransaction>();
+        var audit = sp.GetRequiredService<IAuditEventPublisher>();
+        var bus = sp.GetRequiredService<IPublisher>();
+
+        foreach (var row in due)
+        {
+            ct.ThrowIfCancellationRequested();
+
+            // Locale-completeness re-check (defence in depth — the publisher
+            // schedule-publish path enforces this too).
+            var gate = LocaleCompletenessGate.CheckLegalPageVersion(
+                row.BodyAr, row.BodyEn, row.EffectiveAtUtc);
+            if (!gate.IsAllowed)
+            {
+                _log.LogWarning(
+                    "CmsScheduledPublishWorker: legal page version {VersionId} failed locale gate at promotion; row remains scheduled.",
+                    row.Id);
+                continue;
+            }
+
+            db.ChangeTracker.Clear();
+
+            LegalPageSupersessionTransaction.SupersessionOutcome outcome;
+            try
+            {
+                outcome = await supersession.ExecuteAsync(
+                    db, row, nowUtc,
+                    CmsActorKind.System,
+                    CmsTriggerKind.WorkerPromoteToLive,
+                    ct);
+            }
+            catch (DbUpdateException ex) when (IsUniqueViolation(ex))
+            {
+                _log.LogWarning(ex,
+                    "CmsScheduledPublishWorker: concurrent publisher won supersession race for legal version {VersionId}; row remains scheduled.",
+                    row.Id);
+                continue;
+            }
+            catch (DbUpdateConcurrencyException)
+            {
+                db.ChangeTracker.Clear();
+                continue;
+            }
+
+            await audit.PublishAsync(new AuditEvent(
+                ActorId: Guid.Empty,
+                ActorRole: "system",
+                Action: "cms.content.published",
+                EntityType: "cms.legal_page_version",
+                EntityId: outcome.NewLiveRow.Id,
+                BeforeState: new { State = "scheduled" },
+                AfterState: new
+                {
+                    State = "live",
+                    outcome.NewLiveRow.LegalPageKindWire,
+                    outcome.NewLiveRow.MarketCode,
+                    outcome.NewLiveRow.PublishedAtUtc,
+                },
+                Reason: "worker_promote_to_live"), ct);
+
+            await bus.Publish(new CmsLegalPageVersionPublished(
+                EventId: Guid.NewGuid(),
+                OccurredAtUtc: nowUtc,
+                ActorId: null,
+                EntityId: outcome.NewLiveRow.Id,
+                VersionId: outcome.NewLiveRow.Id,
+                MarketCode: outcome.NewLiveRow.MarketCode,
+                LegalPageKindWire: outcome.NewLiveRow.LegalPageKindWire,
+                VersionLabel: outcome.NewLiveRow.VersionLabel,
+                EffectiveAtUtc: outcome.NewLiveRow.EffectiveAtUtc ?? nowUtc), ct);
+
+            await bus.Publish(new CmsCacheInvalidateLegalPage(
+                EventId: Guid.NewGuid(),
+                OccurredAtUtc: nowUtc,
+                EntityId: outcome.NewLiveRow.Id,
+                VersionId: outcome.NewLiveRow.Id,
+                MarketCode: outcome.NewLiveRow.MarketCode,
+                LegalPageKindWire: outcome.NewLiveRow.LegalPageKindWire), ct);
+
+            if (outcome.SupersededRow is { } prior)
+            {
+                await audit.PublishAsync(new AuditEvent(
+                    ActorId: Guid.Empty,
+                    ActorRole: "system",
+                    Action: "cms.legal_page.version.superseded",
+                    EntityType: "cms.legal_page_version",
+                    EntityId: prior.Id,
+                    BeforeState: new { State = "live" },
+                    AfterState: new
+                    {
+                        State = "superseded",
+                        SupersededByVersionId = outcome.NewLiveRow.Id,
+                        prior.SupersededAtUtc,
+                    },
+                    Reason: "worker_supersede_legal_version"), ct);
+
+                await bus.Publish(new CmsLegalPageVersionSuperseded(
+                    EventId: Guid.NewGuid(),
+                    OccurredAtUtc: nowUtc,
+                    ActorId: null,
+                    EntityId: prior.Id,
+                    VersionId: prior.Id,
+                    MarketCode: prior.MarketCode,
+                    LegalPageKindWire: prior.LegalPageKindWire,
+                    SupersededByVersionId: outcome.NewLiveRow.Id), ct);
+            }
+        }
+    }
+
+    private static bool IsUniqueViolation(DbUpdateException ex)
+    {
+        for (var inner = ex.InnerException; inner is not null; inner = inner.InnerException)
+        {
+            if (inner is Npgsql.PostgresException pg && pg.SqlState == "23505")
+                return true;
+        }
+        return false;
     }
 
     // ── scheduled → live (banners) ───────────────────────────────────────

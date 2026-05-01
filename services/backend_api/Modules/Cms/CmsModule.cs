@@ -1,10 +1,16 @@
 using BackendApi.Configuration;
 using BackendApi.Features.Seeding;
 using BackendApi.Modules.Cms.Editor.SaveBannerDraft;
+using BackendApi.Modules.Cms.LegalOwner;
+using BackendApi.Modules.Cms.LegalOwner.ListLegalPageVersionHistory;
+using BackendApi.Modules.Cms.LegalOwner.PublishLegalPageVersionNow;
+using BackendApi.Modules.Cms.LegalOwner.SaveLegalPageVersionDraft;
+using BackendApi.Modules.Cms.LegalOwner.SchedulePublishLegalPageVersion;
 using BackendApi.Modules.Cms.Persistence;
 using BackendApi.Modules.Cms.Primitives;
 using BackendApi.Modules.Cms.Publisher;
 using BackendApi.Modules.Cms.Storefront;
+using BackendApi.Modules.Cms.Storefront.GetLegalPage;
 using BackendApi.Modules.Cms.Storefront.ListBannerSlots;
 using BackendApi.Modules.Cms.Storefront.ListFeaturedSections;
 using BackendApi.Modules.Cms.Seeding;
@@ -83,6 +89,14 @@ public static class CmsModule
         services.AddScoped<FeaturedSectionResolver>();
         services.AddCmsStorefrontRateLimit(configuration);
 
+        // US3 — legal-page authoring + supersession.
+        services.AddScoped<SaveLegalPageVersionDraftHandler>();
+        services.AddScoped<SchedulePublishLegalPageVersionHandler>();
+        services.AddScoped<PublishLegalPageVersionNowHandler>();
+        services.AddScoped<ListLegalPageVersionHistoryHandler>();
+        services.AddScoped<GetLegalPageHandler>();
+        services.AddSingleton<LegalPageSupersessionTransaction>();
+
         // Cross-module catalog read contract fallbacks. TryAdd lets spec 005
         // supply production implementations without coordinating registration
         // order. Until 005 ships, the in-process fakes (Modules/Shared/Testing)
@@ -127,6 +141,7 @@ public static class CmsModule
         var admin = endpoints.MapGroup("/v1/admin/cms");
         admin.MapSaveBannerDraftEndpoints();
         admin.MapPublisherBannerEndpoints();
+        admin.MapLegalOwnerEndpoints();
         return endpoints;
     }
 
@@ -141,6 +156,7 @@ public static class CmsModule
         var storefront = endpoints.MapGroup("/v1/storefront/cms");
         storefront.MapListBannerSlotsEndpoint();
         storefront.MapListFeaturedSectionsEndpoint();
+        storefront.MapGetLegalPageEndpoint();
         return endpoints;
     }
 

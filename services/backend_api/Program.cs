@@ -14,6 +14,7 @@ using BackendApi.Modules.Returns;
 using BackendApi.Modules.TaxInvoices;
 using BackendApi.Modules.Shared;
 using BackendApi.Modules.Reviews;
+using BackendApi.Modules.Cms;
 using BackendApi.Modules.Verification;
 using Microsoft.EntityFrameworkCore;
 using Serilog;
@@ -79,6 +80,7 @@ builder.Services.AddTaxInvoicesModule(builder.Configuration, builder.Environment
 builder.Services.AddReturnsModule(builder.Configuration, builder.Environment);
 builder.Services.AddVerificationModule(builder.Configuration, builder.Environment);
 builder.Services.AddReviewsModule(builder.Configuration, builder.Environment);
+builder.Services.AddCmsModule(builder.Configuration);
 builder.Services.AddSeeding(builder.Configuration);
 
 var app = builder.Build();

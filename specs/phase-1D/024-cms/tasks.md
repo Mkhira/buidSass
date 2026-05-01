@@ -31,11 +31,11 @@ description: "Task list for Spec 024 — CMS (Phase 1D · Milestone 7)"
 
 **Purpose**: Project initialization for the CMS module.
 
-- [ ] T001 Create `services/backend_api/Modules/Cms/` directory tree per plan.md §Project Structure (Editor/, Publisher/, LegalOwner/, SuperAdmin/, Preview/, Storefront/, Subscribers/, Workers/, Authorization/, Entities/, Persistence/, Messages/, Seeding/, Primitives/) and add a placeholder `CmsModule.cs` registering an empty `AddCmsModule` extension method
-- [ ] T002 [P] Create `services/backend_api/tests/Cms.Tests/` test project with xUnit + FluentAssertions + Microsoft.Extensions.TimeProvider.Testing references and Testcontainers.PostgreSql wiring (mirror `Support.Tests/Cms.Tests.csproj`); add `Unit/`, `Integration/`, `Contract/`, `Performance/` folders
+- [X] T001 Create `services/backend_api/Modules/Cms/` directory tree per plan.md §Project Structure (Editor/, Publisher/, LegalOwner/, SuperAdmin/, Preview/, Storefront/, Subscribers/, Workers/, Authorization/, Entities/, Persistence/, Messages/, Seeding/, Primitives/) and add a placeholder `CmsModule.cs` registering an empty `AddCmsModule` extension method
+- [X] T002 [P] Create `services/backend_api/tests/Cms.Tests/` test project with xUnit + FluentAssertions + Microsoft.Extensions.TimeProvider.Testing references and Testcontainers.PostgreSql wiring (mirror `Support.Tests/Cms.Tests.csproj`); add `Unit/`, `Integration/`, `Contract/`, `Performance/` folders
 - [ ] T003 [P] Add `cms` schema to the connection-string seeded migration generator (no schema content yet — empty migration just to confirm EF tooling works); verify `dotnet ef migrations add InitCmsSchema --project services/backend_api/Modules/Cms` produces a no-op migration
-- [ ] T004 [P] Wire `AddCmsModule(builder.Configuration)` into `services/backend_api/Program.cs` after the existing `AddSupportModule(...)` call (suppression of `ManyServiceProvidersCreatedWarning` is enforced inside `CmsModule.cs` per project-memory rule)
-- [ ] T005 Add a CMS-test `Cms.Tests.csproj` reference into `tests.sln` and verify `dotnet test --filter Category=Smoke` from repo root runs zero tests successfully (sanity of harness wiring)
+- [X] T004 [P] Wire `AddCmsModule(builder.Configuration)` into `services/backend_api/Program.cs` after the existing `AddSupportModule(...)` call (suppression of `ManyServiceProvidersCreatedWarning` is enforced inside `CmsModule.cs` per project-memory rule)
+- [X] T005 Add a CMS-test `Cms.Tests.csproj` reference into `tests.sln` and verify `dotnet test --filter Category=Smoke` from repo root runs zero tests successfully (sanity of harness wiring)
 
 ---
 

@@ -84,13 +84,24 @@ public sealed class ProfanityFilter
         // round-trip; subsequent requests within the window are in-process.
         using var scope = _scopeFactory.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<ReviewsDbContext>();
-        var terms = db.Wordlists
+        var rawTerms = db.Wordlists
             .AsNoTracking()
             .Where(w => w.MarketCode == marketCode)
             .Select(w => w.Term)
             .ToList();
 
-        var fresh = new MarketCache(nowUtc, terms);
+        // Normalize each loaded term against the same canonical form that
+        // Evaluate() compares input against (Arabic-normalized + lowercased).
+        // UpsertWordlistTermHandler does this at write time, but legacy /
+        // hand-edited / migrated rows may not be in canonical form — defending
+        // here makes the filter robust to wordlist provenance.
+        var normalized = rawTerms
+            .Select(t => _normalizer.Normalize(t).ToLowerInvariant())
+            .Where(t => !string.IsNullOrEmpty(t))
+            .Distinct(StringComparer.Ordinal)
+            .ToList();
+
+        var fresh = new MarketCache(nowUtc, normalized);
         _byMarket[marketCode] = fresh;
         return fresh.Terms;
     }

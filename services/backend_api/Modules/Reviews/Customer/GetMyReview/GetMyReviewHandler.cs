@@ -26,13 +26,15 @@ public sealed class GetMyReviewHandler
                 r.CreatedAtUtc,
                 r.StateChangedAtUtc,
                 r.EditCount,
-                r.PendingModerationStartedAt != null,
+                r.State == Primitives.ReviewState.PendingModeration,
                 r.StateChangedReasonNote,
                 r.Xmin))
             .FirstOrDefaultAsync(ct);
         return row;
     }
 
+    // Throws on unknown state — surfaces contract drift immediately rather
+    // than emitting a silent "unknown" wire token that consumers can't parse.
     private static string ToWire(Primitives.ReviewState s) => s switch
     {
         Primitives.ReviewState.PendingModeration => "pending_moderation",
@@ -40,7 +42,7 @@ public sealed class GetMyReviewHandler
         Primitives.ReviewState.Flagged => "flagged",
         Primitives.ReviewState.Hidden => "hidden",
         Primitives.ReviewState.Deleted => "deleted",
-        _ => "unknown",
+        _ => throw new ArgumentOutOfRangeException(nameof(s), s, "Unsupported ReviewState — wire-format mapping missing."),
     };
 }
 

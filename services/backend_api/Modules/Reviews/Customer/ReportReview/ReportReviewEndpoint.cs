@@ -33,7 +33,8 @@ public static class ReportReviewEndpoint
             return ReviewsResponseFactory.Problem(context, 400, reason!, "Report validation failed.", detail);
         }
 
-        var result = await handler.HandleAsync(customerId.Value, id, body!, ct);
+        var marketCode = ReviewsResponseFactory.ResolveMarketCode(context);
+        var result = await handler.HandleAsync(customerId.Value, marketCode, id, body!, ct);
         if (!result.IsSuccess)
         {
             return ReviewsResponseFactory.Problem(context, result.Status, result.ReasonCode!, "Report rejected.", result.Detail);

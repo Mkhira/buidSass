@@ -28,13 +28,51 @@ public static class ListMyReviewsEndpoint
                 "Authentication required.");
         }
 
-        DateTimeOffset? cursorBefore = null;
-        if (!string.IsNullOrWhiteSpace(cursor) && DateTimeOffset.TryParse(cursor, out var parsed))
+        // Reject unknown `state` at the boundary instead of silently treating
+        // it as "no filter" — eliminates ambiguity for clients. Canonicalize
+        // the value so the handler sees a single normalized form regardless of
+        // input casing (CodeRabbit PR #47 round 2).
+        string? canonicalState = null;
+        if (!string.IsNullOrWhiteSpace(state))
         {
-            cursorBefore = parsed;
+            canonicalState = state.Trim().ToLowerInvariant();
+            if (canonicalState is not ("pending_moderation" or "visible" or "flagged" or "hidden" or "deleted"))
+            {
+                return ReviewsResponseFactory.Problem(context, 400,
+                    Primitives.ReviewReasonCode.ModerationInvalidState,
+                    "state must be one of: pending_moderation, visible, flagged, hidden, deleted.");
+            }
         }
 
-        var response = await handler.HandleAsync(customerId.Value, state, cursorBefore, limit, ct);
+        // Reject malformed cursor / limit at the boundary so the handler doesn't
+        // pre-emptively coerce — caller gets a stable 400 with reasonCode.
+        DateTimeOffset? cursorBefore = null;
+        if (!string.IsNullOrWhiteSpace(cursor))
+        {
+            // Strict ISO-8601 round-trip ("O") — DateTimeOffset.TryParse is too
+            // permissive (accepts e.g. "2026/04/30 10:00") and drifts from the
+            // contract-level message.
+            if (!DateTimeOffset.TryParseExact(
+                    cursor,
+                    "O",
+                    System.Globalization.CultureInfo.InvariantCulture,
+                    System.Globalization.DateTimeStyles.RoundtripKind,
+                    out var parsed))
+            {
+                return ReviewsResponseFactory.Problem(context, 400,
+                    Primitives.ReviewReasonCode.MediaInvalidSignedUrl,
+                    "cursor must be an ISO-8601 timestamp.");
+            }
+            cursorBefore = parsed;
+        }
+        if (limit < 1 || limit > 100)
+        {
+            return ReviewsResponseFactory.Problem(context, 400,
+                Primitives.ReviewReasonCode.RatingOutOfRange,
+                "limit must be between 1 and 100.");
+        }
+
+        var response = await handler.HandleAsync(customerId.Value, canonicalState, cursorBefore, limit, ct);
         return Results.Ok(response);
     }
 }

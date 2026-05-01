@@ -37,7 +37,7 @@ public static class UpdateMarketSchemaEndpoint
         if (body is null)
         {
             return AdminReviewsResponseFactory.Problem(context, 400,
-                ReviewReasonCode.PolicyMarketValueOutOfRange, "Request body is required.");
+                ReviewReasonCode.PolicyBodyRequired, "Request body is required.");
         }
 
         var market = ReviewsResponseFactory.TryNormalize(market_code);

@@ -33,10 +33,19 @@ public static class DecideModerationEndpoint
             return AdminReviewsResponseFactory.Problem(context, 400, reason!, "Decision validation failed.", detail);
         }
 
+        // If-Match present but unparseable → 400 with version-conflict reason.
+        // Treating it as "no guard" silently disables the optimistic-concurrency
+        // check, which is a security/data-integrity risk.
         uint? ifMatch = null;
         if (context.Request.Headers.TryGetValue("If-Match", out var ifMatchHeader)
-            && uint.TryParse(ifMatchHeader.ToString().Trim('"'), out var parsed))
+            && !string.IsNullOrWhiteSpace(ifMatchHeader.ToString()))
         {
+            if (!uint.TryParse(ifMatchHeader.ToString().Trim('"'), out var parsed))
+            {
+                return AdminReviewsResponseFactory.Problem(context, 400,
+                    ReviewReasonCode.ModerationVersionConflict,
+                    "If-Match header must be a valid xmin row-version uint.");
+            }
             ifMatch = parsed;
         }
 

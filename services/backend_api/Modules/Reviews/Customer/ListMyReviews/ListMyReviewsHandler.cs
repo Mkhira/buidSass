@@ -26,7 +26,7 @@ public sealed class ListMyReviewsHandler
             .Where(r => r.CustomerId == customerId);
 
         if (!string.IsNullOrWhiteSpace(stateFilter)
-            && Primitives.ReviewState.TryParse<Primitives.ReviewState>(MapWire(stateFilter), true, out var parsed))
+            && Enum.TryParse<Primitives.ReviewState>(MapWire(stateFilter), ignoreCase: true, out var parsed))
         {
             query = query.Where(r => r.State == parsed);
         }
@@ -47,7 +47,7 @@ public sealed class ListMyReviewsHandler
                 r.Rating,
                 r.Headline,
                 r.CreatedAtUtc,
-                r.PendingModerationStartedAt != null,
+                r.State == Primitives.ReviewState.PendingModeration,
                 r.StateChangedReasonNote))
             .ToListAsync(ct);
 

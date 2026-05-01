@@ -30,6 +30,10 @@ public static class MediaAttachmentDetector
             if (doc.RootElement.ValueKind != JsonValueKind.Array) return false;
             foreach (var el in doc.RootElement.EnumerateArray())
             {
+                // GetString() throws InvalidOperationException on non-string
+                // elements (e.g. nested arrays / objects). Defensive read so
+                // malformed inputs don't crash the submission pipeline.
+                if (el.ValueKind != JsonValueKind.String) continue;
                 var s = el.GetString();
                 if (!string.IsNullOrWhiteSpace(s)) return true;
             }

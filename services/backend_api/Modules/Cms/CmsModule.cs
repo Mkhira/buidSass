@@ -1,6 +1,7 @@
 using BackendApi.Configuration;
 using BackendApi.Features.Seeding;
 using BackendApi.Modules.Cms.Editor.SaveBannerDraft;
+using BackendApi.Modules.Cms.Editor.SaveBlogArticleDraft;
 using BackendApi.Modules.Cms.LegalOwner;
 using BackendApi.Modules.Cms.LegalOwner.ListLegalPageVersionHistory;
 using BackendApi.Modules.Cms.LegalOwner.PublishLegalPageVersionNow;
@@ -9,9 +10,16 @@ using BackendApi.Modules.Cms.LegalOwner.SchedulePublishLegalPageVersion;
 using BackendApi.Modules.Cms.Persistence;
 using BackendApi.Modules.Cms.Primitives;
 using BackendApi.Modules.Cms.Publisher;
+using BackendApi.Modules.Cms.Preview;
+using BackendApi.Modules.Cms.Preview.MintPreviewToken;
+using BackendApi.Modules.Cms.Preview.ReadPreviewedDraft;
+using BackendApi.Modules.Cms.Preview.RevokePreviewToken;
+using BackendApi.Modules.Cms.Publisher.PublishNow;
 using BackendApi.Modules.Cms.Storefront;
+using BackendApi.Modules.Cms.Storefront.GetBlogArticle;
 using BackendApi.Modules.Cms.Storefront.GetLegalPage;
 using BackendApi.Modules.Cms.Storefront.ListBannerSlots;
+using BackendApi.Modules.Cms.Storefront.ListBlogArticles;
 using BackendApi.Modules.Cms.Storefront.ListFeaturedSections;
 using BackendApi.Modules.Cms.Seeding;
 using BackendApi.Modules.Cms.Services;
@@ -97,6 +105,37 @@ public static class CmsModule
         services.AddScoped<GetLegalPageHandler>();
         services.AddSingleton<LegalPageSupersessionTransaction>();
 
+        // US4 — blog article authoring + preview tokens.
+        services.AddScoped<SaveBlogArticleDraftHandler>();
+        services.AddScoped<PublishNowBlogArticleHandler>();
+        services.AddScoped<ListBlogArticlesHandler>();
+        services.AddScoped<GetBlogArticleHandler>();
+        services.AddScoped<MintPreviewTokenHandler>();
+        services.AddScoped<RevokePreviewTokenHandler>();
+        services.AddScoped<ReadPreviewedDraftHandler>();
+        services.AddSingleton(provider =>
+        {
+            var key = configuration["Cms:Preview:HmacKey"];
+            byte[] bytes;
+            if (!string.IsNullOrWhiteSpace(key))
+            {
+                try { bytes = Convert.FromBase64String(key); }
+                catch (FormatException) { bytes = System.Text.Encoding.UTF8.GetBytes(key); }
+            }
+            else
+            {
+                // Dev/test default — production wires Cms:Preview:HmacKey through Key Vault.
+                bytes = System.Text.Encoding.UTF8.GetBytes(
+                    "cms-preview-dev-key-do-not-use-in-production-32bytes!!");
+            }
+            if (bytes.Length < 32)
+            {
+                Array.Resize(ref bytes, 32);
+            }
+            return new BackendApi.Modules.Cms.Primitives.PreviewTokenSigner(bytes);
+        });
+        services.AddHostedService<Workers.CmsPreviewTokenCleanupWorker>();
+
         // Cross-module catalog read contract fallbacks. TryAdd lets spec 005
         // supply production implementations without coordinating registration
         // order. Until 005 ships, the in-process fakes (Modules/Shared/Testing)
@@ -142,6 +181,9 @@ public static class CmsModule
         admin.MapSaveBannerDraftEndpoints();
         admin.MapPublisherBannerEndpoints();
         admin.MapLegalOwnerEndpoints();
+        admin.MapSaveBlogArticleDraftEndpoints();
+        admin.MapPublishNowBlogArticleEndpoints();
+        admin.MapPreviewAdminEndpoints();
         return endpoints;
     }
 
@@ -157,6 +199,9 @@ public static class CmsModule
         storefront.MapListBannerSlotsEndpoint();
         storefront.MapListFeaturedSectionsEndpoint();
         storefront.MapGetLegalPageEndpoint();
+        storefront.MapListBlogArticlesEndpoint();
+        storefront.MapGetBlogArticleEndpoint();
+        storefront.MapPreviewStorefrontEndpoint();
         return endpoints;
     }
 

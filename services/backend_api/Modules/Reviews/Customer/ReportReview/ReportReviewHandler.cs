@@ -44,15 +44,22 @@ public sealed class ReportReviewHandler
 
     public async Task<ReportReviewResult> HandleAsync(
         Guid reporterId,
+        string marketCode,
         Guid reviewId,
         ReportReviewRequest body,
         CancellationToken ct)
     {
-        var review = await _db.Reviews.FirstOrDefaultAsync(r => r.Id == reviewId, ct);
+        // Constrain the lookup by both Id AND MarketCode so a known review GUID
+        // from another market cannot be reported across tenants — Constitution
+        // ADR-010 requires per-market logical partitioning on every tenant-owned
+        // entity (CodeRabbit PR #47 round 4 advisory).
+        var review = await _db.Reviews
+            .FirstOrDefaultAsync(r => r.Id == reviewId && r.MarketCode == marketCode, ct);
         if (review is null)
         {
             // 404 → dedicated row.not_found code so consumers/telemetry don't
-            // misclassify it as an optimistic-concurrency failure.
+            // misclassify it as an optimistic-concurrency failure. Also covers
+            // cross-market reports (review exists in a different market).
             return ReportReviewResult.Reject(404, ReviewReasonCode.RowNotFound,
                 "Review not found.");
         }

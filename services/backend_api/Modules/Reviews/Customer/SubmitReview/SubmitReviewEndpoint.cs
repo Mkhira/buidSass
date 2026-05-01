@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Routing;
 
 namespace BackendApi.Modules.Reviews.Customer.SubmitReview;
@@ -13,9 +14,9 @@ public static class SubmitReviewEndpoint
     }
 
     private static async Task<IResult> HandleAsync(
-        SubmitReviewRequest? body,
+        [FromBody] SubmitReviewRequest? body,
         HttpContext context,
-        SubmitReviewHandler handler,
+        [FromServices] SubmitReviewHandler handler,
         CancellationToken ct)
     {
         var customerId = ReviewsResponseFactory.ResolveCustomerId(context);

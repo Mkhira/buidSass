@@ -3,6 +3,7 @@ using BackendApi.Modules.Reviews.Authorization;
 using BackendApi.Modules.Reviews.Customer;
 using BackendApi.Modules.Reviews.Primitives;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Routing;
 
 namespace BackendApi.Modules.Reviews.PolicyAdmin.DeleteWordlistTerm;
@@ -17,9 +18,9 @@ public static class DeleteWordlistTermEndpoint
     }
 
     private static async Task<IResult> HandleAsync(
-        DeleteWordlistTermRequest? body,
+        [FromBody] DeleteWordlistTermRequest? body,
         HttpContext context,
-        DeleteWordlistTermHandler handler,
+        [FromServices] DeleteWordlistTermHandler handler,
         CancellationToken ct)
     {
         if (!AdminReviewsResponseFactory.HasPermissionClaim(context, ReviewsPermissions.PolicyAdmin))

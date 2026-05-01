@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Routing;
 
 namespace BackendApi.Modules.Reviews.Customer.UpdateReview;
@@ -14,9 +15,9 @@ public static class UpdateReviewEndpoint
 
     private static async Task<IResult> HandleAsync(
         Guid id,
-        UpdateReviewRequest? body,
+        [FromBody] UpdateReviewRequest? body,
         HttpContext context,
-        UpdateReviewHandler handler,
+        [FromServices] UpdateReviewHandler handler,
         CancellationToken ct)
     {
         var customerId = ReviewsResponseFactory.ResolveCustomerId(context);

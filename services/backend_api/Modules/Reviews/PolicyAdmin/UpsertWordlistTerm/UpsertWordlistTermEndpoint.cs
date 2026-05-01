@@ -3,6 +3,7 @@ using BackendApi.Modules.Reviews.Authorization;
 using BackendApi.Modules.Reviews.Customer;
 using BackendApi.Modules.Reviews.Primitives;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Routing;
 
 namespace BackendApi.Modules.Reviews.PolicyAdmin.UpsertWordlistTerm;
@@ -17,9 +18,9 @@ public static class UpsertWordlistTermEndpoint
     }
 
     private static async Task<IResult> HandleAsync(
-        UpsertWordlistTermRequest? body,
+        [FromBody] UpsertWordlistTermRequest? body,
         HttpContext context,
-        UpsertWordlistTermHandler handler,
+        [FromServices] UpsertWordlistTermHandler handler,
         CancellationToken ct)
     {
         if (!AdminReviewsResponseFactory.HasPermissionClaim(context, ReviewsPermissions.PolicyAdmin))

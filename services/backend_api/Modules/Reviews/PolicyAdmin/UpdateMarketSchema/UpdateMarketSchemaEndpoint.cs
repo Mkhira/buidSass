@@ -3,6 +3,7 @@ using BackendApi.Modules.Reviews.Authorization;
 using BackendApi.Modules.Reviews.Customer;
 using BackendApi.Modules.Reviews.Primitives;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Routing;
 
 namespace BackendApi.Modules.Reviews.PolicyAdmin.UpdateMarketSchema;
@@ -18,9 +19,9 @@ public static class UpdateMarketSchemaEndpoint
 
     private static async Task<IResult> HandleAsync(
         string market_code,
-        UpdateMarketSchemaRequest? body,
+        [FromBody] UpdateMarketSchemaRequest? body,
         HttpContext context,
-        UpdateMarketSchemaHandler handler,
+        [FromServices] UpdateMarketSchemaHandler handler,
         CancellationToken ct)
     {
         if (!AdminReviewsResponseFactory.HasPermissionClaim(context, ReviewsPermissions.PolicyAdmin))

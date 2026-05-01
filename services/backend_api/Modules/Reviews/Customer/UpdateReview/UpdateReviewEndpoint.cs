@@ -1,6 +1,4 @@
-using BackendApi.Modules.Reviews.RateLimit;
 using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Routing;
 
 namespace BackendApi.Modules.Reviews.Customer.UpdateReview;
@@ -16,10 +14,9 @@ public static class UpdateReviewEndpoint
 
     private static async Task<IResult> HandleAsync(
         Guid id,
- [FromBody] UpdateReviewRequest? body,
+        UpdateReviewRequest? body,
         HttpContext context,
- [FromServices] UpdateReviewHandler handler,
- [FromServices] ReviewRateLimiter rateLimiter,
+        UpdateReviewHandler handler,
         CancellationToken ct)
     {
         var customerId = ReviewsResponseFactory.ResolveCustomerId(context);
@@ -28,14 +25,6 @@ public static class UpdateReviewEndpoint
             return ReviewsResponseFactory.Problem(context, 401,
                 Primitives.ReviewReasonCode.ReportUnauthenticated,
                 "Authentication required.");
-        }
-
-        if (!rateLimiter.TryAcquire(ReviewRateLimits.Edit, customerId.Value,
-                ReviewRateLimits.CustomerCapacityPerHour, ReviewRateLimits.Window))
-        {
-            return ReviewsResponseFactory.Problem(context, 429,
-                Primitives.ReviewReasonCode.RateLimitEditExceeded,
-                "Edit rate limit exceeded.");
         }
 
         if (body is null)

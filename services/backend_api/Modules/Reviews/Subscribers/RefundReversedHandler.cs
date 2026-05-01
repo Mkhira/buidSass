@@ -49,6 +49,7 @@ public sealed class RefundReversedHandler : IRefundReversedSubscriber
         }
 
         var nowUtc = _time.GetUtcNow();
+        var note = BuildAdvisoryNote(evt);
         foreach (var review in affected)
         {
             // Idempotency guard — same operator advisory is rewritten if event is
@@ -58,7 +59,7 @@ public sealed class RefundReversedHandler : IRefundReversedSubscriber
                 Id = Guid.NewGuid(),
                 ReviewId = review.Id,
                 ActorId = Guid.Empty,
-                Note = $"Operator advisory: order line {evt.OrderLineId} refund was reversed at {evt.ReversedAtUtc:o} by actor {evt.ActorId}. Reason: {evt.ReasonNote}. Review remains hidden — moderator may manually reinstate (FR-032).",
+                Note = note,
                 CreatedAtUtc = nowUtc,
             });
         }
@@ -67,5 +68,13 @@ public sealed class RefundReversedHandler : IRefundReversedSubscriber
         _logger.LogInformation(
             "Refund-reversed advisory recorded on {Count} review(s) for order line {OrderLineId}.",
             affected.Count, evt.OrderLineId);
+    }
+
+    // AdminNote.Note has a 4000-char column cap — bound the operator advisory
+    // so a long ReasonNote can't trip a DB-level truncation/insert error.
+    private static string BuildAdvisoryNote(RefundReversedEvent evt)
+    {
+        var note = $"Operator advisory: order line {evt.OrderLineId} refund was reversed at {evt.ReversedAtUtc:o} by actor {evt.ActorId}. Reason: {evt.ReasonNote}. Review remains hidden — moderator may manually reinstate (FR-032).";
+        return note.Length <= 4000 ? note : note[..3997] + "...";
     }
 }

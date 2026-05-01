@@ -19,6 +19,10 @@ public sealed class ReviewsMarketSchemaConfiguration : IEntityTypeConfiguration<
                 "\"CommunityReportThreshold\" BETWEEN 1 AND 10");
             t.HasCheckConstraint("CK_rms_qualifying_age",
                 "\"ReportQualifyingAccountAgeDays\" BETWEEN 0 AND 90");
+            t.HasCheckConstraint("CK_rms_community_report_window",
+                "\"CommunityReportWindowDays\" > 0");
+            t.HasCheckConstraint("CK_rms_pending_moderation_sla",
+                "\"PendingModerationSlaHours\" > 0");
         });
 
         builder.HasKey(x => x.MarketCode);

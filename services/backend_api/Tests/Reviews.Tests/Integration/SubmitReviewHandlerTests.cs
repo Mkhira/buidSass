@@ -1,4 +1,3 @@
-using BackendApi.Modules.Reviews.Hooks;
 using BackendApi.Features.Seeding;
 using BackendApi.Features.Seeding.Datasets;
 using BackendApi.Modules.Reviews.Aggregate;
@@ -205,7 +204,7 @@ public sealed class SubmitReviewHandlerTests : IAsyncLifetime
         var provider = services.BuildServiceProvider();
         var profanity = new ProfanityFilter(provider.GetRequiredService<IServiceScopeFactory>(), new ArabicNormalizer(), TimeSpan.Zero);
         var aggregate = new RatingAggregateRecomputer(db, clock);
-        var handler = new SubmitReviewHandler(db, eligibility, profanity, aggregate, new NullReviewDomainEventPublisher(), clock);
+        var handler = new SubmitReviewHandler(db, eligibility, profanity, aggregate, clock);
         return (handler, db, clock);
     }
 

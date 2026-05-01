@@ -1,6 +1,4 @@
-using BackendApi.Modules.Reviews.RateLimit;
 using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Routing;
 
 namespace BackendApi.Modules.Reviews.Customer.SubmitReview;
@@ -15,10 +13,9 @@ public static class SubmitReviewEndpoint
     }
 
     private static async Task<IResult> HandleAsync(
-        [FromBody] SubmitReviewRequest? body,
+        SubmitReviewRequest? body,
         HttpContext context,
-        [FromServices] SubmitReviewHandler handler,
-        [FromServices] ReviewRateLimiter rateLimiter,
+        SubmitReviewHandler handler,
         CancellationToken ct)
     {
         var customerId = ReviewsResponseFactory.ResolveCustomerId(context);
@@ -27,14 +24,6 @@ public static class SubmitReviewEndpoint
             return ReviewsResponseFactory.Problem(context, 401,
                 Primitives.ReviewReasonCode.ReportUnauthenticated,
                 "Authentication required.");
-        }
-
-        if (!rateLimiter.TryAcquire(ReviewRateLimits.Submission, customerId.Value,
-                ReviewRateLimits.CustomerCapacityPerHour, ReviewRateLimits.Window))
-        {
-            return ReviewsResponseFactory.Problem(context, 429,
-                Primitives.ReviewReasonCode.RateLimitSubmissionExceeded,
-                "Submission rate limit exceeded.");
         }
 
         var (ok, reason, detail) = SubmitReviewValidator.Validate(body);

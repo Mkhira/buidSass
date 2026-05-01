@@ -2,7 +2,6 @@ using BackendApi.Modules.Reviews.Admin;
 using BackendApi.Modules.Reviews.Authorization;
 using BackendApi.Modules.Reviews.Customer;
 using BackendApi.Modules.Reviews.Primitives;
-using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Routing;
 
@@ -19,9 +18,9 @@ public static class UpdateMarketSchemaEndpoint
 
     private static async Task<IResult> HandleAsync(
         string market_code,
- [FromBody] UpdateMarketSchemaRequest? body,
+        UpdateMarketSchemaRequest? body,
         HttpContext context,
- [FromServices] UpdateMarketSchemaHandler handler,
+        UpdateMarketSchemaHandler handler,
         CancellationToken ct)
     {
         if (!AdminReviewsResponseFactory.HasPermissionClaim(context, ReviewsPermissions.PolicyAdmin))
@@ -38,7 +37,7 @@ public static class UpdateMarketSchemaEndpoint
         if (body is null)
         {
             return AdminReviewsResponseFactory.Problem(context, 400,
-                ReviewReasonCode.PolicyMarketValueOutOfRange, "Request body is required.");
+                ReviewReasonCode.PolicyBodyRequired, "Request body is required.");
         }
 
         var market = ReviewsResponseFactory.TryNormalize(market_code);

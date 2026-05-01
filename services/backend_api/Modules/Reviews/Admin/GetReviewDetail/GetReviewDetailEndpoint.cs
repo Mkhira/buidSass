@@ -1,5 +1,4 @@
 using BackendApi.Modules.Reviews.Primitives;
-using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Routing;
 
@@ -17,7 +16,7 @@ public static class GetReviewDetailEndpoint
     private static async Task<IResult> HandleAsync(
         Guid id,
         HttpContext context,
- [FromServices] GetReviewDetailHandler handler,
+        GetReviewDetailHandler handler,
         CancellationToken ct)
     {
         // Read access: moderator, support, viewer.finance.

@@ -27,16 +27,34 @@ public static class ReviewsAdvisoryLock
     public static async Task<AdvisoryLockHandle> TryAcquireAsync(
         ReviewsDbContext db,
         long key,
-        CancellationToken ct)
+        CancellationToken ct,
+        NpgsqlDataSource? dataSource = null)
     {
-        var connectionString = db.Database.GetConnectionString()
-            ?? throw new InvalidOperationException(
-                "ReviewsDbContext has no connection string — cannot acquire advisory lock.");
-
-        var connection = new NpgsqlConnection(connectionString);
+        // EF Core 9: when the DbContext is configured via UseNpgsql(NpgsqlDataSource)
+        // — which is the production wiring — GetConnectionString() returns null.
+        // Prefer the registered NpgsqlDataSource (handles pooling + auth correctly);
+        // only fall back to building a fresh NpgsqlConnection from a string when
+        // the DbContext was configured via UseNpgsql(string) (e.g. integration tests).
+        NpgsqlConnection connection;
+        if (dataSource is not null)
+        {
+            connection = await dataSource.OpenConnectionAsync(ct);
+        }
+        else
+        {
+            var connectionString = db.Database.GetConnectionString()
+                ?? throw new InvalidOperationException(
+                    "ReviewsAdvisoryLock requires either an NpgsqlDataSource or a connection string. " +
+                    "When the DbContext is configured via UseNpgsql(NpgsqlDataSource), GetConnectionString() " +
+                    "returns null and the caller must pass the registered NpgsqlDataSource explicitly.");
+            connection = new NpgsqlConnection(connectionString);
+        }
         try
         {
-            await connection.OpenAsync(ct);
+            if (connection.State != System.Data.ConnectionState.Open)
+            {
+                await connection.OpenAsync(ct);
+            }
 
             await using var cmd = connection.CreateCommand();
             cmd.CommandText = "SELECT pg_try_advisory_lock(@key);";

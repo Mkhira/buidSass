@@ -1,5 +1,4 @@
 using BackendApi.Modules.Reviews.Primitives;
-using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Routing;
 
@@ -16,9 +15,9 @@ public static class AddAdminNoteEndpoint
 
     private static async Task<IResult> HandleAsync(
         Guid id,
- [FromBody] AddAdminNoteRequest? body,
+        AddAdminNoteRequest? body,
         HttpContext context,
- [FromServices] AddAdminNoteHandler handler,
+        AddAdminNoteHandler handler,
         CancellationToken ct)
     {
         if (!AdminReviewsResponseFactory.HasModeratorPermission(context))

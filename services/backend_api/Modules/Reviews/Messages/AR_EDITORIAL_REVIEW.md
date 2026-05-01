@@ -46,6 +46,8 @@ sign-off status; SC-008 verifies the table is fully ticked at launch time.
 | reviews.policy.forbidden | ⬜ pending | — | — | |
 | reviews.policy.wordlist.term_invalid | ⬜ pending | — | — | |
 | reviews.policy.market.value_out_of_range | ⬜ pending | — | — | |
+| reviews.policy.body_required | ⬜ pending | — | — | |
+| review.row.not_found | ⬜ pending | — | — | |
 | reviews.aggregate.market_invalid | ⬜ pending | — | — | |
 
 ## Procedure

@@ -20,18 +20,15 @@ public sealed class CustomerAccountLifecycleHandler : ICustomerAccountLifecycleS
 {
     private readonly ReviewsDbContext _db;
     private readonly RatingAggregateRecomputer _aggregate;
-    private readonly IReviewDomainEventPublisher _events;
     private readonly TimeProvider _time;
 
     public CustomerAccountLifecycleHandler(
         ReviewsDbContext db,
         RatingAggregateRecomputer aggregate,
-        IReviewDomainEventPublisher events,
         TimeProvider time)
     {
         _db = db;
         _aggregate = aggregate;
-        _events = events;
         _time = time;
     }
 
@@ -39,7 +36,7 @@ public sealed class CustomerAccountLifecycleHandler : ICustomerAccountLifecycleS
         AutoHideAsync(evt.CustomerId, ReviewTriggerKind.AccountLocked, "account_locked", ct);
 
     public Task OnAccountDeletedAsync(CustomerAccountDeleted evt, CancellationToken ct) =>
-        AutoHideAsync(evt.CustomerId, ReviewTriggerKind.AccountLocked, "account_deleted", ct);
+        AutoHideAsync(evt.CustomerId, ReviewTriggerKind.AccountDeleted, "account_deleted", ct);
 
     public Task OnMarketChangedAsync(CustomerMarketChanged evt, CancellationToken ct) =>
         Task.CompletedTask;
@@ -81,20 +78,28 @@ public sealed class CustomerAccountLifecycleHandler : ICustomerAccountLifecycleS
             aggregateRefreshes.Add((review.ProductId, review.MarketCode));
         }
 
-        await _db.SaveChangesAsync(ct);
-
-        foreach (var (productId, marketCode) in aggregateRefreshes)
+        // Hide + aggregate refresh must be atomic — otherwise an aggregate
+        // recompute failure leaves the review hidden but the public rating
+        // aggregate stale (CodeRabbit PR #48 round 2; mirrors the pattern in
+        // RefundCompletedHandler).
+        var supportsTransactions = _db.Database.ProviderName != "Microsoft.EntityFrameworkCore.InMemory";
+        var tx = supportsTransactions
+            ? await _db.Database.BeginTransactionAsync(ct)
+            : null;
+        try
         {
-            await _aggregate.RecomputeAsync(productId, marketCode, ct);
+            await _db.SaveChangesAsync(ct);
+
+            foreach (var (productId, marketCode) in aggregateRefreshes)
+            {
+                await _aggregate.RecomputeAsync(productId, marketCode, ct);
+            }
+
+            if (tx is not null) await tx.CommitAsync(ct);
         }
-
-        // FR-038 — fire after commit, one event per affected review.
-        foreach (var review in affected)
+        finally
         {
-            await _events.PublishAsync(new ReviewAutoHidden(
-                ReviewId: review.Id,
-                Trigger: triggerKind,
-                SourceEventId: null), ct);
+            if (tx is not null) await tx.DisposeAsync();
         }
     }
 }

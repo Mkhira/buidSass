@@ -1,4 +1,3 @@
-using BackendApi.Modules.Reviews.Hooks;
 using BackendApi.Modules.Reviews.Aggregate;
 using BackendApi.Modules.Reviews.Customer.SubmitReview;
 using BackendApi.Modules.Reviews.Filtering;
@@ -55,11 +54,13 @@ public sealed class WorkerTests : IAsyncLifetime
         var (productId, _) = await SubmitVisibleReviewsAsync(new[] { 5, 4, 3 });
 
         // Corrupt the aggregate by direct DB write — simulates a missed event.
+        // ReviewCount must stay equal to sum(Distribution1..5) per
+        // CK_pra_count_equals_buckets_sum, so we drift AvgRating only — the
+        // recomputer still detects the inconsistency and fixes it.
         await using (var corrupt = NewContext())
         {
             var row = await corrupt.RatingAggregates
                 .FirstAsync(a => a.ProductId == productId && a.MarketCode == "SA");
-            row.ReviewCount = 999;
             row.AvgRating = 1.0m;
             await corrupt.SaveChangesAsync();
         }
@@ -185,7 +186,7 @@ public sealed class WorkerTests : IAsyncLifetime
             var profanity = new ProfanityFilter(provider.GetRequiredService<IServiceScopeFactory>(), new ArabicNormalizer(), TimeSpan.Zero);
             var aggregate = new RatingAggregateRecomputer(db, clock);
             var submit = new SubmitReviewHandler(db,
-                new FakeEligibility(deliveredAt, Guid.NewGuid()), profanity, aggregate, new NullReviewDomainEventPublisher(), clock);
+                new FakeEligibility(deliveredAt, Guid.NewGuid()), profanity, aggregate, clock);
             var result = await submit.HandleAsync(customerId, "SA",
                 new SubmitReviewRequest(productId, rating, $"R{rating}",
                     "Long-enough body to satisfy validation.", "en", null),

@@ -54,6 +54,16 @@ public sealed class ListModerationQueueHandler
             queryable = queryable.Where(r => r.PendingModerationStartedAt > cursor);
         }
 
+        // community_report_count_min must be applied at the SQL layer BEFORE
+        // Take(limit + 1); otherwise a 50-row page can shrink to a few items
+        // and pagination underfills. Apply on `queryable` (pre-Order) via a
+        // correlated subquery against the flags table.
+        if (query.CommunityReportCountMin is int minReports && minReports > 0)
+        {
+            queryable = queryable.Where(r =>
+                _db.Flags.Count(f => f.ReviewId == r.Id) >= minReports);
+        }
+
         // Order: oldest pending first; flagged-only rows fall through with their
         // pending_moderation_started_at == null (placed last).
         var ordered = queryable
@@ -81,20 +91,6 @@ public sealed class ListModerationQueueHandler
                 r.EditCount,
                 r.Xmin))
             .ToListAsync(ct);
-
-        // community_report_count_min filter requires a join — applied post-load to
-        // avoid a correlated subquery per row in the dominant case (filter not set).
-        if (query.CommunityReportCountMin is int minReports && minReports > 0)
-        {
-            var ids = rows.Select(r => r.Id).ToList();
-            var counts = await _db.Flags.AsNoTracking()
-                .Where(f => ids.Contains(f.ReviewId))
-                .GroupBy(f => f.ReviewId)
-                .Select(g => new { g.Key, Count = g.Count() })
-                .ToListAsync(ct);
-            var countMap = counts.ToDictionary(x => x.Key, x => x.Count);
-            rows = rows.Where(r => countMap.TryGetValue(r.Id, out var c) && c >= minReports).ToList();
-        }
 
         DateTimeOffset? next = null;
         if (rows.Count > limit)

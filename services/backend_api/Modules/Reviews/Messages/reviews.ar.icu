@@ -26,6 +26,7 @@ review.edit.deleted_terminal            = تم حذف هذا التقييم ول
 # Row-level (entity)
 review.row.version_conflict             = تم تعديل هذا التقييم بواسطة شخص آخر. يرجى إعادة التحميل والمحاولة مرة أخرى.
 review.row.delete_forbidden             = لا يمكن حذف التقييمات نهائياً؛ الحذف ناعم فقط.
+review.row.not_found                    = التقييم غير موجود.
 
 # Reporting (entity)
 review.report.cannot_report_own_review  = لا يمكنك الإبلاغ عن تقييمك الخاص.
@@ -52,6 +53,7 @@ reviews.moderation.rate_limit_exceeded        = لقد اتخذت قرارات �
 reviews.policy.forbidden                = ليس لديك صلاحية لإدارة سياسة التقييمات.
 reviews.policy.wordlist.term_invalid    = يجب أن تكون مفردات قائمة الفلترة بين حرف و 200 حرف بعد التطبيع.
 reviews.policy.market.value_out_of_range = إحدى قيم سياسة السوق خارج النطاق المسموح به.
+reviews.policy.body_required            = نص الطلب مطلوب.
 
 # Aggregate (module)
 reviews.aggregate.market_invalid        = رمز السوق غير معروف.

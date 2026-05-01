@@ -1,6 +1,4 @@
-using BackendApi.Modules.Reviews.RateLimit;
 using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Routing;
 
 namespace BackendApi.Modules.Reviews.Customer.ReportReview;
@@ -16,10 +14,9 @@ public static class ReportReviewEndpoint
 
     private static async Task<IResult> HandleAsync(
         Guid id,
- [FromBody] ReportReviewRequest? body,
+        ReportReviewRequest? body,
         HttpContext context,
- [FromServices] ReportReviewHandler handler,
- [FromServices] ReviewRateLimiter rateLimiter,
+        ReportReviewHandler handler,
         CancellationToken ct)
     {
         var customerId = ReviewsResponseFactory.ResolveCustomerId(context);
@@ -30,21 +27,14 @@ public static class ReportReviewEndpoint
                 "You must be signed in to report a review.");
         }
 
-        if (!rateLimiter.TryAcquire(ReviewRateLimits.Report, customerId.Value,
-                ReviewRateLimits.CustomerCapacityPerHour, ReviewRateLimits.Window))
-        {
-            return ReviewsResponseFactory.Problem(context, 429,
-                Primitives.ReviewReasonCode.RateLimitReportExceeded,
-                "Report rate limit exceeded.");
-        }
-
         var (ok, reason, detail) = ReportReviewValidator.Validate(body);
         if (!ok)
         {
             return ReviewsResponseFactory.Problem(context, 400, reason!, "Report validation failed.", detail);
         }
 
-        var result = await handler.HandleAsync(customerId.Value, id, body!, ct);
+        var marketCode = ReviewsResponseFactory.ResolveMarketCode(context);
+        var result = await handler.HandleAsync(customerId.Value, marketCode, id, body!, ct);
         if (!result.IsSuccess)
         {
             return ReviewsResponseFactory.Problem(context, result.Status, result.ReasonCode!, "Report rejected.", result.Detail);

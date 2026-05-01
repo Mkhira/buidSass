@@ -26,18 +26,15 @@ public sealed class DecideModerationHandler
 {
     private readonly ReviewsDbContext _db;
     private readonly RatingAggregateRecomputer _aggregate;
-    private readonly BackendApi.Modules.Shared.IReviewDomainEventPublisher _events;
     private readonly TimeProvider _time;
 
     public DecideModerationHandler(
         ReviewsDbContext db,
         RatingAggregateRecomputer aggregate,
-        BackendApi.Modules.Shared.IReviewDomainEventPublisher events,
         TimeProvider time)
     {
         _db = db;
         _aggregate = aggregate;
-        _events = events;
         _time = time;
     }
 
@@ -131,41 +128,38 @@ public sealed class DecideModerationHandler
             CreatedAtUtc = nowUtc,
         });
 
+        // Decision write + aggregate refresh must be atomic — otherwise a
+        // recompute failure leaves the review row at its new state but the
+        // public aggregate stale, returning 500 to the moderator after the
+        // decision has already persisted (CodeRabbit PR #48 round 2 Major).
+        // InMemory provider used by some tests can't begin a transaction.
+        var supportsTransactions = _db.Database.ProviderName != "Microsoft.EntityFrameworkCore.InMemory";
+        var tx = supportsTransactions
+            ? await _db.Database.BeginTransactionAsync(ct)
+            : null;
         try
         {
-            await _db.SaveChangesAsync(ct);
-        }
-        catch (DbUpdateConcurrencyException)
-        {
-            return DecideModerationResult.Reject(409, ReviewReasonCode.ModerationVersionConflict,
-                "Row version conflict — review changed during decision.");
-        }
+            try
+            {
+                await _db.SaveChangesAsync(ct);
+            }
+            catch (DbUpdateConcurrencyException)
+            {
+                if (tx is not null) await tx.RollbackAsync(ct);
+                return DecideModerationResult.Reject(409, ReviewReasonCode.ModerationVersionConflict,
+                    "Row version conflict — review changed during decision.");
+            }
 
-        if (ReviewStateMachine.TransitionAffectsAggregate(fromState, toState.Value))
-        {
-            await _aggregate.RecomputeAsync(review.ProductId, review.MarketCode, ct);
-        }
+            if (ReviewStateMachine.TransitionAffectsAggregate(fromState, toState.Value))
+            {
+                await _aggregate.RecomputeAsync(review.ProductId, review.MarketCode, ct);
+            }
 
-        // FR-038 — fire after commit. Per-branch publish keeps the generic
-        // type inference clean.
-        switch (toState.Value)
+            if (tx is not null) await tx.CommitAsync(ct);
+        }
+        finally
         {
-            case ReviewState.Visible when fromState == ReviewState.PendingModeration:
-                await _events.PublishAsync(new BackendApi.Modules.Shared.ReviewPublished(
-                    review.Id, review.ProductId, review.MarketCode, review.Rating, nowUtc), ct);
-                break;
-            case ReviewState.Visible:
-                await _events.PublishAsync(new BackendApi.Modules.Shared.ReviewReinstated(
-                    review.Id, actorId, fromState.ToString().ToLowerInvariant()), ct);
-                break;
-            case ReviewState.Hidden:
-                await _events.PublishAsync(new BackendApi.Modules.Shared.ReviewHidden(
-                    review.Id, actorId, body.ReasonNote ?? string.Empty), ct);
-                break;
-            case ReviewState.Deleted:
-                await _events.PublishAsync(new BackendApi.Modules.Shared.ReviewDeleted(
-                    review.Id, actorId), ct);
-                break;
+            if (tx is not null) await tx.DisposeAsync();
         }
 
         return DecideModerationResult.Success(BuildResponse(review));

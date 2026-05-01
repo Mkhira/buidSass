@@ -1,6 +1,5 @@
 using BackendApi.Modules.Reviews.Customer;
 using BackendApi.Modules.Reviews.Primitives;
-using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Routing;
 
 namespace BackendApi.Modules.Reviews.Aggregate.ReadProductRating;
@@ -26,8 +25,8 @@ public static class ReadProductRatingEndpoint
     private static async Task<IResult> HandleSingleAsync(
         Guid productId,
         HttpContext context,
- [FromServices] ReadProductRatingHandler handler,
- TimeProvider time,
+        ReadProductRatingHandler handler,
+        TimeProvider time,
         CancellationToken ct,
         string? market_code = null)
     {
@@ -45,8 +44,8 @@ public static class ReadProductRatingEndpoint
 
     private static async Task<IResult> HandleBatchAsync(
         HttpContext context,
- [FromServices] ReadProductRatingHandler handler,
- TimeProvider time,
+        ReadProductRatingHandler handler,
+        TimeProvider time,
         CancellationToken ct,
         string? product_ids = null,
         string? market_code = null)

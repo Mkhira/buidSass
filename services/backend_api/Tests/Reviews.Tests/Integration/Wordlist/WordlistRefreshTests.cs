@@ -1,4 +1,3 @@
-using BackendApi.Modules.Reviews.Hooks;
 using BackendApi.Modules.Reviews.Aggregate;
 using BackendApi.Modules.Reviews.Customer.SubmitReview;
 using BackendApi.Modules.Reviews.Filtering;
@@ -65,7 +64,7 @@ public sealed class WordlistRefreshTests
             eligible: true,
             deliveredAt: clock.GetUtcNow().AddDays(-2),
             orderLineId: Guid.NewGuid());
-        var submit = new SubmitReviewHandler(submitDb, eligibility, filter, aggregate, new NullReviewDomainEventPublisher(), clock);
+        var submit = new SubmitReviewHandler(submitDb, eligibility, filter, aggregate, clock);
 
         var result = await submit.HandleAsync(customerId, "SA",
             new SubmitReviewRequest(productId, 5, "Headline",

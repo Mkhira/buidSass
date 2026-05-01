@@ -1,4 +1,3 @@
-using BackendApi.Modules.Reviews.Hooks;
 using BackendApi.Features.Seeding;
 using BackendApi.Features.Seeding.Datasets;
 using BackendApi.Modules.Reviews.Aggregate;
@@ -222,7 +221,7 @@ public sealed class UpdateReviewHandlerTests : IAsyncLifetime
         var provider = services.BuildServiceProvider();
         var profanity = new ProfanityFilter(provider.GetRequiredService<IServiceScopeFactory>(), new ArabicNormalizer(), TimeSpan.Zero);
         var aggregate = new RatingAggregateRecomputer(db, clock);
-        var submit = new SubmitReviewHandler(db, new FakeEligibility(true, deliveredAt, Guid.NewGuid()), profanity, aggregate, new NullReviewDomainEventPublisher(), clock);
+        var submit = new SubmitReviewHandler(db, new FakeEligibility(true, deliveredAt, Guid.NewGuid()), profanity, aggregate, clock);
 
         var result = await submit.HandleAsync(customerId, "SA",
             new SubmitReviewRequest(productId, 5, "Headline", "Body content long enough to satisfy validation.", "en", null),
@@ -245,7 +244,7 @@ public sealed class UpdateReviewHandlerTests : IAsyncLifetime
         var provider = services.BuildServiceProvider();
         var profanity = new ProfanityFilter(provider.GetRequiredService<IServiceScopeFactory>(), new ArabicNormalizer(), TimeSpan.Zero);
         var aggregate = new RatingAggregateRecomputer(db, clock);
-        var submit = new SubmitReviewHandler(db, new FakeEligibility(true, deliveredAt, Guid.NewGuid()), profanity, aggregate, new NullReviewDomainEventPublisher(), clock);
+        var submit = new SubmitReviewHandler(db, new FakeEligibility(true, deliveredAt, Guid.NewGuid()), profanity, aggregate, clock);
 
         var result = await submit.HandleAsync(customerId, "SA",
             new SubmitReviewRequest(productId, 4, "With media", "Clean text but with a media attachment.", "en",
@@ -265,7 +264,7 @@ public sealed class UpdateReviewHandlerTests : IAsyncLifetime
         var provider = services.BuildServiceProvider();
         var profanity = new ProfanityFilter(provider.GetRequiredService<IServiceScopeFactory>(), new ArabicNormalizer(), TimeSpan.Zero);
         var aggregate = new RatingAggregateRecomputer(db, clock);
-        return new UpdateReviewHandler(db, profanity, aggregate, new NullReviewDomainEventPublisher(), clock);
+        return new UpdateReviewHandler(db, profanity, aggregate, clock);
     }
 
     private UpdateReviewHandler NewUpdateHandler(out FakeTimeProvider clock)

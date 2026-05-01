@@ -69,11 +69,17 @@ public sealed class RefundCompletedHandler : IRefundCompletedSubscriber
             aggregateRefreshes.Add((review.ProductId, review.MarketCode));
         }
 
+        // Hide + aggregate refresh must be atomic — otherwise an aggregate-refresh
+        // failure leaves the review row hidden but the public rating aggregate
+        // stale (read-side shows the refunded review as if it still counts).
+        await using var tx = await _db.Database.BeginTransactionAsync(ct);
         await _db.SaveChangesAsync(ct);
 
         foreach (var (productId, marketCode) in aggregateRefreshes)
         {
             await _aggregate.RecomputeAsync(productId, marketCode, ct);
         }
+
+        await tx.CommitAsync(ct);
     }
 }

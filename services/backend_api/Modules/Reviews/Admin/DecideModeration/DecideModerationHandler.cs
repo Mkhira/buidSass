@@ -128,19 +128,38 @@ public sealed class DecideModerationHandler
             CreatedAtUtc = nowUtc,
         });
 
+        // Decision write + aggregate refresh must be atomic — otherwise a
+        // recompute failure leaves the review row at its new state but the
+        // public aggregate stale, returning 500 to the moderator after the
+        // decision has already persisted (CodeRabbit PR #48 round 2 Major).
+        // InMemory provider used by some tests can't begin a transaction.
+        var supportsTransactions = _db.Database.ProviderName != "Microsoft.EntityFrameworkCore.InMemory";
+        var tx = supportsTransactions
+            ? await _db.Database.BeginTransactionAsync(ct)
+            : null;
         try
         {
-            await _db.SaveChangesAsync(ct);
-        }
-        catch (DbUpdateConcurrencyException)
-        {
-            return DecideModerationResult.Reject(409, ReviewReasonCode.ModerationVersionConflict,
-                "Row version conflict — review changed during decision.");
-        }
+            try
+            {
+                await _db.SaveChangesAsync(ct);
+            }
+            catch (DbUpdateConcurrencyException)
+            {
+                if (tx is not null) await tx.RollbackAsync(ct);
+                return DecideModerationResult.Reject(409, ReviewReasonCode.ModerationVersionConflict,
+                    "Row version conflict — review changed during decision.");
+            }
 
-        if (ReviewStateMachine.TransitionAffectsAggregate(fromState, toState.Value))
+            if (ReviewStateMachine.TransitionAffectsAggregate(fromState, toState.Value))
+            {
+                await _aggregate.RecomputeAsync(review.ProductId, review.MarketCode, ct);
+            }
+
+            if (tx is not null) await tx.CommitAsync(ct);
+        }
+        finally
         {
-            await _aggregate.RecomputeAsync(review.ProductId, review.MarketCode, ct);
+            if (tx is not null) await tx.DisposeAsync();
         }
 
         return DecideModerationResult.Success(BuildResponse(review));

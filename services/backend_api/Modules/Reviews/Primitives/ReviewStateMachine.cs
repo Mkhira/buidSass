@@ -51,13 +51,15 @@ public static class ReviewStateMachine
             case (ReviewState.Visible, ReviewState.Hidden)
                 when (trigger == ReviewTriggerKind.ModeratorAction && actor == ReviewActorKind.Moderator)
                   || (trigger == ReviewTriggerKind.RefundEvent && actor == ReviewActorKind.System)
-                  || (trigger == ReviewTriggerKind.AccountLocked && actor == ReviewActorKind.System):
+                  || ((trigger == ReviewTriggerKind.AccountLocked || trigger == ReviewTriggerKind.AccountDeleted)
+                      && actor == ReviewActorKind.System):
             case (ReviewState.Flagged, ReviewState.Visible)
                 when trigger == ReviewTriggerKind.ModeratorAction && actor == ReviewActorKind.Moderator:
             case (ReviewState.Flagged, ReviewState.Hidden)
                 when (trigger == ReviewTriggerKind.ModeratorAction && actor == ReviewActorKind.Moderator)
                   || (trigger == ReviewTriggerKind.RefundEvent && actor == ReviewActorKind.System)
-                  || (trigger == ReviewTriggerKind.AccountLocked && actor == ReviewActorKind.System):
+                  || ((trigger == ReviewTriggerKind.AccountLocked || trigger == ReviewTriggerKind.AccountDeleted)
+                      && actor == ReviewActorKind.System):
             case (ReviewState.Hidden, ReviewState.Visible)
                 when trigger == ReviewTriggerKind.ModeratorAction && actor == ReviewActorKind.Moderator:
                 return true;

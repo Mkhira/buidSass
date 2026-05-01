@@ -20,7 +20,7 @@ public sealed class ReviewConfiguration : IEntityTypeConfiguration<Review>
             t.HasCheckConstraint("CK_reviews_state",
                 "\"State\" IN ('pending_moderation','visible','flagged','hidden','deleted')");
             t.HasCheckConstraint("CK_reviews_triggered_by",
-                "\"TriggeredBy\" IN ('customer_submission','customer_edit','community_report_threshold','refund_event','account_locked','moderator_action','manual_super_admin')");
+                "\"TriggeredBy\" IN ('customer_submission','customer_edit','community_report_threshold','refund_event','account_locked','account_deleted','moderator_action','manual_super_admin')");
             t.HasCheckConstraint("CK_reviews_media_max",
                 "jsonb_array_length(\"MediaUrls\") <= 4");
         });

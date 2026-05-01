@@ -1,7 +1,10 @@
 using BackendApi.Configuration;
 using BackendApi.Features.Seeding;
+using BackendApi.Modules.Cms.Editor.BulkReorderFaqEntries;
 using BackendApi.Modules.Cms.Editor.SaveBannerDraft;
 using BackendApi.Modules.Cms.Editor.SaveBlogArticleDraft;
+using BackendApi.Modules.Cms.Editor.SaveFaqEntryDraft;
+using BackendApi.Modules.Cms.Editor.SaveFeaturedSectionDraft;
 using BackendApi.Modules.Cms.LegalOwner;
 using BackendApi.Modules.Cms.LegalOwner.ListLegalPageVersionHistory;
 using BackendApi.Modules.Cms.LegalOwner.PublishLegalPageVersionNow;
@@ -20,6 +23,7 @@ using BackendApi.Modules.Cms.Storefront.GetBlogArticle;
 using BackendApi.Modules.Cms.Storefront.GetLegalPage;
 using BackendApi.Modules.Cms.Storefront.ListBannerSlots;
 using BackendApi.Modules.Cms.Storefront.ListBlogArticles;
+using BackendApi.Modules.Cms.Storefront.ListFaqEntries;
 using BackendApi.Modules.Cms.Storefront.ListFeaturedSections;
 using BackendApi.Modules.Cms.Seeding;
 using BackendApi.Modules.Cms.Services;
@@ -136,6 +140,13 @@ public static class CmsModule
         });
         services.AddHostedService<Workers.CmsPreviewTokenCleanupWorker>();
 
+        // US5/US6 — featured-section + FAQ authoring + shared publish slice.
+        services.AddScoped<SaveFeaturedSectionDraftHandler>();
+        services.AddScoped<SaveFaqEntryDraftHandler>();
+        services.AddScoped<BulkReorderFaqEntriesHandler>();
+        services.AddScoped<Storefront.ListFaqEntries.ListFaqEntriesHandler>();
+        services.AddScoped<Publisher.PublishContentSlice>();
+
         // Cross-module catalog read contract fallbacks. TryAdd lets spec 005
         // supply production implementations without coordinating registration
         // order. Until 005 ships, the in-process fakes (Modules/Shared/Testing)
@@ -184,6 +195,10 @@ public static class CmsModule
         admin.MapSaveBlogArticleDraftEndpoints();
         admin.MapPublishNowBlogArticleEndpoints();
         admin.MapPreviewAdminEndpoints();
+        admin.MapSaveFeaturedSectionDraftEndpoints();
+        admin.MapSaveFaqEntryDraftEndpoints();
+        admin.MapBulkReorderFaqEntriesEndpoint();
+        admin.MapPublishContentEndpoints();
         return endpoints;
     }
 
@@ -202,6 +217,7 @@ public static class CmsModule
         storefront.MapListBlogArticlesEndpoint();
         storefront.MapGetBlogArticleEndpoint();
         storefront.MapPreviewStorefrontEndpoint();
+        storefront.MapListFaqEntriesEndpoint();
         return endpoints;
     }
 

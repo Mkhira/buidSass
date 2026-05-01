@@ -263,12 +263,12 @@ description: "Task list for Spec 024 — CMS (Phase 1D · Milestone 7)"
 
 ### Implementation for User Story 5
 
-- [ ] T118 [P] [US5] Create `Modules/Cms/Editor/SaveFeaturedSectionDraft/Command.cs` + `Handler.cs` + `Validator.cs` — `references[]` length validation (min 1, max `CmsMarketSchema.featured_section_max_references`); `kind ∈ {product, category, bundle}` enum validation; jsonb persist
-- [ ] T119 [US5] Wire SaveFeaturedSectionDraft + PATCH to `POST /v1/admin/cms/featured-sections/drafts` + `PATCH /v1/admin/cms/featured-sections/drafts/{id}`
-- [ ] T120 [US5] Extend SchedulePublish + PublishNow handlers (T064/T065) for featured sections: at publish, call `FeaturedSectionResolver` once to assert at least one reference resolves; reject `400 cms.featured_section.empty_references` if all unavailable
+- [X] T118 [P] [US5] Create `Modules/Cms/Editor/SaveFeaturedSectionDraft/Command.cs` + `Handler.cs` + `Validator.cs` — `references[]` length validation (min 1, max `CmsMarketSchema.featured_section_max_references`); `kind ∈ {product, category, bundle}` enum validation; jsonb persist
+- [X] T119 [US5] Wire SaveFeaturedSectionDraft + PATCH to `POST /v1/admin/cms/featured-sections/drafts` + `PATCH /v1/admin/cms/featured-sections/drafts/{id}`
+- [X] T120 [US5] Extend SchedulePublish + PublishNow handlers (T064/T065) for featured sections: at publish, call `FeaturedSectionResolver` once to assert at least one reference resolves; reject `400 cms.featured_section.empty_references` if all unavailable
 - [ ] T121 [P] [US5] Create `Modules/Cms/Editor/GetFeaturedSectionAdminDetail/Query.cs` + `Handler.cs` — admin-side read returning per-reference availability badge by calling the catalog read contracts; surfaces broken-ref count in the response for the authoring UI
 - [ ] T122 [US5] Wire GetFeaturedSectionAdminDetail to `GET /v1/admin/cms/featured-sections/{id}` with `[RequirePermission(CmsPermissions.Editor)]`
-- [ ] T123 [P] [US5] Add rate-limit guard for `cms.featured_section.partial_broken` events in `FeaturedSectionResolver.cs` — uses `last_partial_broken_alert_at_utc` row column updated atomically; SKIPS event emission when `now() < last_partial_broken_alert_at_utc + INTERVAL '1 hour'`
+- [X] T123 [P] [US5] Add rate-limit guard for `cms.featured_section.partial_broken` events in `FeaturedSectionResolver.cs` — uses `last_partial_broken_alert_at_utc` row column updated atomically; SKIPS event emission when `now() < last_partial_broken_alert_at_utc + INTERVAL '1 hour'`
 
 **Checkpoint**: User Story 5 ready independently — featured sections handle broken catalog refs gracefully both at storefront-read time and in the admin authoring UI.
 
@@ -288,13 +288,13 @@ description: "Task list for Spec 024 — CMS (Phase 1D · Milestone 7)"
 
 ### Implementation for User Story 6
 
-- [ ] T127 [P] [US6] Create `Modules/Cms/Editor/SaveFaqEntryDraft/Command.cs` + `Handler.cs` + `Validator.cs` — Q ≤ 250 chars, A ≤ 4000 chars markdown, category enum validation
-- [ ] T128 [US6] Wire SaveFaqEntryDraft + PATCH to `POST /v1/admin/cms/faq-entries/drafts` + `PATCH /v1/admin/cms/faq-entries/drafts/{id}`
-- [ ] T129 [P] [US6] Create `Modules/Cms/Editor/BulkReorderFaqEntries/Command.cs` + `Handler.cs` — accepts `entries[]` of `{id, display_order, xmin}`; runs in a single transaction; per-row xmin precondition; if ANY row fails the xmin check, rollback the entire batch and return `409 cms.faq.reorder_conflict` with the current state of all affected rows
-- [ ] T130 [US6] Wire BulkReorderFaqEntries to `POST /v1/admin/cms/faq-entries/reorder`
-- [ ] T131 [P] [US6] Create `Modules/Cms/Storefront/ListFaqEntries/Query.cs` + `Handler.cs` — uses `StorefrontContentResolver`; secondary sort `display_order ASC, created_at_utc ASC`; `category` query param filter
-- [ ] T132 [US6] Wire ListFaqEntries to `GET /v1/storefront/cms/faq` with `[AllowAnonymous]` + rate-limit + cache headers
-- [ ] T133 [US6] Extend SchedulePublish + PublishNow handlers (T064/T065) for FAQ entries: LocaleCompletenessGate enforces both Q&A locales
+- [X] T127 [P] [US6] Create `Modules/Cms/Editor/SaveFaqEntryDraft/Command.cs` + `Handler.cs` + `Validator.cs` — Q ≤ 250 chars, A ≤ 4000 chars markdown, category enum validation
+- [X] T128 [US6] Wire SaveFaqEntryDraft + PATCH to `POST /v1/admin/cms/faq-entries/drafts` + `PATCH /v1/admin/cms/faq-entries/drafts/{id}`
+- [X] T129 [P] [US6] Create `Modules/Cms/Editor/BulkReorderFaqEntries/Command.cs` + `Handler.cs` — accepts `entries[]` of `{id, display_order, xmin}`; runs in a single transaction; per-row xmin precondition; if ANY row fails the xmin check, rollback the entire batch and return `409 cms.faq.reorder_conflict` with the current state of all affected rows
+- [X] T130 [US6] Wire BulkReorderFaqEntries to `POST /v1/admin/cms/faq-entries/reorder`
+- [X] T131 [P] [US6] Create `Modules/Cms/Storefront/ListFaqEntries/Query.cs` + `Handler.cs` — uses `StorefrontContentResolver`; secondary sort `display_order ASC, created_at_utc ASC`; `category` query param filter
+- [X] T132 [US6] Wire ListFaqEntries to `GET /v1/storefront/cms/faq` with `[AllowAnonymous]` + rate-limit + cache headers
+- [X] T133 [US6] Extend SchedulePublish + PublishNow handlers (T064/T065) for FAQ entries: LocaleCompletenessGate enforces both Q&A locales
 
 **Checkpoint**: User Story 6 ready independently — FAQ entries can be authored, reordered safely under concurrency, and read via the storefront.
 

@@ -27,6 +27,7 @@ review.edit.deleted_terminal            = This review has been deleted and can n
 # Row-level (entity)
 review.row.version_conflict             = This review was changed by someone else. Please reload and try again.
 review.row.delete_forbidden             = Reviews cannot be hard-deleted; soft-state deletion is the only path.
+review.row.not_found                    = Review not found.
 
 # Reporting (entity)
 review.report.cannot_report_own_review  = You cannot report your own review.
@@ -53,6 +54,7 @@ reviews.moderation.rate_limit_exceeded        = You have made too many moderatio
 reviews.policy.forbidden                = You do not have permission to manage review policy.
 reviews.policy.wordlist.term_invalid    = Wordlist terms must be 1–200 characters after normalization.
 reviews.policy.market.value_out_of_range = One of the market policy values is outside the allowed range.
+reviews.policy.body_required            = Request body is required.
 
 # Aggregate (module)
 reviews.aggregate.market_invalid        = Unknown market code.

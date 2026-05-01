@@ -75,7 +75,7 @@ public static class ReviewReasonCode
         EligibilityNoDeliveredPurchase, EligibilityRefunded, EligibilityWindowClosed, EligibilityAlreadyReviewed,
         HeadlineLengthInvalid, BodyLengthInvalid, RatingOutOfRange, LocaleInvalid, MediaTooMany, MediaInvalidSignedUrl,
         EditWindowClosed, EditNotAuthor, EditDeletedTerminal,
-        RowVersionConflict, RowDeleteForbidden,
+        RowVersionConflict, RowDeleteForbidden, RowNotFound,
         ReportCannotReportOwnReview, ReportReasonInvalid, ReportNoteRequired, ReportAlreadyReportedByActor, ReportUnauthenticated,
         RateLimitSubmissionExceeded, RateLimitEditExceeded, RateLimitReportExceeded,
         ModerationForbidden, ModerationDeleteRequiresSuperAdmin, ModerationReasonRequired, ModerationInvalidState,

@@ -96,7 +96,7 @@ public sealed class AuditCoverageTests : IAsyncLifetime
         {
             await using var reportDb = NewContext();
             var report = new ReportReviewHandler(reportDb, FakeReviewReporterFactsQuery.Qualified, clock);
-            await report.HandleAsync(Guid.NewGuid(), visibleId,
+            await report.HandleAsync(Guid.NewGuid(), "SA", visibleId,
                 new ReportReviewRequest("personal_attack", null), CancellationToken.None);
         }
 

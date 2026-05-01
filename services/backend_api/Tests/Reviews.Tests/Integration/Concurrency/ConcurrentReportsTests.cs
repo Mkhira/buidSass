@@ -62,7 +62,7 @@ public sealed class ConcurrentReportsTests : IAsyncLifetime
             try
             {
                 var handler = new ReportReviewHandler(db, new FakeQualifiedFacts(), TimeProviderFor());
-                return await handler.HandleAsync(r, reviewId,
+                return await handler.HandleAsync(r, "SA", reviewId,
                     new ReportReviewRequest("personal_attack", null), CancellationToken.None);
             }
             finally { await db.DisposeAsync(); }
@@ -102,7 +102,7 @@ public sealed class ConcurrentReportsTests : IAsyncLifetime
             try
             {
                 var handler = new ReportReviewHandler(db, new FakeQualifiedFacts(), TimeProviderFor());
-                return await handler.HandleAsync(reporter, reviewId,
+                return await handler.HandleAsync(reporter, "SA", reviewId,
                     new ReportReviewRequest("spam_or_irrelevant", null), CancellationToken.None);
             }
             finally { await db.DisposeAsync(); }

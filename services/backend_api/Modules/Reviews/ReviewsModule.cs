@@ -5,6 +5,7 @@ using BackendApi.Modules.Reviews.Hooks;
 using BackendApi.Modules.Reviews.Persistence;
 using BackendApi.Modules.Reviews.Seeding;
 using BackendApi.Modules.Shared;
+using MediatR;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
@@ -60,11 +61,20 @@ public static partial class ReviewsModule
         }, lifetime: ServiceLifetime.Singleton);
 
         services.AddSingleton<ProfanityFilter>();
+        services.AddSingleton<RateLimit.ReviewRateLimiter>();
         services.AddScoped<ISeeder, ReviewsReferenceDataSeeder>();
         // Dev / Staging-only synthetic dataset; ISeeder registration is
         // unconditional — the seeder body short-circuits in Production via
         // its IHostEnvironment check, and SeedGuard double-gates in CI.
         services.AddScoped<ISeeder, ReviewsV1DevSeeder>();
+
+        // Domain-event bus — MediatR.IPublisher is the production wire; tests
+        // swap in a FakeReviewDomainEventCollector. AddMediatR is idempotent
+        // across modules; if another module already registered it the second
+        // call just appends our assembly's handlers (currently zero — spec 025
+        // owns the consumers).
+        services.AddMediatR(cfg => cfg.RegisterServicesFromAssemblyContaining<ReviewSubmitted>());
+        services.TryAddScoped<IReviewDomainEventPublisher, MediatRReviewDomainEventPublisher>();
 
         // Cross-module fallback bindings — replaced by their owning specs at runtime.
         // TryAdd lets specs 011 / 005 / 019 / 013 supply production implementations

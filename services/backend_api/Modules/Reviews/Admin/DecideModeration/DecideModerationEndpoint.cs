@@ -1,5 +1,6 @@
 using BackendApi.Modules.Reviews.Primitives;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Routing;
 
 namespace BackendApi.Modules.Reviews.Admin.DecideModeration;
@@ -15,9 +16,9 @@ public static class DecideModerationEndpoint
 
     private static async Task<IResult> HandleAsync(
         Guid id,
-        DecideModerationRequest? body,
+        [FromBody] DecideModerationRequest? body,
         HttpContext context,
-        DecideModerationHandler handler,
+        [FromServices] DecideModerationHandler handler,
         CancellationToken ct)
     {
         var actorId = AdminReviewsResponseFactory.ResolveActorId(context);

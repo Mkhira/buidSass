@@ -48,6 +48,7 @@ public static class SearchModule
         services.AddSingleton<SynonymsSeeder>();
         services.AddSingleton<QueryLogger>();
         services.AddSingleton<ArabicNormalizer>();
+        services.AddSingleton<IArabicNormalizer>(sp => sp.GetRequiredService<ArabicNormalizer>());
         services.AddSingleton<SearchReindexService>();
         services.AddSingleton<SearchIndexerWorker>();
         services.AddScoped<ICatalogEventSubscriber>(sp => sp.GetRequiredService<SearchIndexerWorker>());

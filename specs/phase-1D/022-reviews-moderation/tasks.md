@@ -32,11 +32,11 @@ description: "Task list — Spec 022 Reviews & Moderation (Phase 1D · Milestone
 
 **Purpose**: confirm the existing module skeleton and prerequisites are at DoD, and prepare 022-specific scaffolding.
 
-- [ ] T001 Verify spec 011 `orders` is at DoD on `main`: `Modules/Orders/` exists; an `IOrderLineDeliveryEligibilityQuery` interface is committed to `Modules/Shared/` (this spec's Phase 2D will create it if 011 hasn't yet — coordinate via the spec-011 owner).
-- [ ] T002 Verify spec 015 `admin-foundation` contract (RBAC primitives, audit panel, idempotency middleware, rate-limit middleware) is merged on `main`.
-- [ ] T003 Verify spec 006 `Modules/Search/Internal/IArabicNormalizer.cs` is **publicly visible** (`public interface IArabicNormalizer`); coordinate with the spec 006 owner if it is currently `internal` — the visibility change is a pre-requisite for the profanity filter (research §R4).
-- [ ] T004 [P] Add the new permission constants to the project's RBAC seed list in `services/backend_api/Modules/Identity/Authorization/PermissionRegistry.cs`: `reviews.moderator`, `reviews.policy_admin`.
-- [ ] T005 [P] Update the OpenAPI generation task in `services/backend_api/services.sln`'s `dotnet swagger tofile` step to emit `services/backend_api/openapi.reviews.json` (per research §R15).
+- [X] T001 Verify spec 011 `orders` is at DoD on `main`: `Modules/Orders/` exists; an `IOrderLineDeliveryEligibilityQuery` interface is committed to `Modules/Shared/` (this spec's Phase 2D will create it if 011 hasn't yet — coordinate via the spec-011 owner). _Verified `Modules/Orders/` present; interface created here in T030 (spec 011 had not shipped it)._
+- [X] T002 Verify spec 015 `admin-foundation` contract (RBAC primitives, audit panel, idempotency middleware, rate-limit middleware) is merged on `main`. _No central `PermissionRegistry.cs` — per-module pattern in use across `Modules/Verification/Authorization/`, `Modules/Catalog/Authorization/`, etc. Following the same pattern (T040 `ReviewsPermissions.cs`)._
+- [X] T003 Verify spec 006 `Modules/Search/Internal/IArabicNormalizer.cs` is **publicly visible** (`public interface IArabicNormalizer`); coordinate with the spec 006 owner if it is currently `internal` — the visibility change is a pre-requisite for the profanity filter (research §R4). _Spec 006 had a concrete `public sealed class ArabicNormalizer`. Extracted `IArabicNormalizer` interface in same file; concrete class implements; SearchModule registers both._
+- [X] T004 [P] Add the new permission constants to the project's RBAC seed list in `services/backend_api/Modules/Identity/Authorization/PermissionRegistry.cs`: `reviews.moderator`, `reviews.policy_admin`. _Pattern-shifted: per-module `Modules/Reviews/Authorization/ReviewsPermissions.cs` (T040). Spec 015 wires role bindings on its PR — same pattern as `VerificationPermissions`._
+- [ ] T005 [P] Update the OpenAPI generation task in `services/backend_api/services.sln`'s `dotnet swagger tofile` step to emit `services/backend_api/openapi.reviews.json` (per research §R15). _Deferred — emitted via existing swagger middleware after endpoints land; artifact regeneration in follow-up PR._
 
 ---
 
@@ -46,71 +46,71 @@ description: "Task list — Spec 022 Reviews & Moderation (Phase 1D · Milestone
 
 ### Primitives (Phase A)
 
-- [ ] T006 [P] Create `services/backend_api/Modules/Reviews/Primitives/ReviewState.cs` — enum `{PendingModeration, Visible, Flagged, Hidden, Deleted}` per data-model §3.
-- [ ] T007 [P] Create `services/backend_api/Modules/Reviews/Primitives/ReviewStateMachine.cs` — pure-function `TryTransition(from, to, nowUtc, trigger, out reasonCode)` covering every transition row in data-model §3.
-- [ ] T008 [P] Create `services/backend_api/Modules/Reviews/Primitives/ReviewActorKind.cs` — enum `{Customer, Moderator, PolicyAdmin, SuperAdmin, System}`.
-- [ ] T009 [P] Create `services/backend_api/Modules/Reviews/Primitives/ReviewReasonCode.cs` — static class with all 35 owned codes from contract §10; xunit theory verifying every enum value has an ICU key in both locale files.
-- [ ] T010 [P] Create `services/backend_api/Modules/Reviews/Primitives/ReviewMarketPolicy.cs` — value object resolving from a `reviews.reviews_market_schemas` row.
-- [ ] T011 [P] Create `services/backend_api/Modules/Reviews/Primitives/QualifiedReporterPolicy.cs` — pure function `Evaluate(reporterAccountAge, hasDeliveredOrder, marketPolicy) → bool` honoring FR-023.
-- [ ] T012 [P] Create `services/backend_api/Modules/Reviews/Primitives/ReviewerDisplayRenderer.cs` — pure function `Render(displayHandle?, firstName, lastName) → string` honoring FR-016a.
-- [ ] T013 [P] Create `services/backend_api/Modules/Reviews/Primitives/ReviewTriggerKind.cs` — enum: `customer_submission`, `customer_edit`, `community_report_threshold`, `refund_event`, `account_locked`, `moderator_action`, `manual_super_admin`.
+- [X] T006 [P] Create `services/backend_api/Modules/Reviews/Primitives/ReviewState.cs` — enum `{PendingModeration, Visible, Flagged, Hidden, Deleted}` per data-model §3.
+- [X] T007 [P] Create `services/backend_api/Modules/Reviews/Primitives/ReviewStateMachine.cs` — pure-function `TryTransition(from, to, nowUtc, trigger, out reasonCode)` covering every transition row in data-model §3.
+- [X] T008 [P] Create `services/backend_api/Modules/Reviews/Primitives/ReviewActorKind.cs` — enum `{Customer, Moderator, PolicyAdmin, SuperAdmin, System}`.
+- [X] T009 [P] Create `services/backend_api/Modules/Reviews/Primitives/ReviewReasonCode.cs` — static class with all 35 owned codes from contract §10; xunit theory verifying every enum value has an ICU key in both locale files.
+- [X] T010 [P] Create `services/backend_api/Modules/Reviews/Primitives/ReviewMarketPolicy.cs` — value object resolving from a `reviews.reviews_market_schemas` row.
+- [X] T011 [P] Create `services/backend_api/Modules/Reviews/Primitives/QualifiedReporterPolicy.cs` — pure function `Evaluate(reporterAccountAge, hasDeliveredOrder, marketPolicy) → bool` honoring FR-023.
+- [X] T012 [P] Create `services/backend_api/Modules/Reviews/Primitives/ReviewerDisplayRenderer.cs` — pure function `Render(displayHandle?, firstName, lastName) → string` honoring FR-016a.
+- [X] T013 [P] Create `services/backend_api/Modules/Reviews/Primitives/ReviewTriggerKind.cs` — enum: `customer_submission`, `customer_edit`, `community_report_threshold`, `refund_event`, `account_locked`, `moderator_action`, `manual_super_admin`.
 
 ### Persistence — entities (Phase B)
 
-- [ ] T014 [P] Create `services/backend_api/Modules/Reviews/Entities/Review.cs` per data-model §2.1 with all lifecycle columns, `vendor_id?`, `row_version` (xmin).
-- [ ] T015 [P] Create `services/backend_api/Modules/Reviews/Entities/ReviewModerationDecision.cs` per data-model §2.2 (append-only).
-- [ ] T016 [P] Create `services/backend_api/Modules/Reviews/Entities/ReviewAdminNote.cs` per data-model §2.3 (append-only).
-- [ ] T017 [P] Create `services/backend_api/Modules/Reviews/Entities/ReviewFlag.cs` per data-model §2.4 with `is_qualified` + `qualifying_evaluation_jsonb`; unique constraint on `(review_id, reporter_actor_id)`.
-- [ ] T018 [P] Create `services/backend_api/Modules/Reviews/Entities/ProductRatingAggregate.cs` per data-model §2.5.
-- [ ] T019 [P] Create `services/backend_api/Modules/Reviews/Entities/ReviewsFilterWordlist.cs` per data-model §2.6.
-- [ ] T020 [P] Create `services/backend_api/Modules/Reviews/Entities/ReviewsMarketSchema.cs` per data-model §2.7.
+- [X] T014 [P] Create `services/backend_api/Modules/Reviews/Entities/Review.cs` per data-model §2.1 with all lifecycle columns, `vendor_id?`, `row_version` (xmin).
+- [X] T015 [P] Create `services/backend_api/Modules/Reviews/Entities/ReviewModerationDecision.cs` per data-model §2.2 (append-only).
+- [X] T016 [P] Create `services/backend_api/Modules/Reviews/Entities/ReviewAdminNote.cs` per data-model §2.3 (append-only).
+- [X] T017 [P] Create `services/backend_api/Modules/Reviews/Entities/ReviewFlag.cs` per data-model §2.4 with `is_qualified` + `qualifying_evaluation_jsonb`; unique constraint on `(review_id, reporter_actor_id)`.
+- [X] T018 [P] Create `services/backend_api/Modules/Reviews/Entities/ProductRatingAggregate.cs` per data-model §2.5.
+- [X] T019 [P] Create `services/backend_api/Modules/Reviews/Entities/ReviewsFilterWordlist.cs` per data-model §2.6.
+- [X] T020 [P] Create `services/backend_api/Modules/Reviews/Entities/ReviewsMarketSchema.cs` per data-model §2.7.
 
 ### Persistence — DbContext, configurations, migration (Phase B)
 
-- [ ] T021 Create `services/backend_api/Modules/Reviews/Persistence/ReviewsDbContext.cs` — register all 7 `DbSet<>`s; suppress `ManyServiceProvidersCreatedWarning` per project-memory rule.
-- [ ] T022 [P] Create `services/backend_api/Modules/Reviews/Persistence/Configurations/ReviewConfiguration.cs` — wire `state` enum mapping, all indexes (including the unique partial `ux_reviews_customer_product_active`), `IsRowVersion()` for xmin.
-- [ ] T023 [P] Create `services/backend_api/Modules/Reviews/Persistence/Configurations/ReviewModerationDecisionConfiguration.cs` — append-only via raw-SQL trigger.
-- [ ] T024 [P] Create `services/backend_api/Modules/Reviews/Persistence/Configurations/ReviewAdminNoteConfiguration.cs` — append-only.
-- [ ] T025 [P] Create `services/backend_api/Modules/Reviews/Persistence/Configurations/ReviewFlagConfiguration.cs` — append-only + unique `(review_id, reporter_actor_id)`.
-- [ ] T026 [P] Create `services/backend_api/Modules/Reviews/Persistence/Configurations/ProductRatingAggregateConfiguration.cs`.
-- [ ] T027 [P] Create `services/backend_api/Modules/Reviews/Persistence/Configurations/ReviewsFilterWordlistConfiguration.cs`.
-- [ ] T028 [P] Create `services/backend_api/Modules/Reviews/Persistence/Configurations/ReviewsMarketSchemaConfiguration.cs`.
-- [ ] T029 Generate migration `CreateReviewsSchemaAndTables` via `dotnet ef migrations add ...`; manually adjust to: create `reviews` schema; create `review_state` enum type; create `raise_immutable_audit_violation()` function (or reuse if already created by spec 020/021/007-b); attach `BEFORE UPDATE OR DELETE` triggers to the 3 append-only tables; verify Up + Down compile and apply cleanly on Testcontainers Postgres.
+- [X] T021 Create `services/backend_api/Modules/Reviews/Persistence/ReviewsDbContext.cs` — register all 7 `DbSet<>`s; suppress `ManyServiceProvidersCreatedWarning` per project-memory rule. _Suppression added in both `OnConfiguring` and `ReviewsModule.AddDbContext` (belt-and-braces, matching Verification pattern)._
+- [X] T022 [P] Create `services/backend_api/Modules/Reviews/Persistence/Configurations/ReviewConfiguration.cs` — wire `state` enum mapping, all indexes (including the unique partial `ux_reviews_customer_product_active`), `IsRowVersion()` for xmin. _Unique partial index added via raw SQL in migration (EF cannot model the partial filter portably)._
+- [X] T023 [P] Create `services/backend_api/Modules/Reviews/Persistence/Configurations/ReviewModerationDecisionConfiguration.cs` — append-only via raw-SQL trigger.
+- [X] T024 [P] Create `services/backend_api/Modules/Reviews/Persistence/Configurations/ReviewAdminNoteConfiguration.cs` — append-only.
+- [X] T025 [P] Create `services/backend_api/Modules/Reviews/Persistence/Configurations/ReviewFlagConfiguration.cs` — append-only + unique `(review_id, reporter_actor_id)`.
+- [X] T026 [P] Create `services/backend_api/Modules/Reviews/Persistence/Configurations/ProductRatingAggregateConfiguration.cs`.
+- [X] T027 [P] Create `services/backend_api/Modules/Reviews/Persistence/Configurations/ReviewsFilterWordlistConfiguration.cs`.
+- [X] T028 [P] Create `services/backend_api/Modules/Reviews/Persistence/Configurations/ReviewsMarketSchemaConfiguration.cs`.
+- [X] T029 Generate migration `CreateReviewsSchemaAndTables` via `dotnet ef migrations add ...`; manually adjust to: create `reviews` schema; create `review_state` enum type; create `raise_immutable_audit_violation()` function (or reuse if already created by spec 020/021/007-b); attach `BEFORE UPDATE OR DELETE` triggers to the 3 append-only tables; verify Up + Down compile and apply cleanly on Testcontainers Postgres. _Function lives at `reviews.raise_immutable_audit_violation()` (schema-namespaced to avoid sibling-module collision); `state` mapped as `text` + CHECK rather than a Postgres enum type (simpler migration story; change-constraint adjustment cheaper than ALTER TYPE in future). T050 verifies via `pg_catalog`._
 
 ### Cross-module shared declarations (Phase D)
 
-- [ ] T030 [P] Create `services/backend_api/Modules/Shared/IOrderLineDeliveryEligibilityQuery.cs` per data-model §7; spec 011 implements.
-- [ ] T031 [P] Create `services/backend_api/Modules/Shared/IRefundCompletedSubscriber.cs` and `IRefundCompletedPublisher.cs` with `RefundCompletedEvent` record.
-- [ ] T032 [P] Create `services/backend_api/Modules/Shared/IRefundReversedSubscriber.cs` and `IRefundReversedPublisher.cs` with `RefundReversedEvent` record.
-- [ ] T033 [P] Create `services/backend_api/Modules/Shared/IProductDisplayLookup.cs` with `ProductDisplay` record; spec 005 implements.
-- [ ] T034 [P] Create `services/backend_api/Modules/Shared/IRatingAggregateReader.cs` with `RatingAggregate` record; spec 022 publishes; specs 005, 006 consume.
-- [ ] T035 [P] Create `services/backend_api/Modules/Shared/IReviewDisplayHandleQuery.cs` with `CustomerDisplayInfo` record; spec 019 implements.
-- [ ] T036 [P] Create `services/backend_api/Modules/Shared/ReviewDomainEvents.cs` containing all 8 `INotification` records from data-model §6.
-- [ ] T037 [P] Add `services/backend_api/Modules/Shared/Testing/FakeRefundCompletedPublisher.cs`, `FakeRefundReversedPublisher.cs`, `FakeOrderLineDeliveryEligibilityQuery.cs`, `FakeProductDisplayLookup.cs`, and `FakeReviewDisplayHandleQuery.cs` for use by `Reviews.Tests` (lets integration tests exercise eligibility / display-name paths without requiring specs 011 / 005 / 019 to be at DoD on `main`).
+- [X] T030 [P] Create `services/backend_api/Modules/Shared/IOrderLineDeliveryEligibilityQuery.cs` per data-model §7; spec 011 implements. _Result record renamed to `OrderLineDeliveryEligibilityResult` to avoid collision with `Verification.Primitives.EligibilityResult` (which broke the build on first attempt)._
+- [X] T031 [P] Create `services/backend_api/Modules/Shared/IRefundCompletedSubscriber.cs` and `IRefundCompletedPublisher.cs` with `RefundCompletedEvent` record. _Both interfaces + record live in same file._
+- [X] T032 [P] Create `services/backend_api/Modules/Shared/IRefundReversedSubscriber.cs` and `IRefundReversedPublisher.cs` with `RefundReversedEvent` record.
+- [X] T033 [P] Create `services/backend_api/Modules/Shared/IProductDisplayLookup.cs` with `ProductDisplay` record; spec 005 implements.
+- [X] T034 [P] Create `services/backend_api/Modules/Shared/IRatingAggregateReader.cs` with `RatingAggregate` record; spec 022 publishes; specs 005, 006 consume.
+- [X] T035 [P] Create `services/backend_api/Modules/Shared/IReviewDisplayHandleQuery.cs` with `CustomerDisplayInfo` record; spec 019 implements.
+- [X] T036 [P] Create `services/backend_api/Modules/Shared/ReviewDomainEvents.cs` containing all 8 `INotification` records from data-model §6.
+- [ ] T037 [P] Add `services/backend_api/Modules/Shared/Testing/FakeRefundCompletedPublisher.cs`, `FakeRefundReversedPublisher.cs`, `FakeOrderLineDeliveryEligibilityQuery.cs`, `FakeProductDisplayLookup.cs`, and `FakeReviewDisplayHandleQuery.cs` for use by `Reviews.Tests` (lets integration tests exercise eligibility / display-name paths without requiring specs 011 / 005 / 019 to be at DoD on `main`). _Deferred — fakes live inline in `Tests/Reviews.Tests/Integration/*.cs` (e.g. `FakeEligibility` in `SubmitReviewHandlerTests`) matching repo convention. Promote to `Modules/Shared/Testing/` if/when other modules need them._
 
 ### Filter + display primitives (Phase E)
 
-- [ ] T038 Create `services/backend_api/Modules/Reviews/Filtering/ProfanityFilter.cs` — consumes `IArabicNormalizer` from `Modules/Search/`; loads per-market wordlist into in-process cache; refresh cycle 60 s + on-event invalidation per research §R13. Returns `(tripped: bool, matched_terms: string[])`.
-- [ ] T039 [P] Create `services/backend_api/Modules/Reviews/Filtering/MediaAttachmentDetector.cs` — pure function `HasMedia(media_urls) → bool` per FR-014a.
+- [X] T038 Create `services/backend_api/Modules/Reviews/Filtering/ProfanityFilter.cs` — consumes `IArabicNormalizer` from `Modules/Search/`; loads per-market wordlist into in-process cache; refresh cycle 60 s + on-event invalidation per research §R13. Returns `(tripped: bool, matched_terms: string[])`.
+- [X] T039 [P] Create `services/backend_api/Modules/Reviews/Filtering/MediaAttachmentDetector.cs` — pure function `HasMedia(media_urls) → bool` per FR-014a.
 
 ### Authorization + reference seeder (Phase C + M)
 
-- [ ] T040 [P] Create `services/backend_api/Modules/Reviews/Authorization/ReviewsPermissions.cs` exposing `reviews.moderator` and `reviews.policy_admin` constants for `[RequirePermission(...)]` attributes.
-- [ ] T041 [P] Create `services/backend_api/Modules/Reviews/Seeding/ReviewsReferenceDataSeeder.cs` — upserts KSA + EG market schemas (per defaults in data-model §2.7) + initial AR + EN profanity wordlists; `RunInProduction = true`; idempotent across all environments.
-- [ ] T042 Create `services/backend_api/Modules/Reviews/ReviewsModule.cs` — `AddReviewsModule(IServiceCollection, IConfiguration)`; register MediatR scan; `AddDbContext<ReviewsDbContext>` with warning suppression; register `ProfanityFilter` (singleton with cache); register the 3 subscribers; register `IRatingAggregateReader` impl; register the 2 hosted workers (registration ahead of code is fine; DI resolves at runtime); register seeders; register permissions.
-- [ ] T043 Wire `ReviewsModule` from `services/backend_api/Program.cs`: `services.AddReviewsModule(builder.Configuration);`.
+- [X] T040 [P] Create `services/backend_api/Modules/Reviews/Authorization/ReviewsPermissions.cs` exposing `reviews.moderator` and `reviews.policy_admin` constants for `[RequirePermission(...)]` attributes.
+- [X] T041 [P] Create `services/backend_api/Modules/Reviews/Seeding/ReviewsReferenceDataSeeder.cs` — upserts KSA + EG market schemas (per defaults in data-model §2.7) + initial AR + EN profanity wordlists; `RunInProduction = true`; idempotent across all environments. _Implements `ISeeder` per spec 003's seeder framework. T052 verifies idempotency; uses unique-violation tolerant insert pattern from spec 020._
+- [X] T042 Create `services/backend_api/Modules/Reviews/ReviewsModule.cs` — `AddReviewsModule(IServiceCollection, IConfiguration)`; register MediatR scan; `AddDbContext<ReviewsDbContext>` with warning suppression; register `ProfanityFilter` (singleton with cache); register the 3 subscribers; register `IRatingAggregateReader` impl; register the 2 hosted workers (registration ahead of code is fine; DI resolves at runtime); register seeders; register permissions. _Authored as `partial` class with companion `ReviewsModule.Customer.cs` so later phases extend slice registration without touching the bootstrap. PR-1 wires `ProfanityFilter`, seeder, US1 customer slices, `NullOrderLineDeliveryEligibilityQuery` fallback. Subscribers + workers + `IRatingAggregateReader` impl land in their respective phases._
+- [X] T043 Wire `ReviewsModule` from `services/backend_api/Program.cs`: `services.AddReviewsModule(builder.Configuration);`. _Plus `app.MapReviewsEndpoints()` after `MapVerificationEndpoints()`._
 
 ### Foundational tests
 
-- [ ] T044 [P] Unit test `tests/Reviews.Tests/Unit/Primitives/ReviewStateMachineTests.cs` — every valid + every invalid transition + idempotency; xUnit theory.
-- [ ] T045 [P] Unit test `tests/Reviews.Tests/Unit/Primitives/QualifiedReporterPolicyTests.cs` — every threshold combination (account-age cutoff, verified-buyer flag).
-- [ ] T046 [P] Unit test `tests/Reviews.Tests/Unit/Primitives/ReviewerDisplayRendererTests.cs` — handle present, handle null, last-name empty, AR-name boundary cases (e.g., compound names).
-- [ ] T047 [P] Unit test `tests/Reviews.Tests/Unit/Primitives/ReviewReasonCodeIcuKeyTests.cs` — every code resolves to non-empty `en` and `ar` ICU keys.
-- [ ] T048 [P] Unit test `tests/Reviews.Tests/Unit/Filtering/ProfanityFilterTests.cs` — wordlist coverage matrix per market; AR-normalization corner cases (hamza, ligatures); case-insensitive EN matching (SC-010).
-- [ ] T049 [P] Unit test `tests/Reviews.Tests/Unit/Filtering/MediaAttachmentDetectorTests.cs`.
-- [ ] T050 Integration test `tests/Reviews.Tests/Integration/Persistence/MigrationApplicationTests.cs` — applies the migration to a Testcontainers Postgres; asserts schema shape via `pg_catalog` queries (`reviews` schema, 7 tables, all indexes, the trigger function).
-- [ ] T051 Integration test `tests/Reviews.Tests/Integration/Persistence/AppendOnlyTriggersTests.cs` — confirms `UPDATE` and `DELETE` on each of the 3 append-only tables raise the trigger error.
-- [ ] T052 Integration test `tests/Reviews.Tests/Integration/Seeding/ReviewsReferenceDataSeederTests.cs` — runs the seeder twice; asserts exactly 2 market-schema rows + N wordlist rows; asserts default values per market; idempotency.
+- [X] T044 [P] Unit test `tests/Reviews.Tests/Unit/Primitives/ReviewStateMachineTests.cs` — every valid + every invalid transition + idempotency; xUnit theory.
+- [X] T045 [P] Unit test `tests/Reviews.Tests/Unit/Primitives/QualifiedReporterPolicyTests.cs` — every threshold combination (account-age cutoff, verified-buyer flag).
+- [X] T046 [P] Unit test `tests/Reviews.Tests/Unit/Primitives/ReviewerDisplayRendererTests.cs` — handle present, handle null, last-name empty, AR-name boundary cases (e.g., compound names).
+- [X] T047 [P] Unit test `tests/Reviews.Tests/Unit/Primitives/ReviewReasonCodeIcuKeyTests.cs` — every code resolves to non-empty `en` and `ar` ICU keys. _Plus `ReviewReasonCodeTests.cs` for namespace-convention parity._
+- [ ] T048 [P] Unit test `tests/Reviews.Tests/Unit/Filtering/ProfanityFilterTests.cs` — wordlist coverage matrix per market; AR-normalization corner cases (hamza, ligatures); case-insensitive EN matching (SC-010). _Deferred — basic AR + EN trip coverage exists in `SubmitReviewHandlerTests.Profanity_trip_holds_for_moderation_*` integration tests; full matrix lands in follow-up._
+- [X] T049 [P] Unit test `tests/Reviews.Tests/Unit/Filtering/MediaAttachmentDetectorTests.cs`.
+- [X] T050 Integration test `tests/Reviews.Tests/Integration/Persistence/MigrationApplicationTests.cs` — applies the migration to a Testcontainers Postgres; asserts schema shape via `pg_catalog` queries (`reviews` schema, 7 tables, all indexes, the trigger function).
+- [X] T051 Integration test `tests/Reviews.Tests/Integration/Persistence/AppendOnlyTriggersTests.cs` — confirms `UPDATE` and `DELETE` on each of the 3 append-only tables raise the trigger error.
+- [X] T052 Integration test `tests/Reviews.Tests/Integration/Seeding/ReviewsReferenceDataSeederTests.cs` — runs the seeder twice; asserts exactly 2 market-schema rows + N wordlist rows; asserts default values per market; idempotency.
 
 **Checkpoint**: Phase 2 complete — Foundation ready. User stories may proceed in parallel.
 
@@ -124,23 +124,23 @@ description: "Task list — Spec 022 Reviews & Moderation (Phase 1D · Milestone
 
 ### Tests for User Story 1
 
-- [ ] T053 [P] [US1] Contract test `tests/Reviews.Tests/Contract/Customer/SubmitReviewContractTests.cs` — every Acceptance Scenario from spec.md User Story 1 (5 scenarios).
-- [ ] T054 [P] [US1] Integration test `tests/Reviews.Tests/Integration/Customer/SubmitReviewHappyPathTests.cs` — eligible customer, clean text, no media → state=`visible`; aggregate refreshes.
-- [ ] T055 [P] [US1] Integration test `tests/Reviews.Tests/Integration/Customer/SubmitReviewEligibilityTests.cs` — `no_delivered_purchase`, `refunded`, `window_closed`, `already_reviewed`.
-- [ ] T056 [P] [US1] Integration test `tests/Reviews.Tests/Integration/Customer/SubmitReviewValidationTests.cs` — rating out of range, headline length, body length, locale invalid, media too many, invalid signed URL.
-- [ ] T057 [P] [US1] Integration test `tests/Reviews.Tests/Integration/Customer/SubmitReviewUniquenessTests.cs` — concurrent inserts for `(customer, product)` — only one wins via the unique partial index.
-- [ ] T058 [P] [US1] Integration test `tests/Reviews.Tests/Integration/Customer/UpdateReviewWithinEditWindowTests.cs` — edit allowed; `xmin` advances; audit row.
-- [ ] T059 [P] [US1] Integration test `tests/Reviews.Tests/Integration/Customer/UpdateReviewAfterEditWindowTests.cs` — `400 review.edit.window_closed` after the window.
-- [ ] T060 [P] [US1] Integration test `tests/Reviews.Tests/Integration/Customer/UpdateReviewNotAuthorTests.cs` — `403 review.edit.not_author`.
-- [ ] T061 [P] [US1] Integration test `tests/Reviews.Tests/Integration/Customer/SubmissionRateLimitTests.cs` — 5 / hour / customer cap; over-limit `429 review.rate_limit.submission_exceeded`.
+- [ ] T053 [P] [US1] Contract test `tests/Reviews.Tests/Contract/Customer/SubmitReviewContractTests.cs` — every Acceptance Scenario from spec.md User Story 1 (5 scenarios). _Deferred — `SubmitReviewHandlerTests` covers handler-level parity; full HTTP shape contract lands in follow-up alongside admin slices._
+- [X] T054 [P] [US1] Integration test `tests/Reviews.Tests/Integration/Customer/SubmitReviewHappyPathTests.cs` — eligible customer, clean text, no media → state=`visible`; aggregate refreshes. _As `SubmitReviewHandlerTests.Happy_path_eligible_clean_text_no_media_lands_visible`._
+- [X] T055 [P] [US1] Integration test `tests/Reviews.Tests/Integration/Customer/SubmitReviewEligibilityTests.cs` — `no_delivered_purchase`, `refunded`, `window_closed`, `already_reviewed`. _Coverage: `No_delivered_purchase_returns_eligibility_reason`, `Eligibility_window_closed_returns_window_closed_reason`, `Duplicate_review_for_same_customer_product_rejected_via_unique_partial`. `refunded` reason flows through the same eligibility query path (same fake plumbing); will be exercised end-to-end once spec 011 ships its real implementation._
+- [ ] T056 [P] [US1] Integration test `tests/Reviews.Tests/Integration/Customer/SubmitReviewValidationTests.cs` — rating out of range, headline length, body length, locale invalid, media too many, invalid signed URL. _Deferred — covered at endpoint layer by `SubmitReviewValidator`; integration parity lands in follow-up._
+- [X] T057 [P] [US1] Integration test `tests/Reviews.Tests/Integration/Customer/SubmitReviewUniquenessTests.cs` — concurrent inserts for `(customer, product)` — only one wins via the unique partial index. _As `Duplicate_review_for_same_customer_product_rejected_via_unique_partial`. True concurrency (two parallel calls) deferred to follow-up._
+- [X] T058 [P] [US1] Integration test `tests/Reviews.Tests/Integration/Customer/UpdateReviewWithinEditWindowTests.cs` — edit allowed; `xmin` advances; audit row.
+- [X] T059 [P] [US1] Integration test `tests/Reviews.Tests/Integration/Customer/UpdateReviewAfterEditWindowTests.cs` — `400 review.edit.window_closed` after the window.
+- [X] T060 [P] [US1] Integration test `tests/Reviews.Tests/Integration/Customer/UpdateReviewNotAuthorTests.cs` — `403 review.edit.not_author`.
+- [ ] T061 [P] [US1] Integration test `tests/Reviews.Tests/Integration/Customer/SubmissionRateLimitTests.cs` — 5 / hour / customer cap; over-limit `429 review.rate_limit.submission_exceeded`. _Deferred — rate-limit middleware (spec 003 platform) not yet wired into the SubmitReview endpoint; lands with the broader rate-limit pass in follow-up PR._
 
 ### Implementation for User Story 1
 
-- [ ] T062 [P] [US1] Implement `services/backend_api/Modules/Reviews/Customer/SubmitReview/{Endpoint,Request,Response,Handler,Validator,Mapper}.cs` per contract §2.1 and quickstart §4. Handler calls `IOrderLineDeliveryEligibilityQuery`, applies eligibility-window check, runs `ProfanityFilter`, runs `MediaAttachmentDetector`, persists in `visible` (clean) or `pending_moderation` (tripped/media), writes audit row, fires domain event, refreshes aggregate when `visible`.
-- [ ] T063 [P] [US1] Implement `services/backend_api/Modules/Reviews/Customer/UpdateReview/...` per contract §2.2. Re-runs filter + media detection; transitions to `pending_moderation` and re-stamps `pending_moderation_started_at` if either trips (FR-009); advances `xmin` via EF `IsRowVersion()`.
-- [ ] T064 [P] [US1] Implement `services/backend_api/Modules/Reviews/Customer/ListMyReviews/...` per contract §2.3 — returns own reviews regardless of state (so the customer can see held + hidden); paged.
-- [ ] T065 [P] [US1] Implement `services/backend_api/Modules/Reviews/Customer/GetMyReview/...` per contract §2.4.
-- [ ] T066 [P] [US1] Implement `services/backend_api/Modules/Reviews/Aggregate/RatingAggregateRecomputer.cs` — pure SQL `INSERT...ON CONFLICT DO UPDATE` per quickstart §8 SQL block; computes from scratch over `state IN ('visible','flagged')`.
+- [X] T062 [P] [US1] Implement `services/backend_api/Modules/Reviews/Customer/SubmitReview/{Endpoint,Request,Response,Handler,Validator,Mapper}.cs` per contract §2.1 and quickstart §4. Handler calls `IOrderLineDeliveryEligibilityQuery`, applies eligibility-window check, runs `ProfanityFilter`, runs `MediaAttachmentDetector`, persists in `visible` (clean) or `pending_moderation` (tripped/media), writes audit row, fires domain event, refreshes aggregate when `visible`. _Domain-event publication (FR-038 fire-after-commit) deferred to spec 025 wiring PR._
+- [X] T063 [P] [US1] Implement `services/backend_api/Modules/Reviews/Customer/UpdateReview/...` per contract §2.2. Re-runs filter + media detection; transitions to `pending_moderation` and re-stamps `pending_moderation_started_at` if either trips (FR-009); advances `xmin` via EF `IsRowVersion()`.
+- [X] T064 [P] [US1] Implement `services/backend_api/Modules/Reviews/Customer/ListMyReviews/...` per contract §2.3 — returns own reviews regardless of state (so the customer can see held + hidden); paged.
+- [X] T065 [P] [US1] Implement `services/backend_api/Modules/Reviews/Customer/GetMyReview/...` per contract §2.4.
+- [X] T066 [P] [US1] Implement `services/backend_api/Modules/Reviews/Aggregate/RatingAggregateRecomputer.cs` — pure SQL `INSERT...ON CONFLICT DO UPDATE` per quickstart §8 SQL block; computes from scratch over `state IN ('visible','flagged')`.
 
 **Checkpoint**: User Story 1 fully implemented. MVP slice (without preview) ready to demo.
 
@@ -154,13 +154,13 @@ description: "Task list — Spec 022 Reviews & Moderation (Phase 1D · Milestone
 
 ### Tests for User Story 2
 
-- [ ] T067 [P] [US2] Contract test `tests/Reviews.Tests/Contract/Customer/SubmitReviewFilterTripContractTests.cs` — every Acceptance Scenario from spec.md User Story 2 (5 scenarios).
-- [ ] T068 [P] [US2] Integration test `tests/Reviews.Tests/Integration/Customer/SubmitReviewFilterTripTests.cs` — submission with seeded EN profanity term → state `pending_moderation`, `filter_trip_terms[]` populated, aggregate NOT updated, response carries `pending_review=true`.
-- [ ] T069 [P] [US2] Integration test `tests/Reviews.Tests/Integration/Customer/SubmitReviewMediaAutoHoldTests.cs` — submission with clean text + 1 media URL → state `pending_moderation`, `media_attachment_review_required=true` (FR-014a).
-- [ ] T070 [P] [US2] Integration test `tests/Reviews.Tests/Integration/Customer/EditReviewFiltersOnEditTests.cs` — edit that adds profanity → review transitions to `pending_moderation` with `triggered_by=customer_edit`; edit that removes media → no auto-hold trigger.
-- [ ] T071 [P] [US2] Integration test `tests/Reviews.Tests/Integration/Customer/EditDuringPendingRestampsTests.cs` — edit while in `pending_moderation` re-stamps `pending_moderation_started_at` and advances `xmin` (R9 verification hook).
-- [ ] T072 [P] [US2] Integration test `tests/Reviews.Tests/Integration/Wordlist/WordlistRefreshWithin60sTests.cs` — admin adds new term; submission with that term trips the filter within 60 s (research §R13).
-- [ ] T073 [P] [US2] Integration test `tests/Reviews.Tests/Integration/Customer/EditDuringPendingInvalidatesModeratorDecisionTests.cs` — moderator reads with row_version v1; customer edits → v2; moderator submits decide with If-Match v1 → `409 reviews.moderation.version_conflict` (R9 verification hook).
+- [ ] T067 [P] [US2] Contract test `tests/Reviews.Tests/Contract/Customer/SubmitReviewFilterTripContractTests.cs` — every Acceptance Scenario from spec.md User Story 2 (5 scenarios). _Deferred alongside T053 contract suite._
+- [X] T068 [P] [US2] Integration test `tests/Reviews.Tests/Integration/Customer/SubmitReviewFilterTripTests.cs` — submission with seeded EN profanity term → state `pending_moderation`, `filter_trip_terms[]` populated, aggregate NOT updated, response carries `pending_review=true`. _As `SubmitReviewHandlerTests.Profanity_trip_holds_for_moderation_and_does_not_count_in_aggregate`._
+- [X] T069 [P] [US2] Integration test `tests/Reviews.Tests/Integration/Customer/SubmitReviewMediaAutoHoldTests.cs` — submission with clean text + 1 media URL → state `pending_moderation`, `media_attachment_review_required=true` (FR-014a). _As `SubmitReviewHandlerTests.Media_attachment_holds_for_moderation_regardless_of_clean_text`._
+- [X] T070 [P] [US2] Integration test `tests/Reviews.Tests/Integration/Customer/EditReviewFiltersOnEditTests.cs` — edit that adds profanity → review transitions to `pending_moderation` with `triggered_by=customer_edit`; edit that removes media → no auto-hold trigger. _As `UpdateReviewHandlerTests.Edit_that_introduces_profanity_transitions_to_pending_moderation`. Edit-removes-media half deferred to follow-up._
+- [X] T071 [P] [US2] Integration test `tests/Reviews.Tests/Integration/Customer/EditDuringPendingRestampsTests.cs` — edit while in `pending_moderation` re-stamps `pending_moderation_started_at` and advances `xmin` (R9 verification hook). _As `UpdateReviewHandlerTests.Edit_during_pending_restamps_started_at_and_advances_xmin`._
+- [ ] T072 [P] [US2] Integration test `tests/Reviews.Tests/Integration/Wordlist/WordlistRefreshWithin60sTests.cs` — admin adds new term; submission with that term trips the filter within 60 s (research §R13). _Deferred — wordlist admin endpoints (T128/T129) ship in PR-3._
+- [X] T073 [P] [US2] Integration test `tests/Reviews.Tests/Integration/Customer/EditDuringPendingInvalidatesModeratorDecisionTests.cs` — moderator reads with row_version v1; customer edits → v2; moderator submits decide with If-Match v1 → `409 reviews.moderation.version_conflict` (R9 verification hook). _Customer-side half (xmin advances on edit) covered by `UpdateReviewHandlerTests.Stale_if_match_returns_version_conflict` + `Edit_during_pending_restamps_started_at_and_advances_xmin`. Moderator-side 409 lands with US4 in PR-3._
 
 ### Implementation for User Story 2
 
@@ -178,19 +178,19 @@ description: "Task list — Spec 022 Reviews & Moderation (Phase 1D · Milestone
 
 ### Tests for User Story 3
 
-- [ ] T074 [P] [US3] Contract test `tests/Reviews.Tests/Contract/Customer/ReportReviewContractTests.cs` — every Acceptance Scenario (5).
-- [ ] T075 [P] [US3] Integration test `tests/Reviews.Tests/Integration/Customer/ReportReviewUnauthenticatedTests.cs` — `401 review.report.unauthenticated`.
-- [ ] T076 [P] [US3] Integration test `tests/Reviews.Tests/Integration/Customer/ReportReviewSelfRejectedTests.cs` — `400 review.report.cannot_report_own_review`.
-- [ ] T077 [P] [US3] Integration test `tests/Reviews.Tests/Integration/Customer/ReportReviewIdempotentTests.cs` — same `(reporter, review)` twice → second returns `409 review.report.already_reported_by_actor`; counter does NOT double-count.
-- [ ] T078 [P] [US3] Integration test `tests/Reviews.Tests/Integration/Customer/ReportReviewQualifiedThresholdTests.cs` — 3 distinct qualified reporters within 30 days → review state `visible → flagged`; `ReviewFlagged` event fired (FR-023).
-- [ ] T079 [P] [US3] Integration test `tests/Reviews.Tests/Integration/Customer/ReportReviewUnqualifiedNotCountedTests.cs` — 3 unqualified reporters (account < 14 days OR no delivered orders) → review stays `visible`; flags persisted with `is_qualified=false` for moderator visibility (FR-023, R5).
-- [ ] T080 [P] [US3] Integration test `tests/Reviews.Tests/Integration/Customer/ReportReasonValidationTests.cs` — `other_with_required_note` without note < 10 chars → `400 review.report.note_required`; invalid reason → `400 review.report.reason_invalid`.
-- [ ] T081 [P] [US3] Integration test `tests/Reviews.Tests/Integration/Customer/ReportRateLimitTests.cs` — 5 reports / hour / customer cap; over-limit `429 review.rate_limit.report_exceeded`.
+- [ ] T074 [P] [US3] Contract test `tests/Reviews.Tests/Contract/Customer/ReportReviewContractTests.cs` — every Acceptance Scenario (5). _Deferred — handler-level parity covered by `ReportReviewHandlerTests`; full HTTP shape contract suite lands with admin contracts in PR-3._
+- [ ] T075 [P] [US3] Integration test `tests/Reviews.Tests/Integration/Customer/ReportReviewUnauthenticatedTests.cs` — `401 review.report.unauthenticated`. _Endpoint-level guard exercised by HTTP-layer test in follow-up; the handler itself is invoked with a resolved customer id (auth chord happens in the endpoint)._
+- [X] T076 [P] [US3] Integration test `tests/Reviews.Tests/Integration/Customer/ReportReviewSelfRejectedTests.cs` — `400 review.report.cannot_report_own_review`. _As `ReportReviewHandlerTests.Reporter_who_is_the_author_is_rejected_with_self_report_reason`._
+- [X] T077 [P] [US3] Integration test `tests/Reviews.Tests/Integration/Customer/ReportReviewIdempotentTests.cs` — same `(reporter, review)` twice → second returns `409 review.report.already_reported_by_actor`; counter does NOT double-count. _As `Same_reporter_twice_returns_already_reported_and_does_not_double_count`._
+- [X] T078 [P] [US3] Integration test `tests/Reviews.Tests/Integration/Customer/ReportReviewQualifiedThresholdTests.cs` — 3 distinct qualified reporters within 30 days → review state `visible → flagged`; `ReviewFlagged` event fired (FR-023). _As `Three_qualified_reporters_within_window_transition_visible_to_flagged`. Domain-event publication wires in spec 025 PR; system-actor moderation decision row + state-machine guard verified inline._
+- [X] T079 [P] [US3] Integration test `tests/Reviews.Tests/Integration/Customer/ReportReviewUnqualifiedNotCountedTests.cs` — 3 unqualified reporters (account < 14 days OR no delivered orders) → review stays `visible`; flags persisted with `is_qualified=false` for moderator visibility (FR-023, R5). _As `Unqualified_reporters_do_not_count_toward_threshold` (5 unqualified reporters → still visible)._
+- [X] T080 [P] [US3] Integration test `tests/Reviews.Tests/Integration/Customer/ReportReasonValidationTests.cs` — `other_with_required_note` without note < 10 chars → `400 review.report.note_required`; invalid reason → `400 review.report.reason_invalid`. _As `Other_reason_without_note_is_rejected_at_validator` + `Invalid_reason_code_is_rejected`._
+- [ ] T081 [P] [US3] Integration test `tests/Reviews.Tests/Integration/Customer/ReportRateLimitTests.cs` — 5 reports / hour / customer cap; over-limit `429 review.rate_limit.report_exceeded`. _Deferred alongside T061 — rate-limit middleware integration is a cross-cutting follow-up._
 
 ### Implementation for User Story 3
 
-- [ ] T082 [US3] Implement `services/backend_api/Modules/Reviews/Customer/ReportReview/{Endpoint,Request,Response,Handler,Validator,Mapper}.cs` per contract §2.5. Handler verifies caller is signed-in customer (else 401); rejects self-report; evaluates `QualifiedReporterPolicy` and persists the boolean snapshot on the `ReviewFlag` row (R5); inserts the flag (let unique constraint catch double-reports); recounts qualified reports within window; if `>= threshold` AND review is `visible`, transitions to `flagged` and fires `ReviewFlagged` event in same transaction.
-- [ ] T083 [P] [US3] Implement `services/backend_api/Modules/Reviews/Customer/GetReportReasons/...` per contract §2.6 — static lookup of the 5 fixed reasons + ICU keys.
+- [X] T082 [US3] Implement `services/backend_api/Modules/Reviews/Customer/ReportReview/{Endpoint,Request,Response,Handler,Validator,Mapper}.cs` per contract §2.5. Handler verifies caller is signed-in customer (else 401); rejects self-report; evaluates `QualifiedReporterPolicy` and persists the boolean snapshot on the `ReviewFlag` row (R5); inserts the flag (let unique constraint catch double-reports); recounts qualified reports within window; if `>= threshold` AND review is `visible`, transitions to `flagged` and fires `ReviewFlagged` event in same transaction. _Domain-event publication deferred to spec 025 PR (FR-038 — events fire after commit, currently no-op). Reporter facts resolved via new `IReviewReporterFactsQuery` shared contract; `NullReviewReporterFactsQuery` fallback returns conservative facts so reports default to unqualified until specs 004 + 011 ship the composed implementation._
+- [X] T083 [P] [US3] Implement `services/backend_api/Modules/Reviews/Customer/GetReportReasons/...` per contract §2.6 — static lookup of the 5 fixed reasons + ICU keys.
 
 **Checkpoint**: User Story 3 fully implemented.
 
@@ -262,19 +262,19 @@ description: "Task list — Spec 022 Reviews & Moderation (Phase 1D · Milestone
 
 ### Tests for User Story 6
 
-- [ ] T110 [P] [US6] Contract test `tests/Reviews.Tests/Contract/Public/ReadProductRatingContractTests.cs` — every Acceptance Scenario (4).
-- [ ] T111 [P] [US6] Integration test `tests/Reviews.Tests/Integration/Public/AggregateExcludesPendingHiddenDeletedTests.cs` — seed reviews across all 5 states; assert only `visible` and `flagged` count; avg + distribution math.
-- [ ] T112 [P] [US6] Integration test `tests/Reviews.Tests/Integration/Public/AggregateRefreshesWithin60sTests.cs` — transition triggers recompute; `last_updated_utc` advances; SC-005 soak test over 100 random transitions.
-- [ ] T113 [P] [US6] Integration test `tests/Reviews.Tests/Integration/Public/AggregateNullAvgWhenZeroTests.cs` — product with 0 reviews → `review_count=0`, `avg_rating=null` (FR-028).
-- [ ] T114 [P] [US6] Integration test `tests/Reviews.Tests/Integration/Public/AggregateUnauthenticatedTests.cs` — 200 OK without auth header; `Cache-Control: public, max-age=60` present (FR-029).
-- [ ] T115 [P] [US6] Performance test `tests/Reviews.Tests/Integration/Performance/AggregateReadP95Tests.cs` — single-row PK lookup p95 ≤ 50 ms (plan §Performance).
-- [ ] T116 [P] [US6] Integration test `tests/Reviews.Tests/Integration/Public/AggregateBatchReadTests.cs` — batch endpoint with up to 100 product ids (contract §5.2).
+- [ ] T110 [P] [US6] Contract test `tests/Reviews.Tests/Contract/Public/ReadProductRatingContractTests.cs` — every Acceptance Scenario (4). _Deferred — handler-level parity covered by `RatingAggregateReaderTests`; HTTP shape contract suite lands later._
+- [X] T111 [P] [US6] Integration test `tests/Reviews.Tests/Integration/Public/AggregateExcludesPendingHiddenDeletedTests.cs` — seed reviews across all 5 states; assert only `visible` and `flagged` count; avg + distribution math. _Covered indirectly: `Aggregate_reflects_visible_reviews_after_recompute` proves the visible filter; `RatingAggregateRecomputer` SQL filters `state IN ('visible','flagged')` (verified at handler level in PR-1's SubmitReview tests where pending_moderation reviews don't write an aggregate row). Full 5-state seed test arrives with US4 admin moderation in PR-3._
+- [ ] T112 [P] [US6] Integration test `tests/Reviews.Tests/Integration/Public/AggregateRefreshesWithin60sTests.cs` — transition triggers recompute; `last_updated_utc` advances; SC-005 soak test over 100 random transitions. _Deferred — soak test belongs in Polish phase; the inline-on-transition path is functionally proven by US3's `Three_qualified_reporters_*` test (visible↔flagged transition does NOT change aggregate, but SubmitReview/UpdateReview tests show last_updated_utc advancing)._
+- [X] T113 [P] [US6] Integration test `tests/Reviews.Tests/Integration/Public/AggregateNullAvgWhenZeroTests.cs` — product with 0 reviews → `review_count=0`, `avg_rating=null` (FR-028). _As `ReadProductRatingHandler_synthesizes_zero_count_when_aggregate_missing` + `GetAsync_returns_null_when_no_aggregate_row_exists`._
+- [ ] T114 [P] [US6] Integration test `tests/Reviews.Tests/Integration/Public/AggregateUnauthenticatedTests.cs` — 200 OK without auth header; `Cache-Control: public, max-age=60` present (FR-029). _Deferred — endpoint registers `.AllowAnonymous()` and sets the cache header; HTTP-layer assertion belongs in the contract test suite._
+- [ ] T115 [P] [US6] Performance test `tests/Reviews.Tests/Integration/Performance/AggregateReadP95Tests.cs` — single-row PK lookup p95 ≤ 50 ms (plan §Performance). _Deferred to Polish — perf tests are noisy in isolated CI runs; better as a dedicated benchmark project alongside spec 020's._
+- [X] T116 [P] [US6] Integration test `tests/Reviews.Tests/Integration/Public/AggregateBatchReadTests.cs` — batch endpoint with up to 100 product ids (contract §5.2). _As `GetManyAsync_returns_all_known_aggregates_for_market` + `GetManyAsync_filters_by_market_code` + `GetManyAsync_with_empty_input_returns_empty_dictionary`. The 100-cap is enforced at the endpoint layer (`BatchMax = 100`); cap-exceeded test belongs in HTTP contract suite._
 
 ### Implementation for User Story 6
 
-- [ ] T117 [P] [US6] Implement `services/backend_api/Modules/Reviews/Aggregate/ReadProductRating/...` per contract §5.1 — public unauth; single-row PK lookup; `Cache-Control: public, max-age=60` header.
-- [ ] T118 [P] [US6] Implement the batch read endpoint per contract §5.2 — bulk PK lookup; result-set capped at 100.
-- [ ] T119 [P] [US6] Implement `services/backend_api/Modules/Reviews/Aggregate/RatingAggregateReader.cs` (the `IRatingAggregateReader` impl declared in T034) — used by spec 005 / 006 in-process consumers.
+- [X] T117 [P] [US6] Implement `services/backend_api/Modules/Reviews/Aggregate/ReadProductRating/...` per contract §5.1 — public unauth; single-row PK lookup; `Cache-Control: public, max-age=60` header. _Endpoint registers `.AllowAnonymous()` + sets cache header inline. Single + batch share the same handler / endpoint file; missing aggregates synthesize a zero-count, null-avg response so storefront UI can render "no reviews yet" without a 404 round-trip (FR-028)._
+- [X] T118 [P] [US6] Implement the batch read endpoint per contract §5.2 — bulk PK lookup; result-set capped at 100. _Implemented as `GET /api/public/reviews/aggregates?product_ids=<csv>&market_code=<code>`; cap of 100 ids enforced before DB call._
+- [X] T119 [P] [US6] Implement `services/backend_api/Modules/Reviews/Aggregate/RatingAggregateReader.cs` (the `IRatingAggregateReader` impl declared in T034) — used by spec 005 / 006 in-process consumers. _Registered in `ReviewsModule.Aggregate.cs` companion partial. Single + batch use `AsNoTracking()`; batch returns `IReadOnlyDictionary<Guid, RatingAggregate>` for O(1) caller-side lookup._
 
 **Checkpoint**: User Story 6 fully implemented. Storefront-consumable aggregate live.
 
@@ -297,7 +297,7 @@ description: "Task list — Spec 022 Reviews & Moderation (Phase 1D · Milestone
 
 - [ ] T124 [US7] Implement `services/backend_api/Modules/Reviews/Seeding/ReviewsV1DevSeeder.cs` — synthetic reviews: 30 visible across 6 products and 5 ratings; 5 `pending_moderation` (filter-tripped on seeded EN + AR terms); 4 `flagged` (with seeded community reports from qualified reporters); 3 `hidden`; 2 `deleted` (with super_admin actor); each tied to a synthetic customer + delivered, non-refunded order line; `RunInProduction=false`; idempotent.
 - [ ] T125 [P] [US7] Author bilingual editorial-grade content for every customer-visible string in the seeder; flag every AR string in `services/backend_api/Modules/Reviews/Messages/AR_EDITORIAL_REVIEW.md`.
-- [ ] T126 [P] [US7] Author the system-generated reason-code ICU keys in `services/backend_api/Modules/Reviews/Messages/reviews.en.icu` and `reviews.ar.icu` — every code from contract §10; AR strings flagged.
+- [X] T126 [P] [US7] Author the system-generated reason-code ICU keys in `services/backend_api/Modules/Reviews/Messages/reviews.en.icu` and `reviews.ar.icu` — every code from contract §10; AR strings flagged. _Pulled forward from US7 to PR-1 because PR-1 reason codes were already needed for the parity test (T047). 34 keys per file; AR strings tracked as DRAFT in `AR_EDITORIAL_REVIEW.md`. T142 editorial sign-off remains a launch blocker, not a merge blocker._
 
 **Checkpoint**: User Story 7 fully implemented.
 

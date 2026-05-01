@@ -1,0 +1,57 @@
+# Reviews module — Arabic ICU keys (editorial-grade per Principle 4).
+#
+# DRAFT STATUS — first-pass technical translations, tracked in
+# AR_EDITORIAL_REVIEW.md. Editorial reviewer sign-off blocks launch (T142),
+# not merge. Keys MUST stay synchronized with reviews.en.icu.
+
+# Eligibility (entity)
+review.eligibility.no_delivered_purchase = لا يمكنك تقييم منتج إلا بعد استلام طلب لم يتم استرداد ثمنه.
+review.eligibility.refunded             = لا يمكنك تقييم منتج تم استرداد ثمنه.
+review.eligibility.window_closed        = انتهت فترة التقييم المسموح بها لهذا الطلب.
+review.eligibility.already_reviewed     = لقد قمت بتقييم هذا المنتج بالفعل.
+
+# Field validation (entity)
+review.headline.length_invalid          = يجب أن يكون عنوان التقييم بين حرف واحد و 100 حرف.
+review.body.length_invalid              = يجب أن يكون نص التقييم بين حرف واحد و 4000 حرف.
+review.rating.out_of_range              = يجب أن يكون التقييم رقماً صحيحاً بين 1 و 5.
+review.locale.invalid                   = يجب أن تكون لغة التقييم العربية أو الإنجليزية.
+review.media.too_many                   = يمكنك إرفاق 4 صور كحد أقصى.
+review.media.invalid_signed_url         = أحد روابط الوسائط المرفقة غير صالح.
+
+# Edit (entity)
+review.edit.window_closed               = انتهت فترة تعديل هذا التقييم.
+review.edit.not_author                  = يحق فقط لكاتب التقييم الأصلي تعديله.
+review.edit.deleted_terminal            = تم حذف هذا التقييم ولا يمكن تعديله بعد الآن.
+
+# Row-level (entity)
+review.row.version_conflict             = تم تعديل هذا التقييم بواسطة شخص آخر. يرجى إعادة التحميل والمحاولة مرة أخرى.
+review.row.delete_forbidden             = لا يمكن حذف التقييمات نهائياً؛ الحذف ناعم فقط.
+
+# Reporting (entity)
+review.report.cannot_report_own_review  = لا يمكنك الإبلاغ عن تقييمك الخاص.
+review.report.reason_invalid            = اختر أحد أسباب الإبلاغ المتاحة.
+review.report.note_required             = يتطلب هذا السبب ملاحظة لا تقل عن 10 أحرف.
+review.report.already_reported_by_actor = لقد أبلغت عن هذا التقييم بالفعل.
+review.report.unauthenticated           = يجب تسجيل الدخول للإبلاغ عن تقييم.
+
+# Rate-limit (entity)
+review.rate_limit.submission_exceeded   = لقد أرسلت عدداً كبيراً من التقييمات مؤخراً. يرجى المحاولة لاحقاً.
+review.rate_limit.edit_exceeded         = لقد قمت بتعديل التقييمات بشكل متكرر مؤخراً. يرجى المحاولة لاحقاً.
+review.rate_limit.report_exceeded       = لقد أبلغت عن عدد كبير من التقييمات مؤخراً. يرجى المحاولة لاحقاً.
+
+# Moderation (module)
+reviews.moderation.forbidden                  = ليس لديك صلاحية لإدارة التقييمات.
+reviews.moderation.delete_requires_super_admin = حذف التقييمات يتطلب صلاحية المشرف العام.
+reviews.moderation.reason_required            = هذا القرار يتطلب سبباً لا يقل عن 10 أحرف.
+reviews.moderation.invalid_state              = لا يمكن تطبيق هذا القرار من الحالة الحالية.
+reviews.moderation.delete_terminal            = تم حذف هذا التقييم بالفعل.
+reviews.moderation.version_conflict           = تم تعديل هذا التقييم أثناء قرارك. يرجى إعادة التحميل.
+reviews.moderation.rate_limit_exceeded        = لقد اتخذت قرارات مراجعة كثيرة مؤخراً. يرجى التمهل قليلاً.
+
+# Policy admin (module)
+reviews.policy.forbidden                = ليس لديك صلاحية لإدارة سياسة التقييمات.
+reviews.policy.wordlist.term_invalid    = يجب أن تكون مفردات قائمة الفلترة بين حرف و 200 حرف بعد التطبيع.
+reviews.policy.market.value_out_of_range = إحدى قيم سياسة السوق خارج النطاق المسموح به.
+
+# Aggregate (module)
+reviews.aggregate.market_invalid        = رمز السوق غير معروف.

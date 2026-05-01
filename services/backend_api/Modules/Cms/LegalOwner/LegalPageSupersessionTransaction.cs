@@ -79,35 +79,36 @@ public sealed class LegalPageSupersessionTransaction
             "SELECT pg_advisory_xact_lock({0}, {1});",
             new object[] { k1, k2 }, ct);
 
-        // Load the prior live row (if any) FOR UPDATE so concurrent transactions
-        // serialize behind our lock.
-        var prior = await db.LegalPageVersions
-            .FromSqlRaw(
-                @"SELECT * FROM cms.legal_page_versions
-                  WHERE ""LegalPageKind"" = {0}
-                    AND ""MarketCode"" = {1}
-                    AND ""State"" = 'live'
-                  FOR UPDATE",
-                newRow.LegalPageKindWire, newRow.MarketCode)
-            .AsNoTracking()
-            .FirstOrDefaultAsync(ct);
+        // Load the prior live row (if any). The advisory lock above already
+        // serializes concurrent transactions on (kind, market); the partial
+        // unique index on cms.legal_page_versions is the second-level guard
+        // that turns any remaining race into a typed unique-violation 409.
+        var trackedPrior = await db.LegalPageVersions
+            .FirstOrDefaultAsync(v =>
+                v.LegalPageKindWire == newRow.LegalPageKindWire &&
+                v.MarketCode == newRow.MarketCode &&
+                v.StateWire == liveWire &&
+                v.Id != newRow.Id, ct);
 
-        LegalPageVersion? trackedPrior = null;
-        if (prior is not null && prior.Id != newRow.Id)
+        if (trackedPrior is not null)
         {
-            // Reload tracked so EF can apply changes.
-            trackedPrior = await db.LegalPageVersions
-                .FirstOrDefaultAsync(v => v.Id == prior.Id, ct);
-            if (trackedPrior is not null && trackedPrior.StateWire == liveWire)
-            {
-                CmsContentLifecycle.AssertCanTransition(
-                    ContentLifecycleState.Live, ContentLifecycleState.Superseded,
-                    EntityKind.LegalPageVersion,
-                    CmsTriggerKind.WorkerSupersedeLegalVersion, actorKind);
-                trackedPrior.StateWire = supersededWire;
-                trackedPrior.SupersededAtUtc = nowUtc;
-                trackedPrior.SupersededByVersionId = newRow.Id;
-            }
+            // The prior-row supersede is a system-orchestrated side-effect of
+            // the publish, not an action the caller performs directly — so the
+            // lifecycle guard expects actor=System on this edge regardless of
+            // who triggered the parent publish.
+            CmsContentLifecycle.AssertCanTransition(
+                ContentLifecycleState.Live, ContentLifecycleState.Superseded,
+                EntityKind.LegalPageVersion,
+                CmsTriggerKind.WorkerSupersedeLegalVersion, CmsActorKind.System);
+            trackedPrior.StateWire = supersededWire;
+            trackedPrior.SupersededAtUtc = nowUtc;
+            trackedPrior.SupersededByVersionId = newRow.Id;
+
+            // Flush the prior → superseded update first so the partial unique
+            // index UX_cms_legal_one_live_per_kind_market is no longer
+            // contended when we promote the new row in the next flush. Both
+            // updates are still inside the same SERIALIZABLE transaction.
+            await db.SaveChangesAsync(ct);
         }
 
         // Promote the new row.

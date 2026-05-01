@@ -163,8 +163,8 @@ description: "Task list for Spec 024 — CMS (Phase 1D · Milestone 7)"
 
 - [ ] T071 [P] [US2] Contract test for `GET /v1/storefront/cms/banner-slots` happy path + market+locale filter + `cms.storefront.market_unsupported` + `cms.storefront.locale_unsupported` + cache-control headers + ETag stability in `tests/Cms.Tests/Contract/Storefront/ListBannerSlotsContractTests.cs`
 - [ ] T072 [P] [US2] Contract test for `GET /v1/storefront/cms/featured-sections` including the live-resolved response shape `{section_id, references_resolved, total_references, total_resolved, total_unavailable}` and `omitted_due_to_unavailable_references=true` on fully-broken sections in `tests/Cms.Tests/Contract/Storefront/ListFeaturedSectionsContractTests.cs`
-- [ ] T073 [P] [US2] Integration storefront leak-detection test (SC-003) — seed every non-`live` state across all 5 entity kinds; assert zero leakage on every storefront endpoint in `tests/Cms.Tests/Integration/Storefront/LeakDetectionTests.cs`
-- [ ] T074 [P] [US2] Integration test asserting two-tier sort — specific market first, then `*` — across all five storefront endpoints in `tests/Cms.Tests/Integration/Storefront/TwoTierSortTests.cs`
+- [X] T73 [P] [US2] Integration storefront leak-detection test (SC-003) — seed every non-`live` state across all 5 entity kinds; assert zero leakage on every storefront endpoint in `tests/Cms.Tests/Integration/Storefront/LeakDetectionTests.cs`
+- [X] T74 [P] [US2] Integration test asserting two-tier sort — specific market first, then `*` — across all five storefront endpoints in `tests/Cms.Tests/Integration/Storefront/TwoTierSortTests.cs`
 - [ ] T075 [P] [US2] Performance test (SC-006) — 1 000 live banners; 50-row page in p95 ≤ 200 ms in `tests/Cms.Tests/Performance/BannerListPerfTests.cs`
 - [ ] T076 [P] [US2] Performance test (SC-007) — 10 000 catalog products + 24-reference featured section; resolution p95 ≤ 300 ms in `tests/Cms.Tests/Performance/FeaturedSectionResolutionPerfTests.cs`
 
@@ -194,8 +194,8 @@ description: "Task list for Spec 024 — CMS (Phase 1D · Milestone 7)"
 ### Tests for User Story 3
 
 - [ ] T085 [P] [US3] Contract test for `POST /v1/admin/cms/legal-pages/{kind}/versions/drafts` mandatory both bodies + `cms.publish.effective_at_required` + `cms.publish.locale_completeness_missing` in `tests/Cms.Tests/Contract/LegalOwner/SaveLegalPageVersionDraftContractTests.cs`
-- [ ] T086 [P] [US3] Integration test for the worker supersession transaction — assert prior `Live → Superseded` and new `Scheduled → Live` happen atomically (a forced rollback via injected fault leaves both rows untouched) in `tests/Cms.Tests/Integration/LegalOwner/LegalPageSupersessionTransactionTests.cs`
-- [ ] T087 [P] [US3] Integration test asserting `DELETE /v1/admin/cms/legal-pages/{kind}/versions/{id}` returns `405 cms.legal_page.version.delete_forbidden` for every state (draft / scheduled / live / superseded) in `tests/Cms.Tests/Integration/LegalOwner/LegalPageHardDeleteForbiddenTests.cs`
+- [X] T86 [P] [US3] Integration test for the worker supersession transaction — assert prior `Live → Superseded` and new `Scheduled → Live` happen atomically (a forced rollback via injected fault leaves both rows untouched) in `tests/Cms.Tests/Integration/LegalOwner/LegalPageSupersessionTransactionTests.cs`
+- [X] T87 [P] [US3] Integration test asserting `DELETE /v1/admin/cms/legal-pages/{kind}/versions/{id}` returns `405 cms.legal_page.version.delete_forbidden` for every state (draft / scheduled / live / superseded) in `tests/Cms.Tests/Integration/LegalOwner/LegalPageHardDeleteForbiddenTests.cs`
 - [ ] T088 [P] [US3] Contract test for `GET /v1/storefront/cms/legal-pages/{kind}` single-row substitution rule (specific-market `live` → `*` `live` → `404 cms.legal_page.not_found_for_market`) in `tests/Cms.Tests/Contract/Storefront/GetLegalPageContractTests.cs`
 
 ### Implementation for User Story 3
@@ -308,8 +308,8 @@ description: "Task list for Spec 024 — CMS (Phase 1D · Milestone 7)"
 
 ### Tests for User Story 7
 
-- [ ] T134 [P] [US7] Integration test for `cms-v1` seeder distribution (SC-009) — per-state row counts ≥ 1 across all 5 entity kinds; bilingual coverage on banner / featured / FAQ / legal; per-market + `*` coverage; legal page version-history with 2 versions per `(kind, market)`; total runtime ≤ 20 s in `tests/Cms.Tests/Integration/Seeding/CmsV1DevSeederDistributionTests.cs`
-- [ ] T135 [P] [US7] Integration test asserting seeder idempotency — running twice produces identical row counts (no duplicates) in `tests/Cms.Tests/Integration/Seeding/CmsV1DevSeederIdempotencyTests.cs`
+- [X] T134 [P] [US7] Integration test for `cms-v1` seeder distribution (SC-009) — per-state row counts ≥ 1 across all 5 entity kinds; bilingual coverage on banner / featured / FAQ / legal; per-market + `*` coverage; legal page version-history with 2 versions per `(kind, market)`; total runtime ≤ 20 s in `tests/Cms.Tests/Integration/Seeding/CmsV1DevSeederDistributionTests.cs`
+- [X] T135 [P] [US7] Integration test asserting seeder idempotency — running twice produces identical row counts (no duplicates) in `tests/Cms.Tests/Integration/Seeding/CmsV1DevSeederIdempotencyTests.cs`
 - [ ] T136 [P] [US7] Integration test asserting `--mode=dry-run` exits 0 with planned-changes report and writes nothing to DB in `tests/Cms.Tests/Integration/Seeding/CmsV1DevSeederDryRunTests.cs`
 - [ ] T137 [P] [US7] CI integration: `seed-pii-guard` smoke against the seeded dataset asserting no real-phone / real-email / national-ID patterns in `tests/Cms.Tests/Integration/Seeding/CmsV1DevSeederPiiGuardTests.cs`
 

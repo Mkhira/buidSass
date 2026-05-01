@@ -125,7 +125,7 @@ public sealed class CmsV1DevSeeder : ISeeder
              "Add to cart and proceed to checkout.", "أضف إلى السلة ثم تابع إلى الدفع.",   "live"),
             ("payment",       "EG",  "What payment methods are accepted?", "ما طرق الدفع المتاحة؟",
              "Visa, MasterCard, COD.", "فيزا، ماستركارد، الدفع عند الاستلام.",                "live"),
-            ("delivery",      "KSA", "How long does delivery take?",   "كم مدة التوصيل؟",
+            ("shipping",      "KSA", "How long does delivery take?",   "كم مدة التوصيل؟",
              "2–5 business days.", "٢–٥ أيام عمل.",                                            "live"),
             ("returns",       "EG",  "What is your return policy?",    "ما هي سياسة الإرجاع؟",
              "30-day returns on unopened items.", "إرجاع خلال ٣٠ يومًا للمنتجات غير المفتوحة.", "live"),
@@ -133,7 +133,7 @@ public sealed class CmsV1DevSeeder : ISeeder
              "Upload your license card.", "ارفع بطاقة الترخيص.",                              "live"),
             ("b2b",           "KSA", "How do I open a clinic account?", "كيف أفتح حسابًا للعيادة؟",
              "Contact our B2B team.", "تواصل مع فريقنا للأعمال.",                              "draft"),
-            ("technical",     "EG",  "Can I update my email?",         "هل أستطيع تغيير بريدي؟",
+            ("account",       "EG",  "Can I update my email?",         "هل أستطيع تغيير بريدي؟",
              "Yes, in Account Settings.", "نعم، من إعدادات الحساب.",                          "live"),
         };
 

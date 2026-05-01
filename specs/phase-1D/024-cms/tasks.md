@@ -315,13 +315,13 @@ description: "Task list for Spec 024 — CMS (Phase 1D · Milestone 7)"
 
 ### Implementation for User Story 7
 
-- [ ] T138 [P] [US7] Create `Modules/Cms/Seeding/CmsV1DevSeeder.cs` skeleton with `SeedGuard` (refuses to run in Production); accepts `--mode=apply|dry-run`; orchestrates the per-kind seeders below
-- [ ] T139 [P] [US7] Create `Modules/Cms/Seeding/Datasets/CmsV1Banners.cs` — 6 synthetic banners across `hero_top` / `category_strip` / `footer_strip` / `home_secondary` slot kinds in `live` + `scheduled` + `draft` + `archived` states across both EG + KSA + `*`; bilingual headlines + assets; idempotent on `(slot_kind, market_code, headline_en)` natural key
-- [ ] T140 [P] [US7] Create `Modules/Cms/Seeding/Datasets/CmsV1FeaturedSections.cs` — 4 featured sections referencing seeded products + bundles (re-using product ids from `catalog-v1`); bilingual titles
-- [ ] T141 [P] [US7] Create `Modules/Cms/Seeding/Datasets/CmsV1FaqEntries.cs` — 12 FAQ entries across all 8 categories in EG-AR/EN + KSA-AR/EN
-- [ ] T142 [P] [US7] Create `Modules/Cms/Seeding/Datasets/CmsV1LegalPages.cs` — 4 legal page kinds (terms / privacy / returns / cookies) each with 2 versions (one prior `superseded`, one current `live`) for each market (EG + KSA + a `*` baseline)
-- [ ] T143 [P] [US7] Create `Modules/Cms/Seeding/Datasets/CmsV1BlogArticles.cs` — 6 articles across categories `tips` / `news` / `guides` in mixed authored locales (some bilingual via dual rows, some single-locale); SEO blocks populated
-- [ ] T144 [US7] Wire `CmsV1DevSeeder` into `services/backend_api/Modules/Bootstrap/DevSeederHost.cs` registry alongside the existing `SupportV1DevSeeder`; document the `seed --dataset=cms-v1` CLI invocation in `Modules/Cms/Seeding/README.md`
+- [X] T138 [P] [US7] Create `Modules/Cms/Seeding/CmsV1DevSeeder.cs` skeleton with `SeedGuard` (refuses to run in Production); accepts `--mode=apply|dry-run`; orchestrates the per-kind seeders below
+- [X] T139 [P] [US7] Create `Modules/Cms/Seeding/Datasets/CmsV1Banners.cs` — 6 synthetic banners across `hero_top` / `category_strip` / `footer_strip` / `home_secondary` slot kinds in `live` + `scheduled` + `draft` + `archived` states across both EG + KSA + `*`; bilingual headlines + assets; idempotent on `(slot_kind, market_code, headline_en)` natural key
+- [X] T140 [P] [US7] Create `Modules/Cms/Seeding/Datasets/CmsV1FeaturedSections.cs` — 4 featured sections referencing seeded products + bundles (re-using product ids from `catalog-v1`); bilingual titles
+- [X] T141 [P] [US7] Create `Modules/Cms/Seeding/Datasets/CmsV1FaqEntries.cs` — 12 FAQ entries across all 8 categories in EG-AR/EN + KSA-AR/EN
+- [X] T142 [P] [US7] Create `Modules/Cms/Seeding/Datasets/CmsV1LegalPages.cs` — 4 legal page kinds (terms / privacy / returns / cookies) each with 2 versions (one prior `superseded`, one current `live`) for each market (EG + KSA + a `*` baseline)
+- [X] T143 [P] [US7] Create `Modules/Cms/Seeding/Datasets/CmsV1BlogArticles.cs` — 6 articles across categories `tips` / `news` / `guides` in mixed authored locales (some bilingual via dual rows, some single-locale); SEO blocks populated
+- [X] T144 [US7] Wire `CmsV1DevSeeder` into `services/backend_api/Modules/Bootstrap/DevSeederHost.cs` registry alongside the existing `SupportV1DevSeeder`; document the `seed --dataset=cms-v1` CLI invocation in `Modules/Cms/Seeding/README.md`
 
 **Checkpoint**: All user stories should now be independently functional. CMS module ships with realistic seed data for staging and local development.
 
@@ -333,56 +333,56 @@ description: "Task list for Spec 024 — CMS (Phase 1D · Milestone 7)"
 
 ### Cross-module subscribers (Phase M)
 
-- [ ] T145 [P] Create `Modules/Cms/Subscribers/CampaignDeactivatedHandler.cs` — `INotificationHandler<CampaignDeactivated>` from spec 007-b's bus channel; finds active `BannerCampaignBinding` rows where `campaign_id = event.campaign_id`; stamps each with `released_at_utc = now()` + `binding_state = 'released_due_to_campaign_deactivation'`; emits `cms.banner.campaign_unbound` audit
-- [ ] T146 [P] Create `Modules/Cms/Subscribers/EditorRoleRevokedHandler.cs` — `INotificationHandler<CustomerRoleRevoked>` from spec 004's role-lifecycle bus; sets `ownership_orphaned=true` on all drafts (across all 5 entity kinds) where `owner_actor_id = event.actor_id` AND state ∈ {Draft, Scheduled}; emits `cms.draft.ownership_orphaned`
-- [ ] T147 Create `Modules/Cms/Publisher/BindBannerToCampaign/Handler.cs` and `Modules/Cms/Publisher/UnbindBannerFromCampaign/Handler.cs` — bind creates a `BannerCampaignBinding` row with `binding_state='active'`; rejects `400 cms.banner.campaign_already_bound` if banner has an active binding (1:1 in V1); unbind stamps `released_at_utc` + `binding_state='released_by_editor'`; both audited
-- [ ] T148 Wire BindBannerToCampaign + UnbindBannerFromCampaign to `POST /v1/admin/cms/banner-slots/{id}/bind-campaign` + `POST /v1/admin/cms/banner-slots/{id}/unbind-campaign`
+- [X] T145 [P] Create `Modules/Cms/Subscribers/CampaignDeactivatedHandler.cs` — `INotificationHandler<CampaignDeactivated>` from spec 007-b's bus channel; finds active `BannerCampaignBinding` rows where `campaign_id = event.campaign_id`; stamps each with `released_at_utc = now()` + `binding_state = 'released_due_to_campaign_deactivation'`; emits `cms.banner.campaign_unbound` audit
+- [X] T146 [P] Create `Modules/Cms/Subscribers/EditorRoleRevokedHandler.cs` — `INotificationHandler<CustomerRoleRevoked>` from spec 004's role-lifecycle bus; sets `ownership_orphaned=true` on all drafts (across all 5 entity kinds) where `owner_actor_id = event.actor_id` AND state ∈ {Draft, Scheduled}; emits `cms.draft.ownership_orphaned`
+- [X] T147 Create `Modules/Cms/Publisher/BindBannerToCampaign/Handler.cs` and `Modules/Cms/Publisher/UnbindBannerFromCampaign/Handler.cs` — bind creates a `BannerCampaignBinding` row with `binding_state='active'`; rejects `400 cms.banner.campaign_already_bound` if banner has an active binding (1:1 in V1); unbind stamps `released_at_utc` + `binding_state='released_by_editor'`; both audited
+- [X] T148 Wire BindBannerToCampaign + UnbindBannerFromCampaign to `POST /v1/admin/cms/banner-slots/{id}/bind-campaign` + `POST /v1/admin/cms/banner-slots/{id}/unbind-campaign`
 
 ### Asset GC + stale-draft workers (Phase N)
 
-- [ ] T149 [P] Create `Modules/Cms/Workers/CmsAssetGarbageCollectorWorker.cs` — daily 02:00 UTC cadence; advisory lock `cms-asset-gc`; for each `cms.assets` row with `storage_object_state='active'` AND `dereferenced_at_utc IS NOT NULL` AND `dereferenced_at_utc + INTERVAL '<grace-days>' < now()`, recount references across all 5 entity tables via a single union SQL; if count = 0, call spec 015 storage abstraction to delete the storage object, set `storage_object_state='swept'` + `swept_at_utc = now()`, audit `cms.asset.swept`
-- [ ] T150 [P] Create `Modules/Cms/Workers/CmsStaleDraftAlertWorker.cs` — daily 03:00 UTC cadence; advisory lock `cms-stale-draft-alert`; flags drafts where `editor_save_at_utc + INTERVAL '<alert-days>' < now()` AND `last_stale_alert_dismissed_at_utc IS NULL OR last_stale_alert_dismissed_at_utc + INTERVAL '<alert-days>' < now()`; emits `cms.draft.stale_alert` (idempotent on `(draft_id, alert_window_start_utc)`); rate-limited 1/draft/week
-- [ ] T151 [P] Create `Modules/Cms/Editor/DeleteUnpublishedDraft/Handler.cs` — FR-005a draft-delete path; rejects `405 cms.{kind}.delete_forbidden` for non-`Draft` rows; rejects `403 cms.draft.delete_not_owner` for actors who are neither the creator nor `super_admin`; rate-limited 30/h/actor; emits `cms.draft.deleted` + `cms.asset.dereferenced` for each `asset_id` on the deleted row
-- [ ] T152 Wire DeleteUnpublishedDraft to `DELETE /v1/admin/cms/{kind}/drafts/{id}` (per `contracts/cms-contract.md §3.10`)
-- [ ] T153 [P] Create `Modules/Cms/Editor/DismissStaleDraftAlert/Handler.cs` — `reason_note ≥ 10 chars`; stamps `last_stale_alert_dismissed_at_utc`; audit `cms.draft.stale_alert_dismissed`
-- [ ] T154 Wire DismissStaleDraftAlert to `POST /v1/admin/cms/drafts/{id}/dismiss-stale-alert`
-- [ ] T155 [P] Create `Modules/Cms/Publisher/ReassignDraftOwnership/Handler.cs` — `[RequirePermission(CmsPermissions.Publisher)]`; updates `owner_actor_id` + `ownership_orphaned=false`; audit `cms.draft.ownership_reassigned`; rejects `404 cms.draft.target_actor_not_a_cms_editor` if target lacks `cms.editor` role
-- [ ] T156 Wire ReassignDraftOwnership to `POST /v1/admin/cms/drafts/{id}/reassign-ownership`
-- [ ] T157 Wire `CmsAssetGarbageCollectorWorker` + `CmsStaleDraftAlertWorker` into `CmsModule.AddCmsModule(...)` as singleton hosted services
-- [ ] T158 [P] Create `Modules/Cms/Editor/ListMyDrafts/Query.cs` + `Handler.cs` — lists drafts authored by the current `actor_id`; filters `entity_kind`, `market_code`, `stale=true`, `ownership_orphaned=true`; page 50 max 200
-- [ ] T159 Wire ListMyDrafts to `GET /v1/admin/cms/drafts`
+- [X] T149 [P] Create `Modules/Cms/Workers/CmsAssetGarbageCollectorWorker.cs` — daily 02:00 UTC cadence; advisory lock `cms-asset-gc`; for each `cms.assets` row with `storage_object_state='active'` AND `dereferenced_at_utc IS NOT NULL` AND `dereferenced_at_utc + INTERVAL '<grace-days>' < now()`, recount references across all 5 entity tables via a single union SQL; if count = 0, call spec 015 storage abstraction to delete the storage object, set `storage_object_state='swept'` + `swept_at_utc = now()`, audit `cms.asset.swept`
+- [X] T150 [P] Create `Modules/Cms/Workers/CmsStaleDraftAlertWorker.cs` — daily 03:00 UTC cadence; advisory lock `cms-stale-draft-alert`; flags drafts where `editor_save_at_utc + INTERVAL '<alert-days>' < now()` AND `last_stale_alert_dismissed_at_utc IS NULL OR last_stale_alert_dismissed_at_utc + INTERVAL '<alert-days>' < now()`; emits `cms.draft.stale_alert` (idempotent on `(draft_id, alert_window_start_utc)`); rate-limited 1/draft/week
+- [X] T151 [P] Create `Modules/Cms/Editor/DeleteUnpublishedDraft/Handler.cs` — FR-005a draft-delete path; rejects `405 cms.{kind}.delete_forbidden` for non-`Draft` rows; rejects `403 cms.draft.delete_not_owner` for actors who are neither the creator nor `super_admin`; rate-limited 30/h/actor; emits `cms.draft.deleted` + `cms.asset.dereferenced` for each `asset_id` on the deleted row
+- [X] T152 Wire DeleteUnpublishedDraft to `DELETE /v1/admin/cms/{kind}/drafts/{id}` (per `contracts/cms-contract.md §3.10`)
+- [X] T153 [P] Create `Modules/Cms/Editor/DismissStaleDraftAlert/Handler.cs` — `reason_note ≥ 10 chars`; stamps `last_stale_alert_dismissed_at_utc`; audit `cms.draft.stale_alert_dismissed`
+- [X] T154 Wire DismissStaleDraftAlert to `POST /v1/admin/cms/drafts/{id}/dismiss-stale-alert`
+- [X] T155 [P] Create `Modules/Cms/Publisher/ReassignDraftOwnership/Handler.cs` — `[RequirePermission(CmsPermissions.Publisher)]`; updates `owner_actor_id` + `ownership_orphaned=false`; audit `cms.draft.ownership_reassigned`; rejects `404 cms.draft.target_actor_not_a_cms_editor` if target lacks `cms.editor` role
+- [X] T156 Wire ReassignDraftOwnership to `POST /v1/admin/cms/drafts/{id}/reassign-ownership`
+- [X] T157 Wire `CmsAssetGarbageCollectorWorker` + `CmsStaleDraftAlertWorker` into `CmsModule.AddCmsModule(...)` as singleton hosted services
+- [X] T158 [P] Create `Modules/Cms/Editor/ListMyDrafts/Query.cs` + `Handler.cs` — lists drafts authored by the current `actor_id`; filters `entity_kind`, `market_code`, `stale=true`, `ownership_orphaned=true`; page 50 max 200
+- [X] T159 Wire ListMyDrafts to `GET /v1/admin/cms/drafts`
 
 ### Super-admin endpoints (Phase J)
 
-- [ ] T160 [P] Create `Modules/Cms/SuperAdmin/EditMarketSchema/Handler.cs` — xmin-guarded; range checks per data-model.md §2.9 CHECK constraints; rejects `400 cms.market_schema.value_out_of_range` and `409 cms.market_schema.version_conflict`; audit
-- [ ] T161 Wire EditMarketSchema to `PATCH /v1/admin/cms/market-schemas/{market_code}`
-- [ ] T162 [P] Create `Modules/Cms/SuperAdmin/ListOrphanedAssets/Query.cs` + `Handler.cs` — returns dereferenced assets currently in grace window (FR-009a observability)
-- [ ] T163 Wire ListOrphanedAssets to `GET /v1/admin/cms/orphaned-assets`
+- [X] T160 [P] Create `Modules/Cms/SuperAdmin/EditMarketSchema/Handler.cs` — xmin-guarded; range checks per data-model.md §2.9 CHECK constraints; rejects `400 cms.market_schema.value_out_of_range` and `409 cms.market_schema.version_conflict`; audit
+- [X] T161 Wire EditMarketSchema to `PATCH /v1/admin/cms/market-schemas/{market_code}`
+- [X] T162 [P] Create `Modules/Cms/SuperAdmin/ListOrphanedAssets/Query.cs` + `Handler.cs` — returns dereferenced assets currently in grace window (FR-009a observability)
+- [X] T163 Wire ListOrphanedAssets to `GET /v1/admin/cms/orphaned-assets`
 
 ### Metrics + audit-coverage
 
-- [ ] T164 [P] Create `Modules/Cms/Metrics/CmsMetricsHandler.cs` exposing per-kind active-content counts + broken-reference counts (featured + banner CTAs) + stale draft counts + ownership_orphaned counts + pending-scheduled counts + preview-token counts (active / expired pending cleanup) + asset counts (active / swept / in-grace-window) per `contracts/cms-contract.md §9`
-- [ ] T165 Wire CmsMetricsHandler to `GET /v1/admin/cms/metrics` permitted by `super_admin` or `cms.viewer.finance`
+- [X] T164 [P] Create `Modules/Cms/Metrics/CmsMetricsHandler.cs` exposing per-kind active-content counts + broken-reference counts (featured + banner CTAs) + stale draft counts + ownership_orphaned counts + pending-scheduled counts + preview-token counts (active / expired pending cleanup) + asset counts (active / swept / in-grace-window) per `contracts/cms-contract.md §9`
+- [X] T165 Wire CmsMetricsHandler to `GET /v1/admin/cms/metrics` permitted by `super_admin` or `cms.viewer.finance`
 
 ### Audit + bilingual + OpenAPI
 
-- [ ] T166 [P] Create `Modules/Cms/Messages/cms.en.icu` and `cms.ar.icu` covering every state label / category label / validation badge / broken-CTA flag / stale-draft alert / JSON-LD scaffolding key referenced by the slices; AR strings flagged in `Modules/Cms/Messages/AR_EDITORIAL_REVIEW.md` for editorial review per Principle 4 (SC-008 30-screen checklist)
-- [ ] T167 [P] Regenerate `services/backend_api/openapi.cms.json` via the existing `dotnet swagger tofile` toolchain; assert congruence with `contracts/cms-contract.md` (every endpoint, every reason code, every cross-module event); commit the generated artifact
-- [ ] T168 [P] Create `tests/Cms.Tests/Integration/AuditCoverageScriptTests.cs` — runs through every state-transitioning slice and asserts a matching audit row appears in `audit.audit_log_entries` (SC-002 verification across all 19 audit-event kinds)
-- [ ] T169 [P] Create `tests/Cms.Tests/Integration/IdempotencyEnvelopeTests.cs` — replays every state-transitioning POST with the same `Idempotency-Key` and asserts the second call returns the original response (FR-033)
-- [ ] T170 [P] Create `tests/Cms.Tests/Integration/HardDeleteProhibitionTests.cs` — for every entity kind in every non-`draft` state, assert `DELETE` returns `405 cms.{kind}.delete_forbidden` (SC-011)
-- [ ] T171 [P] Create `tests/Cms.Tests/Integration/Workers/WorkerIdempotencyStressTest.cs` — 100-iteration repeat-worker stress test against a backdated row; asserts exactly 1 transition + 1 audit row + 1 emitted event per `(entity_kind, entity_id, target_state)` tuple (SC-005)
+- [X] T166 [P] Create `Modules/Cms/Messages/cms.en.icu` and `cms.ar.icu` covering every state label / category label / validation badge / broken-CTA flag / stale-draft alert / JSON-LD scaffolding key referenced by the slices; AR strings flagged in `Modules/Cms/Messages/AR_EDITORIAL_REVIEW.md` for editorial review per Principle 4 (SC-008 30-screen checklist)
+- [X] T167 [P] Regenerate `services/backend_api/openapi.cms.json` via the existing `dotnet swagger tofile` toolchain; assert congruence with `contracts/cms-contract.md` (every endpoint, every reason code, every cross-module event); commit the generated artifact
+- [X] T168 [P] Create `tests/Cms.Tests/Integration/AuditCoverageScriptTests.cs` — runs through every state-transitioning slice and asserts a matching audit row appears in `audit.audit_log_entries` (SC-002 verification across all 19 audit-event kinds)
+- [X] T169 [P] Create `tests/Cms.Tests/Integration/IdempotencyEnvelopeTests.cs` — replays every state-transitioning POST with the same `Idempotency-Key` and asserts the second call returns the original response (FR-033)
+- [X] T170 [P] Create `tests/Cms.Tests/Integration/HardDeleteProhibitionTests.cs` — for every entity kind in every non-`draft` state, assert `DELETE` returns `405 cms.{kind}.delete_forbidden` (SC-011)
+- [X] T171 [P] Create `tests/Cms.Tests/Integration/Workers/WorkerIdempotencyStressTest.cs` — 100-iteration repeat-worker stress test against a backdated row; asserts exactly 1 transition + 1 audit row + 1 emitted event per `(entity_kind, entity_id, target_state)` tuple (SC-005)
 
 ### Observability + final checks
 
-- [ ] T172 Add OpenTelemetry traces for the four workers + the storefront resolver path + the banner-CTA validator (instrument so spec 028 analytics can cross-reference); reuse the existing `OtelExtensions` from spec 003
-- [ ] T173 Verify `seed-pii-guard` CI check passes for `cms-v1` seeded dataset (no real phones / emails / national ID patterns)
-- [ ] T174 Run quickstart.md walkthrough (banner US1 path + legal page US3 path + preview-token US4 path) end-to-end against a live Testcontainers Postgres + the WebApplicationFactory harness; document any drift between the quickstart prose and the implemented endpoint
-- [ ] T175 Constitution + ADR fingerprint via `scripts/compute-fingerprint.sh`; attach fingerprint to PR description (Guardrail #3)
-- [ ] T176 Run lint + format + contract-diff CI checks (Guardrails #1 + #2); resolve any drift
-- [ ] T177 Run the full Cms.Tests Testcontainers integration suite; assert all SCs (SC-001 through SC-011) pass; capture timings for SC-006 and SC-007 perf targets in CI artifacts
-- [ ] T178 Update `docs/dod.md` referenced by the project README to confirm 024 DoD checklist (per quickstart.md §5) is complete; checklist all items checked
-- [ ] T179 Verify no existing test from specs 020 / 021 / 022 / 023 / 007-b regresses by running `dotnet test` at repo root and comparing the test count + pass-count to `main`'s baseline
+- [X] T172 Add OpenTelemetry traces for the four workers + the storefront resolver path + the banner-CTA validator (instrument so spec 028 analytics can cross-reference); reuse the existing `OtelExtensions` from spec 003
+- [X] T173 Verify `seed-pii-guard` CI check passes for `cms-v1` seeded dataset (no real phones / emails / national ID patterns)
+- [X] T174 Run quickstart.md walkthrough (banner US1 path + legal page US3 path + preview-token US4 path) end-to-end against a live Testcontainers Postgres + the WebApplicationFactory harness; document any drift between the quickstart prose and the implemented endpoint
+- [X] T175 Constitution + ADR fingerprint via `scripts/compute-fingerprint.sh`; attach fingerprint to PR description (Guardrail #3)
+- [X] T176 Run lint + format + contract-diff CI checks (Guardrails #1 + #2); resolve any drift
+- [X] T177 Run the full Cms.Tests Testcontainers integration suite; assert all SCs (SC-001 through SC-011) pass; capture timings for SC-006 and SC-007 perf targets in CI artifacts
+- [X] T178 Update `docs/dod.md` referenced by the project README to confirm 024 DoD checklist (per quickstart.md §5) is complete; checklist all items checked
+- [X] T179 Verify no existing test from specs 020 / 021 / 022 / 023 / 007-b regresses by running `dotnet test` at repo root and comparing the test count + pass-count to `main`'s baseline
 
 ---
 

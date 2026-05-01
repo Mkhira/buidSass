@@ -1,5 +1,6 @@
 using BackendApi.Configuration;
 using BackendApi.Features.Seeding;
+using BackendApi.Modules.Cms.Editor;
 using BackendApi.Modules.Cms.Editor.BulkReorderFaqEntries;
 using BackendApi.Modules.Cms.Editor.SaveBannerDraft;
 using BackendApi.Modules.Cms.Editor.SaveBlogArticleDraft;
@@ -27,6 +28,8 @@ using BackendApi.Modules.Cms.Storefront.ListFaqEntries;
 using BackendApi.Modules.Cms.Storefront.ListFeaturedSections;
 using BackendApi.Modules.Cms.Seeding;
 using BackendApi.Modules.Cms.Services;
+using BackendApi.Modules.Cms.Subscribers;
+using BackendApi.Modules.Cms.SuperAdmin;
 using BackendApi.Modules.Shared;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
@@ -147,6 +150,15 @@ public static class CmsModule
         services.AddScoped<Storefront.ListFaqEntries.ListFaqEntriesHandler>();
         services.AddScoped<Publisher.PublishContentSlice>();
 
+        // Phase 9 — dev seeder.
+        services.AddScoped<ISeeder, CmsV1DevSeeder>();
+
+        // Phase 10 — workers + subscribers + outbound binding publisher.
+        services.AddHostedService<Workers.CmsAssetGarbageCollectorWorker>();
+        services.AddHostedService<Workers.CmsStaleDraftAlertWorker>();
+        services.AddScoped<INotificationHandler<PricingCampaignDeactivated>, CampaignDeactivatedHandler>();
+        services.AddScoped<ICmsCampaignBindingPublisher, CmsCampaignBindingPublisher>();
+
         // Cross-module catalog read contract fallbacks. TryAdd lets spec 005
         // supply production implementations without coordinating registration
         // order. Until 005 ships, the in-process fakes (Modules/Shared/Testing)
@@ -199,6 +211,8 @@ public static class CmsModule
         admin.MapSaveFaqEntryDraftEndpoints();
         admin.MapBulkReorderFaqEntriesEndpoint();
         admin.MapPublishContentEndpoints();
+        admin.MapDraftManagementEndpoints();
+        admin.MapSuperAdminEndpoints();
         return endpoints;
     }
 

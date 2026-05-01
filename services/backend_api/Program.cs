@@ -116,6 +116,7 @@ app.MapHealthChecks("/health");
 app.MapVerificationEndpoints();
 app.MapReviewsEndpoints();
 app.MapCmsAdminEndpoints();
+app.MapCmsStorefrontEndpoints();
 
 await app.RunAsync();
 return 0;

@@ -17,7 +17,7 @@ public sealed class StorefrontContentResolver
     /// market sort. Caller composes additional per-kind ordering after this
     /// (e.g., <c>priority_within_slot ASC, created_at_utc ASC</c>).
     /// </summary>
-    public IQueryable<T> ApplyStorefrontFilter<T>(
+    public IOrderedQueryable<T> ApplyStorefrontFilter<T>(
         IQueryable<T> source,
         string marketCode,
         DateTimeOffset nowUtc) where T : class, ICmsContentRow

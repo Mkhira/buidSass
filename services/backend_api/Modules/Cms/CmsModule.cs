@@ -4,6 +4,9 @@ using BackendApi.Modules.Cms.Editor.SaveBannerDraft;
 using BackendApi.Modules.Cms.Persistence;
 using BackendApi.Modules.Cms.Primitives;
 using BackendApi.Modules.Cms.Publisher;
+using BackendApi.Modules.Cms.Storefront;
+using BackendApi.Modules.Cms.Storefront.ListBannerSlots;
+using BackendApi.Modules.Cms.Storefront.ListFeaturedSections;
 using BackendApi.Modules.Cms.Seeding;
 using BackendApi.Modules.Cms.Services;
 using BackendApi.Modules.Shared;
@@ -74,6 +77,12 @@ public static class CmsModule
         services.AddScoped<Publisher.ArchiveContent.ArchiveBannerHandler>();
         services.AddScoped<BannerCtaValidator>();
 
+        // US2 — storefront read slices.
+        services.AddScoped<Storefront.ListBannerSlots.ListBannerSlotsHandler>();
+        services.AddScoped<Storefront.ListFeaturedSections.ListFeaturedSectionsHandler>();
+        services.AddScoped<FeaturedSectionResolver>();
+        services.AddCmsStorefrontRateLimit(configuration);
+
         // Cross-module catalog read contract fallbacks. TryAdd lets spec 005
         // supply production implementations without coordinating registration
         // order. Until 005 ships, the in-process fakes (Modules/Shared/Testing)
@@ -118,6 +127,20 @@ public static class CmsModule
         var admin = endpoints.MapGroup("/v1/admin/cms");
         admin.MapSaveBannerDraftEndpoints();
         admin.MapPublisherBannerEndpoints();
+        return endpoints;
+    }
+
+    /// <summary>
+    /// Maps the V1 storefront CMS endpoints (US2 banner + featured-section
+    /// reads). All endpoints are <c>[AllowAnonymous]</c> per Principle 3 and
+    /// rate-limited per IP via the <c>cms-storefront</c> policy.
+    /// </summary>
+    public static Microsoft.AspNetCore.Routing.IEndpointRouteBuilder MapCmsStorefrontEndpoints(
+        this Microsoft.AspNetCore.Routing.IEndpointRouteBuilder endpoints)
+    {
+        var storefront = endpoints.MapGroup("/v1/storefront/cms");
+        storefront.MapListBannerSlotsEndpoint();
+        storefront.MapListFeaturedSectionsEndpoint();
         return endpoints;
     }
 

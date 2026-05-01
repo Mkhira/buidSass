@@ -61,6 +61,10 @@ public static partial class ReviewsModule
 
         services.AddSingleton<ProfanityFilter>();
         services.AddScoped<ISeeder, ReviewsReferenceDataSeeder>();
+        // Dev / Staging-only synthetic dataset; ISeeder registration is
+        // unconditional — the seeder body short-circuits in Production via
+        // its IHostEnvironment check, and SeedGuard double-gates in CI.
+        services.AddScoped<ISeeder, ReviewsV1DevSeeder>();
 
         // Cross-module fallback bindings — replaced by their owning specs at runtime.
         // TryAdd lets specs 011 / 005 / 019 / 013 supply production implementations
@@ -80,6 +84,8 @@ public static partial class ReviewsModule
         AddUs4Slices(services);
         AddUs5Slices(services);
         AddUs6Slices(services);
+        AddPolicyAdminSlices(services);
+        AddWorkers(services);
 
         services.AddSingleton(TimeProvider.System);
         return services;
@@ -93,6 +99,7 @@ public static partial class ReviewsModule
 
         var admin = endpoints.MapGroup("/api/admin/reviews");
         MapUs4AdminEndpoints(admin);
+        MapPolicyAdminEndpoints(admin);
 
         var publicAggregates = endpoints.MapGroup("/api/public/reviews/aggregates");
         MapUs6PublicEndpoints(publicAggregates);
@@ -105,9 +112,12 @@ public static partial class ReviewsModule
     static partial void AddUs4Slices(IServiceCollection services);
     static partial void AddUs5Slices(IServiceCollection services);
     static partial void AddUs6Slices(IServiceCollection services);
+    static partial void AddPolicyAdminSlices(IServiceCollection services);
+    static partial void AddWorkers(IServiceCollection services);
 
     static partial void MapUs1CustomerEndpoints(IEndpointRouteBuilder customer);
     static partial void MapUs3CustomerEndpoints(IEndpointRouteBuilder customer);
     static partial void MapUs4AdminEndpoints(IEndpointRouteBuilder admin);
     static partial void MapUs6PublicEndpoints(IEndpointRouteBuilder publicAggregates);
+    static partial void MapPolicyAdminEndpoints(IEndpointRouteBuilder admin);
 }

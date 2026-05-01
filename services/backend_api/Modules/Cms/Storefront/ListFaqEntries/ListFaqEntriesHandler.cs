@@ -31,7 +31,7 @@ public sealed class ListFaqEntriesHandler
     public async Task<ListFaqEntriesResponse> HandleAsync(ListFaqEntriesQuery query, CancellationToken ct)
     {
         IQueryable<BackendApi.Modules.Cms.Entities.FaqEntry> filtered =
-            _resolver.ApplyStorefrontFilter(_db.FaqEntries.AsNoTracking(), query.Market, _clock.GetUtcNow());
+            _resolver.ApplyStorefrontFilterStateOnly(_db.FaqEntries.AsNoTracking(), query.Market);
 
         if (!string.IsNullOrEmpty(query.Category))
         {

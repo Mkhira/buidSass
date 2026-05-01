@@ -41,15 +41,18 @@ public sealed class GetBlogArticleHandler
         string locale,
         CancellationToken ct)
     {
-        var filtered = _resolver.ApplyStorefrontFilter(
-            _db.BlogArticles.AsNoTracking(),
-            market,
-            _clock.GetUtcNow());
-
-        var row = await ((IQueryable<BackendApi.Modules.Cms.Entities.BlogArticle>)filtered)
+        // BlogArticle does not have scheduled_start/end columns (its
+        // visibility is expressed via published_at_utc + state=live), so
+        // we apply state + market directly here instead of the generic
+        // resolver. Two-tier sort: specific market first, then `*`.
+        var rows = await _db.BlogArticles.AsNoTracking()
+            .Where(b => b.StateWire == "live")
+            .Where(b => b.MarketCode == market || b.MarketCode == "*")
             .Where(b => b.Slug == slug)
-            .OrderByDescending(b => b.PublishedAtUtc)
-            .FirstOrDefaultAsync(ct);
+            .OrderBy(b => b.MarketCode == market ? 0 : 1)
+            .ThenByDescending(b => b.PublishedAtUtc)
+            .ToListAsync(ct);
+        var row = rows.FirstOrDefault();
 
         if (row is null) return null;
 

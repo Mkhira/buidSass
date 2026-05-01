@@ -54,7 +54,7 @@ public sealed class ListFeaturedSectionsHandler
             src = src.Where(s => s.SectionKindWire == query.SectionKind);
         }
 
-        var safe = _resolver.ApplyStorefrontFilter(src, query.Market, nowUtc);
+        var safe = _resolver.ApplyStorefrontFilterStateOnly(src, query.Market);
         var ordered = safe
             .ThenBy(s => s.DisplayPriority)
             .ThenBy(s => s.CreatedAtUtc);

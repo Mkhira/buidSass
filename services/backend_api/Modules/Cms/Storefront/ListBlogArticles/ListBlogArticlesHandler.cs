@@ -42,19 +42,19 @@ public sealed class ListBlogArticlesHandler
         var pageSize = Math.Clamp(query.PageSize <= 0 ? DefaultPageSize : query.PageSize, 1, MaxPageSize);
         var page = Math.Max(query.Page, 1);
 
-        var filtered = _resolver.ApplyStorefrontFilter(
-            _db.BlogArticles.AsNoTracking(),
-            query.Market,
-            _clock.GetUtcNow());
-
-        IQueryable<BlogArticle> withFilters = filtered;
+        // BlogArticle does not expose scheduled_start/end columns; apply
+        // state + market directly here (see GetBlogArticleHandler note).
+        IQueryable<BlogArticle> filtered = _db.BlogArticles.AsNoTracking()
+            .Where(b => b.StateWire == "live")
+            .Where(b => b.MarketCode == query.Market || b.MarketCode == "*");
         if (!string.IsNullOrEmpty(query.Category))
         {
-            withFilters = withFilters.Where(b => b.CategoryWire == query.Category);
+            filtered = filtered.Where(b => b.CategoryWire == query.Category);
         }
 
-        var rows = await withFilters
-            .OrderByDescending(b => b.PublishedAtUtc)
+        var rows = await filtered
+            .OrderBy(b => b.MarketCode == query.Market ? 0 : 1)
+            .ThenByDescending(b => b.PublishedAtUtc)
             .ThenByDescending(b => b.CreatedAtUtc)
             .Skip((page - 1) * pageSize)
             .Take(pageSize + 1)

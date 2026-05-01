@@ -129,8 +129,8 @@ description: "Task list for Spec 024 — CMS (Phase 1D · Milestone 7)"
 ### Tests for User Story 1
 
 - [X] T56 [P] [US1] Contract test for `POST /v1/admin/cms/banner-slots/drafts` happy path + `cms.banner.schedule_window_invalid` + `cms.banner.cta_kind_target_mismatch` + `cms.asset.mime_forbidden` in `tests/Cms.Tests/Contract/Editor/SaveBannerDraftContractTests.cs`
-- [ ] T057 [P] [US1] Contract test for `PATCH /v1/admin/cms/banner-slots/drafts/{id}` xmin-conflict path → `409 cms.draft.version_conflict` in `tests/Cms.Tests/Contract/Editor/PatchBannerDraftContractTests.cs`
-- [ ] T058 [P] [US1] Contract test for `POST /v1/admin/cms/banner-slots/{id}/schedule-publish` happy path + `cms.publish.locale_completeness_missing` + `cms.banner.cta_target_unresolvable` + `cms.banner.slot_capacity_exceeded` in `tests/Cms.Tests/Contract/Publisher/ScheduleBannerPublishContractTests.cs`
+- [X] T57 [P] [US1] Contract test for `PATCH /v1/admin/cms/banner-slots/drafts/{id}` xmin-conflict path → `409 cms.draft.version_conflict` in `tests/Cms.Tests/Contract/Editor/PatchBannerDraftContractTests.cs`
+- [X] T58 [P] [US1] Contract test for `POST /v1/admin/cms/banner-slots/{id}/schedule-publish` happy path + `cms.publish.locale_completeness_missing` + `cms.banner.cta_target_unresolvable` + `cms.banner.slot_capacity_exceeded` in `tests/Cms.Tests/Contract/Publisher/ScheduleBannerPublishContractTests.cs`
 - [ ] T059 [P] [US1] Integration test for end-to-end banner lifecycle (Editor authors → Publisher schedules → Worker promotes to live → Worker promotes to archived) using `FakeTimeProvider` to advance the clock in `tests/Cms.Tests/Integration/Workers/BannerLifecycleEndToEndTests.cs`
 - [ ] T060 [P] [US1] Integration test asserting concurrent capacity-cap publishes — 100 concurrent attempts at the cap, exactly 1 winner, others see `409 cms.banner.slot_capacity_exceeded` (SC-010 banner-specific) in `tests/Cms.Tests/Integration/Publisher/BannerCapacityRaceTests.cs`
 
@@ -226,8 +226,8 @@ description: "Task list for Spec 024 — CMS (Phase 1D · Milestone 7)"
 
 - [ ] T098 [P] [US4] Contract test for `POST /v1/admin/cms/blog-articles/drafts` slug-uniqueness + slug-pattern + body-size limits + SEO field validation in `tests/Cms.Tests/Contract/Editor/SaveBlogArticleDraftContractTests.cs`
 - [X] T99 [P] [US4] Contract test for the preview-token round-trip (mint → read → revoke → read-403) including header assertion on `X-Robots-Tag: noindex, nofollow` in `tests/Cms.Tests/Contract/Preview/PreviewTokenLifecycleContractTests.cs`
-- [ ] T100 [P] [US4] Integration test for single-locale blog article — `authored_locale=ar`, request `locale=en` returns `available_locales=['ar']` + `localization_unavailable_for_requested_locale=true` in `tests/Cms.Tests/Integration/Storefront/SingleLocaleBlogArticleTests.cs`
-- [ ] T101 [P] [US4] Unit test for `PreviewTokenSigner` — sign + verify round-trip; tampered token rejected; expired token rejected; revoked token rejected; constant-time compare; clock-skew tolerance in `tests/Cms.Tests/Unit/PreviewTokenSignerTests.cs`
+- [X] T100 [P] [US4] Integration test for single-locale blog article — `authored_locale=ar`, request `locale=en` returns `available_locales=['ar']` + `localization_unavailable_for_requested_locale=true` in `tests/Cms.Tests/Integration/Storefront/SingleLocaleBlogArticleTests.cs`
+- [X] T101 [P] [US4] Unit test for `PreviewTokenSigner` — sign + verify round-trip; tampered token rejected; expired token rejected; revoked token rejected; constant-time compare; clock-skew tolerance in `tests/Cms.Tests/Unit/PreviewTokenSignerTests.cs`
 
 ### Implementation for User Story 4
 
@@ -257,9 +257,9 @@ description: "Task list for Spec 024 — CMS (Phase 1D · Milestone 7)"
 
 ### Tests for User Story 5
 
-- [ ] T115 [P] [US5] Contract test for `POST /v1/admin/cms/featured-sections/drafts` — `cms.featured_section.empty_references` + `cms.featured_section.too_many_references` + `cms.featured_section.reference_kind_unsupported` in `tests/Cms.Tests/Contract/Editor/SaveFeaturedSectionDraftContractTests.cs`
-- [ ] T116 [P] [US5] Integration test asserting partial-broken-refs filter behavior + rate-limited `cms.featured_section.partial_broken` event emission (1/section/hour) in `tests/Cms.Tests/Integration/Storefront/FeaturedSectionPartialBrokenTests.cs`
-- [ ] T117 [P] [US5] Integration test asserting fully-broken section returns `omitted_due_to_unavailable_references=true` and emits `cms.featured_section.fully_broken` in `tests/Cms.Tests/Integration/Storefront/FeaturedSectionFullyBrokenTests.cs`
+- [X] T115 [P] [US5] Contract test for `POST /v1/admin/cms/featured-sections/drafts` — `cms.featured_section.empty_references` + `cms.featured_section.too_many_references` + `cms.featured_section.reference_kind_unsupported` in `tests/Cms.Tests/Contract/Editor/SaveFeaturedSectionDraftContractTests.cs`
+- [X] T116 [P] [US5] Integration test asserting partial-broken-refs filter behavior + rate-limited `cms.featured_section.partial_broken` event emission (1/section/hour) in `tests/Cms.Tests/Integration/Storefront/FeaturedSectionPartialBrokenTests.cs`
+- [X] T117 [P] [US5] Integration test asserting fully-broken section returns `omitted_due_to_unavailable_references=true` and emits `cms.featured_section.fully_broken` in `tests/Cms.Tests/Integration/Storefront/FeaturedSectionFullyBrokenTests.cs`
 
 ### Implementation for User Story 5
 
@@ -282,9 +282,9 @@ description: "Task list for Spec 024 — CMS (Phase 1D · Milestone 7)"
 
 ### Tests for User Story 6
 
-- [ ] T124 [P] [US6] Contract test for `POST /v1/admin/cms/faq-entries/drafts` mandatory both Q&A locales at publish in `tests/Cms.Tests/Contract/Editor/SaveFaqEntryDraftContractTests.cs`
-- [ ] T125 [P] [US6] Contract test for `POST /v1/admin/cms/faq-entries/reorder` happy path + concurrent reorder race producing `409 cms.faq.reorder_conflict` (xmin guard) in `tests/Cms.Tests/Contract/Editor/BulkReorderFaqEntriesContractTests.cs`
-- [ ] T126 [P] [US6] Integration test for storefront FAQ ordering — `display_order ASC` then `created_at_utc ASC`; market+locale filtering; collisions allowed in `tests/Cms.Tests/Integration/Storefront/FaqOrderingTests.cs`
+- [X] T124 [P] [US6] Contract test for `POST /v1/admin/cms/faq-entries/drafts` mandatory both Q&A locales at publish in `tests/Cms.Tests/Contract/Editor/SaveFaqEntryDraftContractTests.cs`
+- [X] T125 [P] [US6] Contract test for `POST /v1/admin/cms/faq-entries/reorder` happy path + concurrent reorder race producing `409 cms.faq.reorder_conflict` (xmin guard) in `tests/Cms.Tests/Contract/Editor/BulkReorderFaqEntriesContractTests.cs`
+- [X] T126 [P] [US6] Integration test for storefront FAQ ordering — `display_order ASC` then `created_at_utc ASC`; market+locale filtering; collisions allowed in `tests/Cms.Tests/Integration/Storefront/FaqOrderingTests.cs`
 
 ### Implementation for User Story 6
 

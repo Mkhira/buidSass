@@ -77,6 +77,8 @@ public static partial class ReviewsModule
         // C# allows at most ONE body per partial method, so each phase declares its own.
         AddUs1Slices(services);
         AddUs3Slices(services);
+        AddUs4Slices(services);
+        AddUs5Slices(services);
         AddUs6Slices(services);
 
         services.AddSingleton(TimeProvider.System);
@@ -89,6 +91,9 @@ public static partial class ReviewsModule
         MapUs1CustomerEndpoints(customer);
         MapUs3CustomerEndpoints(customer);
 
+        var admin = endpoints.MapGroup("/api/admin/reviews");
+        MapUs4AdminEndpoints(admin);
+
         var publicAggregates = endpoints.MapGroup("/api/public/reviews/aggregates");
         MapUs6PublicEndpoints(publicAggregates);
 
@@ -97,9 +102,12 @@ public static partial class ReviewsModule
 
     static partial void AddUs1Slices(IServiceCollection services);
     static partial void AddUs3Slices(IServiceCollection services);
+    static partial void AddUs4Slices(IServiceCollection services);
+    static partial void AddUs5Slices(IServiceCollection services);
     static partial void AddUs6Slices(IServiceCollection services);
 
     static partial void MapUs1CustomerEndpoints(IEndpointRouteBuilder customer);
     static partial void MapUs3CustomerEndpoints(IEndpointRouteBuilder customer);
+    static partial void MapUs4AdminEndpoints(IEndpointRouteBuilder admin);
     static partial void MapUs6PublicEndpoints(IEndpointRouteBuilder publicAggregates);
 }

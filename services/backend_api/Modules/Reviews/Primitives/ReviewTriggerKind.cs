@@ -12,6 +12,7 @@ public static class ReviewTriggerKind
     public const string CommunityReportThreshold = "community_report_threshold";
     public const string RefundEvent = "refund_event";
     public const string AccountLocked = "account_locked";
+    public const string AccountDeleted = "account_deleted";
     public const string ModeratorAction = "moderator_action";
     public const string ManualSuperAdmin = "manual_super_admin";
 
@@ -22,6 +23,7 @@ public static class ReviewTriggerKind
         CommunityReportThreshold,
         RefundEvent,
         AccountLocked,
+        AccountDeleted,
         ModeratorAction,
         ManualSuperAdmin,
     };

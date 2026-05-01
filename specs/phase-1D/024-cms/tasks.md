@@ -128,7 +128,7 @@ description: "Task list for Spec 024 — CMS (Phase 1D · Milestone 7)"
 
 ### Tests for User Story 1
 
-- [ ] T056 [P] [US1] Contract test for `POST /v1/admin/cms/banner-slots/drafts` happy path + `cms.banner.schedule_window_invalid` + `cms.banner.cta_kind_target_mismatch` + `cms.asset.mime_forbidden` in `tests/Cms.Tests/Contract/Editor/SaveBannerDraftContractTests.cs`
+- [X] T56 [P] [US1] Contract test for `POST /v1/admin/cms/banner-slots/drafts` happy path + `cms.banner.schedule_window_invalid` + `cms.banner.cta_kind_target_mismatch` + `cms.asset.mime_forbidden` in `tests/Cms.Tests/Contract/Editor/SaveBannerDraftContractTests.cs`
 - [ ] T057 [P] [US1] Contract test for `PATCH /v1/admin/cms/banner-slots/drafts/{id}` xmin-conflict path → `409 cms.draft.version_conflict` in `tests/Cms.Tests/Contract/Editor/PatchBannerDraftContractTests.cs`
 - [ ] T058 [P] [US1] Contract test for `POST /v1/admin/cms/banner-slots/{id}/schedule-publish` happy path + `cms.publish.locale_completeness_missing` + `cms.banner.cta_target_unresolvable` + `cms.banner.slot_capacity_exceeded` in `tests/Cms.Tests/Contract/Publisher/ScheduleBannerPublishContractTests.cs`
 - [ ] T059 [P] [US1] Integration test for end-to-end banner lifecycle (Editor authors → Publisher schedules → Worker promotes to live → Worker promotes to archived) using `FakeTimeProvider` to advance the clock in `tests/Cms.Tests/Integration/Workers/BannerLifecycleEndToEndTests.cs`
@@ -161,7 +161,7 @@ description: "Task list for Spec 024 — CMS (Phase 1D · Milestone 7)"
 
 ### Tests for User Story 2
 
-- [ ] T071 [P] [US2] Contract test for `GET /v1/storefront/cms/banner-slots` happy path + market+locale filter + `cms.storefront.market_unsupported` + `cms.storefront.locale_unsupported` + cache-control headers + ETag stability in `tests/Cms.Tests/Contract/Storefront/ListBannerSlotsContractTests.cs`
+- [X] T71 [P] [US2] Contract test for `GET /v1/storefront/cms/banner-slots` happy path + market+locale filter + `cms.storefront.market_unsupported` + `cms.storefront.locale_unsupported` + cache-control headers + ETag stability in `tests/Cms.Tests/Contract/Storefront/ListBannerSlotsContractTests.cs`
 - [ ] T072 [P] [US2] Contract test for `GET /v1/storefront/cms/featured-sections` including the live-resolved response shape `{section_id, references_resolved, total_references, total_resolved, total_unavailable}` and `omitted_due_to_unavailable_references=true` on fully-broken sections in `tests/Cms.Tests/Contract/Storefront/ListFeaturedSectionsContractTests.cs`
 - [X] T73 [P] [US2] Integration storefront leak-detection test (SC-003) — seed every non-`live` state across all 5 entity kinds; assert zero leakage on every storefront endpoint in `tests/Cms.Tests/Integration/Storefront/LeakDetectionTests.cs`
 - [X] T74 [P] [US2] Integration test asserting two-tier sort — specific market first, then `*` — across all five storefront endpoints in `tests/Cms.Tests/Integration/Storefront/TwoTierSortTests.cs`
@@ -193,10 +193,10 @@ description: "Task list for Spec 024 — CMS (Phase 1D · Milestone 7)"
 
 ### Tests for User Story 3
 
-- [ ] T085 [P] [US3] Contract test for `POST /v1/admin/cms/legal-pages/{kind}/versions/drafts` mandatory both bodies + `cms.publish.effective_at_required` + `cms.publish.locale_completeness_missing` in `tests/Cms.Tests/Contract/LegalOwner/SaveLegalPageVersionDraftContractTests.cs`
+- [X] T85 [P] [US3] Contract test for `POST /v1/admin/cms/legal-pages/{kind}/versions/drafts` mandatory both bodies + `cms.publish.effective_at_required` + `cms.publish.locale_completeness_missing` in `tests/Cms.Tests/Contract/LegalOwner/SaveLegalPageVersionDraftContractTests.cs`
 - [X] T86 [P] [US3] Integration test for the worker supersession transaction — assert prior `Live → Superseded` and new `Scheduled → Live` happen atomically (a forced rollback via injected fault leaves both rows untouched) in `tests/Cms.Tests/Integration/LegalOwner/LegalPageSupersessionTransactionTests.cs`
 - [X] T87 [P] [US3] Integration test asserting `DELETE /v1/admin/cms/legal-pages/{kind}/versions/{id}` returns `405 cms.legal_page.version.delete_forbidden` for every state (draft / scheduled / live / superseded) in `tests/Cms.Tests/Integration/LegalOwner/LegalPageHardDeleteForbiddenTests.cs`
-- [ ] T088 [P] [US3] Contract test for `GET /v1/storefront/cms/legal-pages/{kind}` single-row substitution rule (specific-market `live` → `*` `live` → `404 cms.legal_page.not_found_for_market`) in `tests/Cms.Tests/Contract/Storefront/GetLegalPageContractTests.cs`
+- [X] T88 [P] [US3] Contract test for `GET /v1/storefront/cms/legal-pages/{kind}` single-row substitution rule (specific-market `live` → `*` `live` → `404 cms.legal_page.not_found_for_market`) in `tests/Cms.Tests/Contract/Storefront/GetLegalPageContractTests.cs`
 
 ### Implementation for User Story 3
 
@@ -225,7 +225,7 @@ description: "Task list for Spec 024 — CMS (Phase 1D · Milestone 7)"
 ### Tests for User Story 4
 
 - [ ] T098 [P] [US4] Contract test for `POST /v1/admin/cms/blog-articles/drafts` slug-uniqueness + slug-pattern + body-size limits + SEO field validation in `tests/Cms.Tests/Contract/Editor/SaveBlogArticleDraftContractTests.cs`
-- [ ] T099 [P] [US4] Contract test for the preview-token round-trip (mint → read → revoke → read-403) including header assertion on `X-Robots-Tag: noindex, nofollow` in `tests/Cms.Tests/Contract/Preview/PreviewTokenLifecycleContractTests.cs`
+- [X] T99 [P] [US4] Contract test for the preview-token round-trip (mint → read → revoke → read-403) including header assertion on `X-Robots-Tag: noindex, nofollow` in `tests/Cms.Tests/Contract/Preview/PreviewTokenLifecycleContractTests.cs`
 - [ ] T100 [P] [US4] Integration test for single-locale blog article — `authored_locale=ar`, request `locale=en` returns `available_locales=['ar']` + `localization_unavailable_for_requested_locale=true` in `tests/Cms.Tests/Integration/Storefront/SingleLocaleBlogArticleTests.cs`
 - [ ] T101 [P] [US4] Unit test for `PreviewTokenSigner` — sign + verify round-trip; tampered token rejected; expired token rejected; revoked token rejected; constant-time compare; clock-skew tolerance in `tests/Cms.Tests/Unit/PreviewTokenSignerTests.cs`
 

@@ -1,12 +1,18 @@
 using BackendApi.Configuration;
 using BackendApi.Features.Seeding;
+using BackendApi.Modules.Cms.Editor.SaveBannerDraft;
 using BackendApi.Modules.Cms.Persistence;
 using BackendApi.Modules.Cms.Primitives;
+using BackendApi.Modules.Cms.Publisher;
 using BackendApi.Modules.Cms.Seeding;
+using BackendApi.Modules.Cms.Services;
+using BackendApi.Modules.Shared;
+using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
 using Npgsql;
 
@@ -61,6 +67,29 @@ public static class CmsModule
         services.AddSingleton<BannerCapacityCalculator>();
         services.AddSingleton<Storefront.StorefrontContentResolver>();
 
+        // US1 — banner authoring + lifecycle slices.
+        services.AddScoped<Editor.SaveBannerDraft.SaveBannerDraftHandler>();
+        services.AddScoped<Publisher.SchedulePublish.SchedulePublishBannerHandler>();
+        services.AddScoped<Publisher.PublishNow.PublishNowBannerHandler>();
+        services.AddScoped<Publisher.ArchiveContent.ArchiveBannerHandler>();
+        services.AddScoped<BannerCtaValidator>();
+
+        // Cross-module catalog read contract fallbacks. TryAdd lets spec 005
+        // supply production implementations without coordinating registration
+        // order. Until 005 ships, the in-process fakes (Modules/Shared/Testing)
+        // are wired in tests; production runs against a Null implementation
+        // declared below to fail-fast at the publish gate.
+        services.TryAddScoped<ICatalogProductReadContract, NullCatalogProductReadContract>();
+        services.TryAddScoped<ICatalogCategoryReadContract, NullCatalogCategoryReadContract>();
+        services.TryAddScoped<ICatalogBundleReadContract, NullCatalogBundleReadContract>();
+
+        // MediatR — scan our assembly so the IPublisher in handlers can
+        // dispatch CMS domain events. AddMediatR is idempotent across modules.
+        services.AddMediatR(cfg => cfg.RegisterServicesFromAssemblyContaining<CmsBannerPublished>());
+
+        // US1 — scheduled publish worker.
+        services.AddHostedService<Workers.CmsScheduledPublishWorker>();
+
         // Reference-data seeding (idempotent across Dev / Staging / Production).
         services.AddScoped<ISeeder, CmsReferenceDataSeeder>();
 
@@ -77,6 +106,63 @@ public static class CmsModule
         this IServiceCollection services,
         IConfiguration configuration)
         => services.AddCmsModule(configuration, new ImplicitHostEnvironment(configuration));
+
+    /// <summary>
+    /// Maps the V1 admin CMS endpoints (US1 banner authoring + lifecycle).
+    /// Subsequent user stories add their own endpoint extensions hung off this
+    /// same <c>/v1/admin/cms</c> route group.
+    /// </summary>
+    public static Microsoft.AspNetCore.Routing.IEndpointRouteBuilder MapCmsAdminEndpoints(
+        this Microsoft.AspNetCore.Routing.IEndpointRouteBuilder endpoints)
+    {
+        var admin = endpoints.MapGroup("/v1/admin/cms");
+        admin.MapSaveBannerDraftEndpoints();
+        admin.MapPublisherBannerEndpoints();
+        return endpoints;
+    }
+
+    /// <summary>
+    /// Production-safe Null catalog read fallback. Returns
+    /// <see cref="LinkedEntityUnavailableReason.NotFound"/> so the publish
+    /// gate hard-fails until spec 005 ships a real implementation.
+    /// Tests bind <c>FakeCatalog*ReadContract</c> instead.
+    /// </summary>
+    internal sealed class NullCatalogProductReadContract : ICatalogProductReadContract
+    {
+        public Task<CatalogProductRead> ReadAsync(Guid productId, string marketCode, CancellationToken ct) =>
+            Task.FromResult(new CatalogProductRead(
+                ProductId: productId,
+                MarketCode: marketCode,
+                DisplayNameAr: string.Empty,
+                DisplayNameEn: string.Empty,
+                VendorId: null,
+                IsAvailable: false,
+                UnavailableReason: LinkedEntityUnavailableReason.NotFound));
+    }
+
+    internal sealed class NullCatalogCategoryReadContract : ICatalogCategoryReadContract
+    {
+        public Task<CatalogCategoryRead> ReadAsync(Guid categoryId, string marketCode, CancellationToken ct) =>
+            Task.FromResult(new CatalogCategoryRead(
+                CategoryId: categoryId,
+                MarketCode: marketCode,
+                DisplayNameAr: string.Empty,
+                DisplayNameEn: string.Empty,
+                IsAvailable: false,
+                UnavailableReason: LinkedEntityUnavailableReason.NotFound));
+    }
+
+    internal sealed class NullCatalogBundleReadContract : ICatalogBundleReadContract
+    {
+        public Task<CatalogBundleRead> ReadAsync(Guid bundleId, string marketCode, CancellationToken ct) =>
+            Task.FromResult(new CatalogBundleRead(
+                BundleId: bundleId,
+                MarketCode: marketCode,
+                DisplayNameAr: string.Empty,
+                DisplayNameEn: string.Empty,
+                IsAvailable: false,
+                UnavailableReason: LinkedEntityUnavailableReason.NotFound));
+    }
 
     private sealed class ImplicitHostEnvironment(IConfiguration configuration) : IHostEnvironment
     {

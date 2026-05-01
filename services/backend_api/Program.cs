@@ -115,6 +115,7 @@ if (app.Environment.IsDevelopment())
 app.MapHealthChecks("/health");
 app.MapVerificationEndpoints();
 app.MapReviewsEndpoints();
+app.MapCmsAdminEndpoints();
 
 await app.RunAsync();
 return 0;

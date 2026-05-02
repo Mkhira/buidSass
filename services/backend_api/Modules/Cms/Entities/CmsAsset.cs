@@ -9,6 +9,14 @@ public sealed class CmsAsset
     public long SizeBytes { get; set; }
     public string? IntendedLocale { get; set; }
     public string OriginalFilename { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Per-ADR-010 multi-tenant market discriminator. Required for the asset
+    /// GC worker's per-market grace-window resolution and for residency
+    /// compliance when spec 015 ships uploads. Allowed values: 'EG', 'KSA', '*'.
+    /// </summary>
+    public string MarketCode { get; set; } = "*";
+
     public string StorageObjectStateWire { get; set; } = "active";
     public DateTimeOffset? DereferencedAtUtc { get; set; }
     public DateTimeOffset? SweptAtUtc { get; set; }

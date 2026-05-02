@@ -80,12 +80,14 @@ public static class SuperAdminEndpoints
                 "market_schema row was modified since it was loaded.");
         }
 
-        // Per data-model §2.9 CHECK constraints — bounds checks.
-        if (body.BannerMaxLivePerSlot is { } bm && (bm < 1 || bm > 50))
+        // Per data-model §2.9 CHECK constraints — bounds checks. Each range
+        // mirrors the DB CHECK exactly so a 400 surfaces the typed reason
+        // instead of letting Postgres trip 23514 on commit.
+        if (body.BannerMaxLivePerSlot is { } bm && (bm < 1 || bm > 10))
         {
             return CmsResponseFactory.Problem(context, 400,
                 CmsReasonCode.MarketSchemaValueOutOfRange,
-                "banner_max_live_per_slot must be in [1, 50].");
+                "banner_max_live_per_slot must be in [1, 10].");
         }
         if (body.FeaturedSectionMaxReferences is { } fr && (fr < 1 || fr > 100))
         {
@@ -105,11 +107,11 @@ public static class SuperAdminEndpoints
                 CmsReasonCode.MarketSchemaValueOutOfRange,
                 "draft_staleness_alert_days must be in [7, 365].");
         }
-        if (body.AssetGracePeriodDays is { } ag && (ag < 1 || ag > 90))
+        if (body.AssetGracePeriodDays is { } ag && (ag < 0 || ag > 30))
         {
             return CmsResponseFactory.Problem(context, 400,
                 CmsReasonCode.MarketSchemaValueOutOfRange,
-                "asset_grace_period_days must be in [1, 90].");
+                "asset_grace_period_days must be in [0, 30].");
         }
 
         if (body.BannerMaxLivePerSlot is int v1) schema.BannerMaxLivePerSlot = v1;

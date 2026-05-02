@@ -16,6 +16,8 @@ public sealed class CmsAssetConfiguration : IEntityTypeConfiguration<CmsAsset>
                 "\"StorageObjectState\" IN ('active','swept')");
             t.HasCheckConstraint("CK_cms_asset_size_positive",
                 "\"SizeBytes\" >= 0");
+            t.HasCheckConstraint("CK_cms_asset_market_code",
+                "\"MarketCode\" IN ('EG','KSA','*')");
         });
 
         builder.HasKey(x => x.Id);
@@ -26,6 +28,7 @@ public sealed class CmsAssetConfiguration : IEntityTypeConfiguration<CmsAsset>
         builder.Property(x => x.SizeBytes).IsRequired();
         builder.Property(x => x.IntendedLocale).HasColumnType("text");
         builder.Property(x => x.OriginalFilename).HasColumnType("text").IsRequired();
+        builder.Property(x => x.MarketCode).HasColumnType("text").IsRequired().HasDefaultValue("*");
         builder.Property(x => x.StorageObjectStateWire).HasColumnName("StorageObjectState").HasColumnType("text").IsRequired().HasDefaultValue("active");
         builder.Property(x => x.DereferencedAtUtc);
         builder.Property(x => x.SweptAtUtc);

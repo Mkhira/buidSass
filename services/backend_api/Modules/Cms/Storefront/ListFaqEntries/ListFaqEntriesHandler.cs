@@ -51,7 +51,10 @@ public sealed class ListFaqEntriesHandler
                 r.Id, r.CategoryWire, r.MarketCode, r.DisplayOrder,
                 question ?? string.Empty, answer ?? string.Empty);
         })
-        .Where(i => !string.IsNullOrEmpty(i.Question))
+        // Drop entries where either the question or the answer is blank in
+        // the requested locale — half-translated entries render broken FAQ
+        // items in the storefront UI (CodeRabbit finding on PR #53).
+        .Where(i => !string.IsNullOrEmpty(i.Question) && !string.IsNullOrEmpty(i.Answer))
         .ToList();
 
         return new ListFaqEntriesResponse(items);

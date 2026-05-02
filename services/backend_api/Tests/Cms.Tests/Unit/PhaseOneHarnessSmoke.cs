@@ -28,7 +28,10 @@ public sealed class PhaseOneHarnessSmoke
             .Build();
 
         services.AddLogging();
-        services.AddCmsModule(configuration);
+        // Capture the return value to catch a regression where AddCmsModule
+        // returns null or a different collection (CodeRabbit finding on PR #53).
+        var returned = services.AddCmsModule(configuration);
+        returned.Should().BeSameAs(services);
 
         // Build to verify the registrations resolve.
         using var sp = services.BuildServiceProvider();

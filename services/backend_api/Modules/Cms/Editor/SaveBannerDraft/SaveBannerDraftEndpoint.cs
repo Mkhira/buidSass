@@ -1,6 +1,7 @@
 using BackendApi.Modules.Cms.Authorization;
 using BackendApi.Modules.Cms.Primitives;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Routing;
 

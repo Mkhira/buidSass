@@ -41,7 +41,13 @@ public sealed class CmsPostgresFixture : IAsyncLifetime
         return new CmsDbContext(options);
     }
 
-    /// <summary>Truncate all CMS tables between test cases. Order matches the FK graph.</summary>
+    /// <summary>
+    /// Truncate all CMS tables between test cases. Order matches the FK graph.
+    /// market_schemas is included so tests that mutate market policy don't
+    /// leak state across cases; we re-seed the 3 reference rows after the
+    /// truncate so subsequent tests start from a clean baseline (CodeRabbit
+    /// finding on PR #53).
+    /// </summary>
     public async Task ResetAsync()
     {
         await using var ctx = NewContext();
@@ -54,9 +60,31 @@ public sealed class CmsPostgresFixture : IAsyncLifetime
                 cms.featured_sections,
                 cms.faq_entries,
                 cms.blog_articles,
-                cms.legal_page_versions
+                cms.legal_page_versions,
+                cms.market_schemas
               RESTART IDENTITY CASCADE;");
+
+        var nowUtc = DateTimeOffset.UtcNow;
+        ctx.MarketSchemas.AddRange(
+            BuildDefaultSchema("EG", nowUtc),
+            BuildDefaultSchema("KSA", nowUtc),
+            BuildDefaultSchema("*", nowUtc));
+        await ctx.SaveChangesAsync();
     }
+
+    private static BackendApi.Modules.Cms.Entities.CmsMarketSchema BuildDefaultSchema(
+        string marketCode, DateTimeOffset nowUtc) =>
+        new()
+        {
+            MarketCode = marketCode,
+            BannerMaxLivePerSlot = 5,
+            FeaturedSectionMaxReferences = 24,
+            PreviewTokenDefaultTtlHours = 24,
+            DraftStalenessAlertDays = 30,
+            AssetGracePeriodDays = 7,
+            LastEditedByActorId = Guid.Empty,
+            LastEditedAtUtc = nowUtc,
+        };
 }
 
 [CollectionDefinition(nameof(CmsPostgresCollection))]

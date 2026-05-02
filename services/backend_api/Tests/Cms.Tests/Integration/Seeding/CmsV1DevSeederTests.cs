@@ -87,7 +87,10 @@ public sealed class CmsV1DevSeederTests
             .Select(g => g.Count())
             .ToListAsync(ct);
         pairs.Should().NotBeEmpty();
-        pairs.Should().AllSatisfy(c => c.Should().BeGreaterOrEqualTo(2));
+        // T134 spec: each (legal_page_kind, market_code) pair has exactly 2
+        // versions (one prior superseded + one current live). >= 2 was too
+        // permissive (CodeRabbit finding on PR #53).
+        pairs.Should().AllSatisfy(c => c.Should().Be(2));
 
         // Some legal versions are live, some superseded.
         var liveCount = await verify.LegalPageVersions

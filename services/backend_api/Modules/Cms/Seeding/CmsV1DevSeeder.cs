@@ -174,22 +174,41 @@ public sealed class CmsV1DevSeeder : ISeeder
         {
             foreach (var market in markets)
             {
-                // Prior superseded version (effective_at -90d).
-                var priorLabel = "v1.0";
+                // Idempotency is two-sided per (kind, market): we create the
+                // prior `v1.0` superseded row and the current `v2.0` live row
+                // independently. CodeRabbit (PR #53) flagged the prior
+                // one-sided approach (only checked v1.0) — under partial state
+                // it would either fail to heal a missing live row or attempt
+                // a duplicate insert.
                 var priorExists = await db.LegalPageVersions.AnyAsync(v =>
                     v.LegalPageKindWire == kind &&
                     v.MarketCode == market &&
-                    v.VersionLabel == priorLabel, ct);
+                    v.VersionLabel == "v1.0", ct);
+                var liveExists = await db.LegalPageVersions.AnyAsync(v =>
+                    v.LegalPageKindWire == kind &&
+                    v.MarketCode == market &&
+                    v.VersionLabel == "v2.0", ct);
+
+                // Pre-allocate the live id so the prior row's superseded_by
+                // pointer matches whichever row we end up persisting.
+                var existingLiveId = liveExists
+                    ? await db.LegalPageVersions
+                        .Where(v => v.LegalPageKindWire == kind
+                            && v.MarketCode == market
+                            && v.VersionLabel == "v2.0")
+                        .Select(v => (Guid?)v.Id)
+                        .FirstAsync(ct)
+                    : (Guid?)null;
+                var liveId = existingLiveId ?? Guid.NewGuid();
+
                 if (!priorExists)
                 {
-                    var priorId = Guid.NewGuid();
-                    var liveId = Guid.NewGuid();
                     await db.LegalPageVersions.AddAsync(new LegalPageVersion
                     {
-                        Id = priorId,
+                        Id = Guid.NewGuid(),
                         LegalPageKindWire = kind,
                         MarketCode = market,
-                        VersionLabel = priorLabel,
+                        VersionLabel = "v1.0",
                         BodyEn = $"This is the {kind} ({market}) prior version.",
                         BodyAr = $"هذه نسخة {kind} السابقة لـ {market}.",
                         EffectiveAtUtc = nowUtc.AddDays(-90),
@@ -201,6 +220,9 @@ public sealed class CmsV1DevSeeder : ISeeder
                         EditorSaveAtUtc = nowUtc.AddDays(-91),
                         PublishedAtUtc = nowUtc.AddDays(-90),
                     }, ct);
+                }
+                if (!liveExists)
+                {
                     await db.LegalPageVersions.AddAsync(new LegalPageVersion
                     {
                         Id = liveId,

@@ -40,7 +40,9 @@ public sealed class ListBlogArticlesHandler
     public async Task<ListBlogArticlesResponse> HandleAsync(ListBlogArticlesQuery query, CancellationToken ct)
     {
         var pageSize = Math.Clamp(query.PageSize <= 0 ? DefaultPageSize : query.PageSize, 1, MaxPageSize);
-        var page = Math.Max(query.Page, 1);
+        // Clamp page so (page - 1) * pageSize never overflows int.MaxValue
+        // even if a caller passes Page = int.MaxValue (CodeRabbit finding on PR #53).
+        var page = Math.Clamp(query.Page <= 0 ? 1 : query.Page, 1, int.MaxValue / pageSize);
 
         // BlogArticle does not expose scheduled_start/end columns; apply
         // state + market directly here (see GetBlogArticleHandler note).
@@ -66,7 +68,8 @@ public sealed class ListBlogArticlesHandler
         var items = rows.Select(r =>
         {
             IReadOnlyList<string> availableLocales = new List<string> { r.AuthoredLocale };
-            var localeMissing = !string.Equals(r.AuthoredLocale, query.Locale, StringComparison.Ordinal);
+            // Locale tags are case-insensitive per RFC 5646; treat ar / AR / en-US / en-us identically.
+            var localeMissing = !string.Equals(r.AuthoredLocale, query.Locale, StringComparison.OrdinalIgnoreCase);
             return new BlogArticleListItem(
                 r.Id,
                 r.Slug,

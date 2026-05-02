@@ -111,36 +111,59 @@ public sealed class ReviewsV1DevSeeder : ISeeder
         var productX = new Guid("44444444-0000-0000-0000-000000000001");
         var productY = new Guid("44444444-0000-0000-0000-000000000002");
 
+        // Spec 022 T125 — bilingual editorial-grade seed content. Every
+        // Arabic string below MUST be reviewed by an editorial-grade Arabic
+        // speaker before launch (T142). The current strings are DRAFT and
+        // tracked in Modules/Reviews/Messages/AR_EDITORIAL_REVIEW.md under
+        // the "Seeder strings" section. Until sign-off, this seeder is
+        // dev / staging only (gated above by IsDevelopment / IsStaging).
         var seeds = new List<SyntheticReview>
         {
+            // --- Visible — English (KSA market, dental-procedure tone) ---
             BuildVisible(new("55555555-0000-0000-0000-000000000001"), customerA, productX, "SA", 5,
-                "Excellent gloves", "Tight fit, durable through three procedures."),
+                "Premium grip on extended procedures",
+                "Used these gloves through three back-to-back implant placements. Tactile sensitivity stayed sharp; no tearing at the cuff. Re-ordering."),
             BuildVisible(new("55555555-0000-0000-0000-000000000002"), customerB, productX, "SA", 4,
-                "Good but pricey", "Solid but I expected a lower price point."),
-            BuildVisible(new("55555555-0000-0000-0000-000000000003"), customerC, productY, "EG", 4,
-                "تجربة جيدة", "أداء ممتاز لكن العبوة وصلت متأخرة."),
-            BuildVisible(new("55555555-0000-0000-0000-000000000004"), customerD, productY, "EG", 3,
-                "Average", "Fine for routine use; nothing exceptional."),
+                "Solid build, fair value",
+                "Comparable to the brand we used in residency. Slightly tighter at the wrist than expected; otherwise reliable for a busy operatory."),
 
+            // --- Visible — Arabic (EG market) — DRAFT pending T142 ---
+            BuildVisible(new("55555555-0000-0000-0000-000000000003"), customerC, productY, "EG", 4,
+                "أداء ممتاز يومياً في العيادة",
+                "استخدمته في عدة جلسات تنظيف وحشوة، نتائج ثابتة. وصل التغليف بحالة جيدة لكن مع تأخر يوم عن الموعد المتوقع."),
+            BuildVisible(new("55555555-0000-0000-0000-000000000004"), customerD, productY, "EG", 3,
+                "مقبول للاستخدام المتكرر",
+                "يفي بالغرض في الإجراءات الاعتيادية. الجودة متوسطة مقارنة بالسعر؛ سأبحث عن بديل قبل الطلب القادم."),
+
+            // --- Pending moderation: profanity-tripped (filter wordlist) ---
             BuildPending(new("55555555-0000-0000-0000-000000000005"), customerA, productY, "SA",
-                "Beware spam", "This product is spam pretending to be useful.",
+                "Beware spam content",
+                "This listing seems like spam pretending to be a clinical product. Photos do not match what was delivered.",
                 tripTerms: new[] { "spam" }, hasMedia: false),
 
+            // --- Pending moderation: media-attached auto-hold (FR-014a) ---
             BuildPending(new("55555555-0000-0000-0000-000000000006"), customerB, productY, "SA",
-                "With photo", "Cleanly written body but I attached a photo.",
+                "Photo of packaging issue",
+                "Body content is professional; attaching a photo of the seal damage on arrival for the moderator to verify.",
                 tripTerms: Array.Empty<string>(), hasMedia: true),
 
+            // --- Flagged: 3 qualified community reports escalated visible→flagged ---
             BuildFlagged(new("55555555-0000-0000-0000-000000000007"), customerC, productX, "SA", 1,
-                "Misleading product", "Marketing claims do not match my experience.",
+                "Marketing claims do not match",
+                "Product description on the listing is materially different from what arrived. Reported by multiple verified buyers.",
                 qualifiedReporters: 3),
 
+            // --- Hidden: moderator action with structured operator reason ---
             BuildHidden(new("55555555-0000-0000-0000-000000000008"), customerD, productX, "SA", 2,
-                "Heavy odor", "Persistent latex odor — used three times.",
-                hideReason: "Suspected fake review pattern; under support investigation."),
+                "Persistent odor on use",
+                "Latex odor remained noticeable through three procedures despite airing the box overnight.",
+                hideReason: "Suspected coordinated-review pattern; under support investigation pending verification."),
 
+            // --- Deleted: super_admin terminal action ---
             BuildDeleted(new("55555555-0000-0000-0000-000000000009"), customerA, productX, "EG", 1,
-                "Removed", "Body removed by super_admin for repeated abuse despite hides.",
-                deleteReason: "Repeated personal-attack content despite multiple hides."),
+                "Body removed by moderator",
+                "Body content removed by super_admin per repeated personal-attack policy violations across multiple hides.",
+                deleteReason: "Repeated personal-attack content despite three prior hides; FR-005a forbids hard-delete, super_admin terminal applied per §3.3 RBAC."),
         };
 
         return seeds;

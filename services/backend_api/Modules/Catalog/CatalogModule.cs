@@ -37,6 +37,10 @@ public static class CatalogModule
                 options.UseNpgsql(connectionString);
             }
             options.AddInterceptors(provider.GetRequiredService<CatalogSaveChangesInterceptor>());
+            // ManyServiceProvidersCreatedWarning suppressed (project-memory rule):
+            // Identity tests spin up multiple WebApplicationFactories per run.
+            options.ConfigureWarnings(w =>
+                w.Ignore(Microsoft.EntityFrameworkCore.Diagnostics.CoreEventId.ManyServiceProvidersCreatedWarning));
         });
 
         services.AddSingleton<CategoryTreeService>();

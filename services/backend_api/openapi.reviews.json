@@ -1,0 +1,259 @@
+{
+  "openapi": "3.0.4",
+  "info": {
+    "title": "Reviews & Moderation API",
+    "description": "Spec 022 contract baseline — derived from contracts/reviews-and-moderation-contract.md. Regenerate from a running app via scripts/generate-openapi-reviews.sh once the boot-path service-validation issue is resolved (tracked in spec 003 platform work). This baseline is the contract-diff source of truth and intentionally lists every path + method + canonical status code from §2 customer / §3 admin / §4 policy-admin / §5 public so contract drift is detected at PR time.",
+    "version": "1.0.0",
+    "contact": { "name": "spec-022-owner" }
+  },
+  "servers": [
+    { "url": "/", "description": "Spec-of-record paths; binding to staging / production hosts is environment-specific." }
+  ],
+  "tags": [
+    { "name": "customer-reviews", "description": "§2 — verified-buyer authoring + reporting." },
+    { "name": "admin-reviews", "description": "§3 — moderator + super_admin queue + decisions." },
+    { "name": "policy-admin", "description": "§4 — reviews.policy_admin wordlist + market schema." },
+    { "name": "public-reviews", "description": "§5 — unauthenticated rating aggregates for storefront / search." }
+  ],
+  "paths": {
+    "/v1/customer/reviews": {
+      "post": {
+        "tags": ["customer-reviews"],
+        "summary": "Submit a review (§2.1)",
+        "operationId": "submitReview",
+        "responses": {
+          "201": { "description": "Review created (visible) or held (pending_moderation)." },
+          "400": { "description": "Validation, eligibility, or filter error — see reasonCode extension." },
+          "401": { "description": "Authentication required." },
+          "409": { "description": "Already reviewed (review.eligibility.already_reviewed)." },
+          "429": { "description": "review.rate_limit.submission_exceeded." }
+        }
+      }
+    },
+    "/v1/customer/reviews/{id}": {
+      "patch": {
+        "tags": ["customer-reviews"],
+        "summary": "Edit own review (§2.2)",
+        "operationId": "updateReview",
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }],
+        "responses": {
+          "200": { "description": "Review updated; xmin advances." },
+          "400": { "description": "review.edit.window_closed | review.edit.deleted_terminal." },
+          "403": { "description": "review.edit.not_author." },
+          "409": { "description": "review.row.version_conflict." }
+        }
+      }
+    },
+    "/v1/customer/reviews/me": {
+      "get": {
+        "tags": ["customer-reviews"],
+        "summary": "List my reviews (§2.3) — returns own reviews regardless of state.",
+        "operationId": "listMyReviews",
+        "parameters": [
+          { "name": "page", "in": "query", "schema": { "type": "integer", "default": 1 } },
+          { "name": "page_size", "in": "query", "schema": { "type": "integer", "default": 20 } }
+        ],
+        "responses": { "200": { "description": "Paged list of own reviews." } }
+      }
+    },
+    "/v1/customer/reviews/me/{id}": {
+      "get": {
+        "tags": ["customer-reviews"],
+        "summary": "Read my review (§2.4)",
+        "operationId": "getMyReview",
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }],
+        "responses": {
+          "200": { "description": "Single review (any state)." },
+          "404": { "description": "review.row.not_found." }
+        }
+      }
+    },
+    "/v1/customer/reviews/{id}/report": {
+      "post": {
+        "tags": ["customer-reviews"],
+        "summary": "Report a review (§2.5) — qualified-reporter weighting + threshold escalation.",
+        "operationId": "reportReview",
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }],
+        "responses": {
+          "201": { "description": "Report recorded." },
+          "400": { "description": "review.report.cannot_report_own_review | review.report.reason_invalid | review.report.note_required." },
+          "401": { "description": "review.report.unauthenticated." },
+          "409": { "description": "review.report.already_reported_by_actor." },
+          "429": { "description": "review.rate_limit.report_exceeded." }
+        }
+      }
+    },
+    "/v1/customer/reviews/report-reasons": {
+      "get": {
+        "tags": ["customer-reviews"],
+        "summary": "Lookup the 5 fixed report reasons + ICU keys (§2.6)",
+        "operationId": "getReportReasons",
+        "responses": { "200": { "description": "Reasons + ICU keys." } }
+      }
+    },
+    "/v1/admin/reviews/queue": {
+      "get": {
+        "tags": ["admin-reviews"],
+        "summary": "List moderation queue (§3.1)",
+        "operationId": "listModerationQueue",
+        "parameters": [
+          { "name": "state", "in": "query", "schema": { "type": "string" } },
+          { "name": "market_code", "in": "query", "schema": { "type": "string" } },
+          { "name": "triggered_by", "in": "query", "schema": { "type": "string" } },
+          { "name": "community_report_count_min", "in": "query", "schema": { "type": "integer" } },
+          { "name": "media_only", "in": "query", "schema": { "type": "boolean" } }
+        ],
+        "responses": {
+          "200": { "description": "Queue rows ordered by pending_moderation_started_at." },
+          "403": { "description": "reviews.moderation.forbidden." }
+        }
+      }
+    },
+    "/v1/admin/reviews/{id}": {
+      "get": {
+        "tags": ["admin-reviews"],
+        "summary": "Review detail (§3.2) — full body + audit history + flags + admin notes.",
+        "operationId": "getReviewDetail",
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }],
+        "responses": {
+          "200": { "description": "Full review projection." },
+          "403": { "description": "reviews.moderation.forbidden." },
+          "404": { "description": "review.row.not_found." }
+        }
+      },
+      "delete": {
+        "tags": ["admin-reviews"],
+        "summary": "Forbidden — hard-delete is never allowed (§3.7, FR-005a).",
+        "operationId": "deleteReviewForbidden",
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }],
+        "responses": {
+          "405": { "description": "review.row.delete_forbidden — always returned." }
+        }
+      }
+    },
+    "/v1/admin/reviews/{id}/decide": {
+      "post": {
+        "tags": ["admin-reviews"],
+        "summary": "Decide moderation (§3.3)",
+        "operationId": "decideModeration",
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }],
+        "responses": {
+          "200": { "description": "Decision applied; aggregate refreshes inline on countable transitions." },
+          "400": { "description": "reviews.moderation.invalid_state | reviews.moderation.delete_terminal | reviews.moderation.reason_required." },
+          "403": { "description": "reviews.moderation.forbidden | reviews.moderation.delete_requires_super_admin." },
+          "409": { "description": "reviews.moderation.version_conflict." },
+          "429": { "description": "reviews.moderation.rate_limit_exceeded." }
+        }
+      }
+    },
+    "/v1/admin/reviews/{id}/notes": {
+      "post": {
+        "tags": ["admin-reviews"],
+        "summary": "Add admin note (§3.4) — append-only.",
+        "operationId": "addAdminNote",
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }],
+        "responses": {
+          "201": { "description": "Note persisted." },
+          "400": { "description": "Reason note < 10 chars." },
+          "403": { "description": "reviews.moderation.forbidden." },
+          "404": { "description": "review.row.not_found." }
+        }
+      },
+      "get": {
+        "tags": ["admin-reviews"],
+        "summary": "List admin notes (§3.5) — DESC by created_at_utc.",
+        "operationId": "listAdminNotes",
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }],
+        "responses": { "200": { "description": "Notes (newest first)." } }
+      }
+    },
+    "/v1/admin/reviews/by-customer/{customer_id}": {
+      "get": {
+        "tags": ["admin-reviews"],
+        "summary": "All reviews by a customer (§3.6) — for support / dispute investigation.",
+        "operationId": "listReviewsByCustomer",
+        "parameters": [{ "name": "customer_id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }],
+        "responses": {
+          "200": { "description": "Customer's full review history." },
+          "403": { "description": "reviews.moderation.forbidden." }
+        }
+      }
+    },
+    "/v1/admin/reviews/policy/wordlists": {
+      "get": {
+        "tags": ["policy-admin"],
+        "summary": "List wordlist terms (§4.1)",
+        "operationId": "listWordlistTerms",
+        "responses": {
+          "200": { "description": "All wordlist terms grouped by market + locale." },
+          "403": { "description": "reviews.policy.forbidden." }
+        }
+      },
+      "put": {
+        "tags": ["policy-admin"],
+        "summary": "Upsert wordlist term (§4.2) — emits WordlistUpdatedEvent.",
+        "operationId": "upsertWordlistTerm",
+        "responses": {
+          "200": { "description": "Term upserted." },
+          "400": { "description": "reviews.policy.wordlist.term_invalid." },
+          "403": { "description": "reviews.policy.forbidden." }
+        }
+      },
+      "delete": {
+        "tags": ["policy-admin"],
+        "summary": "Delete wordlist term (§4.3)",
+        "operationId": "deleteWordlistTerm",
+        "responses": {
+          "204": { "description": "Term removed." },
+          "403": { "description": "reviews.policy.forbidden." },
+          "404": { "description": "Term not found." }
+        }
+      }
+    },
+    "/v1/admin/reviews/policy/markets/{market_code}": {
+      "patch": {
+        "tags": ["policy-admin"],
+        "summary": "Update market schema (§4.4) — reviews.policy_admin only.",
+        "operationId": "updateMarketSchema",
+        "parameters": [{ "name": "market_code", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": {
+          "200": { "description": "Schema updated." },
+          "400": { "description": "reviews.policy.market.value_out_of_range." },
+          "403": { "description": "reviews.policy.forbidden." },
+          "404": { "description": "Market not found." }
+        }
+      }
+    },
+    "/v1/public/reviews/aggregates/{product_id}": {
+      "get": {
+        "tags": ["public-reviews"],
+        "summary": "Read product rating aggregate (§5.1) — unauthenticated.",
+        "operationId": "readProductRating",
+        "parameters": [
+          { "name": "product_id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } },
+          { "name": "market_code", "in": "query", "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": {
+            "description": "Aggregate row; review_count=0 + avg_rating=null when no reviews yet (FR-028). Cache-Control: public, max-age=60."
+          }
+        }
+      }
+    },
+    "/v1/public/reviews/aggregates": {
+      "get": {
+        "tags": ["public-reviews"],
+        "summary": "Batch read aggregates (§5.2) — up to 100 product ids.",
+        "operationId": "readProductRatingBatch",
+        "parameters": [
+          { "name": "product_ids", "in": "query", "required": true, "schema": { "type": "string" }, "description": "CSV of up to 100 product UUIDs." },
+          { "name": "market_code", "in": "query", "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": { "description": "Map<productId → aggregate>." },
+          "400": { "description": "More than 100 ids in product_ids." }
+        }
+      }
+    }
+  }
+}

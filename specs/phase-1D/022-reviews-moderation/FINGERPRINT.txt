@@ -1,0 +1,15 @@
+789f39325c0f0e8d7d646fc493718867540f9da41f1eed71c31bf15b53e8fb62
+
+Computed: 2026-05-02
+Tool: scripts/compute-fingerprint.sh
+Constitution version: 1.0.0
+ADR baseline: ADR-001 .. ADR-010 (per CLAUDE.md decisions table)
+
+This snapshot is the value pasted into PR #54 body for spec-022 closeout
+(DoD UC-4). Recompute via `bash scripts/compute-fingerprint.sh` and verify
+against the `verify-context-fingerprint` workflow on the PR; the workflow
+fails closed if the PR body's hash drifts from the canonical baseline.
+
+If this hash changes, it means the constitution or one of the protected
+ADR paths has been amended — that triggers Principle 32 amendment
+procedure and requires the version-bump + sign-off chain BEFORE merge.

@@ -89,6 +89,34 @@ jobs:
         run: |
           oasdiff breaking artifacts/openapi.main.json artifacts/openapi.current.json
 
+      # spec-022 T005: per-module contract-diff for openapi.reviews.json.
+      # The reviews module ships its own per-module artifact at
+      # services/backend_api/openapi.reviews.json. When that file changes
+      # in a PR, oasdiff catches breaking-change drift against main's
+      # baseline. The per-module file lives alongside the central
+      # openapi.json so PR diffs surface every Review-related contract
+      # change at review time.
+      - name: Prepare reviews baseline from main
+        if: steps.changes.outputs.contract_targets == 'true'
+        shell: bash
+        run: |
+          mkdir -p artifacts
+          if git show origin/main:services/backend_api/openapi.reviews.json >/tmp/openapi.reviews.main.json 2>/dev/null; then
+            cp /tmp/openapi.reviews.main.json artifacts/openapi.reviews.main.json
+          else
+            echo '{}' > artifacts/openapi.reviews.main.json
+          fi
+
+      - name: Compare reviews per-module spec with oasdiff
+        if: steps.changes.outputs.contract_targets == 'true'
+        shell: bash
+        run: |
+          if [ -f "services/backend_api/openapi.reviews.json" ]; then
+            oasdiff breaking artifacts/openapi.reviews.main.json services/backend_api/openapi.reviews.json
+          else
+            echo "openapi.reviews.json not present; skipping per-module diff."
+          fi
+
       - name: contract-diff no-op success
         if: steps.changes.outputs.contract_targets != 'true'
         run: |

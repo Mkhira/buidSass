@@ -120,6 +120,7 @@ jobs:
                         - 'services/**'
                         - 'packages/**'
                         - 'scripts/gen-contracts.sh'
+                        - 'scripts/ci/**'
                         - '.github/workflows/build-and-test.yml'
                       design_tokens:
                         - 'packages/design_system/lib/src/tokens/app_colors.dart'
@@ -200,6 +201,11 @@ jobs:
                     console.log('design_system | (none) | - | no editorial-review flags');
                   }
                   NODE
+
+            - name: Assert ManyServiceProvidersCreatedWarning suppression (spec-022 R14)
+              if: steps.changes.outputs.build_targets == 'true'
+              shell: bash
+              run: bash scripts/ci/assert-warning-suppressed.sh
 
             - name: Build and test backend
               if: steps.changes.outputs.build_targets == 'true'

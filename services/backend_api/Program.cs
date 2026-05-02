@@ -14,7 +14,9 @@ using BackendApi.Modules.Returns;
 using BackendApi.Modules.TaxInvoices;
 using BackendApi.Modules.Shared;
 using BackendApi.Modules.Reviews;
+using BackendApi.Modules.Cms;
 using BackendApi.Modules.Verification;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.EntityFrameworkCore;
 using Serilog;
 using Serilog.Formatting.Compact;
@@ -79,7 +81,38 @@ builder.Services.AddTaxInvoicesModule(builder.Configuration, builder.Environment
 builder.Services.AddReturnsModule(builder.Configuration, builder.Environment);
 builder.Services.AddVerificationModule(builder.Configuration, builder.Environment);
 builder.Services.AddReviewsModule(builder.Configuration, builder.Environment);
+builder.Services.AddCmsModule(builder.Configuration);
 builder.Services.AddSeeding(builder.Configuration);
+
+// spec-024 R14 / spec-022 R-rate-limit — register forwarded-headers options so
+// request.Connection.RemoteIpAddress reflects the true client IP behind a
+// proxy / load balancer. Without this, the storefront rate-limit policies
+// partition by the proxy IP and collapse to a single bucket. Trusted-proxy
+// CIDRs are configured per environment in appsettings.{env}.json under
+// "ForwardedHeaders:KnownNetworks" / "ForwardedHeaders:KnownProxies"; default
+// behavior in Development clears the lists so any X-Forwarded-For value is
+// honored locally. Production must set the trusted-proxy CIDRs explicitly.
+builder.Services.Configure<ForwardedHeadersOptions>(options =>
+{
+    options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
+    var configured = builder.Configuration.GetSection("ForwardedHeaders:KnownProxies").Get<string[]>() ?? Array.Empty<string>();
+    options.KnownProxies.Clear();
+    foreach (var p in configured)
+    {
+        if (System.Net.IPAddress.TryParse(p, out var ip)) options.KnownProxies.Add(ip);
+    }
+    var networks = builder.Configuration.GetSection("ForwardedHeaders:KnownNetworks").Get<string[]>() ?? Array.Empty<string>();
+    options.KnownNetworks.Clear();
+    foreach (var n in networks)
+    {
+        var parts = n.Split('/');
+        if (parts.Length == 2 && System.Net.IPAddress.TryParse(parts[0], out var prefix) &&
+            int.TryParse(parts[1], out var prefixLen))
+        {
+            options.KnownNetworks.Add(new Microsoft.AspNetCore.HttpOverrides.IPNetwork(prefix, prefixLen));
+        }
+    }
+});
 
 var app = builder.Build();
 
@@ -92,6 +125,10 @@ if (args.Length > 0 && string.Equals(args[0], SeedAdminCliCommand.Verb, StringCo
 {
     return await SeedAdminCliCommand.RunAsync(app, args, CancellationToken.None);
 }
+
+// Forwarded headers must run BEFORE rate-limiting / endpoint pipelines so
+// downstream readers see the real client IP, not the proxy's.
+app.UseForwardedHeaders();
 
 app.UseMiddleware<CorrelationIdMiddleware>();
 app.UseIdentityModuleEndpoints();
@@ -113,6 +150,8 @@ if (app.Environment.IsDevelopment())
 app.MapHealthChecks("/health");
 app.MapVerificationEndpoints();
 app.MapReviewsEndpoints();
+app.MapCmsAdminEndpoints();
+app.MapCmsStorefrontEndpoints();
 
 await app.RunAsync();
 return 0;

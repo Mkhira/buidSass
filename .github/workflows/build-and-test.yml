@@ -120,6 +120,7 @@ jobs:
                         - 'services/**'
                         - 'packages/**'
                         - 'scripts/gen-contracts.sh'
+                        - 'scripts/ci/**'
                         - '.github/workflows/build-and-test.yml'
                       design_tokens:
                         - 'packages/design_system/lib/src/tokens/app_colors.dart'

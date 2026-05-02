@@ -67,6 +67,10 @@ public static class IdentityModule
         {
             options.UseNpgsql(provider.GetRequiredService<NpgsqlDataSource>());
             options.AddInterceptors(provider.GetRequiredService<IdentitySaveChangesInterceptor>());
+            // ManyServiceProvidersCreatedWarning suppressed (project-memory rule):
+            // Identity tests spin up multiple WebApplicationFactories per run.
+            options.ConfigureWarnings(w =>
+                w.Ignore(Microsoft.EntityFrameworkCore.Diagnostics.CoreEventId.ManyServiceProvidersCreatedWarning));
         });
         services.Configure<IdentityJwtOptions>(configuration.GetSection(IdentityJwtOptions.SectionName));
         services.AddSingleton<IValidateOptions<IdentityJwtOptions>, IdentityJwtOptionsValidator>();

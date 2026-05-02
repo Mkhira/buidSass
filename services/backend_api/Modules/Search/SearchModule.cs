@@ -40,6 +40,10 @@ public static class SearchModule
             {
                 options.UseNpgsql(connectionString);
             }
+            // ManyServiceProvidersCreatedWarning suppressed (project-memory rule):
+            // Identity tests spin up multiple WebApplicationFactories per run.
+            options.ConfigureWarnings(w =>
+                w.Ignore(Microsoft.EntityFrameworkCore.Diagnostics.CoreEventId.ManyServiceProvidersCreatedWarning));
         });
 
         services.Configure<MeilisearchOptions>(configuration.GetSection(MeilisearchOptions.SectionName));

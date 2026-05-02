@@ -44,8 +44,7 @@ public sealed class RefundCompletedSubscriberContractTests
         // implementation lands on `main`.
         await using var db = _fx.NewContext();
         var aggregate = new RatingAggregateRecomputer(db, clock);
-        var subscriber = new RefundCompletedHandler(db, aggregate,
-            new NullReviewDomainEventPublisher(), clock);
+        var subscriber = new RefundCompletedHandler(db, aggregate, clock);
         var publisher = new FakeRefundCompletedPublisher(new[] { (IRefundCompletedSubscriber)subscriber });
 
         await publisher.PublishAsync(
@@ -70,8 +69,7 @@ public sealed class RefundCompletedSubscriberContractTests
         // Two subscribers — the real one + a synthetic recorder. Both must fire.
         await using var db = _fx.NewContext();
         var aggregate = new RatingAggregateRecomputer(db, clock);
-        var realSubscriber = new RefundCompletedHandler(db, aggregate,
-            new NullReviewDomainEventPublisher(), clock);
+        var realSubscriber = new RefundCompletedHandler(db, aggregate, clock);
         var recorder = new RecordingSubscriber();
         var publisher = new FakeRefundCompletedPublisher(
             new IRefundCompletedSubscriber[] { realSubscriber, recorder });

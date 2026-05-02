@@ -76,32 +76,32 @@ public sealed class FeaturedSectionResolver
             switch (kindWire)
             {
                 case "product":
-                {
-                    var p = await _products.ReadAsync(targetId, marketCode, ct);
-                    return new ResolvedReference(
-                        Kind: "product", Id: p.ProductId,
-                        DisplayName: locale == "ar" ? p.DisplayNameAr : p.DisplayNameEn,
-                        IsAvailable: p.IsAvailable,
-                        UnavailableReasonWire: p.UnavailableReason?.ToString());
-                }
+                    {
+                        var p = await _products.ReadAsync(targetId, marketCode, ct);
+                        return new ResolvedReference(
+                            Kind: "product", Id: p.ProductId,
+                            DisplayName: locale == "ar" ? p.DisplayNameAr : p.DisplayNameEn,
+                            IsAvailable: p.IsAvailable,
+                            UnavailableReasonWire: p.UnavailableReason?.ToString());
+                    }
                 case "category":
-                {
-                    var c = await _categories.ReadAsync(targetId, marketCode, ct);
-                    return new ResolvedReference(
-                        Kind: "category", Id: c.CategoryId,
-                        DisplayName: locale == "ar" ? c.DisplayNameAr : c.DisplayNameEn,
-                        IsAvailable: c.IsAvailable,
-                        UnavailableReasonWire: c.UnavailableReason?.ToString());
-                }
+                    {
+                        var c = await _categories.ReadAsync(targetId, marketCode, ct);
+                        return new ResolvedReference(
+                            Kind: "category", Id: c.CategoryId,
+                            DisplayName: locale == "ar" ? c.DisplayNameAr : c.DisplayNameEn,
+                            IsAvailable: c.IsAvailable,
+                            UnavailableReasonWire: c.UnavailableReason?.ToString());
+                    }
                 case "bundle":
-                {
-                    var b = await _bundles.ReadAsync(targetId, marketCode, ct);
-                    return new ResolvedReference(
-                        Kind: "bundle", Id: b.BundleId,
-                        DisplayName: locale == "ar" ? b.DisplayNameAr : b.DisplayNameEn,
-                        IsAvailable: b.IsAvailable,
-                        UnavailableReasonWire: b.UnavailableReason?.ToString());
-                }
+                    {
+                        var b = await _bundles.ReadAsync(targetId, marketCode, ct);
+                        return new ResolvedReference(
+                            Kind: "bundle", Id: b.BundleId,
+                            DisplayName: locale == "ar" ? b.DisplayNameAr : b.DisplayNameEn,
+                            IsAvailable: b.IsAvailable,
+                            UnavailableReasonWire: b.UnavailableReason?.ToString());
+                    }
                 default:
                     return null;
             }

@@ -118,12 +118,12 @@ description: "Phase-1D Spec 020 — Professional Verification: dependency-ordere
 
 ### Tests for User Story 1 (write first, ensure they FAIL before implementation)
 
-- [ ] T044 [P] [US1] Create `services/backend_api/tests/Verification.Tests/Contract/SubmitVerificationContractTests.cs`: covers every error reason code in [contracts/verification-contract.md §2.1](./contracts/verification-contract.md) (`required_field_missing`, `regulator_identifier_invalid`, `documents_invalid`, `already_pending`, `cooldown_active`, `account_inactive`) plus the 201 happy path
-- [ ] T045 [P] [US1] Create `services/backend_api/tests/Verification.Tests/Contract/AttachDocumentContractTests.cs` covering [contracts §2.5](./contracts/verification-contract.md): 201 happy path + `document_too_large`, `document_type_not_allowed`, `document_aggregate_exceeded`, `document_scan_failed`, `invalid_state_for_action`
-- [ ] T046 [P] [US1] Create `services/backend_api/tests/Verification.Tests/Contract/ResubmitWithInfoContractTests.cs` covering [contracts §2.6](./contracts/verification-contract.md): state moves to `in-review` (not `submitted`), `submitted_at` preserved, `decided_at` reset; `no_changes_provided` rejected
-- [ ] T047 [P] [US1] Create `services/backend_api/tests/Verification.Tests/Contract/GetMyVerificationContractTests.cs` covering [contracts §2.2 + §2.3 + §2.4](./contracts/verification-contract.md): owner-only access (404 for foreign id); list pagination; active endpoint returns null when no verification
-- [ ] T048 [P] [US1] Create `services/backend_api/tests/Verification.Tests/Contract/RequestRenewalContractTests.cs` covering [contracts §2.7](./contracts/verification-contract.md): `renewal_window_not_open` outside window, `no_active_approval` if no approval, `renewal_already_pending` on duplicate; happy path creates row with `supersedes_id` set
-- [ ] T049 [P] [US1] Create `services/backend_api/tests/Verification.Tests/Integration/CustomerSubmissionLocaleTests.cs` asserting both AR and EN error responses carry localized `title` + `detail` (FR-031 / FR-032 / FR-033)
+- [X] T044 [P] [US1] Create `services/backend_api/tests/Verification.Tests/Contract/SubmitVerificationContractTests.cs`: covers every error reason code in [contracts/verification-contract.md §2.1](./contracts/verification-contract.md) (`required_field_missing`, `regulator_identifier_invalid`, `documents_invalid`, `already_pending`, `cooldown_active`, `account_inactive`) plus the 201 happy path
+- [X] T045 [P] [US1] Create `services/backend_api/tests/Verification.Tests/Contract/AttachDocumentContractTests.cs` covering [contracts §2.5](./contracts/verification-contract.md): 201 happy path + `document_too_large`, `document_type_not_allowed`, `document_aggregate_exceeded`, `document_scan_failed`, `invalid_state_for_action`
+- [X] T046 [P] [US1] Create `services/backend_api/tests/Verification.Tests/Contract/ResubmitWithInfoContractTests.cs` covering [contracts §2.6](./contracts/verification-contract.md): state moves to `in-review` (not `submitted`), `submitted_at` preserved, `decided_at` reset; `no_changes_provided` rejected
+- [X] T047 [P] [US1] Create `services/backend_api/tests/Verification.Tests/Contract/GetMyVerificationContractTests.cs` covering [contracts §2.2 + §2.3 + §2.4](./contracts/verification-contract.md): owner-only access (404 for foreign id); list pagination; active endpoint returns null when no verification
+- [X] T048 [P] [US1] Create `services/backend_api/tests/Verification.Tests/Contract/RequestRenewalContractTests.cs` covering [contracts §2.7](./contracts/verification-contract.md): `renewal_window_not_open` outside window, `no_active_approval` if no approval, `renewal_already_pending` on duplicate; happy path creates row with `supersedes_id` set
+- [X] T049 [P] [US1] Create `services/backend_api/tests/Verification.Tests/Integration/CustomerSubmissionLocaleTests.cs` asserting both AR and EN error responses carry localized `title` + `detail` (FR-031 / FR-032 / FR-033)
 
 ### Implementation for User Story 1
 
@@ -190,7 +190,7 @@ description: "Phase-1D Spec 020 — Professional Verification: dependency-ordere
 - [X] T079 [P] [US3] Create `services/backend_api/tests/Verification.Tests/Integration/EligibilityQueryMatrixTests.cs`: synthetic matrix `(verification_state × verification_market × verification_profession × product_restriction × customer_current_market) → expected EligibilityClass + EligibilityReasonCode`. **Required enumerated cases**: every value of `EligibilityReasonCode` is exercised at least once (SC-008); explicitly covers the cross-market edge case from `spec.md §Edge Cases`: `(verification_state=approved, verification_market=eg, customer_current_market=ksa, sku_restricted_in=[ksa])` → `Ineligible: MarketMismatch`; and the inverse `(verification_state=approved, verification_market=ksa, customer_current_market=ksa, sku_restricted_in=[eg])` → `Eligible` (restriction does not apply in customer's market)
 - [X] T080 [P] [US3] Create `services/backend_api/tests/Verification.Tests/Integration/EligibilityCacheInvalidationTests.cs`: every state transition (submit, approve, reject, info-request, revoke, expire, supersede, void) results in the cache row reflecting the new authoritative answer **inside the same transaction** (R1)
 - [X] T081 [P] [US3] Create `services/backend_api/tests/Verification.Tests/Integration/EligibilityBulkQueryTests.cs`: `EvaluateManyAsync` returns the same answer per SKU as N sequential `EvaluateAsync` calls, plus 1 catalog-list-page-shape fixture (50 SKUs, mix of restricted + unrestricted)
-- [ ] T082 [P] [US3] Create `services/backend_api/tests/Verification.Tests/Benchmarks/EligibilityBench.cs` (BenchmarkDotNet): warm-cache p95 latency budget assertion ≤ 5 ms (asserts the lock from research.md §R1; CI baseline locked, may relax in CI environments per project convention)
+- [X] T082 [P] [US3] Create `services/backend_api/tests/Verification.Tests/Benchmarks/EligibilityBench.cs` (BenchmarkDotNet): warm-cache p95 latency budget assertion ≤ 5 ms (asserts the lock from research.md §R1; CI baseline locked, may relax in CI environments per project convention)
 
 ### Implementation for User Story 3
 
@@ -260,7 +260,7 @@ description: "Phase-1D Spec 020 — Professional Verification: dependency-ordere
 
 ### Tests for User Story 6
 
-- [ ] T104 [P] [US6] Create `services/backend_api/tests/Verification.Tests/Contract/AdminRevokeContractTests.cs` covering [contracts §3.6](./contracts/verification-contract.md): `verification.revoke_permission_required` (403), reason required, only `approved` is revocable (other states reject with `invalid_state_for_action`), `verification.already_decided` on optimistic-concurrency loss
+- [X] T104 [P] [US6] Create `services/backend_api/tests/Verification.Tests/Contract/AdminRevokeContractTests.cs` covering [contracts §3.6](./contracts/verification-contract.md): `verification.revoke_permission_required` (403), reason required, only `approved` is revocable (other states reject with `invalid_state_for_action`), `verification.already_decided` on optimistic-concurrency loss
 - [X] T105 [P] [US6] Create `services/backend_api/tests/Verification.Tests/Integration/RevokeNoCooldownTests.cs`: a customer whose verification was revoked may submit a new verification immediately (FR-009 — no cool-down after revoke)
 
 ### Implementation for User Story 6
@@ -298,7 +298,7 @@ description: "Phase-1D Spec 020 — Professional Verification: dependency-ordere
 
 - [X] T117 Create `scripts/audit-spot-check-verification.sh` (matches spec 004's pattern): replays a synthetic verification's lifecycle and asserts the expected `audit_log_entries` rows exist for every transition + every PII read + every reminder + every purge
 - [ ] T118 Run the full DoD walkthrough per `docs/dod.md`: every FR traced to a passing test (matrix in `services/backend_api/tests/Verification.Tests/coverage-matrix.md`); every SC measurable; constitution + ADR fingerprint computed via `scripts/compute-fingerprint.sh`; impeccable scan N/A (backend-only spec per `docs/design-agent-skills.md`)
-- [ ] T119 [P] Performance verification: run the `EligibilityBench` benchmark on the staging-equivalent dev box; record p95 + p99; commit the result to `services/backend_api/tests/Verification.Tests/Benchmarks/baselines.md`
+- [X] T119 [P] Performance verification: run the `EligibilityBench` benchmark on the staging-equivalent dev box; record p95 + p99; commit the result to `services/backend_api/tests/Verification.Tests/Benchmarks/baselines.md`
 - [ ] T120 Run `quickstart.md` end-to-end against a fresh local Postgres + a fresh module checkout to verify the implementer walkthrough still works after all phases land
 
 ---

@@ -145,6 +145,7 @@ lerna-debug.log*
 # ─── Testing ──────────────────────────────────────────────────────────────────
 /coverage
 /test-results/
+TestResults/
 /playwright-report/
 /blob-report/
 /playwright/.cache/

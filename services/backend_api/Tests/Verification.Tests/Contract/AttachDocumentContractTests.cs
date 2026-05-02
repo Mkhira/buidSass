@@ -1,6 +1,8 @@
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
+using BackendApi.Modules.Verification.Entities;
+using BackendApi.Modules.Verification.Primitives;
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 using Verification.Tests.Contract.Infrastructure;
@@ -197,6 +199,106 @@ public sealed class AttachDocumentContractTests
 
         resp.StatusCode.Should().Be(HttpStatusCode.NotFound);
         await AssertProblemAsync(resp, "verification.not_found");
+    }
+
+    [Fact]
+    public async Task Attach_400_aggregate_size_exceeded_when_total_attached_over_25MB()
+    {
+        // Per AttachDocumentHandler: per-doc cap is 10 MB, aggregate cap is
+        // 25 MB. Three 9 MB docs (each individually OK) push the total to
+        // 27 MB — the third attach must trip the aggregate gate.
+        await _factory.ResetVerificationAsync();
+        var customerId = Guid.NewGuid();
+        using var client = NewCustomerClient(customerId);
+        var verificationId = await SubmitNewVerificationAsync(client, customerId);
+
+        const long NineMegabytes = 9L * 1024 * 1024;
+        for (var i = 0; i < 2; i++)
+        {
+            var ok = new HttpRequestMessage(HttpMethod.Post, $"/api/customer/verifications/{verificationId}/documents")
+            {
+                Content = JsonContent.Create(new
+                {
+                    storageKey = $"spec-015/page-{i}.pdf",
+                    contentType = "application/pdf",
+                    sizeBytes = NineMegabytes,
+                    scanStatus = "clean",
+                }),
+            };
+            ok.Headers.Add("Idempotency-Key", Guid.NewGuid().ToString());
+            (await client.SendAsync(ok)).StatusCode.Should().Be(HttpStatusCode.Created);
+        }
+
+        var thirdAttach = new HttpRequestMessage(HttpMethod.Post, $"/api/customer/verifications/{verificationId}/documents")
+        {
+            Content = JsonContent.Create(new
+            {
+                storageKey = "spec-015/page-3.pdf",
+                contentType = "application/pdf",
+                sizeBytes = NineMegabytes,   // 9 + 9 + 9 = 27 MB > 25 MB cap
+                scanStatus = "clean",
+            }),
+        };
+        thirdAttach.Headers.Add("Idempotency-Key", Guid.NewGuid().ToString());
+
+        var resp = await client.SendAsync(thirdAttach);
+
+        resp.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        await AssertProblemAsync(resp, "verification.document.aggregate_size_exceeded");
+    }
+
+    [Fact]
+    public async Task Attach_409_invalid_state_for_action_when_verification_in_terminal_state()
+    {
+        // Per AttachDocumentHandler: terminal verifications reject attach.
+        // Force the row to `rejected` (a terminal state) and assert the
+        // wire code lands.
+        await _factory.ResetVerificationAsync();
+        var customerId = Guid.NewGuid();
+        using var client = NewCustomerClient(customerId);
+        var verificationId = await SubmitNewVerificationAsync(client, customerId);
+
+        await ForceTerminalStateAsync(verificationId, VerificationState.Rejected);
+
+        var req = new HttpRequestMessage(HttpMethod.Post, $"/api/customer/verifications/{verificationId}/documents")
+        {
+            Content = JsonContent.Create(new
+            {
+                storageKey = "spec-015/late.pdf",
+                contentType = "application/pdf",
+                sizeBytes = 500_000L,
+                scanStatus = "clean",
+            }),
+        };
+        req.Headers.Add("Idempotency-Key", Guid.NewGuid().ToString());
+
+        var resp = await client.SendAsync(req);
+
+        resp.StatusCode.Should().Be(HttpStatusCode.Conflict);
+        await AssertProblemAsync(resp, "verification.invalid_state_for_action");
+    }
+
+    private async Task ForceTerminalStateAsync(Guid verificationId, VerificationState terminal)
+    {
+        await using var ctx = _factory.NewDbContext();
+        var v = await ctx.Verifications.SingleAsync(x => x.Id == verificationId);
+        var prior = v.State.ToWireValue();
+        v.State = terminal;
+        v.UpdatedAt = DateTimeOffset.UtcNow;
+        ctx.StateTransitions.Add(new VerificationStateTransition
+        {
+            Id = Guid.NewGuid(),
+            VerificationId = verificationId,
+            MarketCode = v.MarketCode,
+            PriorState = prior,
+            NewState = terminal.ToWireValue(),
+            ActorKind = "reviewer",
+            ActorId = Guid.NewGuid(),
+            OccurredAt = DateTimeOffset.UtcNow,
+            Reason = "forced_terminal_for_test",
+            MetadataJson = "{}",
+        });
+        await ctx.SaveChangesAsync();
     }
 
     [Fact]

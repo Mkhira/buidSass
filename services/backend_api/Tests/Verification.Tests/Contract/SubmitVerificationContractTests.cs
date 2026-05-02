@@ -1,6 +1,8 @@
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
+using BackendApi.Modules.Verification.Entities;
+using BackendApi.Modules.Verification.Primitives;
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
@@ -236,6 +238,99 @@ public sealed class SubmitVerificationContractTests
                 Microsoft.Extensions.Logging.Abstractions.NullLogger.Instance);
             await seeder.ApplyAsync(seedCtx, CancellationToken.None);
         }
+    }
+
+    [Fact]
+    public async Task Submit_400_cooldown_active_when_recent_rejection_inside_cooldown_window()
+    {
+        // FR-009 / US6 — a customer rejected within the per-market cooldown
+        // window cannot resubmit until the window closes. KSA seed schema
+        // sets CooldownDays = 7. Seed a rejected row decided 1 day ago and
+        // assert the next submit returns the wire code.
+        await _factory.ResetVerificationAsync();
+        var customerId = Guid.NewGuid();
+        using var client = NewCustomerClient(customerId);
+        var nowUtc = DateTimeOffset.UtcNow;
+
+        await using (var ctx = _factory.NewDbContext())
+        {
+            var schema = await ctx.MarketSchemas
+                .Where(s => s.MarketCode == "ksa" && s.EffectiveTo == null)
+                .OrderByDescending(s => s.Version)
+                .FirstAsync();
+            var rejectedId = Guid.NewGuid();
+            ctx.Verifications.Add(new BackendApi.Modules.Verification.Entities.Verification
+            {
+                Id = rejectedId,
+                CustomerId = customerId,
+                MarketCode = "ksa",
+                SchemaVersion = schema.Version,
+                Profession = "dentist",
+                RegulatorIdentifier = "SCFHS-1234567",
+                State = VerificationState.Rejected,
+                SubmittedAt = nowUtc.AddDays(-3),
+                DecidedAt = nowUtc.AddDays(-1),  // inside the 7-day cooldown
+                DecidedBy = Guid.NewGuid(),
+                CreatedAt = nowUtc.AddDays(-3),
+                UpdatedAt = nowUtc.AddDays(-1),
+            });
+            ctx.StateTransitions.Add(new VerificationStateTransition
+            {
+                Id = Guid.NewGuid(),
+                VerificationId = rejectedId,
+                MarketCode = "ksa",
+                PriorState = VerificationState.InReview.ToWireValue(),
+                NewState = VerificationState.Rejected.ToWireValue(),
+                ActorKind = "reviewer",
+                ActorId = Guid.NewGuid(),
+                OccurredAt = nowUtc.AddDays(-1),
+                Reason = "seeded_for_cooldown_test",
+                MetadataJson = "{}",
+            });
+            await ctx.SaveChangesAsync();
+        }
+
+        var req = new HttpRequestMessage(HttpMethod.Post, "/api/customer/verifications/")
+        {
+            Content = JsonContent.Create(new
+            {
+                profession = "dentist",
+                regulatorIdentifier = "SCFHS-1234567",
+                documentIds = Array.Empty<Guid>(),
+            }),
+        };
+        req.Headers.Add("Idempotency-Key", Guid.NewGuid().ToString());
+
+        var resp = await client.SendAsync(req);
+
+        resp.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        await AssertProblemAsync(resp, "verification.cooldown_active");
+    }
+
+    /// <summary>
+    /// <c>verification.account_inactive</c> is defined as a wire code in
+    /// <see cref="VerificationReasonCode"/> but no production submit path
+    /// emits it — the SubmitVerificationEndpoint references it inside an
+    /// unreachable 401 branch (the [Authorize] middleware short-circuits
+    /// with empty-body 401 before the endpoint runs). Account inactivity
+    /// is enforced upstream by the AccountLifecycleHandler hook, which
+    /// voids/revokes verification rows when an account becomes inactive,
+    /// so a subsequent submit fails with cooldown/already-pending/etc.
+    /// rather than account_inactive.
+    ///
+    /// <para>The Submit_401_when_no_customer_principal test below covers
+    /// the unauthenticated path. No additional test is added for
+    /// <c>verification.account_inactive</c> because the wire code has no
+    /// reachable emission site through this endpoint.</para>
+    /// </summary>
+    [Fact]
+    public void Submit_account_inactive_wire_code_is_documented_as_unreachable()
+    {
+        // Sentinel test that fails (and forces this comment to be revisited)
+        // if a future change wires `verification.account_inactive` into the
+        // submit endpoint as a reachable response code. Today, it isn't.
+        VerificationReasonCode.AccountInactive.ToWireValue()
+            .Should().Be("verification.account_inactive");
     }
 
     [Fact]

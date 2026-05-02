@@ -36,14 +36,19 @@ declare -a MISSING=()
 has_uncommented_match() {
     local file="$1"
     local pattern="$2"
+    local stripped
     # Strip block comments first (greedy, single-line), then line comments,
-    # then string literals, then grep for the pattern.
-    sed -E \
+    # then string literals, then search for the pattern. We materialize sed's
+    # full output before scanning so `grep -q`'s early exit can't deliver
+    # SIGPIPE to sed under `set -o pipefail` (which on GNU sed surfaces as
+    # "couldn't flush stdout: Broken pipe" and a non-zero pipeline status,
+    # producing a false negative on CI).
+    stripped="$(sed -E \
         -e 's,/\*[^*]*\*/,,g' \
         -e 's,//.*$,,' \
         -e 's,@?"([^"\\]|\\.)*",,g' \
-        "$file" \
-      | grep -q "${pattern}"
+        "$file")"
+    grep -q "${pattern}" <<<"${stripped}"
 }
 
 # Returns 0 if the file (or any sibling under the same module folder)

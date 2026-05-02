@@ -16,7 +16,7 @@ absorb shared-runner noise without flapping. Production observability dashboards
 
 | Date (UTC) | Hardware / runtime | Sample count | p50 | p95 | p99 | Notes |
 |---|---|---|---|---|---|---|
-| 2026-05-02 | Docker Desktop on Apple Silicon, .NET 9.0.10, Postgres 16-alpine in container | 200 | _populate from `dotnet test` console output_ | _idem_ | _idem_ | First baseline taken on the spec 020 closeout PR. |
+| 2026-05-02 | Docker Desktop on Apple Silicon, .NET 9.0.10, Postgres 16-alpine in container | 200 | 0.54 ms | 1.30 ms | 1.84 ms | First baseline on the spec 020 closeout PR. Warm-cache path well inside locked envelope (p95 ≤ 5 ms, p99 ≤ 15 ms) and relaxed CI envelope. |
 
 To refresh: `dotnet test Tests/Verification.Tests/Verification.Tests.csproj --filter "FullyQualifiedName~EligibilityBench" --logger "console;verbosity=normal"` and copy the `[EligibilityBench]` line.
 

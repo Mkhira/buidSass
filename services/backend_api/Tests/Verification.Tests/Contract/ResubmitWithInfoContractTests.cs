@@ -21,9 +21,12 @@ namespace Verification.Tests.Contract;
 ///   <item>a non-blank <c>acknowledgement</c> string in the body — blank
 ///         emits <c>verification.required_field_missing</c>;</item>
 ///   <item>at least one document attached AFTER the latest info-requested
-///         transition — emits <c>verification.documents_invalid</c>
-///         when none. The contract's <c>no_changes_provided</c> name is
-///         covered by these two codes between them.</item>
+///         transition — emits <c>verification.required_field_missing</c>
+///         (with detail prefix <c>no_changes_provided</c>) when none. Both
+///         "no acknowledgement" and "no new docs" surface as the same wire
+///         code; the differentiation is in the Problem Details
+///         <c>detail</c> field. The contract's <c>no_changes_provided</c>
+///         name is covered by this single wire code.</item>
 /// </list>
 /// <para>Asserts state moves to <c>in_review</c> (NOT <c>submitted</c>),
 /// preserves <c>submitted_at</c>, and resets <c>decided_at</c>/<c>decided_by</c>.</para>
@@ -187,6 +190,39 @@ public sealed class ResubmitWithInfoContractTests
 
         resp.StatusCode.Should().Be(HttpStatusCode.Conflict);
         await AssertProblemAsync(resp, "verification.invalid_state_for_action");
+    }
+
+    [Fact]
+    public async Task Resubmit_400_required_field_missing_when_no_new_documents_after_info_requested()
+    {
+        // FR-016: resubmit must include at least one new document attached
+        // AFTER the latest info_requested transition. Skipping the attach
+        // step puts the verification into a "no changes provided" state —
+        // the handler emits required_field_missing with detail prefix
+        // "no_changes_provided" (the contract's no_changes_provided wire
+        // code is collapsed into required_field_missing per the drift note).
+        await _factory.ResetVerificationAsync();
+        var customerId = Guid.NewGuid();
+        using var client = NewCustomerClient(customerId);
+        var verificationId = await SubmitNewVerificationAsync(client);
+        await ForceInfoRequestedStateAsync(verificationId);
+        // Intentionally NOT calling AttachOneCleanDocumentAsync — the row is
+        // in info_requested with the original submission's docs, none after.
+
+        var req = new HttpRequestMessage(HttpMethod.Post, $"/api/customer/verifications/{verificationId}/resubmit")
+        {
+            Content = JsonContent.Create(new { acknowledgement = "I have re-read the prior request." }),
+        };
+        req.Headers.Add("Idempotency-Key", Guid.NewGuid().ToString());
+
+        var resp = await client.SendAsync(req);
+
+        resp.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        resp.Content.Headers.ContentType?.MediaType.Should().Be("application/problem+json");
+        var body = await resp.Content.ReadFromJsonAsync<JsonElement>();
+        body.GetProperty("reasonCode").GetString().Should().Be("verification.required_field_missing");
+        body.GetProperty("detail").GetString().Should().Contain("no_changes_provided",
+            "the detail field tags this as the no_changes_provided variant of required_field_missing");
     }
 
     [Fact]

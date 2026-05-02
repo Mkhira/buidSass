@@ -101,9 +101,12 @@ public sealed class GetMyVerificationContractTests
 
         resp.StatusCode.Should().Be(HttpStatusCode.OK);
         var body = await resp.Content.ReadFromJsonAsync<JsonElement>();
-        // Response shape is the handler's pagination envelope; we assert at
-        // least one of the well-known fields lands so the wire shape is stable.
-        body.ValueKind.Should().BeOneOf(JsonValueKind.Object, JsonValueKind.Array);
+        // The list endpoint returns a pagination envelope (object), not a
+        // bare array — pin that shape so a regression to a top-level array
+        // (or any other kind) fails fast.
+        body.ValueKind.Should().Be(JsonValueKind.Object);
+        body.EnumerateObject().Should().NotBeEmpty(
+            "the pagination envelope is an object with at least one well-known field");
     }
 
     [Fact]

@@ -167,6 +167,7 @@ public sealed class LeakDetectionTests
         await using var seed = _fx.NewContext();
         seed.FeaturedSections.AddRange(
             BuildFeatured("draft", "EG", nowUtc),
+            BuildFeatured("scheduled", "EG", nowUtc),
             BuildFeatured("archived", "EG", nowUtc),
             BuildFeatured("live", "EG", nowUtc),
             BuildFeatured("live", "*", nowUtc));

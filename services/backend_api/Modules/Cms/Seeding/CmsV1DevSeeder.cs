@@ -54,6 +54,16 @@ public sealed class CmsV1DevSeeder : ISeeder
                 b.HeadlineEn == s.HeadlineEn, ct);
             if (exists) continue;
 
+            // Per-state event-order chronology: archived banners must have
+            // been created + published BEFORE they were archived. Live /
+            // scheduled / draft use nowUtc-anchored timestamps.
+            var createdAt = s.State == "archived" ? nowUtc.AddDays(-60) : nowUtc;
+            var publishedAt = s.State switch
+            {
+                "live" => nowUtc,
+                "archived" => nowUtc.AddDays(-45),
+                _ => (DateTimeOffset?)null,
+            };
             await db.BannerSlots.AddAsync(new BannerSlot
             {
                 Id = Guid.NewGuid(),
@@ -65,9 +75,9 @@ public sealed class CmsV1DevSeeder : ISeeder
                 StateWire = s.State,
                 PriorityWithinSlot = 100,
                 OwnerActorId = Guid.Empty,
-                CreatedAtUtc = nowUtc,
-                EditorSaveAtUtc = nowUtc,
-                PublishedAtUtc = s.State == "live" || s.State == "archived" ? nowUtc : null,
+                CreatedAtUtc = createdAt,
+                EditorSaveAtUtc = createdAt,
+                PublishedAtUtc = publishedAt,
                 ScheduledStartUtc = s.State == "scheduled" ? nowUtc.AddDays(7) : null,
                 ScheduledEndUtc = s.State == "scheduled" ? nowUtc.AddDays(37) : null,
                 ArchivedAtUtc = s.State == "archived" ? nowUtc.AddDays(-30) : null,
@@ -264,6 +274,10 @@ public sealed class CmsV1DevSeeder : ISeeder
                 b.Slug == s.Slug, ct);
             if (exists) continue;
 
+            // Per-state chronology: live blogs must have been authored
+            // BEFORE they were published. CreatedAt is pushed back so
+            // PublishedAt = nowUtc.AddDays(-7) is later than CreatedAt.
+            var createdAt = s.State == "live" ? nowUtc.AddDays(-8) : nowUtc;
             await db.BlogArticles.AddAsync(new BlogArticle
             {
                 Id = Guid.NewGuid(),
@@ -279,8 +293,8 @@ public sealed class CmsV1DevSeeder : ISeeder
                 SeoMetaDescription = s.Title,
                 SeoSchemaOrgKind = "BlogPosting",
                 OwnerActorId = Guid.Empty,
-                CreatedAtUtc = nowUtc,
-                EditorSaveAtUtc = nowUtc,
+                CreatedAtUtc = createdAt,
+                EditorSaveAtUtc = createdAt,
                 PublishedAtUtc = s.State == "live" ? nowUtc.AddDays(-7) : null,
                 ScheduledPublishAtUtc = s.State == "scheduled" ? nowUtc.AddDays(14) : null,
             }, ct);

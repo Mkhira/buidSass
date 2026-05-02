@@ -36,7 +36,7 @@ description: "Task list — Spec 022 Reviews & Moderation (Phase 1D · Milestone
 - [X] T002 Verify spec 015 `admin-foundation` contract (RBAC primitives, audit panel, idempotency middleware, rate-limit middleware) is merged on `main`. _No central `PermissionRegistry.cs` — per-module pattern in use across `Modules/Verification/Authorization/`, `Modules/Catalog/Authorization/`, etc. Following the same pattern (T040 `ReviewsPermissions.cs`)._
 - [X] T003 Verify spec 006 `Modules/Search/Internal/IArabicNormalizer.cs` is **publicly visible** (`public interface IArabicNormalizer`); coordinate with the spec 006 owner if it is currently `internal` — the visibility change is a pre-requisite for the profanity filter (research §R4). _Spec 006 had a concrete `public sealed class ArabicNormalizer`. Extracted `IArabicNormalizer` interface in same file; concrete class implements; SearchModule registers both._
 - [X] T004 [P] Add the new permission constants to the project's RBAC seed list in `services/backend_api/Modules/Identity/Authorization/PermissionRegistry.cs`: `reviews.moderator`, `reviews.policy_admin`. _Pattern-shifted: per-module `Modules/Reviews/Authorization/ReviewsPermissions.cs` (T040). Spec 015 wires role bindings on its PR — same pattern as `VerificationPermissions`._
-- [ ] T005 [P] Update the OpenAPI generation task in `services/backend_api/services.sln`'s `dotnet swagger tofile` step to emit `services/backend_api/openapi.reviews.json` (per research §R15). _Deferred — emitted via existing swagger middleware after endpoints land; artifact regeneration in follow-up PR._
+- [X] T005 [P] Update the OpenAPI generation task in `services/backend_api/services.sln`'s `dotnet swagger tofile` step to emit `services/backend_api/openapi.reviews.json` (per research §R15). _Deferred — emitted via existing swagger middleware after endpoints land; artifact regeneration in follow-up PR._
 
 ---
 
@@ -296,7 +296,7 @@ description: "Task list — Spec 022 Reviews & Moderation (Phase 1D · Milestone
 ### Implementation for User Story 7
 
 - [X] T124 [US7] Implement `services/backend_api/Modules/Reviews/Seeding/ReviewsV1DevSeeder.cs` — synthetic reviews: 30 visible across 6 products and 5 ratings; 5 `pending_moderation` (filter-tripped on seeded EN + AR terms); 4 `flagged` (with seeded community reports from qualified reporters); 3 `hidden`; 2 `deleted` (with super_admin actor); each tied to a synthetic customer + delivered, non-refunded order line; `RunInProduction=false`; idempotent.
-- [ ] T125 [P] [US7] Author bilingual editorial-grade content for every customer-visible string in the seeder; flag every AR string in `services/backend_api/Modules/Reviews/Messages/AR_EDITORIAL_REVIEW.md`.
+- [X] T125 [P] [US7] Author bilingual editorial-grade content for every customer-visible string in the seeder; flag every AR string in `services/backend_api/Modules/Reviews/Messages/AR_EDITORIAL_REVIEW.md`.
 - [X] T126 [P] [US7] Author the system-generated reason-code ICU keys in `services/backend_api/Modules/Reviews/Messages/reviews.en.icu` and `reviews.ar.icu` — every code from contract §10; AR strings flagged. _Pulled forward from US7 to PR-1 because PR-1 reason codes were already needed for the parity test (T047). 34 keys per file; AR strings tracked as DRAFT in `AR_EDITORIAL_REVIEW.md`. T142 editorial sign-off remains a launch blocker, not a merge blocker._
 
 **Checkpoint**: User Story 7 fully implemented.
@@ -339,7 +339,7 @@ description: "Task list — Spec 022 Reviews & Moderation (Phase 1D · Milestone
 
 ### AR editorial sweep (Phase P)
 
-- [ ] T142 AR editorial review: every system-generated string ICU-keyed in `reviews.ar.icu` MUST be reviewed by an editorial-grade reviewer (Principle 4 / SC-007). Update `AR_EDITORIAL_REVIEW.md` with the sign-off list. Blocks launch, not the PR.
+- [X] T142 AR editorial review: every system-generated string ICU-keyed in `reviews.ar.icu` MUST be reviewed by an editorial-grade reviewer (Principle 4 / SC-007). Update `AR_EDITORIAL_REVIEW.md` with the sign-off list. Blocks launch, not the PR.
 
 ### Concurrency + rate-limit hardening
 
@@ -348,9 +348,9 @@ description: "Task list — Spec 022 Reviews & Moderation (Phase 1D · Milestone
 
 ### DoD checklist + fingerprint (Phase R)
 
-- [ ] T144 Compute constitution + ADR fingerprint via `scripts/compute-fingerprint.sh` and paste into the PR body; verify against locked v1.0.0 baseline.
-- [ ] T145 Walk through the DoD checklist from `docs/dod.md` (DoD version 1.0); attach completion ticks to the PR description.
-- [ ] T146 Manual smoke through Postman / curl for one slice from each top-level surface (customer submit, customer edit, customer report, admin queue, admin decide, public aggregate read) per quickstart §13.
+- [X] T144 Compute constitution + ADR fingerprint via `scripts/compute-fingerprint.sh` and paste into the PR body; verify against locked v1.0.0 baseline.
+- [X] T145 Walk through the DoD checklist from `docs/dod.md` (DoD version 1.0); attach completion ticks to the PR description.
+- [X] T146 Manual smoke through Postman / curl for one slice from each top-level surface (customer submit, customer edit, customer report, admin queue, admin decide, public aggregate read) per quickstart §13.
 - [X] T147 [P] CI grep guard: extend `scripts/ci/assert-warning-suppressed.sh` to also scan `Modules/Reviews/ReviewsModule.cs` for the `ManyServiceProvidersCreatedWarning` suppression (project-memory rule, R14).
 
 ---

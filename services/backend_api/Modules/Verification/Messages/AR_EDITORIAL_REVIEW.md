@@ -26,6 +26,8 @@ The keys staged across Phase 3 batch 1 + Phase 4 batches 1–3 are listed below 
 
 **Total**: 42 keys awaiting AR editorial sign-off.
 
+> **Closeout status (2026-05-03, T115)**: All 42 first-pass technical translations are in place in `verification.ar.icu`. Editorial review by a native Arabic speaker is required before any of the rows above can move to "Approved keys". Per the spec 022 precedent (`specs/phase-1D/022-reviews-moderation/DOD_COMPLIANCE.md`), AR editorial sign-off is a launch blocker, not a merge blocker; the closeout PR ships AR keys as DRAFT.
+
 ## Approved keys
 
 | Key | Reviewed by | Approved date |

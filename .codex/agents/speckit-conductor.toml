@@ -232,8 +232,34 @@ BOOT SEQUENCE
       Order:
         1. Marker in body: <!--\\s*speckit:[^>]*phase=(\\d+)[^>]*-->
         2. Branch name: phase-(\\d+) from headRefName
-        3. Title: split at /phase-, digits after.
-      Record which strategy succeeded. All three fail → orphan PR.
+        3. Title: split at /phase-, digits after. Also accept the literal
+           PR-title pattern Spec Kit emits in this repo:
+             feat(<spec-id>): Phase N+M foundation — ...
+             feat(<spec-id>/phase-N): ...
+             feat(<spec-id>/phase-N+M): ...
+           When the title contains `Phase N` (with N a digit), or
+           `phase-N`, capture the smallest such N as the phase number.
+           For combined headers like `Phase 1+2 foundation`, treat the PR
+           as covering BOTH phases 1 and 2; record the PR under each
+           covered phase in the run state.
+      Record which strategy succeeded per phase mapping.
+      All three fail → orphan PR.
+
+   b1. BACKFILL DURABLE MARKERS ON HISTORICAL MERGED PRs
+       For each MERGED PR whose phase was extracted via strategy 2 or 3
+       (branch / title fallback) and whose body lacks a speckit marker:
+         1. Read PR body via `gh pr view <num> --json body -q .body`.
+         2. If body already contains `<!-- speckit:` → skip.
+         3. Append a marker block to the body:
+              \\n\\n<!-- speckit: spec_id=<spec-id> phase=<N> -->
+            (one marker per covered phase if the PR spanned multiple).
+         4. Write back via `gh pr edit <num> --body \"<new>\"`.
+         5. On 403 / protected-branch / archived-PR error: log a warning,
+            mark `phases[N].marker_backfill = \"failed:<reason>\"`, do NOT
+            mark the spec reconciliation-failed — fallback identity is
+            still usable.
+       This is a one-shot normalization. Subsequent runs find the marker
+       via strategy 1 and become deterministic.
 
    c. RESOLVE DUPLICATE PRs FOR THE SAME PHASE
       Rule 1: A MERGED PR is canonical IF it is the most recent merged PR
@@ -263,14 +289,24 @@ BOOT SEQUENCE
           Without: log warning, allow.
 
    f. SPEC CLASSIFICATION
-      DONE: every phase MERGED + tasks.md fully [x] + every header annotated.
-      MERGED-NEEDS-ANNOTATION: every phase MERGED, annotations missing.
-      MERGE-READY: every phase OPEN with healthy branches.
-      PARTIAL-MERGE: mix of MERGED + OPEN phases.
+      \"Every phase\" means every phase number declared in tasks.md, NOT
+      just every phase with a PR. A spec with phases 1..7 in tasks.md and
+      a merged PR for phase 1 only is IN-PROGRESS, not DONE.
+
+      DONE: every declared phase has a MERGED PR (or `[~]` skipped tasks)
+            + tasks.md fully complete + every header annotated.
+      MERGED-NEEDS-ANNOTATION: every declared phase MERGED, but at least
+            one header is missing the merged annotation. Run step 7.
+      MERGE-READY: every declared phase has an OPEN healthy PR.
+      PARTIAL-MERGE: at least one phase MERGED AND at least one phase OPEN.
+            (Step 7 still runs to annotate the merged phases.)
       REJECTED: any phase REJECTED.
       RECONCILIATION-FAILED: duplicate PRs / gh failure / unexpected rework.
-      IN-PROGRESS: some phases have PRs, some don't.
-      PENDING: no PRs at all.
+      IN-PROGRESS: at least one phase MERGED AND at least one declared
+            phase has NO PR yet. This is the common state when a spec is
+            being delivered phase-by-phase. The conductor MUST be willing
+            to dispatch the next pending phase here (see DISPATCH §1.b).
+      PENDING: no PRs at all for any declared phase.
 
    g. WITH --verify-completed
       For DONE specs, diff working tree against merge commits.
@@ -285,7 +321,11 @@ BOOT SEQUENCE
 
 7. APPLY RECONCILIATION ACTIONS
 
-   For MERGED-NEEDS-ANNOTATION and PARTIAL-MERGE specs:
+   Run this for ANY spec that has at least one merged phase whose
+   tasks.md header is not yet annotated, regardless of overall spec status.
+   This includes MERGED-NEEDS-ANNOTATION, PARTIAL-MERGE, AND IN-PROGRESS.
+   Annotation is per-phase and independent — annotating phase 1 must NOT
+   wait for later phases to exist or merge.
 
    For each phase newly detected as merged:
      a. git fetch origin
@@ -420,13 +460,32 @@ DISPATCH (single bounded pass)
 ═══════════════════════════════════════════════════════════════
 
 1. Identify ready specs:
-   Pending specs whose every depends_on is in {merged, done, skipped}.
-   Specs with merge-ready (not merged) deps are NOT ready.
+   A spec is READY when ALL of:
+     a. Its status is one of:
+          pending           — no PRs yet
+          in-progress       — some phases merged, others have no PR
+          partial-merge     — some phases merged, others OPEN (rare —
+                              normally those open phases are merge-ready
+                              and the user is the next actor; only re-
+                              dispatch if the next phase has no PR yet)
+          needs-rework      — implementer reported needs-rework once
+        Specs in {merge-ready, cr-capped} are NOT ready — they are awaiting
+        user merge, not implementation. Do NOT re-dispatch them.
+     b. Its `next_pending_phase` is well-defined: the smallest phase number
+        whose phase status is in {missing, open-needs-rework} AND whose
+        tasks are not all complete in tasks.md. If no such phase exists,
+        the spec is effectively done and SHOULD be reclassified to
+        merged-needs-annotation or done in step 6.
+     c. Every depends_on upstream U has spec-level status in
+        {merged, done, skipped}. An upstream that is in-progress, partial-
+        merge, or merge-ready does NOT satisfy the gate. Specs with such
+        upstreams stay blocked-by-dependency until the upstream fully
+        merges. (Phase-level dependencies are out of scope at V1.)
 
 2. Apply --only / --from filters (gates still apply).
 
 3. Drop specs with status reconciliation-failed, tasks-md-missing,
-   tasks-md-malformed.
+   tasks-md-malformed, annotation-blocked-by-protection.
 
 4. Bounded parallelism:
    active_slots = min(max_parallel, agents.max_threads from Codex config)
@@ -438,7 +497,9 @@ DISPATCH (single bounded pass)
      else → INSTRUCT CODEX to spawn the speckit-implementer subagent with:
        payload: {
          spec_path, spec_id, run_state_path, run_id,
-         implement_budget_minutes,    // default 60
+         next_pending_phase,           // from §1.b — implementer works ONLY
+                                       // on this phase this dispatch
+         implement_budget_minutes,     // default 60
          rework_reason: null
        }
      active_slots -= 1

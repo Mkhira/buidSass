@@ -15,6 +15,14 @@ public sealed class PricingDbContext(DbContextOptions<PricingDbContext> options)
     public DbSet<PriceExplanation> PriceExplanations => Set<PriceExplanation>();
     public DbSet<BundleMembership> BundleMemberships => Set<BundleMembership>();
 
+    // ---------- spec 007-b commercial-authoring tables ----------
+    public DbSet<Campaign> Campaigns => Set<Campaign>();
+    public DbSet<CampaignLink> CampaignLinks => Set<CampaignLink>();
+    public DbSet<PreviewProfile> PreviewProfiles => Set<PreviewProfile>();
+    public DbSet<CommercialThreshold> CommercialThresholds => Set<CommercialThreshold>();
+    public DbSet<CommercialApproval> CommercialApprovals => Set<CommercialApproval>();
+    public DbSet<CommercialAuditEvent> CommercialAuditEvents => Set<CommercialAuditEvent>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.HasDefaultSchema("pricing");

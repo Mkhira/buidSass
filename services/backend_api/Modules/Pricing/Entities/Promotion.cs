@@ -1,3 +1,5 @@
+using BackendApi.Modules.Pricing.Primitives.Commercial;
+
 namespace BackendApi.Modules.Pricing.Entities;
 
 public sealed class Promotion
@@ -18,4 +20,18 @@ public sealed class Promotion
     public DateTimeOffset CreatedAt { get; set; }
     public DateTimeOffset UpdatedAt { get; set; }
     public DateTimeOffset? DeletedAt { get; set; }
+
+    // ---------- spec 007-b lifecycle (data-model §2.2) ----------
+    public LifecycleState State { get; set; } = LifecycleState.Draft;
+    public DateTimeOffset StateChangedAtUtc { get; set; }
+    public Guid StateChangedByActorId { get; set; }
+    public string? StateChangedReasonNote { get; set; }
+    public bool BannerEligible { get; set; }
+    public bool AppliesToBroken { get; set; }
+    public DateTimeOffset? AppliesToBrokenAtUtc { get; set; }
+
+    /// <summary>
+    /// Optimistic-concurrency token mapped to PostgreSQL <c>xmin</c>.
+    /// </summary>
+    public uint XminRowVersion { get; set; }
 }

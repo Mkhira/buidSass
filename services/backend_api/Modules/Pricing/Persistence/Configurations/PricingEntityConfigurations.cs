@@ -35,6 +35,29 @@ public sealed class PromotionConfiguration : IEntityTypeConfiguration<Promotion>
         builder.Property(x => x.IsActive).IsRequired();
         builder.HasIndex(x => new { x.IsActive, x.DeletedAt });
         builder.HasIndex(x => x.Priority);
+
+        // spec 007-b lifecycle additive columns
+        builder.Property(x => x.State)
+            .HasColumnName("State")
+            .HasConversion<int>()
+            .HasDefaultValue(BackendApi.Modules.Pricing.Primitives.Commercial.LifecycleState.Draft)
+            .IsRequired();
+        builder.Property(x => x.StateChangedAtUtc).IsRequired();
+        builder.Property(x => x.StateChangedByActorId).IsRequired();
+        builder.Property(x => x.StateChangedReasonNote).HasColumnType("text");
+        builder.Property(x => x.BannerEligible).HasDefaultValue(false).IsRequired();
+        builder.Property(x => x.AppliesToBroken).HasDefaultValue(false).IsRequired();
+        builder.Property(x => x.AppliesToBrokenAtUtc);
+        builder.Property(x => x.XminRowVersion)
+            .HasColumnName("xmin")
+            .HasColumnType("xid")
+            .ValueGeneratedOnAddOrUpdate()
+            .IsRowVersion();
+        builder.HasIndex(x => x.State).HasDatabaseName("IX_promotions_state");
+        builder.HasIndex(x => x.VendorId).HasDatabaseName("IX_promotions_vendor_id");
+        builder.HasIndex(x => x.AppliesToBroken)
+            .HasDatabaseName("IX_promotions_applies_to_broken")
+            .HasFilter("\"AppliesToBroken\" = TRUE");
     }
 }
 
@@ -50,8 +73,29 @@ public sealed class CouponConfiguration : IEntityTypeConfiguration<Coupon>
         builder.Property(x => x.Value).IsRequired();
         builder.Property(x => x.MarketCodes).HasColumnType("citext[]").IsRequired();
         builder.Property(x => x.OwnerId).HasColumnType("citext");
-        // Optimistic concurrency is enforced by the unique index on coupon_redemptions
-        // (coupon_id, account_id, order_id) + per-customer-limit check.
+
+        // spec 007-b lifecycle additive columns
+        builder.Property(x => x.State)
+            .HasColumnName("State")
+            .HasConversion<int>()
+            .HasDefaultValue(BackendApi.Modules.Pricing.Primitives.Commercial.LifecycleState.Draft)
+            .IsRequired();
+        builder.Property(x => x.StateChangedAtUtc).IsRequired();
+        builder.Property(x => x.StateChangedByActorId).IsRequired();
+        builder.Property(x => x.StateChangedReasonNote).HasColumnType("text");
+        builder.Property(x => x.DisplayInBanners).HasDefaultValue(false).IsRequired();
+        builder.Property(x => x.AppliesToBroken).HasDefaultValue(false).IsRequired();
+        builder.Property(x => x.AppliesToBrokenAtUtc);
+        builder.Property(x => x.XminRowVersion)
+            .HasColumnName("xmin")
+            .HasColumnType("xid")
+            .ValueGeneratedOnAddOrUpdate()
+            .IsRowVersion();
+        builder.HasIndex(x => x.State).HasDatabaseName("IX_coupons_state");
+        builder.HasIndex(x => x.VendorId).HasDatabaseName("IX_coupons_vendor_id");
+        builder.HasIndex(x => x.AppliesToBroken)
+            .HasDatabaseName("IX_coupons_applies_to_broken")
+            .HasFilter("\"AppliesToBroken\" = TRUE");
     }
 }
 
@@ -104,6 +148,33 @@ public sealed class ProductTierPriceConfiguration : IEntityTypeConfiguration<Pro
         builder.HasKey(x => new { x.ProductId, x.TierId, x.MarketCode });
         builder.Property(x => x.MarketCode).HasColumnType("citext").IsRequired();
         builder.Property(x => x.NetMinor).IsRequired();
+
+        // spec 007-b additive columns. Full XOR/surrogate-PK reshape
+        // is a Phase 5 (US3) follow-up; columns are introduced now so the
+        // domain surface and indexes are present.
+        builder.Property(x => x.CompanyId);
+        builder.Property(x => x.CopiedFromTierId);
+        builder.Property(x => x.State)
+            .HasColumnName("State")
+            .HasConversion<int>()
+            .HasDefaultValue(BackendApi.Modules.Pricing.Primitives.Commercial.BusinessPricingState.Active)
+            .IsRequired();
+        builder.Property(x => x.StateChangedAtUtc);
+        builder.Property(x => x.StateChangedByActorId);
+        builder.Property(x => x.StateChangedReasonNote).HasColumnType("text");
+        builder.Property(x => x.CompanyLinkBroken).HasDefaultValue(false).IsRequired();
+        builder.Property(x => x.CompanyLinkBrokenAtUtc);
+        builder.Property(x => x.VendorId);
+        builder.Property(x => x.XminRowVersion)
+            .HasColumnName("xmin")
+            .HasColumnType("xid")
+            .ValueGeneratedOnAddOrUpdate()
+            .IsRowVersion();
+        builder.HasIndex(x => x.CompanyId).HasDatabaseName("IX_product_tier_prices_company_id");
+        builder.HasIndex(x => x.VendorId).HasDatabaseName("IX_product_tier_prices_vendor_id");
+        builder.HasIndex(x => x.CompanyLinkBroken)
+            .HasDatabaseName("IX_product_tier_prices_company_link_broken")
+            .HasFilter("\"CompanyLinkBroken\" = TRUE");
     }
 }
 

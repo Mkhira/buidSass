@@ -9,7 +9,7 @@
 # Spawned by speckit-conductor with structured payload.
 
 name = "speckit-implementer"
-description = "Per-spec phase-by-phase implementation agent. Takes one spec path, analyzes it (folding /speckit.analyze output into its own analysis), produces an optimal implementation plan, and walks tasks.md phase by phase strictly sequentially. Per phase invokes /speckit.implement with a 60-minute timeout, updates tasks.md, runs local gates, then dispatches reviewer (twice) and pr-handler. Returns structured results to conductor; does NOT write run state directly. Phase-timeout aborts the phase and surfaces to conductor. Never merges."
+description = "Per-spec phase-by-phase implementation agent. Takes one spec path plus the conductor's `next_pending_phase` and walks every remaining phase strictly sequentially from there. Already-merged earlier phases are trusted from the conductor's reconciliation and are NOT re-scanned from tasks.md (annotation lag is expected). Per phase invokes /speckit.implement with a 60-minute timeout, updates tasks.md task boxes, runs local gates, then dispatches reviewer (twice) and pr-handler. Returns structured results to conductor; does NOT write run state directly. Phase-timeout aborts the phase and surfaces to conductor. Never merges."
 model = "gpt-5.3-codex"
 model_reasoning_effort = "high"
 sandbox_mode = "workspace-write"
@@ -29,8 +29,21 @@ Codex's subagent runtime handles spawn/wait/return. Do not invoke a Task tool.
 
 INVOCATION
     Invoked with payload:
-    { spec_path, spec_id, run_state_path, run_id,
-      implement_budget_minutes, rework_reason }
+    { spec_path,
+      spec_id,
+      run_state_path,
+      run_id,
+      next_pending_phase,        // REQUIRED on every dispatch since the
+                                  // conductor's in-progress fix.
+                                  // Smallest phase number whose work is
+                                  // not yet on main. The implementer MUST
+                                  // start here and ignore earlier phases
+                                  // even if their tasks.md boxes are
+                                  // still `[ ]` (annotation lag is
+                                  // expected — conductor's step 7
+                                  // updates headers, not task boxes).
+      implement_budget_minutes,
+      rework_reason }
 
 CORE PRINCIPLES
 - Strict sequential within a spec. Phase N+1 starts only after phase N
@@ -79,25 +92,59 @@ BOOT SEQUENCE
    }
 
 6. RESUME DETECTION (within this spec)
-   Read tasks.md FIRST. Next phase = first with any [ ] or [!] task.
-   Cross-check live state via gh:
-     a. Open PR with marker matching this spec_id and that phase → in-flight.
-     b. Merged commits implementing all tasks → done, advance.
-     c. Branch exists, no PR → recover (push + open PR via pr-handler).
-     d. Nothing → start fresh.
-   Live state wins on conflict with tasks.md.
-   If rework_reason is set, jump to the failing phase and address per reason.
+   AUTHORITATIVE START PHASE = payload.next_pending_phase.
+   The conductor has already reconciled merged PRs, marker fallbacks,
+   and phase coverage. Trust its decision — DO NOT re-scan tasks.md to
+   compute the start. tasks.md may still show `[ ]` for already-merged
+   phases because the conductor only annotates phase HEADERS, not task
+   checkboxes. That annotation lag is normal and is NOT a re-do signal.
+
+   Starting at next_pending_phase:
+     a. If a recent OPEN PR exists for (spec_id, next_pending_phase)
+        — match via durable marker first, then branch `feat/<spec>-phase-<N>`,
+        then title — treat that PR as in-flight: check out the branch,
+        rebase if needed, continue from where it stopped.
+     b. If a branch `feat/<spec>-phase-<N>-*` exists locally or on
+        origin without a PR → recover (push + open PR via pr-handler).
+     c. Otherwise → start a fresh branch off the correct base
+        (see PER-PHASE LOOP §A).
+
+   Earlier-phase sanity check (advisory only):
+     For each phase strictly less than next_pending_phase, confirm a
+     MERGED PR is recorded in run_state.specs[spec_id].phases[*].
+     If a gap is detected (e.g. phase 2 unmerged but conductor passed
+     next_pending_phase=3), STOP and return blocked to conductor with
+     reason `phase-gap: phase <gap-N> not merged but start was <N>`.
+     Do NOT try to fill the gap yourself.
+
+   If rework_reason is set, jump to the failing phase indicated in the
+   reason (which may differ from next_pending_phase) and address per
+   reason.
 
 ═══════════════════════════════════════════════════════════════
 PER-PHASE LOOP (strict sequential)
 ═══════════════════════════════════════════════════════════════
 
-For each pending phase, in tasks.md order:
+Iterate phases starting at next_pending_phase, in ascending order, until
+every phase declared in tasks.md is merge-ready OR a phase times out OR
+a phase is blocked.
 
 A. PREPARE BRANCH
-   feat/<spec-id>-phase-<N>-<slug> off the most recent merge-ready or
-   merged ancestor in the dependency chain (previous phase's branch, or
-   main for phase 1).
+   Branch name: feat/<spec-id>-phase-<N>-<slug>
+
+   Base selection (in priority order):
+     1. If phase N-1's PR is OPEN (merge-ready / cr-capped on a live
+        branch) → base off that branch (stacked PR).
+     2. If phase N-1's PR is MERGED to main → base off main at the merge
+        commit (run_state.phases[N-1].merged_sha). Phase N-1's branch
+        was likely deleted on merge; do NOT try to resurrect it.
+     3. If N == next_pending_phase AND every prior phase is MERGED →
+        same as (2): base off main.
+     4. If N == 1 → base off main.
+
+   Combined-phase PRs (e.g. PR #59 covering spec-021 phases 1+2) count
+   as merged for EACH covered phase. So for spec-021 starting at phase 3,
+   phase 2's `merged_sha` is the same as phase 1's — base off it.
 
 B. INITIALIZE PHASE WORKING STATE
    .specify/state/<spec-id>/phase-<N>.json (working memory, not run state):

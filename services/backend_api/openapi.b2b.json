@@ -1,0 +1,10 @@
+{
+  "openapi": "3.0.1",
+  "info": {
+    "title": "Backend API — Quotes and B2B (spec 021)",
+    "version": "v1-phase1+2-foundation",
+    "description": "Spec 021 module surface. Phase 1+2 (foundation) ships no HTTP endpoints — DbContext, entities, state machines, cross-module hooks, and the reference-data seeder only. Customer / approver / admin endpoints land in Phase 3+ user-story slices."
+  },
+  "paths": {},
+  "components": {}
+}

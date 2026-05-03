@@ -1,0 +1,69 @@
+using BackendApi.Configuration;
+using BackendApi.Features.Seeding;
+using BackendApi.Modules.B2B.Persistence;
+using BackendApi.Modules.B2B.Seeding;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
+using Npgsql;
+
+namespace BackendApi.Modules.B2B;
+
+/// <summary>
+/// Spec 021 Quotes-and-B2B module bootstrap. Phase 1+2 (foundation): DbContext, entities,
+/// state machines, cross-module hooks, reference-data seeder. User-story slices (Phase 3+)
+/// will register their MediatR handlers + endpoints in follow-up PRs.
+/// </summary>
+public static class B2BModule
+{
+    public static IServiceCollection AddB2BModule(
+        this IServiceCollection services,
+        IConfiguration configuration,
+        IHostEnvironment hostEnvironment)
+    {
+        var connectionString = configuration.ResolveRequiredDefaultConnectionString(hostEnvironment);
+
+        // Project-memory rule R14: every module's AddDbContext MUST suppress
+        // ManyServiceProvidersCreatedWarning. Identity.Tests spins up multiple
+        // WebApplicationFactory instances per run; without suppression the warning
+        // is upgraded to an error and Identity.Tests breaks. Asserted by
+        // scripts/ci/assert-warning-suppressed.sh.
+        services.AddDbContext<B2BDbContext>((provider, options) =>
+        {
+            var dataSource = provider.GetService<NpgsqlDataSource>();
+            if (dataSource is not null)
+            {
+                options.UseNpgsql(dataSource);
+            }
+            else
+            {
+                options.UseNpgsql(connectionString);
+            }
+            options.ConfigureWarnings(w => w.Ignore(CoreEventId.ManyServiceProvidersCreatedWarning));
+        });
+
+        // NOTE: hosted workers (QuoteExpiryWorker, InvitationExpiryWorker per research §R7)
+        // will need an IDbContextFactory<B2BDbContext> to construct scopes outside the
+        // request pipeline. The registration is deferred to the worker-introducing slice
+        // because mixing AddDbContext (scoped) + AddDbContextFactory (singleton) for the
+        // same TContext fails ServiceProvider validation at design time (EF Tooling
+        // notices the lifetime conflict). The Polish-phase worker task (T041 follow-up)
+        // will swap to AddDbContextFactory + a thin scoped wrapper, mirroring the path
+        // CMS / Reviews modules will follow when their workers go production.
+        services.AddScoped<ISeeder, B2BReferenceDataSeeder>();
+
+        return services;
+    }
+
+    /// <summary>
+    /// Endpoint mapping placeholder — Phase 3+ user-story slices will register their
+    /// MediatR-backed endpoints here. Phase 1+2 ships no HTTP surface.
+    /// </summary>
+    public static WebApplication UseB2BModuleEndpoints(this WebApplication app)
+    {
+        // No endpoints yet. Customer/Approver/Admin route groups arrive with US1–US7.
+        return app;
+    }
+}

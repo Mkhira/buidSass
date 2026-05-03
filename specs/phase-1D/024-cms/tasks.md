@@ -131,8 +131,8 @@ description: "Task list for Spec 024 — CMS (Phase 1D · Milestone 7)"
 - [X] T56 [P] [US1] Contract test for `POST /v1/admin/cms/banner-slots/drafts` happy path + `cms.banner.schedule_window_invalid` + `cms.banner.cta_kind_target_mismatch` + `cms.asset.mime_forbidden` in `tests/Cms.Tests/Contract/Editor/SaveBannerDraftContractTests.cs`
 - [X] T57 [P] [US1] Contract test for `PATCH /v1/admin/cms/banner-slots/drafts/{id}` xmin-conflict path → `409 cms.draft.version_conflict` in `tests/Cms.Tests/Contract/Editor/PatchBannerDraftContractTests.cs`
 - [X] T58 [P] [US1] Contract test for `POST /v1/admin/cms/banner-slots/{id}/schedule-publish` happy path + `cms.publish.locale_completeness_missing` + `cms.banner.cta_target_unresolvable` + `cms.banner.slot_capacity_exceeded` in `tests/Cms.Tests/Contract/Publisher/ScheduleBannerPublishContractTests.cs`
-- [ ] T059 [P] [US1] Integration test for end-to-end banner lifecycle (Editor authors → Publisher schedules → Worker promotes to live → Worker promotes to archived) using `FakeTimeProvider` to advance the clock in `tests/Cms.Tests/Integration/Workers/BannerLifecycleEndToEndTests.cs`
-- [ ] T060 [P] [US1] Integration test asserting concurrent capacity-cap publishes — 100 concurrent attempts at the cap, exactly 1 winner, others see `409 cms.banner.slot_capacity_exceeded` (SC-010 banner-specific) in `tests/Cms.Tests/Integration/Publisher/BannerCapacityRaceTests.cs`
+- [X] T059 [P] [US1] Integration test for end-to-end banner lifecycle (Editor authors → Publisher schedules → Worker promotes to live → Worker promotes to archived) using `FakeTimeProvider` to advance the clock in `tests/Cms.Tests/Integration/Workers/BannerLifecycleEndToEndTests.cs`
+- [X] T060 [P] [US1] Integration test asserting concurrent capacity-cap publishes — 100 concurrent attempts at the cap, exactly 1 winner, others see `409 cms.banner.slot_capacity_exceeded` (SC-010 banner-specific) in `tests/Cms.Tests/Integration/Publisher/BannerCapacityRaceTests.cs`
 
 ### Implementation for User Story 1
 
@@ -162,11 +162,11 @@ description: "Task list for Spec 024 — CMS (Phase 1D · Milestone 7)"
 ### Tests for User Story 2
 
 - [X] T71 [P] [US2] Contract test for `GET /v1/storefront/cms/banner-slots` happy path + market+locale filter + `cms.storefront.market_unsupported` + `cms.storefront.locale_unsupported` + cache-control headers + ETag stability in `tests/Cms.Tests/Contract/Storefront/ListBannerSlotsContractTests.cs`
-- [ ] T072 [P] [US2] Contract test for `GET /v1/storefront/cms/featured-sections` including the live-resolved response shape `{section_id, references_resolved, total_references, total_resolved, total_unavailable}` and `omitted_due_to_unavailable_references=true` on fully-broken sections in `tests/Cms.Tests/Contract/Storefront/ListFeaturedSectionsContractTests.cs`
+- [X] T072 [P] [US2] Contract test for `GET /v1/storefront/cms/featured-sections` including the live-resolved response shape `{section_id, references_resolved, total_references, total_resolved, total_unavailable}` and `omitted_due_to_unavailable_references=true` on fully-broken sections in `tests/Cms.Tests/Contract/Storefront/ListFeaturedSectionsContractTests.cs`
 - [X] T73 [P] [US2] Integration storefront leak-detection test (SC-003) — seed every non-`live` state across all 5 entity kinds; assert zero leakage on every storefront endpoint in `tests/Cms.Tests/Integration/Storefront/LeakDetectionTests.cs`
 - [X] T74 [P] [US2] Integration test asserting two-tier sort — specific market first, then `*` — across all five storefront endpoints in `tests/Cms.Tests/Integration/Storefront/TwoTierSortTests.cs`
-- [ ] T075 [P] [US2] Performance test (SC-006) — 1 000 live banners; 50-row page in p95 ≤ 200 ms in `tests/Cms.Tests/Performance/BannerListPerfTests.cs`
-- [ ] T076 [P] [US2] Performance test (SC-007) — 10 000 catalog products + 24-reference featured section; resolution p95 ≤ 300 ms in `tests/Cms.Tests/Performance/FeaturedSectionResolutionPerfTests.cs`
+- [X] T075 [P] [US2] Performance test (SC-006) — 1 000 live banners; 50-row page in p95 ≤ 200 ms in `tests/Cms.Tests/Performance/BannerListPerfTests.cs`
+- [X] T076 [P] [US2] Performance test (SC-007) — 10 000 catalog products + 24-reference featured section; resolution p95 ≤ 300 ms in `tests/Cms.Tests/Performance/FeaturedSectionResolutionPerfTests.cs`
 
 ### Implementation for User Story 2
 
@@ -224,7 +224,7 @@ description: "Task list for Spec 024 — CMS (Phase 1D · Milestone 7)"
 
 ### Tests for User Story 4
 
-- [ ] T098 [P] [US4] Contract test for `POST /v1/admin/cms/blog-articles/drafts` slug-uniqueness + slug-pattern + body-size limits + SEO field validation in `tests/Cms.Tests/Contract/Editor/SaveBlogArticleDraftContractTests.cs`
+- [X] T098 [P] [US4] Contract test for `POST /v1/admin/cms/blog-articles/drafts` slug-uniqueness + slug-pattern + body-size limits + SEO field validation in `tests/Cms.Tests/Contract/Editor/SaveBlogArticleDraftContractTests.cs`
 - [X] T99 [P] [US4] Contract test for the preview-token round-trip (mint → read → revoke → read-403) including header assertion on `X-Robots-Tag: noindex, nofollow` in `tests/Cms.Tests/Contract/Preview/PreviewTokenLifecycleContractTests.cs`
 - [X] T100 [P] [US4] Integration test for single-locale blog article — `authored_locale=ar`, request `locale=en` returns `available_locales=['ar']` + `localization_unavailable_for_requested_locale=true` in `tests/Cms.Tests/Integration/Storefront/SingleLocaleBlogArticleTests.cs`
 - [X] T101 [P] [US4] Unit test for `PreviewTokenSigner` — sign + verify round-trip; tampered token rejected; expired token rejected; revoked token rejected; constant-time compare; clock-skew tolerance in `tests/Cms.Tests/Unit/PreviewTokenSignerTests.cs`
@@ -266,8 +266,8 @@ description: "Task list for Spec 024 — CMS (Phase 1D · Milestone 7)"
 - [X] T118 [P] [US5] Create `Modules/Cms/Editor/SaveFeaturedSectionDraft/Command.cs` + `Handler.cs` + `Validator.cs` — `references[]` length validation (min 1, max `CmsMarketSchema.featured_section_max_references`); `kind ∈ {product, category, bundle}` enum validation; jsonb persist
 - [X] T119 [US5] Wire SaveFeaturedSectionDraft + PATCH to `POST /v1/admin/cms/featured-sections/drafts` + `PATCH /v1/admin/cms/featured-sections/drafts/{id}`
 - [X] T120 [US5] Extend SchedulePublish + PublishNow handlers (T064/T065) for featured sections: at publish, call `FeaturedSectionResolver` once to assert at least one reference resolves; reject `400 cms.featured_section.empty_references` if all unavailable
-- [ ] T121 [P] [US5] Create `Modules/Cms/Editor/GetFeaturedSectionAdminDetail/Query.cs` + `Handler.cs` — admin-side read returning per-reference availability badge by calling the catalog read contracts; surfaces broken-ref count in the response for the authoring UI
-- [ ] T122 [US5] Wire GetFeaturedSectionAdminDetail to `GET /v1/admin/cms/featured-sections/{id}` with `[RequirePermission(CmsPermissions.Editor)]`
+- [X] T121 [P] [US5] Create `Modules/Cms/Editor/GetFeaturedSectionAdminDetail/Query.cs` + `Handler.cs` — admin-side read returning per-reference availability badge by calling the catalog read contracts; surfaces broken-ref count in the response for the authoring UI
+- [X] T122 [US5] Wire GetFeaturedSectionAdminDetail to `GET /v1/admin/cms/featured-sections/{id}` with `[RequirePermission(CmsPermissions.Editor)]`
 - [X] T123 [P] [US5] Add rate-limit guard for `cms.featured_section.partial_broken` events in `FeaturedSectionResolver.cs` — uses `last_partial_broken_alert_at_utc` row column updated atomically; SKIPS event emission when `now() < last_partial_broken_alert_at_utc + INTERVAL '1 hour'`
 
 **Checkpoint**: User Story 5 ready independently — featured sections handle broken catalog refs gracefully both at storefront-read time and in the admin authoring UI.
@@ -310,8 +310,8 @@ description: "Task list for Spec 024 — CMS (Phase 1D · Milestone 7)"
 
 - [X] T134 [P] [US7] Integration test for `cms-v1` seeder distribution (SC-009) — per-state row counts ≥ 1 across all 5 entity kinds; bilingual coverage on banner / featured / FAQ / legal; per-market + `*` coverage; legal page version-history with 2 versions per `(kind, market)`; total runtime ≤ 20 s in `tests/Cms.Tests/Integration/Seeding/CmsV1DevSeederDistributionTests.cs`
 - [X] T135 [P] [US7] Integration test asserting seeder idempotency — running twice produces identical row counts (no duplicates) in `tests/Cms.Tests/Integration/Seeding/CmsV1DevSeederIdempotencyTests.cs`
-- [ ] T136 [P] [US7] Integration test asserting `--mode=dry-run` exits 0 with planned-changes report and writes nothing to DB in `tests/Cms.Tests/Integration/Seeding/CmsV1DevSeederDryRunTests.cs`
-- [ ] T137 [P] [US7] CI integration: `seed-pii-guard` smoke against the seeded dataset asserting no real-phone / real-email / national-ID patterns in `tests/Cms.Tests/Integration/Seeding/CmsV1DevSeederPiiGuardTests.cs`
+- [X] T136 [P] [US7] Integration test asserting `--mode=dry-run` exits 0 with planned-changes report and writes nothing to DB in `tests/Cms.Tests/Integration/Seeding/CmsV1DevSeederDryRunTests.cs`
+- [X] T137 [P] [US7] CI integration: `seed-pii-guard` smoke against the seeded dataset asserting no real-phone / real-email / national-ID patterns in `tests/Cms.Tests/Integration/Seeding/CmsV1DevSeederPiiGuardTests.cs`
 
 ### Implementation for User Story 7
 

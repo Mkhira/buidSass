@@ -5,6 +5,7 @@ using BackendApi.Modules.Cms.Editor.BulkReorderFaqEntries;
 using BackendApi.Modules.Cms.Editor.SaveBannerDraft;
 using BackendApi.Modules.Cms.Editor.SaveBlogArticleDraft;
 using BackendApi.Modules.Cms.Editor.SaveFaqEntryDraft;
+using BackendApi.Modules.Cms.Editor.GetFeaturedSectionAdminDetail;
 using BackendApi.Modules.Cms.Editor.SaveFeaturedSectionDraft;
 using BackendApi.Modules.Cms.LegalOwner;
 using BackendApi.Modules.Cms.LegalOwner.ListLegalPageVersionHistory;
@@ -145,6 +146,7 @@ public static class CmsModule
 
         // US5/US6 — featured-section + FAQ authoring + shared publish slice.
         services.AddScoped<SaveFeaturedSectionDraftHandler>();
+        services.AddScoped<GetFeaturedSectionAdminDetailHandler>();
         services.AddScoped<SaveFaqEntryDraftHandler>();
         services.AddScoped<BulkReorderFaqEntriesHandler>();
         services.AddScoped<Storefront.ListFaqEntries.ListFaqEntriesHandler>();
@@ -208,6 +210,7 @@ public static class CmsModule
         admin.MapPublishNowBlogArticleEndpoints();
         admin.MapPreviewAdminEndpoints();
         admin.MapSaveFeaturedSectionDraftEndpoints();
+        admin.MapGetFeaturedSectionAdminDetailEndpoint();
         admin.MapSaveFaqEntryDraftEndpoints();
         admin.MapBulkReorderFaqEntriesEndpoint();
         admin.MapPublishContentEndpoints();

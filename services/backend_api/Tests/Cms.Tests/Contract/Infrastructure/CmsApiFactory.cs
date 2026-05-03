@@ -111,6 +111,20 @@ public sealed class CmsApiFactory : WebApplicationFactory<Program>, IAsyncLifeti
                 options.UseNpgsql(ConnectionString);
                 options.ConfigureWarnings(w => w.Ignore(CoreEventId.ManyServiceProvidersCreatedWarning));
             });
+
+            // Replace the production NullCatalog* fallbacks with the
+            // FakeCatalog* stubs so storefront / admin reads that resolve
+            // refs against the catalog return "available" by default in
+            // contract tests.
+            services.RemoveAll<BackendApi.Modules.Shared.ICatalogProductReadContract>();
+            services.RemoveAll<BackendApi.Modules.Shared.ICatalogCategoryReadContract>();
+            services.RemoveAll<BackendApi.Modules.Shared.ICatalogBundleReadContract>();
+            services.AddSingleton<BackendApi.Modules.Shared.ICatalogProductReadContract,
+                BackendApi.Modules.Shared.Testing.FakeCatalogProductReadContract>();
+            services.AddSingleton<BackendApi.Modules.Shared.ICatalogCategoryReadContract,
+                BackendApi.Modules.Shared.Testing.FakeCatalogCategoryReadContract>();
+            services.AddSingleton<BackendApi.Modules.Shared.ICatalogBundleReadContract,
+                BackendApi.Modules.Shared.Testing.FakeCatalogBundleReadContract>();
         });
     }
 

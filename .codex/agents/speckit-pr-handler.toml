@@ -143,20 +143,32 @@ Loop:
      filter for coderabbitai author).
   2. Triage each:
        blocking      → real bug, security issue, broken contract.
+                       (CodeRabbit \"Critical\" / \"Major\" maps here.)
        non-blocking  → improvement, refactor opportunity.
+                       (CodeRabbit \"Minor\" maps here.)
        style         → naming, formatting, preference.
-  3. Action:
+                       (CodeRabbit \"Nit\" maps here.)
+  3. Early-exit check (BEFORE acting — saves a wasted iteration):
+       If iteration >= 1 AND zero `blocking` items remain → CR clean. Exit.
+       If iteration >= 1 AND remaining items are ALL `style` (nit-only)
+         → CR clean. Exit.
+       If iteration >= 1 AND there is exactly ONE remaining `non-blocking`
+         minor item that is not cheap to fix
+         → log under \"Deferred\", open follow-up issue, CR clean. Exit.
+       This codifies the project's CR iteration budget: fix
+       Critical/Major; stop at nit-only or 1-Minor round; budget 3 rounds.
+  4. Action (when no early exit):
        blocking      → fix, commit fix(<spec-id>/phase-N): address CR <id>.
        non-blocking  → fix if cheap (<10 lines, no new tests).
                        Else log under \"Deferred\" + open follow-up issue.
        style         → decline inline with one-line reason. Resolve thread.
-  4. Push fixup commits.
-  5. Re-request CR review.
-  6. Wait for next pass.
-  7. iteration += 1.
+  5. Push fixup commits.
+  6. Re-request CR review.
+  7. Wait for next pass.
+  8. iteration += 1.
 
 Termination:
-  CR no actionable comments → CR clean. Exit.
+  Early-exit fired in step 3 → CR clean. Exit.
   iteration >= 3 → CR capped. Exit.
     If iteration 3 with blocking comments still open:
       Post triage summary listing each remaining thread with classification.

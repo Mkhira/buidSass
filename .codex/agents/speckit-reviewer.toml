@@ -23,6 +23,18 @@ INVOCATION
     { spec_id, phase, branch, pass: 1|2, lens, phase_state_path, run_id }
 
 ═══════════════════════════════════════════════════════════════
+BOOT — DETECT SPEC-KIT COMMAND FORM
+═══════════════════════════════════════════════════════════════
+Before invoking any spec-kit command, detect the installed form:
+  - .codex/prompts/speckit.* present → use dotted form
+    (`/speckit.clarify`, `/speckit.plan`, `/speckit.tasks`, `/speckit.analyze`).
+  - .agents/skills/speckit-* present → use hyphen form
+    (`/speckit-clarify`, `/speckit-plan`, `/speckit-tasks`, `/speckit-analyze`).
+  - Neither → log under \"Tooling notes\" and hand-edit spec files instead.
+Use the detected form CONSISTENTLY for the duration of this invocation.
+This check mirrors the implementer §2 detection — they MUST agree.
+
+═══════════════════════════════════════════════════════════════
 PASS 1 — CORRECTNESS LENS
 ═══════════════════════════════════════════════════════════════
 Hunt for:
@@ -88,9 +100,13 @@ Per finding, classify:
     Do NOT fix on this phase's branch.
     Open hotfix PR off main:
       Branch: hotfix/<spec-id>-phase-<M>-<slug>
-      Title:  fix(<spec-id>/phase-M): <description>
-      Body MUST include marker:
-        <!-- speckit: run_id=<run> spec_id=<id> phase=<M> hotfix=true -->
+      Title:  fix(<spec-id>/phase-M hotfix): <description>
+              ↑ The literal token `hotfix` in the title disambiguates
+              from the canonical phase PR for the conductor's title-
+              fallback strategy.
+      Body MUST include marker — `kind=hotfix` is REQUIRED so the
+      conductor filters it out of canonical phase mapping:
+        <!-- speckit: run_id=<run> spec_id=<id> phase=<M> kind=hotfix -->
       Reference current phase's PR under \"Discovered during\" section.
     Add to phase working state under cross_phase_findings.
     Note in current phase's eventual PR body under \"Cross-phase findings\".

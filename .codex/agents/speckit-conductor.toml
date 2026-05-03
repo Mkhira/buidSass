@@ -229,7 +229,17 @@ BOOT SEQUENCE
       Union, dedupe by PR number.
 
    b. EXTRACT PHASE NUMBER FOR EACH PR
-      Order:
+      Pre-filter: classify each PR as CANONICAL or HOTFIX.
+        HOTFIX iff body contains `<!-- speckit: ... kind=hotfix ... -->`
+                OR title contains the literal substring `phase-<N> hotfix`
+                OR branch matches `^hotfix/<spec-id>-phase-<\\d+>-`
+                OR body contains the legacy form `hotfix=true`.
+        Hotfix PRs are recorded under spec.hotfix_prs[] but NEVER
+        considered for canonical phase mapping, duplicate-detection,
+        merge-state classification, or stacking checks. Their merge
+        status does not gate downstream specs.
+
+      For non-hotfix PRs, extract phase number in this order:
         1. Marker in body: <!--\\s*speckit:[^>]*phase=(\\d+)[^>]*-->
         2. Branch name: phase-(\\d+) from headRefName
         3. Title: split at /phase-, digits after. Also accept the literal

@@ -75,6 +75,19 @@ public sealed class CmsApiFactory : WebApplicationFactory<Program>, IAsyncLifeti
                 cms.blog_articles,
                 cms.legal_page_versions
               RESTART IDENTITY CASCADE;");
+
+        // FakeCatalog* are registered as singletons (so their stubbed product /
+        // category / bundle dictionaries persist across the request pipeline
+        // within one test). Clear them between tests so per-test setup
+        // doesn't accumulate phantom entries from earlier cases — without
+        // this, performance tests priming 10k products would leak into
+        // subsequent contract assertions.
+        ((BackendApi.Modules.Shared.Testing.FakeCatalogProductReadContract)
+            Services.GetRequiredService<BackendApi.Modules.Shared.ICatalogProductReadContract>()).Clear();
+        ((BackendApi.Modules.Shared.Testing.FakeCatalogCategoryReadContract)
+            Services.GetRequiredService<BackendApi.Modules.Shared.ICatalogCategoryReadContract>()).Clear();
+        ((BackendApi.Modules.Shared.Testing.FakeCatalogBundleReadContract)
+            Services.GetRequiredService<BackendApi.Modules.Shared.ICatalogBundleReadContract>()).Clear();
     }
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
@@ -111,6 +124,20 @@ public sealed class CmsApiFactory : WebApplicationFactory<Program>, IAsyncLifeti
                 options.UseNpgsql(ConnectionString);
                 options.ConfigureWarnings(w => w.Ignore(CoreEventId.ManyServiceProvidersCreatedWarning));
             });
+
+            // Replace the production NullCatalog* fallbacks with the
+            // FakeCatalog* stubs so storefront / admin reads that resolve
+            // refs against the catalog return "available" by default in
+            // contract tests.
+            services.RemoveAll<BackendApi.Modules.Shared.ICatalogProductReadContract>();
+            services.RemoveAll<BackendApi.Modules.Shared.ICatalogCategoryReadContract>();
+            services.RemoveAll<BackendApi.Modules.Shared.ICatalogBundleReadContract>();
+            services.AddSingleton<BackendApi.Modules.Shared.ICatalogProductReadContract,
+                BackendApi.Modules.Shared.Testing.FakeCatalogProductReadContract>();
+            services.AddSingleton<BackendApi.Modules.Shared.ICatalogCategoryReadContract,
+                BackendApi.Modules.Shared.Testing.FakeCatalogCategoryReadContract>();
+            services.AddSingleton<BackendApi.Modules.Shared.ICatalogBundleReadContract,
+                BackendApi.Modules.Shared.Testing.FakeCatalogBundleReadContract>();
         });
     }
 

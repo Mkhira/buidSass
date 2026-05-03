@@ -33,6 +33,31 @@ public sealed class CmsV1DevSeeder : ISeeder
         await SeedBlogArticlesAsync(db, nowUtc, ct);
     }
 
+    /// <summary>
+    /// Dry-run mode per spec 024 task T136. Computes the planned changes
+    /// against the live database without writing anything: returns a per-kind
+    /// breakdown of <c>{kind, would_insert_count, already_present_count}</c>.
+    /// Idempotent and side-effect-free. Used by the CLI <c>--mode=dry-run</c>
+    /// flag and by integration tests that need to assert "this seeder would
+    /// converge a fresh DB" without committing.
+    /// </summary>
+    public async Task<CmsV1DevSeederDryRunReport> ComputeDryRunAsync(
+        SeedContext ctx, CancellationToken ct)
+    {
+        var db = ctx.Services.GetRequiredService<CmsDbContext>();
+        var bannerPlan = await PlanBannersAsync(db, ct);
+        var featuredPlan = await PlanFeaturedSectionsAsync(db, ct);
+        var faqPlan = await PlanFaqEntriesAsync(db, ct);
+        var legalPlan = await PlanLegalPagesAsync(db, ct);
+        var blogPlan = await PlanBlogArticlesAsync(db, ct);
+        return new CmsV1DevSeederDryRunReport(
+            BannerSlots: bannerPlan,
+            FeaturedSections: featuredPlan,
+            FaqEntries: faqPlan,
+            LegalPageVersions: legalPlan,
+            BlogArticles: blogPlan);
+    }
+
     private static async Task SeedBannersAsync(CmsDbContext db, DateTimeOffset nowUtc, CancellationToken ct)
     {
         var samples = new (string SlotKind, string Market, string HeadlineEn, string HeadlineAr, string State)[]
@@ -301,4 +326,162 @@ public sealed class CmsV1DevSeeder : ISeeder
         }
         await db.SaveChangesAsync(ct);
     }
+
+    // ── Dry-run planners ─────────────────────────────────────────────────
+    // Each planner mirrors its Seed*Async sibling but only counts what would
+    // be inserted vs already-present. Side-effect-free (no AddAsync, no
+    // SaveChangesAsync). Mirrors the natural-key dedup logic of the writer.
+
+    private static async Task<CmsV1DevSeederKindPlan> PlanBannersAsync(CmsDbContext db, CancellationToken ct)
+    {
+        var samples = new (string SlotKind, string Market, string HeadlineEn)[]
+        {
+            ("hero_top",        "EG",  "Welcome to Build Sass"),
+            ("category_strip",  "KSA", "Implants — KSA"),
+            ("footer_strip",    "EG",  "Free shipping over EGP 1000"),
+            ("home_secondary",  "KSA", "Ramadan promotion"),
+            ("hero_top",        "*",   "Global brand kickoff"),
+            ("category_strip",  "EG",  "Last month sale"),
+        };
+        var present = 0;
+        foreach (var s in samples)
+        {
+            var exists = await db.BannerSlots.AnyAsync(b =>
+                b.SlotKindWire == s.SlotKind &&
+                b.MarketCode == s.Market &&
+                b.HeadlineEn == s.HeadlineEn, ct);
+            if (exists) present++;
+        }
+        return new CmsV1DevSeederKindPlan(
+            Kind: "banner_slot",
+            WouldInsertCount: samples.Length - present,
+            AlreadyPresentCount: present);
+    }
+
+    private static async Task<CmsV1DevSeederKindPlan> PlanFeaturedSectionsAsync(CmsDbContext db, CancellationToken ct)
+    {
+        var samples = new (string Kind, string Market, string TitleEn)[]
+        {
+            ("home_top",         "EG",  "Top Picks"),
+            ("home_mid",         "KSA", "Recommended for you"),
+            ("category_landing", "EG",  "Premium Implants"),
+            ("b2b_landing",      "KSA", "Clinic Bulk Deals"),
+        };
+        var present = 0;
+        foreach (var s in samples)
+        {
+            var exists = await db.FeaturedSections.AnyAsync(f =>
+                f.SectionKindWire == s.Kind &&
+                f.MarketCode == s.Market &&
+                f.TitleEn == s.TitleEn, ct);
+            if (exists) present++;
+        }
+        return new CmsV1DevSeederKindPlan(
+            Kind: "featured_section",
+            WouldInsertCount: samples.Length - present,
+            AlreadyPresentCount: present);
+    }
+
+    private static async Task<CmsV1DevSeederKindPlan> PlanFaqEntriesAsync(CmsDbContext db, CancellationToken ct)
+    {
+        var samples = new (string Category, string Market, string QuestionEn)[]
+        {
+            ("ordering",      "EG",  "How do I place an order?"),
+            ("ordering",      "KSA", "How do I place an order?"),
+            ("payment",       "EG",  "What payment methods are accepted?"),
+            ("shipping",      "KSA", "How long does delivery take?"),
+            ("returns",       "EG",  "What is your return policy?"),
+            ("verification",  "KSA", "How do I verify as a dentist?"),
+            ("b2b",           "KSA", "How do I open a clinic account?"),
+            ("account",       "EG",  "Can I update my email?"),
+        };
+        var present = 0;
+        foreach (var s in samples)
+        {
+            var exists = await db.FaqEntries.AnyAsync(f =>
+                f.CategoryWire == s.Category &&
+                f.MarketCode == s.Market &&
+                f.QuestionEn == s.QuestionEn, ct);
+            if (exists) present++;
+        }
+        return new CmsV1DevSeederKindPlan(
+            Kind: "faq_entry",
+            WouldInsertCount: samples.Length - present,
+            AlreadyPresentCount: present);
+    }
+
+    private static async Task<CmsV1DevSeederKindPlan> PlanLegalPagesAsync(CmsDbContext db, CancellationToken ct)
+    {
+        var kinds = new[] { "terms", "privacy", "returns", "cookies" };
+        var markets = new[] { "EG", "KSA", "*" };
+        var totalRows = kinds.Length * markets.Length * 2; // v1.0 + v2.0 per pair
+        var present = 0;
+        foreach (var kind in kinds)
+        {
+            foreach (var market in markets)
+            {
+                var prior = await db.LegalPageVersions.AnyAsync(v =>
+                    v.LegalPageKindWire == kind && v.MarketCode == market && v.VersionLabel == "v1.0", ct);
+                var live = await db.LegalPageVersions.AnyAsync(v =>
+                    v.LegalPageKindWire == kind && v.MarketCode == market && v.VersionLabel == "v2.0", ct);
+                if (prior) present++;
+                if (live) present++;
+            }
+        }
+        return new CmsV1DevSeederKindPlan(
+            Kind: "legal_page_version",
+            WouldInsertCount: totalRows - present,
+            AlreadyPresentCount: present);
+    }
+
+    private static async Task<CmsV1DevSeederKindPlan> PlanBlogArticlesAsync(CmsDbContext db, CancellationToken ct)
+    {
+        var samples = new (string Slug, string Locale, string Market)[]
+        {
+            ("ramadan-tips-2026",       "ar", "EG"),
+            ("ramadan-tips-2026",       "en", "EG"),
+            ("new-implant-protocols",   "en", "*"),
+            ("ksa-license-update",      "ar", "KSA"),
+            ("draft-blog-1",            "en", "EG"),
+            ("scheduled-summer-promo",  "ar", "KSA"),
+        };
+        var present = 0;
+        foreach (var s in samples)
+        {
+            var exists = await db.BlogArticles.AnyAsync(b =>
+                b.MarketCode == s.Market &&
+                b.AuthoredLocale == s.Locale &&
+                b.Slug == s.Slug, ct);
+            if (exists) present++;
+        }
+        return new CmsV1DevSeederKindPlan(
+            Kind: "blog_article",
+            WouldInsertCount: samples.Length - present,
+            AlreadyPresentCount: present);
+    }
+}
+
+/// <summary>Per-kind plan emitted by <see cref="CmsV1DevSeeder.ComputeDryRunAsync"/>.</summary>
+public sealed record CmsV1DevSeederKindPlan(
+    string Kind,
+    int WouldInsertCount,
+    int AlreadyPresentCount);
+
+/// <summary>Aggregate dry-run report per spec 024 task T136.</summary>
+public sealed record CmsV1DevSeederDryRunReport(
+    CmsV1DevSeederKindPlan BannerSlots,
+    CmsV1DevSeederKindPlan FeaturedSections,
+    CmsV1DevSeederKindPlan FaqEntries,
+    CmsV1DevSeederKindPlan LegalPageVersions,
+    CmsV1DevSeederKindPlan BlogArticles)
+{
+    public int TotalWouldInsert =>
+        BannerSlots.WouldInsertCount + FeaturedSections.WouldInsertCount +
+        FaqEntries.WouldInsertCount + LegalPageVersions.WouldInsertCount +
+        BlogArticles.WouldInsertCount;
+
+    public int TotalAlreadyPresent =>
+        BannerSlots.AlreadyPresentCount + FeaturedSections.AlreadyPresentCount +
+        FaqEntries.AlreadyPresentCount + LegalPageVersions.AlreadyPresentCount +
+        BlogArticles.AlreadyPresentCount;
 }

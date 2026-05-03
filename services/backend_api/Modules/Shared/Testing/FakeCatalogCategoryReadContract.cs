@@ -13,6 +13,9 @@ public sealed class FakeCatalogCategoryReadContract : ICatalogCategoryReadContra
         return this;
     }
 
+    /// <summary>Clears stubbed categories — call between test cases when registered as a singleton.</summary>
+    public void Clear() => _byId.Clear();
+
     public Task<CatalogCategoryRead> ReadAsync(Guid categoryId, string marketCode, CancellationToken ct)
     {
         if (_byId.TryGetValue(categoryId, out var hit)) return Task.FromResult(hit);

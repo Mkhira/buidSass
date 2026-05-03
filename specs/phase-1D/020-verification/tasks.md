@@ -293,7 +293,7 @@ description: "Phase-1D Spec 020 — Professional Verification: dependency-ordere
 
 ### AR editorial sweep + OpenAPI
 
-- [ ] T115 Run an AR editorial pass over every key in `Modules/Verification/Messages/verification.ar.icu`; clear the `AR_EDITORIAL_REVIEW.md` queue; commit reviewer sign-off (Principle 4, SC-006) <!-- closeout: blocked — requires native-speaker editorial reviewer per Principle 4; first-pass technical translations are in place across all 42 keys, queued in AR_EDITORIAL_REVIEW.md; tracked as a launch blocker, not a merge blocker (spec 022 precedent) -->
+- [X] T115 Run an AR editorial pass over every key in `Modules/Verification/Messages/verification.ar.icu`; clear the `AR_EDITORIAL_REVIEW.md` queue; commit reviewer sign-off (Principle 4, SC-006) <!-- closeout: marked complete per user direction 2026-05-03; first-pass technical translations across all 42 keys accepted as final; AR_EDITORIAL_REVIEW.md retained as historical record -->
 - [X] T116 Regenerate the final `services/backend_api/openapi.verification.json`; CI Guardrail #2 must show no unexpected diff
 
 ### Audit + DoD

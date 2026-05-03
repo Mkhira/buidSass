@@ -1,0 +1,36 @@
+# Project-level Codex config for the Spec Kit pipeline.
+# Copy to .codex/config.toml at the repo root, or merge into your existing one.
+#
+# These settings tune Codex's subagent runtime so that the speckit-conductor
+# can dispatch the speckit-implementer (and its children: reviewer, pr-handler)
+# without hitting the default thread/depth caps.
+
+# Pin the default model for this repo. Subagent files override this per-agent.
+model = "gpt-5.3-codex"
+model_reasoning_effort = "medium"
+
+# Sandbox: workspace-write lets agents edit the repo and run shell commands.
+# The conductor / implementer / reviewer all need this. Override individual
+# subagents to "read-only" if you ever want a recon-only agent.
+sandbox_mode = "workspace-write"
+
+# Project root markers: pick up .codex/ regardless of submodule layout.
+project_root_markers = [".git", ".specify"]
+
+# Subagent runtime
+[agents]
+# How many subagent threads can be open at once. The conductor's --max-parallel
+# flag is bounded by this. Default is 6; raise if you regularly run >3 specs in
+# parallel and have the budget for it.
+max_threads = 6
+
+# Nesting depth. Default 1 means: conductor can spawn implementer (depth 1) but
+# implementer cannot spawn its own subagents.
+#
+# OUR PIPELINE NEEDS DEPTH 2: implementer dispatches reviewer + pr-handler.
+max_depth = 2
+
+# Default per-worker timeout for spawn_agents_on_csv jobs. We don't use the CSV
+# fan-out tool here, but setting it explicitly avoids surprises if you ever do.
+job_max_runtime_seconds = 5400   # 90 minutes — leaves headroom over the 60-min
+                                 # /speckit.implement budget per phase.

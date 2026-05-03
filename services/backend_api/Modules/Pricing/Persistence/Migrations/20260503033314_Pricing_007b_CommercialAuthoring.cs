@@ -287,6 +287,7 @@ namespace BackendApi.Modules.Pricing.Persistence.Migrations
                 {
                     table.PrimaryKey("PK_commercial_audit_events", x => x.Id);
                     table.CheckConstraint("chk_cae_target_kind", "\"TargetEntityKind\"::text IN ('coupon','promotion','campaign','business_pricing','preview_profile','commercial_threshold','commercial_approval')");
+                    table.CheckConstraint("chk_cae_kind", "\"Kind\"::text IN ('coupon.created','coupon.updated','coupon.lifecycle_transitioned','coupon.deactivated','coupon.reactivated','promotion.created','promotion.updated','promotion.lifecycle_transitioned','promotion.deactivated','promotion.reactivated','campaign.created','campaign.updated','campaign.lifecycle_transitioned','business_pricing.row_changed','business_pricing.bulk_imported','commercial.threshold_changed','commercial.approval_recorded','preview_profile.visibility_changed')");
                 });
 
             migrationBuilder.CreateTable(

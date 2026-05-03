@@ -243,7 +243,23 @@ BOOT SEQUENCE
            as covering BOTH phases 1 and 2; record the PR under each
            covered phase in the run state.
       Record which strategy succeeded per phase mapping.
-      All three fail → orphan PR.
+      All three fail → flag as PHASE-UNSPECIFIED, then run rule b0 below.
+
+   b0. CLOSEOUT-PR vs ORPHAN-PR DISAMBIGUATION
+       Spec Kit's per-spec closeout PRs (e.g. `feat(spec-020): closeout —
+       contracts + perf baseline`, `feat(spec-022): closeout polish — …`)
+       cover post-implementation work across already-merged phases and
+       carry no phase number. Distinguish:
+       - If a PHASE-UNSPECIFIED PR's title or branch matches the spec id
+         (e.g. `feat(spec-020):` or branch `spec-020/closeout`) AND the
+         spec already has every declared phase mapped to a merged
+         canonical PR via other PRs, classify the PR as `closeout-pr`,
+         attach it to the spec under `closeout_prs[]`, and DO NOT flag
+         it as orphan. Closeout PRs do not affect spec status.
+       - Otherwise (no phase number AND no clear spec attribution OR the
+         spec has gaps in phase coverage) → flag as `orphan-pr` and log
+         it in the spec's anomalies list. Orphan PRs do not block
+         dispatch unless they signal duplicate work for a phase.
 
    b1. BACKFILL DURABLE MARKERS ON HISTORICAL MERGED PRs
        For each MERGED PR whose phase was extracted via strategy 2 or 3
@@ -476,11 +492,22 @@ DISPATCH (single bounded pass)
         tasks are not all complete in tasks.md. If no such phase exists,
         the spec is effectively done and SHOULD be reclassified to
         merged-needs-annotation or done in step 6.
-     c. Every depends_on upstream U has spec-level status in
-        {merged, done, skipped}. An upstream that is in-progress, partial-
-        merge, or merge-ready does NOT satisfy the gate. Specs with such
-        upstreams stay blocked-by-dependency until the upstream fully
-        merges. (Phase-level dependencies are out of scope at V1.)
+     c. Every depends_on upstream U has spec-level status in the
+        GATE-SATISFYING SET:
+          { merged, done, skipped,
+            merged-needs-annotation,        — code is on main; only the
+                                              tasks.md annotation is
+                                              pending. Downstream is safe
+                                              to dispatch.
+            annotation-blocked-by-protection — code is on main; annotation
+                                              is awaiting a follow-up PR.
+                                              Downstream is safe.
+          }
+        An upstream in {in-progress, partial-merge, merge-ready, pending,
+        rejected, blocked, blocked-by-*, reconciliation-failed,
+        tasks-md-missing, tasks-md-malformed} does NOT satisfy the gate;
+        the spec stays blocked-by-dependency. (Phase-level dependencies
+        are out of scope at V1.)
 
 2. Apply --only / --from filters (gates still apply).
 

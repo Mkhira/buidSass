@@ -95,38 +95,38 @@ public sealed class GetFeaturedSectionAdminDetailHandler
             switch (kind)
             {
                 case "product":
-                {
-                    var p = await _products.ReadAsync(id, marketCode, ct);
-                    return new FeaturedSectionAdminReferenceItem(
-                        Kind: "product",
-                        Id: p.ProductId,
-                        DisplayNameEn: p.DisplayNameEn,
-                        DisplayNameAr: p.DisplayNameAr,
-                        IsAvailable: p.IsAvailable,
-                        UnavailableReasonWire: p.UnavailableReason?.ToString());
-                }
+                    {
+                        var p = await _products.ReadAsync(id, marketCode, ct);
+                        return new FeaturedSectionAdminReferenceItem(
+                            Kind: "product",
+                            Id: p.ProductId,
+                            DisplayNameEn: p.DisplayNameEn,
+                            DisplayNameAr: p.DisplayNameAr,
+                            IsAvailable: p.IsAvailable,
+                            UnavailableReasonWire: p.UnavailableReason?.ToString());
+                    }
                 case "category":
-                {
-                    var c = await _categories.ReadAsync(id, marketCode, ct);
-                    return new FeaturedSectionAdminReferenceItem(
-                        Kind: "category",
-                        Id: c.CategoryId,
-                        DisplayNameEn: c.DisplayNameEn,
-                        DisplayNameAr: c.DisplayNameAr,
-                        IsAvailable: c.IsAvailable,
-                        UnavailableReasonWire: c.UnavailableReason?.ToString());
-                }
+                    {
+                        var c = await _categories.ReadAsync(id, marketCode, ct);
+                        return new FeaturedSectionAdminReferenceItem(
+                            Kind: "category",
+                            Id: c.CategoryId,
+                            DisplayNameEn: c.DisplayNameEn,
+                            DisplayNameAr: c.DisplayNameAr,
+                            IsAvailable: c.IsAvailable,
+                            UnavailableReasonWire: c.UnavailableReason?.ToString());
+                    }
                 case "bundle":
-                {
-                    var b = await _bundles.ReadAsync(id, marketCode, ct);
-                    return new FeaturedSectionAdminReferenceItem(
-                        Kind: "bundle",
-                        Id: b.BundleId,
-                        DisplayNameEn: b.DisplayNameEn,
-                        DisplayNameAr: b.DisplayNameAr,
-                        IsAvailable: b.IsAvailable,
-                        UnavailableReasonWire: b.UnavailableReason?.ToString());
-                }
+                    {
+                        var b = await _bundles.ReadAsync(id, marketCode, ct);
+                        return new FeaturedSectionAdminReferenceItem(
+                            Kind: "bundle",
+                            Id: b.BundleId,
+                            DisplayNameEn: b.DisplayNameEn,
+                            DisplayNameAr: b.DisplayNameAr,
+                            IsAvailable: b.IsAvailable,
+                            UnavailableReasonWire: b.UnavailableReason?.ToString());
+                    }
                 default:
                     // Save-time validation rejects unsupported kinds; if one
                     // sneaks in via a manual DB edit, surface it as broken.

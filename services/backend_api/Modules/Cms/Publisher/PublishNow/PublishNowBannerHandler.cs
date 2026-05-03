@@ -117,6 +117,12 @@ public sealed class PublishNowBannerHandler
                     "Only draft or scheduled banners can be published now.", 400);
             }
 
+            // Re-apply the CTA validation result that was set at line 78
+            // before the reload. ReloadAsync overwrites in-memory changes
+            // with the DB snapshot, so without this the persisted row would
+            // not reflect the verified CTA. Per CR Round 2 feedback.
+            row.CtaHealthWire = CtaHealth.Verified.ToWire();
+
             try
             {
                 await _capacity.AssertCanPublishAsync(

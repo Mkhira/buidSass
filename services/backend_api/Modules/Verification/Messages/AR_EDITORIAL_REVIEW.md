@@ -16,15 +16,15 @@ The keys staged across Phase 3 batch 1 + Phase 4 batches 1–3 are listed below 
 
 | Slice / Phase | Key prefix | Added by | PR | Reviewed? |
 |---|---|---|---|---|
-| Phase 3 batch 1 / US1 | `verification.eligibility.*` (11 keys) | implementation pass | PR (TBD) | ☐ |
-| Phase 3 batch 1 / US1 | `verification.required_field_missing`, `verification.regulator_identifier_invalid`, `verification.documents_invalid`, `verification.document.*` (9 keys) | implementation pass | PR (TBD) | ☐ |
-| Phase 3 batch 1 / US1 | `verification.already_pending`, `verification.cooldown_active`, `verification.account_inactive`, `verification.market_unsupported`, `verification.renewal_*` (5 keys) | implementation pass | PR (TBD) | ☐ |
+| Phase 3 batch 1 / US1 | `verification.eligibility.*` (11 keys: `eligible`, `unrestricted`, `required`, `pending`, `info_requested`, `rejected`, `expired`, `revoked`, `profession_mismatch`, `market_mismatch`, `account_inactive`) | implementation pass | PR (TBD) | ☐ |
+| Phase 3 batch 1 / US1 | `verification.required_field_missing`, `verification.regulator_identifier_invalid`, `verification.documents_invalid`, `verification.document.*` (9 keys total — 3 standalone + 6 `document.*`: `scan_infected`, `scan_pending`, `size_exceeded`, `count_exceeded`, `aggregate_size_exceeded`, `mime_forbidden`) | implementation pass | PR (TBD) | ☐ |
+| Phase 3 batch 1 / US1 | `verification.already_pending`, `verification.cooldown_active`, `verification.account_inactive`, `verification.market_unsupported`, `verification.renewal_not_eligible`, `verification.renewal_already_pending` (6 keys) | implementation pass | PR (TBD) | ☐ |
 | Phase 4 batch 1 / US2 | `verification.review.reason_required`, `verification.already_decided`, `verification.invalid_state_for_action`, `verification.reviewer.scope_mismatch`, `verification.pii.access_forbidden` (5 keys) | implementation pass | PR (TBD) | ☐ |
-| Phase 4 batch 1 / US2 | `verification.row.version_conflict`, `verification.idempotency.*`, `verification.linked_entity_unavailable`, `verification.eligibility.cache_stale` (4 keys) | implementation pass | PR (TBD) | ☐ |
+| Phase 4 batch 1 / US2 | `verification.row.version_conflict`, `verification.idempotency.key_missing`, `verification.idempotency.key_conflict`, `verification.linked_entity_unavailable`, `verification.eligibility.cache_stale` (5 keys) | implementation pass | PR (TBD) | ☐ |
 | Phase 4 batch 3 / US2 | `verification.review_permission_required`, `verification.revoke_permission_required`, `verification.document_not_found`, `verification.document_purged`, `verification.not_found` (5 keys) | implementation pass | PR (TBD) | ☐ |
-| Phase 3 reference data | `verification.field.profession.label`, `verification.field.regulator_identifier.{ksa,eg}.label` (3 keys) | reference seeder | PR (TBD) | ☐ |
+| Phase 3 reference data | `verification.field.profession.label`, `verification.field.regulator_identifier.ksa.label`, `verification.field.regulator_identifier.eg.label` (3 keys) | reference seeder | PR (TBD) | ☐ |
 
-**Total**: 42 keys awaiting AR editorial sign-off.
+**Total**: 44 keys awaiting AR editorial sign-off (matches the active entry count in `verification.ar.icu`).
 
 > **Closeout status (2026-05-03, T115)**: All 42 first-pass technical translations are in place in `verification.ar.icu`. Editorial review by a native Arabic speaker is required before any of the rows above can move to "Approved keys". Per the spec 022 precedent (`specs/phase-1D/022-reviews-moderation/DOD_COMPLIANCE.md`), AR editorial sign-off is a launch blocker, not a merge blocker; the closeout PR ships AR keys as DRAFT.
 

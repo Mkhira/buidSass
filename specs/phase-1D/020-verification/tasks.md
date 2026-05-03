@@ -287,7 +287,7 @@ description: "Phase-1D Spec 020 — Professional Verification: dependency-ordere
 ### Dev seeder + manual smoke
 
 - [X] T113 [P] Create `services/backend_api/Modules/Verification/Seeding/VerificationDevDataSeeder.cs` (Dev-gated via `SeedGuard` per spec 003) seeding synthetic submissions across every state (`submitted`, `in-review`, `info-requested`, `approved` near-expiry, `rejected` in cool-down, `expired`, `revoked`, `superseded`, `void`) + sample documents — supports demo + manual QA; idempotent
-- [X] T114 [P] Update `services/backend_api/seed-data/README.md` (per spec 003 convention) with the `verification-v1` synthetic dataset description <!-- closeout: spec 003 keeps the canonical seed-data inventory at docs/seed-data.md (no per-service seed-data/ dir exists in this repo); the verification-v1 + verification.dev-data datasets are documented there -->
+- [X] T114 [P] Update `docs/seed-data.md` (per spec 003 convention) with the `verification-v1` synthetic dataset description <!-- closeout: spec 003 keeps the canonical seed-data inventory at docs/seed-data.md (no per-service seed-data/ dir exists in this repo); the verification-v1 + verification.dev-data datasets are documented there -->
 
 
 

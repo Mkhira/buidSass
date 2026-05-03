@@ -53,7 +53,7 @@ Inserts the two market-schema rows documented in quickstart §2 (KSA v1 retentio
 
 All four slice files exist:
 
-```
+```text
 Modules/Verification/Customer/SubmitVerification/
   SubmitVerificationRequest.cs
   SubmitVerificationValidator.cs

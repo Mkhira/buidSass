@@ -13,7 +13,7 @@
 
 | Item | Status | Evidence |
 |---|---|---|
-| **UC-1** Acceptance scenarios pass | ✓ | Every Acceptance Scenario in `spec.md` is exercised by `tests/Verification.Tests/Contract/*` and `tests/Verification.Tests/Integration/*` (28 test files, including `SubmitVerificationContractTests`, `AdminApproveContractTests` via `AdminApproveHandlerTests`, `AdminRevokeContractTests`, `AccountLifecycleHandlerTests`). |
+| **UC-1** Acceptance scenarios pass | ✓ | Every Acceptance Scenario in `spec.md` is exercised by `tests/Verification.Tests/Contract/*` and `tests/Verification.Tests/Integration/*` (33 test files across `Unit/`, `Contract/`, `Integration/`, `Benchmarks/`, including `SubmitVerificationContractTests`, `AdminApproveContractTests` via `AdminApproveHandlerTests`, `AdminRevokeContractTests`, `AccountLifecycleHandlerTests`). |
 | **UC-2** Lint + format pass | ✓ | `dotnet build services/backend_api` returns 0 errors; pre-commit `lint-format` hook enforced. |
 | **UC-3** Contract drift check | ✓ | `services/backend_api/openapi.verification.json` regenerated at every story-phase boundary (T062 / T078 / T103 / T109) and finalized at T116. |
 | **UC-4** Context fingerprint | ✓ | Fingerprint above, computed against locked Constitution v1.0.0 + ADRs 001–010. |
@@ -61,7 +61,7 @@ Every functional requirement in `spec.md` traces to at least one passing test. T
 | FR-001 | Single state machine, 9 states | `Unit/VerificationStateMachineTests` |
 | FR-002 | Every transition has actor + trigger + outcome | `Unit/VerificationStateMachineTests`, transition-handler tests under `Integration/AdminApproveHandlerTests` etc. |
 | FR-003 | Terminal → non-terminal forbidden | `Unit/VerificationStateMachineTests.Forbidden_*` |
-| FR-004 | Concurrent decisions: only one wins | (Implicit via xmin guard in handlers + `AdminApproveHandlerTests` happy path; full 100-parallel guard exercised at SC-007 below.) |
+| FR-004 | Concurrent decisions: only one wins | Pending evidence — implicit via xmin optimistic-concurrency guard in every Decide handler + `Integration/AdminApproveHandlerTests` (single-decider happy path + already-decided rejection path). The 100-parallel load test is deferred to staging soak; SC-007 below carries the same caveat. |
 | FR-005 | Customer submission AR + EN | `Contract/SubmitVerificationContractTests`, `Integration/CustomerSubmissionLocaleTests` |
 | FR-006 | Document size + count + AV scan limits | `Contract/AttachDocumentContractTests` (`document_too_large`, `document_aggregate_exceeded`, `document_scan_failed`, `document_type_not_allowed`) |
 | FR-006a | Per-market retention purge | `Integration/DocumentPurgeWorkerTests` |
@@ -113,22 +113,24 @@ Every functional requirement in `spec.md` traces to at least one passing test. T
 | SC-004 | Eligibility p95 <5 ms | `tests/Verification.Tests/Benchmarks/EligibilityBench.cs` + `baselines.md` |
 | SC-005 | No-duplicate reminders | `Integration/ReminderWorkerTests` (UNIQUE `(verification_id, window_days)` guard) |
 | SC-006 | AR editorial pass | △ Pending T115 (native reviewer sign-off) |
-| SC-007 | 100-parallel decisions: exactly one commits | xmin optimistic concurrency in every Decide handler; `AdminApproveHandlerTests` covers the round-trip; load test deferred to staging soak per `tasks.md` notes. |
+| SC-007 | 100-parallel decisions: exactly one commits | △ Pending evidence — implicit xmin optimistic-concurrency guard in every Decide handler + `Integration/AdminApproveHandlerTests` (single-decider round-trip + already-decided rejection path). Full 100-parallel load test is intentionally deferred to staging soak per `tasks.md` notes; tracked alongside SC-001/SC-002 operational metrics. |
 | SC-008 | Eligibility matrix 100% deterministic | `Integration/EligibilityQueryMatrixTests` |
 | SC-009 | Auto-expiry within one job interval | `Integration/ExpiryWorkerTests` |
 | SC-010 | Schema-update no-deploy + schema-as-submitted | `Integration/MarketSchemaVersioningTests` |
 | SC-011 | 95% first-decision in 2 business days | Operational metric (Phase 1.5 reporting); SLA signals surface today via `AdminQueueSlaBreachTests` (T069b). |
 
-## Test inventory (28 test files)
+## Test inventory (33 test files)
+
+Counted under `services/backend_api/tests/Verification.Tests/{Unit,Contract,Integration,Benchmarks}` (excluding the `Contract/Infrastructure/` test-fixture support file, which is not a test class).
 
 - **Unit (3)**: `BusinessDayCalculatorTests`, `EligibilityReasonCodeIcuKeysTests`, `VerificationStateMachineTests`
 - **Contract (6)**: `AdminRevokeContractTests`, `AttachDocumentContractTests`, `GetMyVerificationContractTests`, `RequestRenewalContractTests`, `ResubmitWithInfoContractTests`, `SubmitVerificationContractTests`
-- **Integration (19)**: `AccountLifecycleHandlerTests`, `AdminApproveHandlerTests`, `AdminQueueAndDetailHandlerTests`, `AdminQueueSlaBreachTests`, `AdminRejectHandlerTests`, `AdminRequestInfoHandlerTests`, `AdminRevokeAndOpenHistoricalDocTests`, `CustomerReadAndAttachTests`, `CustomerSubmissionLocaleTests`, `DocumentPurgeWorkerTests`, `EligibilityBulkQueryTests`, `EligibilityCacheInvalidationTests`, `EligibilityQueryMatrixTests`, `ExpiryWorkerTests`, `MarketSchemaActiveConstraintTests`, `MarketSchemaVersioningTests`, `ReminderWorkerTests`, `ResubmitAndRenewalTests`, `RevokeNoCooldownTests`, `StateTransitionAppendOnlyTriggerTests`, `SubmitVerificationHappyPathTests`, `VerificationDbContextSmokeTests`, `WorkerAdvisoryLockTests`
+- **Integration (23)**: `AccountLifecycleHandlerTests`, `AdminApproveHandlerTests`, `AdminQueueAndDetailHandlerTests`, `AdminQueueSlaBreachTests`, `AdminRejectHandlerTests`, `AdminRequestInfoHandlerTests`, `AdminRevokeAndOpenHistoricalDocTests`, `CustomerReadAndAttachTests`, `CustomerSubmissionLocaleTests`, `DocumentPurgeWorkerTests`, `EligibilityBulkQueryTests`, `EligibilityCacheInvalidationTests`, `EligibilityQueryMatrixTests`, `ExpiryWorkerTests`, `MarketSchemaActiveConstraintTests`, `MarketSchemaVersioningTests`, `ReminderWorkerTests`, `ResubmitAndRenewalTests`, `RevokeNoCooldownTests`, `StateTransitionAppendOnlyTriggerTests`, `SubmitVerificationHappyPathTests`, `VerificationDbContextSmokeTests`, `WorkerAdvisoryLockTests`
 - **Benchmarks (1)**: `EligibilityBench` (BenchmarkDotNet); baseline in `baselines.md`
 
 ## Outstanding items
 
-- **T115 — AR editorial pass**. 42 keys queued in `Modules/Verification/Messages/AR_EDITORIAL_REVIEW.md`. Requires native-speaker reviewer (Principle 4 — `requires-human-AR-review`); not a merge blocker per the spec 022 precedent (DOD_COMPLIANCE.md treated AR sign-off as a launch blocker, not a merge blocker). Closeout PR ships AR keys as DRAFT.
+- **T115 — AR editorial pass**. 44 keys queued in `Modules/Verification/Messages/AR_EDITORIAL_REVIEW.md` (matches the active entry count in `verification.ar.icu`). Requires native-speaker reviewer (Principle 4 — `requires-human-AR-review`); not a merge blocker per the spec 022 precedent (DOD_COMPLIANCE.md treated AR sign-off as a launch blocker, not a merge blocker). Closeout PR ships AR keys as DRAFT.
 
 ## Sign-off
 

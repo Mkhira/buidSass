@@ -16,6 +16,9 @@ public sealed class CompanyMembership
     public Guid Id { get; set; }
     public Guid CompanyId { get; set; }
 
+    /// <summary>Two-letter market code (mirrors the parent <c>Company.MarketCode</c>); ADR-010 partitioning.</summary>
+    public string MarketCode { get; set; } = string.Empty;
+
     /// <summary>Logical FK to spec 004's customer/user identity table.</summary>
     public Guid UserId { get; set; }
 

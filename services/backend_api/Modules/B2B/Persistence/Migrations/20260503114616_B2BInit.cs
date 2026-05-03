@@ -75,6 +75,159 @@ namespace BackendApi.Modules.B2B.Persistence.Migrations
                 });
 
             migrationBuilder.CreateTable(
+                name: "company_branches",
+                schema: "b2b",
+                columns: table => new
+                {
+                    Id = table.Column<Guid>(type: "uuid", nullable: false),
+                    company_id = table.Column<Guid>(type: "uuid", nullable: false),
+                    market_code = table.Column<string>(type: "citext", maxLength: 8, nullable: false),
+                    name = table.Column<string>(type: "jsonb", nullable: false),
+                    address = table.Column<string>(type: "jsonb", nullable: false),
+                    contact_phone = table.Column<string>(type: "text", maxLength: 64, nullable: true)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_company_branches", x => x.Id);
+                    table.CheckConstraint("chk_company_branches_market", "market_code::text IN ('eg','ksa')");
+                    table.ForeignKey(
+                        name: "FK_company_branches_companies_company_id",
+                        column: x => x.company_id,
+                        principalSchema: "b2b",
+                        principalTable: "companies",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "company_invitations",
+                schema: "b2b",
+                columns: table => new
+                {
+                    Id = table.Column<Guid>(type: "uuid", nullable: false),
+                    company_id = table.Column<Guid>(type: "uuid", nullable: false),
+                    market_code = table.Column<string>(type: "citext", maxLength: 8, nullable: false),
+                    invited_by = table.Column<Guid>(type: "uuid", nullable: false),
+                    invited_email = table.Column<string>(type: "citext", maxLength: 320, nullable: false),
+                    target_role = table.Column<string>(type: "citext", nullable: false),
+                    token_hash = table.Column<string>(type: "text", maxLength: 128, nullable: false),
+                    state = table.Column<string>(type: "citext", nullable: false, defaultValue: "pending"),
+                    sent_at = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false),
+                    expires_at = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_company_invitations", x => x.Id);
+                    table.CheckConstraint("chk_company_invitations_market", "market_code::text IN ('eg','ksa')");
+                    table.CheckConstraint("chk_company_invitations_role", "target_role::text IN ('companies.admin','buyer','approver')");
+                    table.CheckConstraint("chk_company_invitations_state", "state::text IN ('pending','accepted','declined','expired')");
+                    table.ForeignKey(
+                        name: "FK_company_invitations_companies_company_id",
+                        column: x => x.company_id,
+                        principalSchema: "b2b",
+                        principalTable: "companies",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "company_memberships",
+                schema: "b2b",
+                columns: table => new
+                {
+                    Id = table.Column<Guid>(type: "uuid", nullable: false),
+                    company_id = table.Column<Guid>(type: "uuid", nullable: false),
+                    market_code = table.Column<string>(type: "citext", maxLength: 8, nullable: false),
+                    user_id = table.Column<Guid>(type: "uuid", nullable: false),
+                    role = table.Column<string>(type: "citext", nullable: false),
+                    joined_at = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_company_memberships", x => x.Id);
+                    table.CheckConstraint("chk_company_memberships_market", "market_code::text IN ('eg','ksa')");
+                    table.CheckConstraint("chk_company_memberships_role", "role::text IN ('companies.admin','buyer','approver')");
+                    table.ForeignKey(
+                        name: "FK_company_memberships_companies_company_id",
+                        column: x => x.company_id,
+                        principalSchema: "b2b",
+                        principalTable: "companies",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "quote_state_transitions",
+                schema: "b2b",
+                columns: table => new
+                {
+                    Id = table.Column<Guid>(type: "uuid", nullable: false),
+                    quote_id = table.Column<Guid>(type: "uuid", nullable: false),
+                    market_code = table.Column<string>(type: "citext", maxLength: 8, nullable: false),
+                    prior_state = table.Column<string>(type: "citext", nullable: false),
+                    new_state = table.Column<string>(type: "citext", nullable: false),
+                    actor_kind = table.Column<string>(type: "citext", nullable: false),
+                    actor_id = table.Column<Guid>(type: "uuid", nullable: true),
+                    reason = table.Column<string>(type: "jsonb", nullable: true),
+                    metadata = table.Column<string>(type: "jsonb", nullable: false, defaultValueSql: "'{}'::jsonb"),
+                    occurred_at = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_quote_state_transitions", x => x.Id);
+                    table.CheckConstraint("chk_qst_actor_kind", "actor_kind::text IN ('customer','buyer','approver','admin_operator','system')");
+                    table.CheckConstraint("chk_qst_market", "market_code::text IN ('eg','ksa')");
+                    table.CheckConstraint("chk_qst_new_state", "new_state::text IN ('requested','drafted','revised','pending-approver','accepted','rejected','expired','withdrawn')");
+                    table.CheckConstraint("chk_qst_prior_state", "prior_state::text IN ('__none__','requested','drafted','revised','pending-approver','accepted','rejected','expired','withdrawn')");
+                });
+
+            migrationBuilder.CreateTable(
+                name: "quote_version_documents",
+                schema: "b2b",
+                columns: table => new
+                {
+                    Id = table.Column<Guid>(type: "uuid", nullable: false),
+                    quote_version_id = table.Column<Guid>(type: "uuid", nullable: false),
+                    market_code = table.Column<string>(type: "citext", maxLength: 8, nullable: false),
+                    locale = table.Column<string>(type: "citext", nullable: false),
+                    storage_key = table.Column<string>(type: "text", maxLength: 1024, nullable: false),
+                    content_type = table.Column<string>(type: "text", nullable: false, defaultValue: "application/pdf"),
+                    generated_at = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_quote_version_documents", x => x.Id);
+                    table.CheckConstraint("chk_qvd_locale", "locale::text IN ('en','ar')");
+                    table.CheckConstraint("chk_qvd_market", "market_code::text IN ('eg','ksa')");
+                });
+
+            migrationBuilder.CreateTable(
+                name: "quote_versions",
+                schema: "b2b",
+                columns: table => new
+                {
+                    Id = table.Column<Guid>(type: "uuid", nullable: false),
+                    quote_id = table.Column<Guid>(type: "uuid", nullable: false),
+                    market_code = table.Column<string>(type: "citext", maxLength: 8, nullable: false),
+                    version_number = table.Column<int>(type: "integer", nullable: false),
+                    authored_by = table.Column<Guid>(type: "uuid", nullable: false),
+                    published_at = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false),
+                    line_items = table.Column<string>(type: "jsonb", nullable: false),
+                    terms_text = table.Column<string>(type: "jsonb", nullable: false),
+                    terms_days = table.Column<int>(type: "integer", nullable: false, defaultValue: 0),
+                    validity_extends = table.Column<bool>(type: "boolean", nullable: false, defaultValue: false),
+                    totals_summary = table.Column<string>(type: "jsonb", nullable: false),
+                    customer_revision_comment = table.Column<string>(type: "jsonb", nullable: true)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_quote_versions", x => x.Id);
+                    table.CheckConstraint("chk_quote_versions_market", "market_code::text IN ('eg','ksa')");
+                    table.CheckConstraint("chk_quote_versions_terms_days_nonneg", "terms_days >= 0");
+                    table.CheckConstraint("chk_quote_versions_version_positive", "version_number > 0");
+                });
+
+            migrationBuilder.CreateTable(
                 name: "quotes",
                 schema: "b2b",
                 columns: table => new
@@ -109,143 +262,27 @@ namespace BackendApi.Modules.B2B.Persistence.Migrations
                     table.CheckConstraint("chk_quotes_branch_requires_company", "branch_id IS NULL OR company_id IS NOT NULL");
                     table.CheckConstraint("chk_quotes_market", "market_code::text IN ('eg','ksa')");
                     table.CheckConstraint("chk_quotes_state", "state::text IN ('requested','drafted','revised','pending-approver','accepted','rejected','expired','withdrawn')");
-                });
-
-            migrationBuilder.CreateTable(
-                name: "company_branches",
-                schema: "b2b",
-                columns: table => new
-                {
-                    Id = table.Column<Guid>(type: "uuid", nullable: false),
-                    company_id = table.Column<Guid>(type: "uuid", nullable: false),
-                    name = table.Column<string>(type: "jsonb", nullable: false),
-                    address = table.Column<string>(type: "jsonb", nullable: false),
-                    contact_phone = table.Column<string>(type: "text", maxLength: 64, nullable: true)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_company_branches", x => x.Id);
                     table.ForeignKey(
-                        name: "FK_company_branches_companies_company_id",
+                        name: "FK_quotes_companies_company_id",
                         column: x => x.company_id,
                         principalSchema: "b2b",
                         principalTable: "companies",
                         principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
-                });
-
-            migrationBuilder.CreateTable(
-                name: "company_invitations",
-                schema: "b2b",
-                columns: table => new
-                {
-                    Id = table.Column<Guid>(type: "uuid", nullable: false),
-                    company_id = table.Column<Guid>(type: "uuid", nullable: false),
-                    invited_by = table.Column<Guid>(type: "uuid", nullable: false),
-                    invited_email = table.Column<string>(type: "citext", maxLength: 320, nullable: false),
-                    target_role = table.Column<string>(type: "citext", nullable: false),
-                    token = table.Column<string>(type: "text", maxLength: 128, nullable: false),
-                    state = table.Column<string>(type: "citext", nullable: false, defaultValue: "pending"),
-                    sent_at = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false),
-                    expires_at = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_company_invitations", x => x.Id);
-                    table.CheckConstraint("chk_company_invitations_role", "target_role::text IN ('companies.admin','buyer','approver')");
-                    table.CheckConstraint("chk_company_invitations_state", "state::text IN ('pending','accepted','declined','expired')");
+                        onDelete: ReferentialAction.Restrict);
                     table.ForeignKey(
-                        name: "FK_company_invitations_companies_company_id",
-                        column: x => x.company_id,
+                        name: "FK_quotes_company_branches_branch_id",
+                        column: x => x.branch_id,
                         principalSchema: "b2b",
-                        principalTable: "companies",
+                        principalTable: "company_branches",
                         principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
-                });
-
-            migrationBuilder.CreateTable(
-                name: "company_memberships",
-                schema: "b2b",
-                columns: table => new
-                {
-                    Id = table.Column<Guid>(type: "uuid", nullable: false),
-                    company_id = table.Column<Guid>(type: "uuid", nullable: false),
-                    user_id = table.Column<Guid>(type: "uuid", nullable: false),
-                    role = table.Column<string>(type: "citext", nullable: false),
-                    joined_at = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_company_memberships", x => x.Id);
-                    table.CheckConstraint("chk_company_memberships_role", "role::text IN ('companies.admin','buyer','approver')");
+                        onDelete: ReferentialAction.Restrict);
                     table.ForeignKey(
-                        name: "FK_company_memberships_companies_company_id",
-                        column: x => x.company_id,
+                        name: "FK_quotes_quote_versions_current_version_id",
+                        column: x => x.current_version_id,
                         principalSchema: "b2b",
-                        principalTable: "companies",
+                        principalTable: "quote_versions",
                         principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
-                });
-
-            migrationBuilder.CreateTable(
-                name: "quote_state_transitions",
-                schema: "b2b",
-                columns: table => new
-                {
-                    Id = table.Column<Guid>(type: "uuid", nullable: false),
-                    quote_id = table.Column<Guid>(type: "uuid", nullable: false),
-                    prior_state = table.Column<string>(type: "citext", nullable: false),
-                    new_state = table.Column<string>(type: "citext", nullable: false),
-                    actor_kind = table.Column<string>(type: "citext", nullable: false),
-                    actor_id = table.Column<Guid>(type: "uuid", nullable: true),
-                    reason = table.Column<string>(type: "jsonb", nullable: true),
-                    metadata = table.Column<string>(type: "jsonb", nullable: false, defaultValueSql: "'{}'::jsonb"),
-                    occurred_at = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_quote_state_transitions", x => x.Id);
-                    table.CheckConstraint("chk_qst_actor_kind", "actor_kind::text IN ('customer','buyer','approver','admin_operator','system')");
-                    table.CheckConstraint("chk_qst_new_state", "new_state::text IN ('requested','drafted','revised','pending-approver','accepted','rejected','expired','withdrawn')");
-                    table.CheckConstraint("chk_qst_prior_state", "prior_state::text IN ('__none__','requested','drafted','revised','pending-approver','accepted','rejected','expired','withdrawn')");
-                    table.ForeignKey(
-                        name: "FK_quote_state_transitions_quotes_quote_id",
-                        column: x => x.quote_id,
-                        principalSchema: "b2b",
-                        principalTable: "quotes",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
-                });
-
-            migrationBuilder.CreateTable(
-                name: "quote_versions",
-                schema: "b2b",
-                columns: table => new
-                {
-                    Id = table.Column<Guid>(type: "uuid", nullable: false),
-                    quote_id = table.Column<Guid>(type: "uuid", nullable: false),
-                    version_number = table.Column<int>(type: "integer", nullable: false),
-                    authored_by = table.Column<Guid>(type: "uuid", nullable: false),
-                    published_at = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false),
-                    line_items = table.Column<string>(type: "jsonb", nullable: false),
-                    terms_text = table.Column<string>(type: "jsonb", nullable: false),
-                    terms_days = table.Column<int>(type: "integer", nullable: false, defaultValue: 0),
-                    validity_extends = table.Column<bool>(type: "boolean", nullable: false, defaultValue: false),
-                    totals_summary = table.Column<string>(type: "jsonb", nullable: false),
-                    customer_revision_comment = table.Column<string>(type: "jsonb", nullable: true)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_quote_versions", x => x.Id);
-                    table.CheckConstraint("chk_quote_versions_terms_days_nonneg", "terms_days >= 0");
-                    table.CheckConstraint("chk_quote_versions_version_positive", "version_number > 0");
-                    table.ForeignKey(
-                        name: "FK_quote_versions_quotes_quote_id",
-                        column: x => x.quote_id,
-                        principalSchema: "b2b",
-                        principalTable: "quotes",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
+                        onDelete: ReferentialAction.Restrict);
                 });
 
             migrationBuilder.CreateTable(
@@ -254,6 +291,7 @@ namespace BackendApi.Modules.B2B.Persistence.Migrations
                 columns: table => new
                 {
                     Id = table.Column<Guid>(type: "uuid", nullable: false),
+                    market_code = table.Column<string>(type: "citext", maxLength: 8, nullable: false),
                     source_quote_id = table.Column<Guid>(type: "uuid", nullable: false),
                     company_id = table.Column<Guid>(type: "uuid", nullable: true),
                     user_id = table.Column<Guid>(type: "uuid", nullable: false),
@@ -264,6 +302,7 @@ namespace BackendApi.Modules.B2B.Persistence.Migrations
                 constraints: table =>
                 {
                     table.PrimaryKey("PK_repeat_order_templates", x => x.Id);
+                    table.CheckConstraint("chk_repeat_order_templates_market", "market_code::text IN ('eg','ksa')");
                     table.ForeignKey(
                         name: "FK_repeat_order_templates_quotes_source_quote_id",
                         column: x => x.source_quote_id,
@@ -271,31 +310,6 @@ namespace BackendApi.Modules.B2B.Persistence.Migrations
                         principalTable: "quotes",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Restrict);
-                });
-
-            migrationBuilder.CreateTable(
-                name: "quote_version_documents",
-                schema: "b2b",
-                columns: table => new
-                {
-                    Id = table.Column<Guid>(type: "uuid", nullable: false),
-                    quote_version_id = table.Column<Guid>(type: "uuid", nullable: false),
-                    locale = table.Column<string>(type: "citext", nullable: false),
-                    storage_key = table.Column<string>(type: "text", maxLength: 1024, nullable: false),
-                    content_type = table.Column<string>(type: "text", nullable: false, defaultValue: "application/pdf"),
-                    generated_at = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_quote_version_documents", x => x.Id);
-                    table.CheckConstraint("chk_qvd_locale", "locale::text IN ('en','ar')");
-                    table.ForeignKey(
-                        name: "FK_quote_version_documents_quote_versions_quote_version_id",
-                        column: x => x.quote_version_id,
-                        principalSchema: "b2b",
-                        principalTable: "quote_versions",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
                 });
 
             migrationBuilder.CreateIndex(
@@ -334,10 +348,10 @@ namespace BackendApi.Modules.B2B.Persistence.Migrations
                 filter: "state::text = 'pending'");
 
             migrationBuilder.CreateIndex(
-                name: "UX_company_invitations_token",
+                name: "UX_company_invitations_token_hash",
                 schema: "b2b",
                 table: "company_invitations",
-                column: "token",
+                column: "token_hash",
                 unique: true);
 
             migrationBuilder.CreateIndex(
@@ -381,11 +395,17 @@ namespace BackendApi.Modules.B2B.Persistence.Migrations
                 unique: true);
 
             migrationBuilder.CreateIndex(
-                name: "UX_quote_versions_quote_version",
+                name: "UX_quote_versions_quote_version_market",
                 schema: "b2b",
                 table: "quote_versions",
-                columns: new[] { "quote_id", "version_number" },
+                columns: new[] { "quote_id", "version_number", "market_code" },
                 unique: true);
+
+            migrationBuilder.CreateIndex(
+                name: "IX_quotes_branch_id",
+                schema: "b2b",
+                table: "quotes",
+                column: "branch_id");
 
             migrationBuilder.CreateIndex(
                 name: "IX_quotes_company_state_market",
@@ -393,6 +413,12 @@ namespace BackendApi.Modules.B2B.Persistence.Migrations
                 table: "quotes",
                 columns: new[] { "company_id", "state", "market_code" },
                 filter: "company_id IS NOT NULL");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_quotes_current_version_id",
+                schema: "b2b",
+                table: "quotes",
+                column: "current_version_id");
 
             migrationBuilder.CreateIndex(
                 name: "IX_quotes_customer_state",
@@ -444,12 +470,39 @@ namespace BackendApi.Modules.B2B.Persistence.Migrations
                 unique: true,
                 filter: "company_id IS NULL");
 
+            migrationBuilder.AddForeignKey(
+                name: "FK_quote_state_transitions_quotes_quote_id",
+                schema: "b2b",
+                table: "quote_state_transitions",
+                column: "quote_id",
+                principalSchema: "b2b",
+                principalTable: "quotes",
+                principalColumn: "Id",
+                onDelete: ReferentialAction.Cascade);
+
+            migrationBuilder.AddForeignKey(
+                name: "FK_quote_version_documents_quote_versions_quote_version_id",
+                schema: "b2b",
+                table: "quote_version_documents",
+                column: "quote_version_id",
+                principalSchema: "b2b",
+                principalTable: "quote_versions",
+                principalColumn: "Id",
+                onDelete: ReferentialAction.Cascade);
+
+            migrationBuilder.AddForeignKey(
+                name: "FK_quote_versions_quotes_quote_id",
+                schema: "b2b",
+                table: "quote_versions",
+                column: "quote_id",
+                principalSchema: "b2b",
+                principalTable: "quotes",
+                principalColumn: "Id",
+                onDelete: ReferentialAction.Cascade);
+
             // Append-only guard for the quote_state_transitions ledger (data-model §2.8).
             // UPDATE / DELETE on this table is forbidden — the audit trail must be
             // monotonic. Asserted by Tests/B2B.Tests/Integration/StateTransitionAppendOnlyTriggerTests.
-            // The function is namespaced so it never collides with append-only triggers
-            // in other schemas (spec 007-b's Pricing module ships a sibling under
-            // pricing.raise_immutable_audit_violation).
             migrationBuilder.Sql(@"
 CREATE OR REPLACE FUNCTION b2b.raise_immutable_state_transition_violation()
 RETURNS trigger
@@ -464,11 +517,9 @@ CREATE TRIGGER quote_state_transitions_append_only
 BEFORE UPDATE OR DELETE ON b2b.quote_state_transitions
 FOR EACH ROW EXECUTE FUNCTION b2b.raise_immutable_state_transition_violation();");
 
-            // Row-level immutability for quote_versions (data-model §2.6). Single-row UPDATE
-            // is rejected at the database level so spec 011 / spec 025 can never accidentally
-            // mutate a published version. Verified by QuoteVersionImmutabilityTests.
-            // DELETE is permitted because cascade-delete from `quotes` is the only way a
-            // version goes away (and only with the parent quote — never standalone).
+            // Row-level immutability for quote_versions (data-model §2.6). Verified by
+            // QuoteVersionImmutabilityTests. DELETE is permitted because cascade-delete
+            // from `quotes` is the only way a version goes away.
             migrationBuilder.Sql(@"
 CREATE OR REPLACE FUNCTION b2b.raise_immutable_quote_version_violation()
 RETURNS trigger
@@ -493,9 +544,20 @@ FOR EACH ROW EXECUTE FUNCTION b2b.raise_immutable_quote_version_violation();");
             migrationBuilder.Sql("DROP TRIGGER IF EXISTS quote_state_transitions_append_only ON b2b.quote_state_transitions;");
             migrationBuilder.Sql("DROP FUNCTION IF EXISTS b2b.raise_immutable_state_transition_violation();");
 
-            migrationBuilder.DropTable(
-                name: "company_branches",
-                schema: "b2b");
+            migrationBuilder.DropForeignKey(
+                name: "FK_company_branches_companies_company_id",
+                schema: "b2b",
+                table: "company_branches");
+
+            migrationBuilder.DropForeignKey(
+                name: "FK_quotes_companies_company_id",
+                schema: "b2b",
+                table: "quotes");
+
+            migrationBuilder.DropForeignKey(
+                name: "FK_quote_versions_quotes_quote_id",
+                schema: "b2b",
+                table: "quote_versions");
 
             migrationBuilder.DropTable(
                 name: "company_invitations",
@@ -526,11 +588,15 @@ FOR EACH ROW EXECUTE FUNCTION b2b.raise_immutable_quote_version_violation();");
                 schema: "b2b");
 
             migrationBuilder.DropTable(
-                name: "quote_versions",
+                name: "quotes",
                 schema: "b2b");
 
             migrationBuilder.DropTable(
-                name: "quotes",
+                name: "company_branches",
+                schema: "b2b");
+
+            migrationBuilder.DropTable(
+                name: "quote_versions",
                 schema: "b2b");
         }
     }

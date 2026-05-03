@@ -1,6 +1,7 @@
 using BackendApi.Configuration;
 using BackendApi.Features.Seeding;
 using BackendApi.Modules.B2B.Persistence;
+using BackendApi.Modules.B2B.Primitives;
 using BackendApi.Modules.B2B.Seeding;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
@@ -53,6 +54,12 @@ public static class B2BModule
         // will swap to AddDbContextFactory + a thin scoped wrapper, mirroring the path
         // CMS / Reviews modules will follow when their workers go production.
         services.AddScoped<ISeeder, B2BReferenceDataSeeder>();
+
+        // CompanyInvitation token hashing — plaintext is never persisted; the HMAC-SHA256
+        // signing key is bound from configuration (env / Key Vault / user-secrets).
+        services.AddOptions<B2BInvitationOptions>()
+            .Bind(configuration.GetSection(B2BInvitationOptions.SectionName));
+        services.AddSingleton<CompanyInvitationTokenHasher>();
 
         return services;
     }

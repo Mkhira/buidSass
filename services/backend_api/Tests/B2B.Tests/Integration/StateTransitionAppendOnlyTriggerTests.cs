@@ -95,6 +95,7 @@ public sealed class StateTransitionAppendOnlyTriggerTests : IAsyncLifetime
         {
             Id = Guid.NewGuid(),
             QuoteId = quoteId,
+            MarketCode = "ksa",
             PriorState = "requested",
             NewState = "drafted",
             ActorKind = "admin_operator",
@@ -138,6 +139,7 @@ public sealed class StateTransitionAppendOnlyTriggerTests : IAsyncLifetime
         {
             Id = Guid.NewGuid(),
             QuoteId = quoteId,
+            MarketCode = "ksa",
             PriorState = "__none__",
             NewState = "requested",
             ActorKind = "customer",

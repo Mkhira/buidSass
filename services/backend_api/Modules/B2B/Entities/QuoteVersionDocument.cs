@@ -10,6 +10,9 @@ public sealed class QuoteVersionDocument
     public Guid Id { get; set; }
     public Guid QuoteVersionId { get; set; }
 
+    /// <summary>Two-letter market code (mirrors the parent <c>QuoteVersion.MarketCode</c>); ADR-010 partitioning.</summary>
+    public string MarketCode { get; set; } = string.Empty;
+
     /// <summary><c>en</c> or <c>ar</c>.</summary>
     public string Locale { get; set; } = string.Empty;
 

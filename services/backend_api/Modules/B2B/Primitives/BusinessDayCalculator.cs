@@ -55,6 +55,12 @@ public static class BusinessDayCalculator
         }
 
         var weekend = weekendDays ?? WeekendDays;
+        if (weekend.Count == 7)
+        {
+            throw new ArgumentException(
+                "WeekendDays cannot cover all 7 days — there would be no business days to step through.",
+                nameof(weekendDays));
+        }
         var holidays = ParseHolidays(holidaysListJson);
 
         // Advance to the next business day at-or-after `start` first; this makes
@@ -88,7 +94,10 @@ public static class BusinessDayCalculator
             return true;
         }
 
-        var dateOnly = DateOnly.FromDateTime(date.UtcDateTime);
+        // Use the local-offset date, not the UTC-shifted date: holidays are listed
+        // against the local market calendar (e.g. Asia/Riyadh), and a non-zero offset
+        // can flip the calendar day across midnight UTC.
+        var dateOnly = DateOnly.FromDateTime(date.Date);
         return holidays.Contains(dateOnly);
     }
 

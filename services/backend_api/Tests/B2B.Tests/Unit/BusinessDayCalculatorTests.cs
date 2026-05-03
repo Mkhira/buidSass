@@ -93,4 +93,29 @@ public sealed class BusinessDayCalculatorTests
         var result = BusinessDayCalculator.AddBusinessDays(sunday, 1, null, customWeekend);
         result.Should().Be(Day(2026, 5, 6));
     }
+
+    [Fact]
+    public void All_seven_days_as_weekend_throws()
+    {
+        var allDays = new HashSet<DayOfWeek>(Enum.GetValues<DayOfWeek>());
+        var act = () => BusinessDayCalculator.AddBusinessDays(Day(2026, 5, 3), 1, null, allDays);
+        act.Should().Throw<ArgumentException>()
+            .Which.ParamName.Should().Be("weekendDays");
+    }
+
+    [Fact]
+    public void Holiday_lookup_uses_local_offset_date_not_utc_shifted_date()
+    {
+        // Asia/Riyadh = UTC+3. Local midnight on 2026-05-04 (Monday) is 2026-05-03 21:00 UTC,
+        // which would shift to 2026-05-03 (Sunday) under the old DateOnly.FromDateTime(UtcDateTime)
+        // path. The fixed implementation MUST honor the local market date and treat
+        // 2026-05-04 as Monday (a holiday in this fixture).
+        var monLocalMidnight = new DateTimeOffset(2026, 5, 4, 0, 0, 0, TimeSpan.FromHours(3));
+        var holidays = "[\"2026-05-04\"]";
+
+        var result = BusinessDayCalculator.AddBusinessDays(monLocalMidnight, 0, holidays);
+
+        // Monday is a holiday, so the next business day is Tuesday 2026-05-05 (same offset preserved).
+        result.Should().Be(new DateTimeOffset(2026, 5, 5, 0, 0, 0, TimeSpan.FromHours(3)));
+    }
 }

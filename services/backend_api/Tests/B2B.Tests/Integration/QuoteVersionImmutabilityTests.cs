@@ -74,6 +74,7 @@ public sealed class QuoteVersionImmutabilityTests : IAsyncLifetime
         {
             Id = Guid.NewGuid(),
             QuoteId = quoteId,
+            MarketCode = "ksa",
             VersionNumber = 2,
             AuthoredBy = Guid.NewGuid(),
             PublishedAt = DateTimeOffset.UtcNow,
@@ -115,6 +116,7 @@ public sealed class QuoteVersionImmutabilityTests : IAsyncLifetime
         {
             Id = Guid.NewGuid(),
             QuoteId = quoteId,
+            MarketCode = "ksa",
             VersionNumber = 1,
             AuthoredBy = Guid.NewGuid(),
             PublishedAt = DateTimeOffset.UtcNow,

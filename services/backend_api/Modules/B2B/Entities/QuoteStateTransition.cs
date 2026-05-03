@@ -14,6 +14,9 @@ public sealed class QuoteStateTransition
     public Guid Id { get; set; }
     public Guid QuoteId { get; set; }
 
+    /// <summary>Two-letter market code (mirrors the parent <c>Quote.MarketCode</c>); ADR-010 partitioning.</summary>
+    public string MarketCode { get; set; } = string.Empty;
+
     /// <summary>Either a <see cref="Primitives.QuoteState"/> token or the literal <c>__none__</c>.</summary>
     public string PriorState { get; set; } = string.Empty;
 

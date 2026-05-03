@@ -53,6 +53,7 @@ public sealed class CompanyMembershipConfiguration : IEntityTypeConfiguration<Co
         builder.HasKey(x => x.Id);
 
         builder.Property(x => x.CompanyId).HasColumnName("company_id").IsRequired();
+        builder.Property(x => x.MarketCode).HasColumnName("market_code").HasColumnType("citext").IsRequired().HasMaxLength(8);
         builder.Property(x => x.UserId).HasColumnName("user_id").IsRequired();
         builder.Property(x => x.Role).HasColumnName("role").HasColumnType("citext").IsRequired();
         builder.Property(x => x.JoinedAt).HasColumnName("joined_at").IsRequired();
@@ -72,6 +73,8 @@ public sealed class CompanyMembershipConfiguration : IEntityTypeConfiguration<Co
         {
             t.HasCheckConstraint("chk_company_memberships_role",
                 "role::text IN ('companies.admin','buyer','approver')");
+            t.HasCheckConstraint("chk_company_memberships_market",
+                "market_code::text IN ('eg','ksa')");
         });
     }
 }
@@ -84,6 +87,7 @@ public sealed class CompanyBranchConfiguration : IEntityTypeConfiguration<Compan
         builder.HasKey(x => x.Id);
 
         builder.Property(x => x.CompanyId).HasColumnName("company_id").IsRequired();
+        builder.Property(x => x.MarketCode).HasColumnName("market_code").HasColumnType("citext").IsRequired().HasMaxLength(8);
         builder.Property(x => x.NameJson).HasColumnName("name").HasColumnType("jsonb").IsRequired();
         builder.Property(x => x.AddressJson).HasColumnName("address").HasColumnType("jsonb").IsRequired();
         builder.Property(x => x.ContactPhone).HasColumnName("contact_phone").HasColumnType("text").HasMaxLength(64);
@@ -94,6 +98,12 @@ public sealed class CompanyBranchConfiguration : IEntityTypeConfiguration<Compan
             .OnDelete(DeleteBehavior.Cascade);
 
         builder.HasIndex(x => x.CompanyId).HasDatabaseName("IX_company_branches_company");
+
+        builder.ToTable(t =>
+        {
+            t.HasCheckConstraint("chk_company_branches_market",
+                "market_code::text IN ('eg','ksa')");
+        });
     }
 }
 
@@ -105,10 +115,13 @@ public sealed class CompanyInvitationConfiguration : IEntityTypeConfiguration<Co
         builder.HasKey(x => x.Id);
 
         builder.Property(x => x.CompanyId).HasColumnName("company_id").IsRequired();
+        builder.Property(x => x.MarketCode).HasColumnName("market_code").HasColumnType("citext").IsRequired().HasMaxLength(8);
         builder.Property(x => x.InvitedBy).HasColumnName("invited_by").IsRequired();
         builder.Property(x => x.InvitedEmail).HasColumnName("invited_email").HasColumnType("citext").IsRequired().HasMaxLength(320);
         builder.Property(x => x.TargetRole).HasColumnName("target_role").HasColumnType("citext").IsRequired();
-        builder.Property(x => x.Token).HasColumnName("token").HasColumnType("text").IsRequired().HasMaxLength(128);
+        // Plaintext is never persisted — only the hex-encoded HMAC-SHA256 digest. Length
+        // is fixed at 64 hex chars but we leave headroom for a future digest swap.
+        builder.Property(x => x.TokenHash).HasColumnName("token_hash").HasColumnType("text").IsRequired().HasMaxLength(128);
         builder.Property(x => x.State).HasColumnName("state").HasColumnType("citext").HasDefaultValue("pending").IsRequired();
         builder.Property(x => x.SentAt).HasColumnName("sent_at").IsRequired();
         builder.Property(x => x.ExpiresAt).HasColumnName("expires_at").IsRequired();
@@ -118,9 +131,9 @@ public sealed class CompanyInvitationConfiguration : IEntityTypeConfiguration<Co
             .HasForeignKey(x => x.CompanyId)
             .OnDelete(DeleteBehavior.Cascade);
 
-        builder.HasIndex(x => x.Token)
+        builder.HasIndex(x => x.TokenHash)
             .IsUnique()
-            .HasDatabaseName("UX_company_invitations_token");
+            .HasDatabaseName("UX_company_invitations_token_hash");
         builder.HasIndex(x => new { x.State, x.ExpiresAt })
             .HasDatabaseName("IX_company_invitations_state_expires")
             .HasFilter("state::text = 'pending'");
@@ -135,6 +148,8 @@ public sealed class CompanyInvitationConfiguration : IEntityTypeConfiguration<Co
                 "target_role::text IN ('companies.admin','buyer','approver')");
             t.HasCheckConstraint("chk_company_invitations_state",
                 "state::text IN ('pending','accepted','declined','expired')");
+            t.HasCheckConstraint("chk_company_invitations_market",
+                "market_code::text IN ('eg','ksa')");
         });
     }
 }
@@ -173,6 +188,23 @@ public sealed class QuoteConfiguration : IEntityTypeConfiguration<Quote>
             .ValueGeneratedOnAddOrUpdate()
             .IsRowVersion();
 
+        // Navigation FKs (CodeRabbit Round 1) — explicit referential integrity for the
+        // logical FKs already named in the schema. CurrentVersionId points to a row that
+        // is also a child of this quote; Restrict prevents deleting the head version
+        // out from under quotes that still point to it.
+        builder.HasOne(q => q.CurrentVersion)
+            .WithMany()
+            .HasForeignKey(q => q.CurrentVersionId)
+            .OnDelete(DeleteBehavior.Restrict);
+        builder.HasOne(q => q.Company)
+            .WithMany()
+            .HasForeignKey(q => q.CompanyId)
+            .OnDelete(DeleteBehavior.Restrict);
+        builder.HasOne(q => q.Branch)
+            .WithMany()
+            .HasForeignKey(q => q.BranchId)
+            .OnDelete(DeleteBehavior.Restrict);
+
         builder.HasIndex(x => new { x.CustomerId, x.State })
             .HasDatabaseName("IX_quotes_customer_state");
         builder.HasIndex(x => new { x.CompanyId, x.State, x.MarketCode })
@@ -210,6 +242,7 @@ public sealed class QuoteVersionConfiguration : IEntityTypeConfiguration<QuoteVe
         builder.HasKey(x => x.Id);
 
         builder.Property(x => x.QuoteId).HasColumnName("quote_id").IsRequired();
+        builder.Property(x => x.MarketCode).HasColumnName("market_code").HasColumnType("citext").IsRequired().HasMaxLength(8);
         builder.Property(x => x.VersionNumber).HasColumnName("version_number").IsRequired();
         builder.Property(x => x.AuthoredBy).HasColumnName("authored_by").IsRequired();
         builder.Property(x => x.PublishedAt).HasColumnName("published_at").IsRequired();
@@ -225,19 +258,19 @@ public sealed class QuoteVersionConfiguration : IEntityTypeConfiguration<QuoteVe
             .HasForeignKey(x => x.QuoteId)
             .OnDelete(DeleteBehavior.Cascade);
 
-        builder.HasIndex(x => new { x.QuoteId, x.VersionNumber })
+        builder.HasIndex(x => new { x.QuoteId, x.VersionNumber, x.MarketCode })
             .IsUnique()
-            .HasDatabaseName("UX_quote_versions_quote_version");
+            .HasDatabaseName("UX_quote_versions_quote_version_market");
 
         builder.ToTable(t =>
         {
             t.HasCheckConstraint("chk_quote_versions_version_positive", "version_number > 0");
             t.HasCheckConstraint("chk_quote_versions_terms_days_nonneg", "terms_days >= 0");
+            t.HasCheckConstraint("chk_quote_versions_market", "market_code::text IN ('eg','ksa')");
         });
-        // Row-level immutability is enforced by an EF Core SaveChanges interceptor + integration
-        // test (QuoteVersionImmutabilityTests). A trigger-based guard would also work; we prefer
-        // the interceptor because it gives a localized error and avoids surfacing a Postgres
-        // exception at the API edge.
+        // Row-level immutability is enforced by a Postgres BEFORE-UPDATE trigger on
+        // b2b.quote_versions (see migration). Validated by QuoteVersionImmutabilityTests
+        // and StateTransitionAppendOnlyTriggerTests.
     }
 }
 
@@ -249,6 +282,7 @@ public sealed class QuoteVersionDocumentConfiguration : IEntityTypeConfiguration
         builder.HasKey(x => x.Id);
 
         builder.Property(x => x.QuoteVersionId).HasColumnName("quote_version_id").IsRequired();
+        builder.Property(x => x.MarketCode).HasColumnName("market_code").HasColumnType("citext").IsRequired().HasMaxLength(8);
         builder.Property(x => x.Locale).HasColumnName("locale").HasColumnType("citext").IsRequired();
         builder.Property(x => x.StorageKey).HasColumnName("storage_key").HasColumnType("text").IsRequired().HasMaxLength(1024);
         builder.Property(x => x.ContentType).HasColumnName("content_type").HasColumnType("text").HasDefaultValue("application/pdf").IsRequired();
@@ -266,6 +300,7 @@ public sealed class QuoteVersionDocumentConfiguration : IEntityTypeConfiguration
         builder.ToTable(t =>
         {
             t.HasCheckConstraint("chk_qvd_locale", "locale::text IN ('en','ar')");
+            t.HasCheckConstraint("chk_qvd_market", "market_code::text IN ('eg','ksa')");
         });
     }
 }
@@ -278,6 +313,7 @@ public sealed class QuoteStateTransitionConfiguration : IEntityTypeConfiguration
         builder.HasKey(x => x.Id);
 
         builder.Property(x => x.QuoteId).HasColumnName("quote_id").IsRequired();
+        builder.Property(x => x.MarketCode).HasColumnName("market_code").HasColumnType("citext").IsRequired().HasMaxLength(8);
         builder.Property(x => x.PriorState).HasColumnName("prior_state").HasColumnType("citext").IsRequired();
         builder.Property(x => x.NewState).HasColumnName("new_state").HasColumnType("citext").IsRequired();
         builder.Property(x => x.ActorKind).HasColumnName("actor_kind").HasColumnType("citext").IsRequired();
@@ -304,6 +340,7 @@ public sealed class QuoteStateTransitionConfiguration : IEntityTypeConfiguration
                 "new_state::text IN ('requested','drafted','revised','pending-approver','accepted','rejected','expired','withdrawn')");
             t.HasCheckConstraint("chk_qst_actor_kind",
                 "actor_kind::text IN ('customer','buyer','approver','admin_operator','system')");
+            t.HasCheckConstraint("chk_qst_market", "market_code::text IN ('eg','ksa')");
         });
         // Append-only Postgres trigger added in raw SQL inside the migration.
     }
@@ -358,6 +395,7 @@ public sealed class RepeatOrderTemplateConfiguration : IEntityTypeConfiguration<
         builder.HasKey(x => x.Id);
 
         builder.Property(x => x.SourceQuoteId).HasColumnName("source_quote_id").IsRequired();
+        builder.Property(x => x.MarketCode).HasColumnName("market_code").HasColumnType("citext").IsRequired().HasMaxLength(8);
         builder.Property(x => x.CompanyId).HasColumnName("company_id");
         builder.Property(x => x.UserId).HasColumnName("user_id").IsRequired();
         builder.Property(x => x.NameJson).HasColumnName("name").HasColumnType("jsonb").IsRequired();
@@ -383,5 +421,11 @@ public sealed class RepeatOrderTemplateConfiguration : IEntityTypeConfiguration<
             .IsUnique()
             .HasFilter("company_id IS NULL")
             .HasDatabaseName("UX_repeat_order_templates_user_name");
+
+        builder.ToTable(t =>
+        {
+            t.HasCheckConstraint("chk_repeat_order_templates_market",
+                "market_code::text IN ('eg','ksa')");
+        });
     }
 }

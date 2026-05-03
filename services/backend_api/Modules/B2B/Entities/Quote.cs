@@ -29,6 +29,15 @@ public sealed class Quote
     /// <summary>Set on first publish; points to the most recent <see cref="QuoteVersion"/>.</summary>
     public Guid? CurrentVersionId { get; set; }
 
+    /// <summary>Navigation for <see cref="CurrentVersionId"/>; explicit FK with restrict-on-delete.</summary>
+    public QuoteVersion? CurrentVersion { get; set; }
+
+    /// <summary>Navigation for <see cref="CompanyId"/>; null for individual-customer quotes.</summary>
+    public Company? Company { get; set; }
+
+    /// <summary>Navigation for <see cref="BranchId"/>; null when the company has no branch attribution.</summary>
+    public CompanyBranch? Branch { get; set; }
+
     /// <summary>
     /// Set on first publish; recomputed when a revision sets <c>validity_extends=true</c>
     /// (Clarifications Q5).

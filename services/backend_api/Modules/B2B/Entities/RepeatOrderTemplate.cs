@@ -14,6 +14,9 @@ public sealed class RepeatOrderTemplate
 {
     public Guid Id { get; set; }
 
+    /// <summary>Two-letter market code (mirrors the source quote's market); ADR-010 partitioning.</summary>
+    public string MarketCode { get; set; } = string.Empty;
+
     /// <summary>FK to the <see cref="Quote"/> the template was saved from.</summary>
     public Guid SourceQuoteId { get; set; }
 

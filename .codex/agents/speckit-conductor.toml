@@ -108,36 +108,75 @@ BOOT SEQUENCE
    - If zero specs found → abort with clear error.
 
 2. PARSE TASKS.MD CONTRACT
-   For each spec, read tasks.md if present. Required structure:
+   For each spec, read tasks.md if present. Spec Kit's templates emit a few
+   stylistic variants; this parser MUST tolerate the variants currently in
+   the repo without forcing edits to spec files.
+
+   Expected shape (any one of the variants below is acceptable):
 
      # <spec title>
 
-     ## Phase 1 — <phase title>  [optional <!-- annotation --> ]
+     ## Phase 1: Setup           ← colon style (current Spec Kit default)
+     ## Phase 1 — Setup           ← em-dash style
+     ## Phase 1 - Setup           ← hyphen style
+     ### Phase 1: Setup           ← H3 also accepted
+
      - [ ] T001 <task description>
      - [x] T002 <task description>
-     ...
+     - [X] T003 <task description>            ← uppercase X accepted
+     - [ ] T044a [P] <task description>       ← letter-suffixed id accepted
+     - [ ] T061b [P] [US1] <task description> ← inline tags after id accepted
 
-     ## Phase 2 — <phase title>
-     ...
-
-   Parser rules:
-     - Phase header regex: ^## Phase (\\d+) — .+$ (em dash or hyphen accepted).
-     - Phase number = captured digit. Phase 0 not allowed.
-     - Tasks under a phase header until next phase header or EOF.
-     - Task line regex: ^- \\[([ x~!])\\] (T\\d+) .+$
-     - Status: [ ] pending, [x] complete, [~] skipped, [!] blocked.
-     - Phase annotation regex (optional, in header):
-         <!--\\s*(merge-ready|ready|merged):\\s*([^@]+)\\s*@\\s*([^\\s>]+)\\s*-->
-     - \"Fully [x]\" for a phase = every task under it is [x] or [~].
+   Parser rules (apply in order, top to bottom):
+     1. Phase header — match line against any of:
+            ^#{2,3}\\s+Phase\\s+(\\d+)\\s*[:\\u2014\\-]\\s*.+$
+        i.e. `## Phase N: ...`, `## Phase N — ...`, `## Phase N - ...`,
+        and the same with `###`. Phase number = captured digit.
+        Phase 0 not allowed.
+        Non-phase H2 headers (e.g. `## Format:`, `## Path Conventions`,
+        `## Notes`) are IGNORED — they are not phase headers and not malformed.
+     2. Task line — for every line under a phase header until the next
+        phase header or EOF, attempt to match:
+            ^- \\[([ xX~!])\\] (T\\d+[a-z]?)\\b.*$
+        - Checkbox accepts BOTH `[x]` and `[X]`; normalize to lowercase
+          internally.
+        - Task id accepts an optional single-letter suffix (e.g. T044a,
+          T061b, T136c).
+        - Inline tags AFTER the id (e.g. `[P]`, `[US1]`, `[Story]`) are
+          part of the description; do NOT treat them as status.
+        - Status mapping: `[ ]` pending, `[x]/[X]` complete, `[~]` skipped,
+          `[!]` blocked.
+     3. Legend / explanatory bullets — a line of the form `- [TAG] ...`
+        where TAG is NOT a single status character AND no `T\\d+` id
+        follows is a LEGEND LINE. Common examples:
+            - [P] tasks = different files, no dependencies.
+            - [Story] label maps each task to a specific user story...
+        Legend lines are SILENTLY SKIPPED. They are not tasks and they
+        DO NOT mark the file malformed.
+     4. Subheadings (`###`, `####`) inside a phase that are not phase
+        headers (e.g. `### Primitives`, `#### Foundational unit tests`)
+        are IGNORED for parsing; tasks beneath them remain attributed
+        to the enclosing phase.
+     5. Phase annotation regex (optional, anywhere in the header line):
+            <!--\\s*(merge-ready|ready|merged):\\s*([^@]+)\\s*@\\s*([^\\s>]+)\\s*-->
+     6. \"Fully complete\" for a phase = every parsed task under it has
+        status complete or skipped.
 
    Disagreement handling:
      - PR exists for a phase not in tasks.md → flag as orphan-pr.
-     - Phase in tasks.md with no PR and no [x] tasks → pending.
-     - Phase fully [x] but no PR → flag as orphan-completion.
-     - Phase fully [x] AND PR merged AND no annotation → MERGED-NEEDS-ANNOTATION.
+     - Phase in tasks.md with no PR and no complete tasks → pending.
+     - Phase fully complete but no PR → flag as orphan-completion.
+     - Phase fully complete AND PR merged AND no annotation
+       → MERGED-NEEDS-ANNOTATION.
 
-   If tasks.md missing → spec status `tasks-md-missing`, not dispatchable.
-   If tasks.md malformed → spec status `tasks-md-malformed`, not dispatchable.
+   When to mark a spec malformed (use sparingly):
+     - If tasks.md missing → `tasks-md-missing`, not dispatchable.
+     - If tasks.md exists but ZERO phase headers AND ZERO task lines match
+       after the tolerant rules above → `tasks-md-malformed`,
+       not dispatchable.
+     - Tolerable anomalies (uppercase `[X]`, suffixed ids, legend bullets,
+       colon-style phase headers, non-phase H2 headers) MUST NOT trigger
+       `tasks-md-malformed`.
 
 3. READ ORDERING METADATA
    Precedence, highest to lowest:
@@ -251,11 +290,18 @@ BOOT SEQUENCE
    For each phase newly detected as merged:
      a. git fetch origin
      b. git checkout main; git pull --rebase origin main
-     c. Read tasks.md. Find phase header line.
-     d. If header matches expected format with optional merge-ready/ready
-        annotation:
-          Replace annotation with <!-- merged: <sha> @ <ISO-merge-date> -->
-        Else (hand-edited, format unrecognized):
+     c. Read tasks.md. Find phase header line via the tolerant phase
+        regex from step 2 (matches `## Phase N:`, `## Phase N —`,
+        `## Phase N -`, plus `###` variants). PRESERVE the original
+        header text exactly — only modify the annotation.
+     d. If the header already contains a `<!-- (merge-ready|ready|merged): ... -->`
+        block:
+          Replace ONLY the annotation block with
+          <!-- merged: <sha> @ <ISO-merge-date> -->
+        Else if no annotation is present:
+          Append `  <!-- merged: <sha> @ <ISO-merge-date> -->` to the
+          end of the header line (two-space separator).
+        Else (annotation present but in an unrecognized shape):
           Do NOT modify. Mark phase under spec.annotation_needs_manual_fix.
      e. git add tasks.md
      f. git commit -m \"chore(<spec-id>): annotate merged phase <N>\"

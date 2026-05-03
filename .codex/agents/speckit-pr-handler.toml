@@ -172,9 +172,18 @@ MARK MERGE-READY
 When CR loop exits AND all CI checks green:
 1. Add label merge-ready.
 2. If CR capped, add label cr-capped.
-3. Update tasks.md phase header annotation:
-   ## Phase N — <title>  <!-- merge-ready: PR #<id> @ <ISO-date> -->
-   Commit chore(<spec-id>/phase-N): mark phase merge-ready. Push.
+3. Update tasks.md phase header annotation. Preserve the existing header
+   text and separator exactly — Spec Kit emits any of these forms in this
+   repo, all are valid:
+     ## Phase N: <title>          ← colon (Spec Kit default)
+     ## Phase N — <title>          ← em dash
+     ## Phase N - <title>          ← hyphen
+     ### Phase N: <title>          ← H3 also acceptable
+   Append (or replace) the annotation at end of the header line:
+     <!-- merge-ready: PR #<id> @ <ISO-date> -->
+   Two-space separator before the annotation when appending fresh. Do NOT
+   rewrite the header punctuation. Commit
+   chore(<spec-id>/phase-N): mark phase merge-ready. Push.
 4. Post single comment:
    \"Phase N complete and merge-ready. Awaiting user merge.\"
 5. Update phase working state:

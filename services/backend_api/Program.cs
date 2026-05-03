@@ -7,6 +7,7 @@ using BackendApi.Modules.Observability;
 using BackendApi.Modules.Pricing;
 using BackendApi.Modules.Search;
 using BackendApi.Modules.Inventory;
+using BackendApi.Modules.B2B;
 using BackendApi.Modules.Cart;
 using BackendApi.Modules.Checkout;
 using BackendApi.Modules.Orders;
@@ -82,6 +83,7 @@ builder.Services.AddReturnsModule(builder.Configuration, builder.Environment);
 builder.Services.AddVerificationModule(builder.Configuration, builder.Environment);
 builder.Services.AddReviewsModule(builder.Configuration, builder.Environment);
 builder.Services.AddCmsModule(builder.Configuration);
+builder.Services.AddB2BModule(builder.Configuration, builder.Environment);
 builder.Services.AddSeeding(builder.Configuration);
 
 // spec-024 R14 / spec-022 R-rate-limit — register forwarded-headers options so
@@ -152,6 +154,7 @@ app.MapVerificationEndpoints();
 app.MapReviewsEndpoints();
 app.MapCmsAdminEndpoints();
 app.MapCmsStorefrontEndpoints();
+app.UseB2BModuleEndpoints();
 
 await app.RunAsync();
 return 0;

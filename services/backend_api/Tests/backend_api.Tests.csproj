@@ -64,6 +64,11 @@
     <EmbeddedResource Remove="Reviews.Tests\**" />
     <None Remove="Reviews.Tests\**" />
     <Content Remove="Reviews.Tests\**" />
+
+    <Compile Remove="B2B.Tests\**" />
+    <EmbeddedResource Remove="B2B.Tests\**" />
+    <None Remove="B2B.Tests\**" />
+    <Content Remove="B2B.Tests\**" />
   </ItemGroup>
 
   <ItemGroup>

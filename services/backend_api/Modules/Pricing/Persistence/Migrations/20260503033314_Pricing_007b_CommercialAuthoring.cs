@@ -525,6 +525,15 @@ namespace BackendApi.Modules.Pricing.Persistence.Migrations
             ");
 
             // Seed conservative per-market thresholds (gate ON, FR-025 defaults).
+            //
+            // UpdatedByActorId is the Pricing module's canonical "system actor" GUID
+            // (CommercialPermissions.SystemActorId, suffix ...007 namespaced to spec
+            // 007-b). Per Principle 25 (audit trail), seed rows MUST be attributable
+            // to an identifiable actor — never a zero GUID — so that future audit
+            // queries can always resolve who established a value, even when the
+            // answer is "the system, at install time". Companion seeds in other
+            // modules use Identity (...001), Catalog ScheduledPublish (...002),
+            // and Catalog MediaVariant (...003) actors.
             migrationBuilder.Sql(@"
                 INSERT INTO pricing.commercial_thresholds
                     (""MarketCode"", ""GateEnabled"",
@@ -532,8 +541,8 @@ namespace BackendApi.Modules.Pricing.Persistence.Migrations
                      ""CouponInFlightGraceSeconds"", ""PromotionInFlightGraceSeconds"",
                      ""UpdatedAtUtc"", ""UpdatedByActorId"")
                 VALUES
-                    ('SA', TRUE, 30.00, 5000000, 14, 1800, 1800, NOW(), '00000000-0000-0000-0000-000000000000'),
-                    ('EG', TRUE, 30.00, 25000000, 14, 1800, 1800, NOW(), '00000000-0000-0000-0000-000000000000')
+                    ('SA', TRUE, 30.00, 5000000, 14, 1800, 1800, NOW(), '00000000-0000-0000-0000-000000000007'),
+                    ('EG', TRUE, 30.00, 25000000, 14, 1800, 1800, NOW(), '00000000-0000-0000-0000-000000000007')
                 ON CONFLICT (""MarketCode"") DO NOTHING;
             ");
         }

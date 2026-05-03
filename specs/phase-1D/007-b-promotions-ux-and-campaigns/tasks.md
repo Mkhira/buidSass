@@ -28,7 +28,7 @@ description: "Task list — Spec 007-b Promotions UX & Campaigns (Phase 1D · Mi
 
 ---
 
-## Phase 1: Setup (Shared Infrastructure)
+## Phase 1: Setup (Shared Infrastructure)  <!-- merged: f58585b79ee963c896f556fe1c09472e8ea4cffa @ 2026-05-03T09:42:50Z -->
 
 **Purpose**: confirm the existing module skeleton and prerequisites are at DoD, and prepare 007-b-specific scaffolding.
 
@@ -40,7 +40,7 @@ description: "Task list — Spec 007-b Promotions UX & Campaigns (Phase 1D · Mi
 
 ---
 
-## Phase 2: Foundational (Blocking Prerequisites)
+## Phase 2: Foundational (Blocking Prerequisites)  <!-- merged: f58585b79ee963c896f556fe1c09472e8ea4cffa @ 2026-05-03T09:42:50Z -->
 
 **Purpose**: primitives, persistence (3 migrations + entities + DbContext extensions), cross-module shared declarations, authorization wiring, and reference-data seeder. **No user-story work begins until this phase is complete.**
 

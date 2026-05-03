@@ -27,7 +27,7 @@ description: "Phase-1D Spec 021 — Quotes and B2B: dependency-ordered task list
 
 ---
 
-## Phase 1: Setup (Shared Infrastructure)
+## Phase 1: Setup (Shared Infrastructure)  <!-- merged: 020243c1026c7f54f704ad9cede0e6056c453668 @ 2026-05-03T11:58:01Z -->
 
 **Purpose**: Spin up the empty `Modules/B2B/` module and its sibling test project so subsequent phases land in a building tree.
 
@@ -42,7 +42,7 @@ description: "Phase-1D Spec 021 — Quotes and B2B: dependency-ordered task list
 
 ---
 
-## Phase 2: Foundational (Blocking Prerequisites)
+## Phase 2: Foundational (Blocking Prerequisites)  <!-- merged: 020243c1026c7f54f704ad9cede0e6056c453668 @ 2026-05-03T11:58:01Z -->
 
 **Purpose**: Primitives + persistence + reference data + cross-module seams that every user story phase consumes.
 

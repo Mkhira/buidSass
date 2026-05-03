@@ -13,6 +13,9 @@ public sealed class FakeCatalogBundleReadContract : ICatalogBundleReadContract
         return this;
     }
 
+    /// <summary>Clears stubbed bundles — call between test cases when registered as a singleton.</summary>
+    public void Clear() => _byId.Clear();
+
     public Task<CatalogBundleRead> ReadAsync(Guid bundleId, string marketCode, CancellationToken ct)
     {
         if (_byId.TryGetValue(bundleId, out var hit)) return Task.FromResult(hit);

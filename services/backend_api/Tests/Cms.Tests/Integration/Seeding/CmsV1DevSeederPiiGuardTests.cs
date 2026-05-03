@@ -122,6 +122,7 @@ public sealed class CmsV1DevSeederPiiGuardTests
             corpus.Add(blog.Body ?? "");
             corpus.Add(blog.SeoMetaTitle ?? "");
             corpus.Add(blog.SeoMetaDescription ?? "");
+            corpus.Add(blog.Slug ?? "");
         }
         foreach (var legal in await verify.LegalPageVersions.AsNoTracking().ToListAsync(ct))
         {

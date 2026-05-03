@@ -52,7 +52,7 @@ public sealed class CmsV1DevSeederDryRunTests
         await _fx.ResetAsync();
 
         var connStr = _fx.ConnectionString;
-        var services = new ServiceCollection()
+        await using var services = new ServiceCollection()
             .AddDbContext<CmsDbContext>(opt => opt.UseNpgsql(connStr))
             .BuildServiceProvider();
 
@@ -97,7 +97,7 @@ public sealed class CmsV1DevSeederDryRunTests
         await _fx.ResetAsync();
 
         var connStr = _fx.ConnectionString;
-        var services = new ServiceCollection()
+        await using var services = new ServiceCollection()
             .AddDbContext<CmsDbContext>(opt => opt.UseNpgsql(connStr))
             .BuildServiceProvider();
 

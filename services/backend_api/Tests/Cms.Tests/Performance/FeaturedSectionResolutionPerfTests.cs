@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Net;
+using System.Net.Http.Json;
 using System.Text.Json;
 using BackendApi.Modules.Cms.Entities;
 using BackendApi.Modules.Cms.Primitives;
@@ -103,12 +104,16 @@ public sealed class FeaturedSectionResolutionPerfTests
     [Fact]
     public async Task FeaturedSection_resolution_p95_latency_under_budget_with_24_refs_over_10k_catalog()
     {
-        // Warmup.
+        // Warmup. Each warm-up call also asserts the response body actually
+        // resolved all 24 references — ties latency to real work (a
+        // regression that short-circuits resolution and returns an empty
+        // section would silently pass the budget without this guard).
         for (var i = 0; i < 5; i++)
         {
             var warm = await _client.GetAsync(
                 "/v1/storefront/cms/featured-sections?market=EG&locale=en");
             warm.StatusCode.Should().Be(HttpStatusCode.OK);
+            await AssertResolutionBodyAsync(warm);
         }
 
         var samples = new List<double>(Iterations);
@@ -119,6 +124,7 @@ public sealed class FeaturedSectionResolutionPerfTests
                 "/v1/storefront/cms/featured-sections?market=EG&locale=en");
             sw.Stop();
             resp.StatusCode.Should().Be(HttpStatusCode.OK);
+            await AssertResolutionBodyAsync(resp);
             samples.Add(sw.Elapsed.TotalMilliseconds);
         }
 
@@ -128,5 +134,27 @@ public sealed class FeaturedSectionResolutionPerfTests
         p95.Should().BeLessThanOrEqualTo(P95LatencyBudgetMs,
             $"SC-007 p95 latency budget is {P95LatencyBudgetMs} ms; observed {p95:F1} ms (samples: " +
             $"min={samples.First():F1}, median={samples[Iterations / 2]:F1}, max={samples.Last():F1})");
+    }
+
+    /// <summary>
+    /// Reads the response body and asserts the section resolved all
+    /// references (totalResolved == 24, the seeded ReferencesPerSection).
+    /// Without this, an endpoint regression that returns an empty section
+    /// or short-circuits resolution would silently pass the latency budget.
+    /// </summary>
+    private static async Task AssertResolutionBodyAsync(HttpResponseMessage response)
+    {
+        var doc = await response.Content.ReadFromJsonAsync<JsonElement>();
+        doc.TryGetProperty("items", out var items)
+            .Should().BeTrue("response payload must include an 'items' array");
+        items.GetArrayLength().Should().BeGreaterThan(0,
+            "at least one featured section must be returned for the EG storefront");
+        var first = items[0];
+        first.TryGetProperty("totalResolved", out var totalResolved)
+            .Should().BeTrue("featured-section item must surface totalResolved");
+        totalResolved.GetInt32().Should().Be(ReferencesPerSection,
+            $"resolution must materialize all {ReferencesPerSection} references for the latency " +
+            "budget to reflect real work — a regression that short-circuits resolution would " +
+            "silently pass without this assertion");
     }
 }

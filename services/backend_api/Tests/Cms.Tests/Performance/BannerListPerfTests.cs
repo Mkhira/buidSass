@@ -1,5 +1,7 @@
 using System.Diagnostics;
 using System.Net;
+using System.Net.Http.Json;
+using System.Text.Json;
 using BackendApi.Modules.Cms.Entities;
 using BackendApi.Modules.Cms.Primitives;
 using Cms.Tests.Contract.Infrastructure;
@@ -77,12 +79,16 @@ public sealed class BannerListPerfTests
     public async Task Banner_list_p95_latency_under_budget_at_1000_live_banners()
     {
         // Warm up the JIT, EF Core query compilation cache, and Postgres
-        // page cache. Without warmup, the first call dominates p95.
+        // page cache. Without warmup, the first call dominates p95. Each
+        // warm-up call also asserts the response body actually contains the
+        // requested page size — ties the latency budget to real workload
+        // (the endpoint must materialize 50 rows, not return an empty page).
         for (var i = 0; i < 5; i++)
         {
             var warm = await _client.GetAsync(
                 $"/v1/storefront/cms/banner-slots?market=EG&locale=en&page_size={RequestPageSize}");
             warm.StatusCode.Should().Be(HttpStatusCode.OK);
+            await AssertReturnedPageSizeAsync(warm);
         }
 
         var samples = new List<double>(Iterations);
@@ -93,6 +99,7 @@ public sealed class BannerListPerfTests
                 $"/v1/storefront/cms/banner-slots?market=EG&locale=en&page_size={RequestPageSize}");
             sw.Stop();
             resp.StatusCode.Should().Be(HttpStatusCode.OK);
+            await AssertReturnedPageSizeAsync(resp);
             samples.Add(sw.Elapsed.TotalMilliseconds);
         }
 
@@ -104,5 +111,21 @@ public sealed class BannerListPerfTests
         p95.Should().BeLessThanOrEqualTo(P95LatencyBudgetMs,
             $"SC-006 p95 latency budget is {P95LatencyBudgetMs} ms; observed {p95:F1} ms (samples: " +
             $"min={samples.First():F1}, median={samples[Iterations / 2]:F1}, max={samples.Last():F1})");
+    }
+
+    /// <summary>
+    /// Reads the response body and asserts the returned items count matches
+    /// the requested page size. Ties the perf assertion to actual workload
+    /// — without this, an endpoint regression that returns an empty page
+    /// would silently pass the latency budget.
+    /// </summary>
+    private static async Task AssertReturnedPageSizeAsync(HttpResponseMessage response)
+    {
+        var doc = await response.Content.ReadFromJsonAsync<JsonElement>();
+        doc.TryGetProperty("items", out var items)
+            .Should().BeTrue("response payload must include an 'items' array");
+        items.GetArrayLength().Should().Be(RequestPageSize,
+            $"banner list endpoint must materialize the requested page size ({RequestPageSize}) " +
+            "for the latency budget to reflect real work");
     }
 }

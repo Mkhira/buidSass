@@ -75,6 +75,19 @@ public sealed class CmsApiFactory : WebApplicationFactory<Program>, IAsyncLifeti
                 cms.blog_articles,
                 cms.legal_page_versions
               RESTART IDENTITY CASCADE;");
+
+        // FakeCatalog* are registered as singletons (so their stubbed product /
+        // category / bundle dictionaries persist across the request pipeline
+        // within one test). Clear them between tests so per-test setup
+        // doesn't accumulate phantom entries from earlier cases — without
+        // this, performance tests priming 10k products would leak into
+        // subsequent contract assertions.
+        ((BackendApi.Modules.Shared.Testing.FakeCatalogProductReadContract)
+            Services.GetRequiredService<BackendApi.Modules.Shared.ICatalogProductReadContract>()).Clear();
+        ((BackendApi.Modules.Shared.Testing.FakeCatalogCategoryReadContract)
+            Services.GetRequiredService<BackendApi.Modules.Shared.ICatalogCategoryReadContract>()).Clear();
+        ((BackendApi.Modules.Shared.Testing.FakeCatalogBundleReadContract)
+            Services.GetRequiredService<BackendApi.Modules.Shared.ICatalogBundleReadContract>()).Clear();
     }
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)

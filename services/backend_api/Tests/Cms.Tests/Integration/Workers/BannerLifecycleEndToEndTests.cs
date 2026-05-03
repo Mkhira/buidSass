@@ -76,7 +76,13 @@ public sealed class BannerLifecycleEndToEndTests
         }
 
         // Build a service provider exposing the worker's dependencies.
-        var sp = BuildScopeFactory(clock, out var fakeAudit, out var fakePublisher);
+        // Tracked locally so we dispose it at the end of the test —
+        // BuildServiceProvider() owns hosted services + EF DbContext pools
+        // and leaks Postgres connections if not awaited.
+        var fakeAudit = new FakeAuditEventPublisher();
+        var fakePublisher = new FakePublisher();
+        await using var provider = BuildProvider(clock, fakeAudit, fakePublisher);
+        var sp = provider.GetRequiredService<IServiceScopeFactory>();
 
         var worker = new CmsScheduledPublishWorker(sp, clock, NullLogger<CmsScheduledPublishWorker>.Instance);
 
@@ -122,15 +128,11 @@ public sealed class BannerLifecycleEndToEndTests
             e.EntityType == "cms.banner_slot" && e.Action == "cms.content.archived");
     }
 
-    private IServiceScopeFactory BuildScopeFactory(
+    private ServiceProvider BuildProvider(
         FakeTimeProvider clock,
-        out FakeAuditEventPublisher audit,
-        out FakePublisher publisher)
+        FakeAuditEventPublisher audit,
+        FakePublisher publisher)
     {
-        audit = new FakeAuditEventPublisher();
-        publisher = new FakePublisher();
-        var auditCapture = audit;
-        var publisherCapture = publisher;
         var connStr = _fx.ConnectionString;
 
         var services = new ServiceCollection();
@@ -146,10 +148,10 @@ public sealed class BannerLifecycleEndToEndTests
         services.AddSingleton<ICatalogBundleReadContract, FakeCatalogBundleReadContract>();
         services.AddSingleton<BannerCtaValidator>();
         services.AddSingleton<LegalPageSupersessionTransaction>();
-        services.AddSingleton<IAuditEventPublisher>(_ => auditCapture);
-        services.AddSingleton<IPublisher>(_ => publisherCapture);
+        services.AddSingleton<IAuditEventPublisher>(_ => audit);
+        services.AddSingleton<IPublisher>(_ => publisher);
         services.AddLogging();
 
-        return services.BuildServiceProvider().GetRequiredService<IServiceScopeFactory>();
+        return services.BuildServiceProvider();
     }
 }

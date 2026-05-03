@@ -15,6 +15,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Time.Testing;
+using Npgsql;
 
 namespace Cms.Tests.Integration.Publisher;
 
@@ -139,17 +140,42 @@ public sealed class BannerCapacityRaceTests
         {
             return await handler.HandleAsync(id, Guid.NewGuid(), "publisher", ct);
         }
-        catch (DbUpdateException)
+        catch (DbUpdateException ex)
+            when (IsBannerSlotCapacityUniqueViolation(ex))
         {
-            // A concurrency-race may surface here as a unique-violation if
-            // multiple threads believe they're below the cap and race to
-            // the SaveChanges call. Map it to a capacity-rejection so the
-            // race assertion (winners == 1) remains coherent.
+            // A concurrency-race surfaces here as a Postgres unique-violation
+            // (SqlState 23505) on the partial unique index that backs the
+            // banner-slot capacity cap (the cap is enforced both in
+            // application code AND structurally by a partial index keyed on
+            // (slot_kind, market_code, state='live') with a per-slot
+            // priority). Only THAT specific violation should be normalized
+            // to a capacity-rejection so the race assertion (winners == 1)
+            // remains coherent. Any other DbUpdateException — schema
+            // regression, foreign-key violation, etc. — must rethrow so a
+            // future regression doesn't silently get rebadged as "capacity
+            // exceeded" and pass the test.
             return PublisherResult.Reject(
                 CmsReasonCode.BannerSlotCapacityExceeded,
                 "Concurrent publish race resolved as capacity exceeded.",
                 400);
         }
+    }
+
+    /// <summary>
+    /// Returns true iff the <see cref="DbUpdateException"/> wraps a Postgres
+    /// unique-violation (SqlState 23505) tied to the banner-slot capacity
+    /// constraint (constraint name contains "banner_slot" and either "live"
+    /// or "capacity"). Anything else — schema regression, FK violation,
+    /// connection drop — must surface so it isn't silently rebadged.
+    /// </summary>
+    private static bool IsBannerSlotCapacityUniqueViolation(DbUpdateException ex)
+    {
+        if (ex.InnerException is not PostgresException pg) return false;
+        if (pg.SqlState != "23505") return false; // unique_violation
+        var name = pg.ConstraintName ?? string.Empty;
+        return name.Contains("banner_slot", StringComparison.OrdinalIgnoreCase)
+            && (name.Contains("live", StringComparison.OrdinalIgnoreCase)
+                || name.Contains("capacity", StringComparison.OrdinalIgnoreCase));
     }
 
     private static BannerSlot BuildBanner(

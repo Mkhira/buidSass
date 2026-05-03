@@ -35,6 +35,15 @@ public static class GetFeaturedSectionAdminDetailEndpoint
         }
         if (CmsResponseFactory.ResolveActorId(context) is null)
         {
+            // NOTE: 401 (auth failure) returns CmsReasonCode.EditorRoleRequired
+            // for cross-endpoint consistency — every other Cms editor endpoint
+            // (SaveBannerDraft, SaveFeaturedSectionDraft, SaveFaqEntryDraft,
+            // SaveBlogArticleDraft, DraftManagementEndpoints, etc.) uses
+            // EditorRoleRequired in this slot. Introducing a dedicated
+            // AuthenticatedActorRequired code here alone would break the
+            // wire-shape contract that admin-web clients expect. Tracked
+            // as a Phase-1.5 cleanup to add a shared "auth_required" code
+            // and migrate all editor endpoints together.
             return CmsResponseFactory.Problem(context, 401,
                 CmsReasonCode.EditorRoleRequired, "Authenticated actor required.");
         }

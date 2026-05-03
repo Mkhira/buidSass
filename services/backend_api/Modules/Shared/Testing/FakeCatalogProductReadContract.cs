@@ -17,6 +17,13 @@ public sealed class FakeCatalogProductReadContract : ICatalogProductReadContract
         return this;
     }
 
+    /// <summary>
+    /// Clears all stubbed products. Tests that register this fake as a
+    /// singleton MUST call this between cases to prevent state leakage
+    /// across test runs.
+    /// </summary>
+    public void Clear() => _byId.Clear();
+
     public Task<CatalogProductRead> ReadAsync(Guid productId, string marketCode, CancellationToken ct)
     {
         if (_byId.TryGetValue(productId, out var hit)) return Task.FromResult(hit);

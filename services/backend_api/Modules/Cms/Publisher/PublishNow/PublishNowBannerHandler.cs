@@ -99,6 +99,24 @@ public sealed class PublishNowBannerHandler
             tx = await _db.Database.BeginTransactionAsync(ct);
             await AcquireSlotPublishLockAsync(row.SlotKindWire, row.MarketCode, ct);
 
+            // Reload the row INSIDE the transaction after the advisory lock is
+            // held. Between the initial fetch (line 51) and lock acquisition a
+            // concurrent request may have flipped this row's state (e.g.
+            // published it, archived it, moved it back to draft). Without
+            // reloading we would publish from a stale snapshot — re-running
+            // the lifecycle gate against an out-of-date state and skipping
+            // the capacity check against the most recent state. Re-running
+            // the mutable gates against the fresh row closes the TOCTOU
+            // window per CR Round 1 feedback.
+            await _db.Entry(row).ReloadAsync(ct);
+            sourceState = ContentLifecycleStateWire.FromWire(row.StateWire);
+            if (sourceState != ContentLifecycleState.Draft && sourceState != ContentLifecycleState.Scheduled)
+            {
+                await tx.RollbackAsync(ct);
+                return PublisherResult.Reject(CmsReasonCode.DraftNotEditable,
+                    "Only draft or scheduled banners can be published now.", 400);
+            }
+
             try
             {
                 await _capacity.AssertCanPublishAsync(
@@ -122,7 +140,7 @@ public sealed class PublishNowBannerHandler
                     });
             }
 
-            // 4) Compile-time state-machine guard.
+            // 4) Compile-time state-machine guard against the fresh row state.
             CmsContentLifecycle.AssertCanTransition(
                 sourceState, ContentLifecycleState.Live,
                 EntityKind.BannerSlot, CmsTriggerKind.PublisherPublishNow, CmsActorKind.Publisher);

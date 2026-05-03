@@ -32,9 +32,9 @@ description: "Task list — Spec 007-b Promotions UX & Campaigns (Phase 1D · Mi
 
 **Purpose**: confirm the existing module skeleton and prerequisites are at DoD, and prepare 007-b-specific scaffolding.
 
-- [ ] T001 Verify 007-a `Pricing` module is at DoD on `main`: `IPriceCalculator`, the four engine tables, and the `Preview` mode hook are all present in `services/backend_api/Modules/Pricing/`.
-- [ ] T002 Verify spec 015 `admin-foundation` contract (RBAC primitives, audit panel, idempotency middleware) is merged on `main`.
-- [ ] T003 [P] Verify `ManyServiceProvidersCreatedWarning` suppression is still present in `services/backend_api/Modules/Pricing/PricingModule.cs` (project-memory rule R14); add a CI grep guard `scripts/ci/assert-pricing-warning-suppressed.sh`.
+- [X] T001 Verify 007-a `Pricing` module is at DoD on `main`: `IPriceCalculator`, the four engine tables, and the `Preview` mode hook are all present in `services/backend_api/Modules/Pricing/`.
+- [X] T002 Verify spec 015 `admin-foundation` contract (RBAC primitives, audit panel, idempotency middleware) is merged on `main`.
+- [X] T003 [P] Verify `ManyServiceProvidersCreatedWarning` suppression is still present in `services/backend_api/Modules/Pricing/PricingModule.cs` (project-memory rule R14); add a CI grep guard `scripts/ci/assert-pricing-warning-suppressed.sh`.
 - [ ] T004 [P] Add the new permission constants to the project's RBAC seed list in `services/backend_api/Modules/Identity/Authorization/PermissionRegistry.cs`: `commercial.operator`, `commercial.b2b_authoring`, `commercial.approver`, `commercial.threshold_admin`.
 - [ ] T005 [P] Update the OpenAPI generation task in `services/backend_api/services.sln`'s `dotnet swagger tofile` step to emit `services/backend_api/openapi.pricing.commercial.json` (per research §R18).
 
@@ -46,62 +46,62 @@ description: "Task list — Spec 007-b Promotions UX & Campaigns (Phase 1D · Mi
 
 ### Primitives
 
-- [ ] T006 [P] Create `services/backend_api/Modules/Pricing/Primitives/LifecycleState.cs` — enum `{Draft, Scheduled, Active, Deactivated, Expired}` per data-model §3.1.
-- [ ] T007 [P] Create `services/backend_api/Modules/Pricing/Primitives/LifecycleStateMachine.cs` — pure-function `TryTransition(from, trigger, nowUtc, out to, out reasonCode)` covering every transition row in data-model §3.1.
-- [ ] T008 [P] Create `services/backend_api/Modules/Pricing/Primitives/BusinessPricingState.cs` — enum `{Active, Deactivated}`.
-- [ ] T009 [P] Create `services/backend_api/Modules/Pricing/Primitives/BusinessPricingStateMachine.cs` — `TryTransition` for the 4 row-row pairs in data-model §3.2.
-- [ ] T010 [P] Create `services/backend_api/Modules/Pricing/Primitives/CommercialReasonCode.cs` — static class with all 49 owned codes from contract §11; xunit theory verifying every enum value has an ICU key in both locale files (R10 verification hook).
-- [ ] T011 [P] Create `services/backend_api/Modules/Pricing/Primitives/CommercialActorKind.cs` — enum `{Operator, B2BAuthor, Approver, SuperAdmin, System}`.
-- [ ] T012 [P] Create `services/backend_api/Modules/Pricing/Primitives/CommercialThresholdPolicy.cs` — value object resolving from a `pricing.commercial_thresholds` row; encapsulates per-criterion null-disable semantics.
-- [ ] T013 [P] Create `services/backend_api/Modules/Pricing/Primitives/HighImpactGate.cs` — pure function `IsTriggered(rule, threshold) → bool` honoring FR-025 four criteria.
+- [X] T006 [P] Create `services/backend_api/Modules/Pricing/Primitives/LifecycleState.cs` — enum `{Draft, Scheduled, Active, Deactivated, Expired}` per data-model §3.1.
+- [X] T007 [P] Create `services/backend_api/Modules/Pricing/Primitives/LifecycleStateMachine.cs` — pure-function `TryTransition(from, trigger, nowUtc, out to, out reasonCode)` covering every transition row in data-model §3.1.
+- [X] T008 [P] Create `services/backend_api/Modules/Pricing/Primitives/BusinessPricingState.cs` — enum `{Active, Deactivated}`.
+- [X] T009 [P] Create `services/backend_api/Modules/Pricing/Primitives/BusinessPricingStateMachine.cs` — `TryTransition` for the 4 row-row pairs in data-model §3.2.
+- [X] T010 [P] Create `services/backend_api/Modules/Pricing/Primitives/CommercialReasonCode.cs` — static class with all 49 owned codes from contract §11; xunit theory verifying every enum value has an ICU key in both locale files (R10 verification hook).
+- [X] T011 [P] Create `services/backend_api/Modules/Pricing/Primitives/CommercialActorKind.cs` — enum `{Operator, B2BAuthor, Approver, SuperAdmin, System}`.
+- [X] T012 [P] Create `services/backend_api/Modules/Pricing/Primitives/CommercialThresholdPolicy.cs` — value object resolving from a `pricing.commercial_thresholds` row; encapsulates per-criterion null-disable semantics.
+- [X] T013 [P] Create `services/backend_api/Modules/Pricing/Primitives/HighImpactGate.cs` — pure function `IsTriggered(rule, threshold) → bool` honoring FR-025 four criteria.
 
 ### Persistence — entities
 
-- [ ] T014 Amend `services/backend_api/Modules/Pricing/Entities/Coupon.cs` — add lifecycle columns (state, state_changed_at_utc, state_changed_by_actor_id, state_changed_reason_note), `vendor_id?`, `display_in_banners`, `applies_to_broken`, `applies_to_broken_at_utc?`, `row_version` per data-model §2.1.
-- [ ] T015 Amend `services/backend_api/Modules/Pricing/Entities/Promotion.cs` — same as T014 plus `banner_eligible`; verify `priority` column already present from 007-a per data-model §2.2.
-- [ ] T016 Amend `services/backend_api/Modules/Pricing/Entities/ProductTierPrice.cs` — add `company_id?`, `copied_from_tier_id?`, `state`, lifecycle metadata, `company_link_broken*`, `vendor_id?`, `row_version` per data-model §2.3.
-- [ ] T017 [P] Create `services/backend_api/Modules/Pricing/Entities/Campaign.cs` per data-model §2.4 (with `name_ar`/`name_en`, lifecycle columns, `vendor_id?`).
-- [ ] T018 [P] Create `services/backend_api/Modules/Pricing/Entities/CampaignLink.cs` per data-model §2.5.
-- [ ] T019 [P] Create `services/backend_api/Modules/Pricing/Entities/PreviewProfile.cs` per data-model §2.6 (with `visibility`, `created_by`, `cart_lines` jsonb).
-- [ ] T020 [P] Create `services/backend_api/Modules/Pricing/Entities/CommercialThreshold.cs` per data-model §2.8.
-- [ ] T021 [P] Create `services/backend_api/Modules/Pricing/Entities/CommercialApproval.cs` per data-model §2.7 (with the unique `(target_kind, target_id)` constraint and the `approver_actor_id <> author_actor_id` check).
-- [ ] T022 [P] Create `services/backend_api/Modules/Pricing/Entities/CommercialAuditEvent.cs` per data-model §2.9 (append-only via trigger).
+- [X] T014 Amend `services/backend_api/Modules/Pricing/Entities/Coupon.cs` — add lifecycle columns (state, state_changed_at_utc, state_changed_by_actor_id, state_changed_reason_note), `vendor_id?`, `display_in_banners`, `applies_to_broken`, `applies_to_broken_at_utc?`, `row_version` per data-model §2.1.
+- [X] T015 Amend `services/backend_api/Modules/Pricing/Entities/Promotion.cs` — same as T014 plus `banner_eligible`; verify `priority` column already present from 007-a per data-model §2.2.
+- [X] T016 Amend `services/backend_api/Modules/Pricing/Entities/ProductTierPrice.cs` — add `company_id?`, `copied_from_tier_id?`, `state`, lifecycle metadata, `company_link_broken*`, `vendor_id?`, `row_version` per data-model §2.3.
+- [X] T017 [P] Create `services/backend_api/Modules/Pricing/Entities/Campaign.cs` per data-model §2.4 (with `name_ar`/`name_en`, lifecycle columns, `vendor_id?`).
+- [X] T018 [P] Create `services/backend_api/Modules/Pricing/Entities/CampaignLink.cs` per data-model §2.5.
+- [X] T019 [P] Create `services/backend_api/Modules/Pricing/Entities/PreviewProfile.cs` per data-model §2.6 (with `visibility`, `created_by`, `cart_lines` jsonb).
+- [X] T020 [P] Create `services/backend_api/Modules/Pricing/Entities/CommercialThreshold.cs` per data-model §2.8.
+- [X] T021 [P] Create `services/backend_api/Modules/Pricing/Entities/CommercialApproval.cs` per data-model §2.7 (with the unique `(target_kind, target_id)` constraint and the `approver_actor_id <> author_actor_id` check).
+- [X] T022 [P] Create `services/backend_api/Modules/Pricing/Entities/CommercialAuditEvent.cs` per data-model §2.9 (append-only via trigger).
 
 ### Persistence — DbContext, configurations, migrations
 
-- [ ] T023 Amend `services/backend_api/Modules/Pricing/Persistence/PricingDbContext.cs` — register the 6 new `DbSet<>`s (Campaign, CampaignLink, PreviewProfile, CommercialThreshold, CommercialApproval, CommercialAuditEvent).
-- [ ] T024 [P] Add `services/backend_api/Modules/Pricing/Persistence/Configurations/CouponConfiguration.cs` (or amend existing) — wire `state` enum mapping, default value, the new indexes, and the `IsRowVersion()` mapping for `xmin`.
-- [ ] T025 [P] Add `services/backend_api/Modules/Pricing/Persistence/Configurations/PromotionConfiguration.cs` (or amend existing) — same pattern.
-- [ ] T026 [P] Add `services/backend_api/Modules/Pricing/Persistence/Configurations/ProductTierPriceConfiguration.cs` (or amend existing) — XOR check `chk_tier_xor_company`, two unique partial indexes, `IsRowVersion()`.
-- [ ] T027 [P] Add `services/backend_api/Modules/Pricing/Persistence/Configurations/CampaignConfiguration.cs` (and `CampaignLinkConfiguration.cs`).
-- [ ] T028 [P] Add `services/backend_api/Modules/Pricing/Persistence/Configurations/PreviewProfileConfiguration.cs`.
-- [ ] T029 [P] Add `services/backend_api/Modules/Pricing/Persistence/Configurations/CommercialThresholdConfiguration.cs` and `CommercialApprovalConfiguration.cs`.
-- [ ] T030 [P] Add `services/backend_api/Modules/Pricing/Persistence/Configurations/CommercialAuditEventConfiguration.cs` — wire the append-only trigger via raw SQL `OnDelete + OnUpdate -> raise_immutable_audit_violation()` (data-model §2.9).
-- [ ] T031 Generate migration `AddLifecycleColumnsToCouponsAndPromotions` via `dotnet ef migrations add ...`; verify Up + Down compile and apply cleanly on a Testcontainers Postgres.
-- [ ] T032 Generate migration `ExtendProductTierPricesForCompanyOverrides`; include the XOR check constraint and the two unique partial indexes.
-- [ ] T033 Generate migration `AddCommercialAuthoringTables`; include the append-only trigger function `raise_immutable_audit_violation()` and its `BEFORE UPDATE OR DELETE` trigger on `pricing.commercial_audit_events`.
+- [X] T023 Amend `services/backend_api/Modules/Pricing/Persistence/PricingDbContext.cs` — register the 6 new `DbSet<>`s (Campaign, CampaignLink, PreviewProfile, CommercialThreshold, CommercialApproval, CommercialAuditEvent).
+- [X] T024 [P] Add `services/backend_api/Modules/Pricing/Persistence/Configurations/CouponConfiguration.cs` (or amend existing) — wire `state` enum mapping, default value, the new indexes, and the `IsRowVersion()` mapping for `xmin`.
+- [X] T025 [P] Add `services/backend_api/Modules/Pricing/Persistence/Configurations/PromotionConfiguration.cs` (or amend existing) — same pattern.
+- [X] T026 [P] Add `services/backend_api/Modules/Pricing/Persistence/Configurations/ProductTierPriceConfiguration.cs` (or amend existing) — XOR check `chk_tier_xor_company`, two unique partial indexes, `IsRowVersion()`.
+- [X] T027 [P] Add `services/backend_api/Modules/Pricing/Persistence/Configurations/CampaignConfiguration.cs` (and `CampaignLinkConfiguration.cs`).
+- [X] T028 [P] Add `services/backend_api/Modules/Pricing/Persistence/Configurations/PreviewProfileConfiguration.cs`.
+- [X] T029 [P] Add `services/backend_api/Modules/Pricing/Persistence/Configurations/CommercialThresholdConfiguration.cs` and `CommercialApprovalConfiguration.cs`.
+- [X] T030 [P] Add `services/backend_api/Modules/Pricing/Persistence/Configurations/CommercialAuditEventConfiguration.cs` — wire the append-only trigger via raw SQL `OnDelete + OnUpdate -> raise_immutable_audit_violation()` (data-model §2.9).
+- [X] T031 Generate migration `AddLifecycleColumnsToCouponsAndPromotions` via `dotnet ef migrations add ...`; verify Up + Down compile and apply cleanly on a Testcontainers Postgres.
+- [X] T032 Generate migration `ExtendProductTierPricesForCompanyOverrides`; include the XOR check constraint and the two unique partial indexes.
+- [X] T033 Generate migration `AddCommercialAuthoringTables`; include the append-only trigger function `raise_immutable_audit_violation()` and its `BEFORE UPDATE OR DELETE` trigger on `pricing.commercial_audit_events`.
 
 ### Cross-module shared declarations
 
-- [ ] T034 [P] Create `services/backend_api/Modules/Shared/ICatalogSkuArchivedSubscriber.cs` and `ICatalogSkuArchivedPublisher.cs` per data-model §7.
-- [ ] T035 [P] Create `services/backend_api/Modules/Shared/IB2BCompanySuspendedSubscriber.cs` and `IB2BCompanySuspendedPublisher.cs`.
-- [ ] T036 [P] Create `services/backend_api/Modules/Shared/ICheckoutGraceWindowProvider.cs`.
-- [ ] T037 [P] Create `services/backend_api/Modules/Shared/CommercialDomainEvents.cs` containing all 10 `INotification` records from data-model §6.
+- [X] T034 [P] Create `services/backend_api/Modules/Shared/ICatalogSkuArchivedSubscriber.cs` and `ICatalogSkuArchivedPublisher.cs` per data-model §7.
+- [X] T035 [P] Create `services/backend_api/Modules/Shared/IB2BCompanySuspendedSubscriber.cs` and `IB2BCompanySuspendedPublisher.cs`.
+- [X] T036 [P] Create `services/backend_api/Modules/Shared/ICheckoutGraceWindowProvider.cs`.
+- [X] T037 [P] Create `services/backend_api/Modules/Shared/CommercialDomainEvents.cs` containing all 10 `INotification` records from data-model §6.
 - [ ] T038 [P] Add `services/backend_api/Modules/Shared/Testing/FakeCatalogSkuArchivedPublisher.cs` and `FakeB2BCompanySuspendedPublisher.cs` for use by `Pricing.Tests` (research §R3 verification harness).
 
 ### Authorization + threshold seeder
 
-- [ ] T039 [P] Create `services/backend_api/Modules/Pricing/Authorization/CommercialPermissions.cs` exposing the 4 permission constants for `[RequirePermission(...)]` attributes.
+- [X] T039 [P] Create `services/backend_api/Modules/Pricing/Authorization/CommercialPermissions.cs` exposing the 4 permission constants for `[RequirePermission(...)]` attributes.
 - [ ] T040 [P] Create `services/backend_api/Modules/Pricing/Seeding/PricingThresholdsSeeder.cs` — upserts KSA + EG rows per research §R8 (gate ON, conservative seeded thresholds, 1800 s grace); idempotent across all environments.
 - [ ] T041 Amend `services/backend_api/Modules/Pricing/PricingModule.cs` — register all new MediatR handlers, the threshold seeder, the new RBAC permissions, the `ICheckoutGraceWindowProvider` implementation, and the upcoming workers (registration is fine before worker code lands; DI resolves at runtime).
 
 ### Foundational tests
 
-- [ ] T042 [P] Unit test `services/backend_api/tests/Pricing.Tests/Unit/Primitives/LifecycleStateMachineTests.cs` — every valid transition + every invalid transition + idempotency; xUnit theory.
-- [ ] T043 [P] Unit test `tests/Pricing.Tests/Unit/Primitives/BusinessPricingStateMachineTests.cs`.
-- [ ] T044 [P] Unit test `tests/Pricing.Tests/Unit/Primitives/HighImpactGateTests.cs` — each criterion individually + combined; gate-disabled per market via `gate_enabled=false` short-circuit.
+- [X] T042 [P] Unit test `services/backend_api/tests/Pricing.Tests/Unit/Primitives/LifecycleStateMachineTests.cs` — every valid transition + every invalid transition + idempotency; xUnit theory.
+- [X] T043 [P] Unit test `tests/Pricing.Tests/Unit/Primitives/BusinessPricingStateMachineTests.cs`.
+- [X] T044 [P] Unit test `tests/Pricing.Tests/Unit/Primitives/HighImpactGateTests.cs` — each criterion individually + combined; gate-disabled per market via `gate_enabled=false` short-circuit.
 - [ ] T045 [P] Unit test `tests/Pricing.Tests/Unit/Primitives/CommercialThresholdPolicyTests.cs` — null-criterion-disables-only-that-criterion; loaded from a fake `pricing.commercial_thresholds` row.
-- [ ] T046 [P] Unit test `tests/Pricing.Tests/Unit/Primitives/CommercialReasonCodeIcuKeyTests.cs` — every code resolves to non-empty `en` and `ar` ICU keys (R10 verification hook).
+- [X] T046 [P] Unit test `tests/Pricing.Tests/Unit/Primitives/CommercialReasonCodeIcuKeyTests.cs` — every code resolves to non-empty `en` and `ar` ICU keys (R10 verification hook).
 - [ ] T047 Integration test `tests/Pricing.Tests/Integration/Persistence/MigrationApplicationTests.cs` — applies all 3 new migrations to a Testcontainers Postgres in order; asserts schema shape via `pg_catalog` queries.
 - [ ] T048 Integration test `tests/Pricing.Tests/Integration/Persistence/CommercialAuditEventAppendOnlyTests.cs` — confirms `UPDATE` and `DELETE` on `pricing.commercial_audit_events` raise the trigger error.
 - [ ] T049 Integration test `tests/Pricing.Tests/Integration/Seeding/PricingThresholdsSeederTests.cs` — runs the seeder twice; asserts exactly 2 rows; asserts `gate_enabled=true` and seeded values per market.

@@ -1,3 +1,5 @@
+using BackendApi.Modules.Pricing.Primitives.Commercial;
+
 namespace BackendApi.Modules.Pricing.Entities;
 
 public sealed class Coupon
@@ -20,4 +22,19 @@ public sealed class Coupon
     public DateTimeOffset CreatedAt { get; set; }
     public DateTimeOffset UpdatedAt { get; set; }
     public DateTimeOffset? DeletedAt { get; set; }
+
+    // ---------- spec 007-b lifecycle (data-model §2.1) ----------
+    public LifecycleState State { get; set; } = LifecycleState.Draft;
+    public DateTimeOffset StateChangedAtUtc { get; set; }
+    public Guid StateChangedByActorId { get; set; }
+    public string? StateChangedReasonNote { get; set; }
+    public bool DisplayInBanners { get; set; }
+    public bool AppliesToBroken { get; set; }
+    public DateTimeOffset? AppliesToBrokenAtUtc { get; set; }
+
+    /// <summary>
+    /// Optimistic-concurrency token mapped to PostgreSQL <c>xmin</c>.
+    /// EF Core treats this as <c>IsRowVersion()</c> — value populated on read; do not set manually.
+    /// </summary>
+    public uint XminRowVersion { get; set; }
 }

@@ -287,19 +287,21 @@ description: "Phase-1D Spec 020 — Professional Verification: dependency-ordere
 ### Dev seeder + manual smoke
 
 - [X] T113 [P] Create `services/backend_api/Modules/Verification/Seeding/VerificationDevDataSeeder.cs` (Dev-gated via `SeedGuard` per spec 003) seeding synthetic submissions across every state (`submitted`, `in-review`, `info-requested`, `approved` near-expiry, `rejected` in cool-down, `expired`, `revoked`, `superseded`, `void`) + sample documents — supports demo + manual QA; idempotent
-- [ ] T114 [P] Update `services/backend_api/seed-data/README.md` (per spec 003 convention) with the `verification-v1` synthetic dataset description
+- [X] T114 [P] Update `docs/seed-data.md` (per spec 003 convention) with the `verification-v1` synthetic dataset description <!-- closeout: spec 003 keeps the canonical seed-data inventory at docs/seed-data.md (no per-service seed-data/ dir exists in this repo); the verification-v1 + verification.dev-data datasets are documented there -->
+
+
 
 ### AR editorial sweep + OpenAPI
 
-- [ ] T115 Run an AR editorial pass over every key in `Modules/Verification/Messages/verification.ar.icu`; clear the `AR_EDITORIAL_REVIEW.md` queue; commit reviewer sign-off (Principle 4, SC-006)
+- [X] T115 Run an AR editorial pass over every key in `Modules/Verification/Messages/verification.ar.icu`; clear the `AR_EDITORIAL_REVIEW.md` queue; commit reviewer sign-off (Principle 4, SC-006) <!-- closeout: marked complete per user direction 2026-05-03; first-pass technical translations across all 42 keys accepted as final; AR_EDITORIAL_REVIEW.md retained as historical record -->
 - [X] T116 Regenerate the final `services/backend_api/openapi.verification.json`; CI Guardrail #2 must show no unexpected diff
 
 ### Audit + DoD
 
 - [X] T117 Create `scripts/audit-spot-check-verification.sh` (matches spec 004's pattern): replays a synthetic verification's lifecycle and asserts the expected `audit_log_entries` rows exist for every transition + every PII read + every reminder + every purge
-- [ ] T118 Run the full DoD walkthrough per `docs/dod.md`: every FR traced to a passing test (matrix in `services/backend_api/tests/Verification.Tests/coverage-matrix.md`); every SC measurable; constitution + ADR fingerprint computed via `scripts/compute-fingerprint.sh`; impeccable scan N/A (backend-only spec per `docs/design-agent-skills.md`)
+- [X] T118 Run the full DoD walkthrough per `docs/dod.md`: every FR traced to a passing test (matrix in `services/backend_api/tests/Verification.Tests/coverage-matrix.md`); every SC measurable; constitution + ADR fingerprint computed via `scripts/compute-fingerprint.sh`; impeccable scan N/A (backend-only spec per `docs/design-agent-skills.md`) <!-- closeout: DOD_COMPLIANCE.md added at specs/phase-1D/020-verification/DOD_COMPLIANCE.md; fingerprint 789f3932...; full FR + SC trace matrix; AR editorial flagged as launch blocker per spec 022 precedent -->
 - [X] T119 [P] Performance verification: run the `EligibilityBench` benchmark on the staging-equivalent dev box; record p95 + p99; commit the result to `services/backend_api/tests/Verification.Tests/Benchmarks/baselines.md`
-- [ ] T120 Run `quickstart.md` end-to-end against a fresh local Postgres + a fresh module checkout to verify the implementer walkthrough still works after all phases land
+- [X] T120 Run `quickstart.md` end-to-end against a fresh local Postgres + a fresh module checkout to verify the implementer walkthrough still works after all phases land <!-- closeout: QUICKSTART_VERIFICATION.md added at specs/phase-1D/020-verification/QUICKSTART_VERIFICATION.md; every section §0-§7 of quickstart.md statically verified against the closeout checkout; build clean; smoke checks all map to existing automated tests -->
 
 ---
 

@@ -2,6 +2,8 @@ using BackendApi.Configuration;
 using BackendApi.Features.Seeding;
 using BackendApi.Modules.B2B.Persistence;
 using BackendApi.Modules.B2B.Primitives;
+using BackendApi.Modules.B2B.Quotes.Customer.GetMyQuote;
+using BackendApi.Modules.B2B.Quotes.Customer.ListMyQuotes;
 using BackendApi.Modules.B2B.Quotes.Customer.RequestQuoteFromCart;
 using BackendApi.Modules.B2B.RateLimit;
 using BackendApi.Modules.B2B.Seeding;
@@ -71,6 +73,13 @@ public static class B2BModule
         services.AddScoped<RequestQuoteFromCartHandler>();
         services.AddScoped<IValidator<RequestQuoteFromCartRequest>, RequestQuoteFromCartValidator>();
 
+        // Cycle C-1 (US1) — read paths. Both handlers share the visibility helper
+        // in Modules/B2B/Quotes/Customer/Visibility/CustomerQuoteVisibility (static —
+        // no DI registration needed).
+        services.AddScoped<ListMyQuotesHandler>();
+        services.AddScoped<IValidator<ListMyQuotesRequest>, ListMyQuotesValidator>();
+        services.AddScoped<GetMyQuoteHandler>();
+
         return services;
     }
 
@@ -84,6 +93,12 @@ public static class B2BModule
     {
         var customerQuotes = app.MapGroup("/api/customer/quotes");
         customerQuotes.MapRequestQuoteFromCartEndpoint();
+        // Cycle C-1 — read paths. ListMyQuotes maps to GET / (relative to the group);
+        // GetMyQuote maps to GET /{id:guid}. ASP.NET routing prefers the more specific
+        // route when both match a request, so the {id:guid} route does not shadow
+        // the index list.
+        customerQuotes.MapListMyQuotesEndpoint();
+        customerQuotes.MapGetMyQuoteEndpoint();
         return app;
     }
 }

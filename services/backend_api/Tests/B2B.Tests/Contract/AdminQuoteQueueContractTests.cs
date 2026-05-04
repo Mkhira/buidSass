@@ -125,12 +125,20 @@ public sealed class AdminQuoteQueueContractTests : IClassFixture<B2BApiFactory>
             // pinning the invariant here keeps the contract honest for T085.)
             if (items.ValueKind == JsonValueKind.Array && items.GetArrayLength() >= 2)
             {
-                var requestedAts = items.EnumerateArray()
-                    .Where(row => row.TryGetProperty("requested_at", out var p)
-                                  && p.ValueKind == JsonValueKind.String)
-                    .Select(row => DateTimeOffset.Parse(
-                        row.GetProperty("requested_at").GetString()!))
-                    .ToList();
+                // Validate every row's requested_at field rather than filtering
+                // out malformed rows — silent skip would let shape regressions
+                // pass, exactly the kind of contract drift this test guards against.
+                var requestedAts = new List<DateTimeOffset>();
+                foreach (var row in items.EnumerateArray())
+                {
+                    row.TryGetProperty("requested_at", out var requestedAt).Should().BeTrue(
+                        "contract §4.1 requires requested_at on every queue row");
+                    requestedAt.ValueKind.Should().Be(JsonValueKind.String,
+                        "requested_at MUST be an ISO-8601 string");
+                    DateTimeOffset.TryParse(requestedAt.GetString(), out var parsed)
+                        .Should().BeTrue("requested_at must be a parseable timestamp");
+                    requestedAts.Add(parsed);
+                }
 
                 requestedAts.Should().BeInAscendingOrder(
                     "contract §4.1: default sort is oldest-first by requested_at");
@@ -155,24 +163,28 @@ public sealed class AdminQuoteQueueContractTests : IClassFixture<B2BApiFactory>
                 && items.ValueKind == JsonValueKind.Array
                 && items.GetArrayLength() > 0)
             {
-                var row = items[0];
-                // FR-014 — every row carries the per-row SLA signal + age. The
-                // exhaustive value-correctness test against three age cohorts is
-                // T084c's integration test; here we only assert the keys exist.
-                row.TryGetProperty("id", out _).Should().BeTrue();
-                row.TryGetProperty("state", out _).Should().BeTrue();
-                row.TryGetProperty("market_code", out _).Should().BeTrue();
-                row.TryGetProperty("requested_at", out _).Should().BeTrue();
-                row.TryGetProperty("age_business_days", out _).Should().BeTrue(
-                    "FR-014: every queue row exposes age_business_days for operator visibility");
-                row.TryGetProperty("sla_signal", out var sla).Should().BeTrue(
-                    "FR-014: every queue row exposes sla_signal");
-                // Guard ValueKind before GetString() — a `null`-kind value
-                // would otherwise raise a confusing InvalidOperationException
-                // instead of the desired "should be one of …" assertion.
-                sla.ValueKind.Should().Be(JsonValueKind.String,
-                    "sla_signal MUST be a string token, not null");
-                sla.GetString().Should().BeOneOf("ok", "warning", "breach");
+                // FR-014 — every row carries the per-row SLA signal + age.
+                // The exhaustive value-correctness test against three age
+                // cohorts is T084c's integration test; here we assert the
+                // shape contract holds for *every* row, not just items[0],
+                // so shape regressions on later rows don't slip through.
+                foreach (var row in items.EnumerateArray())
+                {
+                    row.TryGetProperty("id", out _).Should().BeTrue();
+                    row.TryGetProperty("state", out _).Should().BeTrue();
+                    row.TryGetProperty("market_code", out _).Should().BeTrue();
+                    row.TryGetProperty("requested_at", out _).Should().BeTrue();
+                    row.TryGetProperty("age_business_days", out _).Should().BeTrue(
+                        "FR-014: every queue row exposes age_business_days for operator visibility");
+                    row.TryGetProperty("sla_signal", out var sla).Should().BeTrue(
+                        "FR-014: every queue row exposes sla_signal");
+                    // Guard ValueKind before GetString() — a `null`-kind value
+                    // would otherwise raise a confusing InvalidOperationException
+                    // instead of the desired "should be one of …" assertion.
+                    sla.ValueKind.Should().Be(JsonValueKind.String,
+                        "sla_signal MUST be a string token, not null");
+                    sla.GetString().Should().BeOneOf("ok", "warning", "breach");
+                }
             }
         }
     }
@@ -193,6 +205,19 @@ public sealed class AdminQuoteQueueContractTests : IClassFixture<B2BApiFactory>
             HttpStatusCode.OK,
             HttpStatusCode.BadRequest,
             HttpStatusCode.NotFound);
+
+        if (resp.StatusCode == HttpStatusCode.OK)
+        {
+            // The "clamp silently" branch above is only contract-valid if the
+            // envelope reflects the cap. A handler that returns 200 with
+            // page_size=500 violates §4.1 even though the status code looks fine.
+            var body = await resp.Content.ReadFromJsonAsync<JsonElement>();
+            body.TryGetProperty("page_size", out var pageSize).Should().BeTrue(
+                "contract §4.1 envelope MUST expose `page_size`");
+            pageSize.ValueKind.Should().Be(JsonValueKind.Number);
+            pageSize.GetInt32().Should().BeLessOrEqualTo(100,
+                "contract §4.1 caps page_size at 100; clamp-silently branch must respect the cap");
+        }
     }
 
     [Fact]

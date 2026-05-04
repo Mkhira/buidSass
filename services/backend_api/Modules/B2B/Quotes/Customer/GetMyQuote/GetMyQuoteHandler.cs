@@ -52,6 +52,16 @@ public sealed class GetMyQuoteHandler
             return GetMyQuoteResult.NotFound();
         }
 
+        // Drafted quotes are admin-only-visible per data-model §3.1; even when the
+        // caller would otherwise see the company's quotes, a direct ID-based fetch
+        // must NOT expose drafts. Same single-404 envelope so visibility-leak is
+        // preserved (CodeRabbit Round 1).
+        if (QuoteStateExtensions.TryParseToken(quote.State, out var parsedState)
+            && parsedState == QuoteState.Drafted)
+        {
+            return GetMyQuoteResult.NotFound();
+        }
+
         // ---------- Versions ----------
         // Pull every published version for this quote in version-number order so
         // the response can split the most-recent (current_version) from the

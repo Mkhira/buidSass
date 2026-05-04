@@ -71,7 +71,13 @@ public sealed class GetMyQuoteHandler
         // than two queries).
         var versions = await _db.QuoteVersions
             .AsNoTracking()
-            .Where(v => v.QuoteId == quote.Id)
+            // QuoteVersion is published-only by entity contract (data-model §2.6:
+            // "One row per published draft; never updated after insert"). Operator
+            // draft authoring writes elsewhere (T087's draft surface). Defensive
+            // PublishedAt > default guard so any future code path that mistakenly
+            // inserts a default-initialized row cannot leak into the customer
+            // surface (CodeRabbit Round 2).
+            .Where(v => v.QuoteId == quote.Id && v.PublishedAt > DateTimeOffset.MinValue)
             .OrderByDescending(v => v.VersionNumber)
             .Select(v => new
             {

@@ -107,8 +107,13 @@ public sealed class DownloadQuoteVersionDocumentHandler
         }
 
         // ---------- Mint signed URL ----------
+        // Capture `issuedAt` BEFORE awaiting the signing call so a slow storage
+        // round-trip can't inflate the advertised TTL: the wire `expires_at`
+        // MUST track the moment the signed URL was issued, not the moment
+        // control returned to this handler. (CodeRabbit Round 1 — Minor.)
+        var issuedAt = _time.GetUtcNow();
         var signedUrl = await _storage.GetSignedUrlAsync(doc.StorageKey, SignedUrlTtl, ct);
-        var expiresAt = _time.GetUtcNow().Add(SignedUrlTtl);
+        var expiresAt = issuedAt.Add(SignedUrlTtl);
 
         return DownloadResult.Found(new DownloadQuoteVersionDocumentResponse(
             Url: signedUrl.ToString(),

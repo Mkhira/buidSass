@@ -190,13 +190,17 @@ done:
         rateLimitedAt.Should().Be(HttpStatusCode.TooManyRequests,
             "the per-company bucket (cap 50/hour) MUST trip before the cross-buyer total reaches 56");
 
-        // The 51st aggregate is the canonical breach — but we tolerate ±1 in
-        // either direction because the test fires sequentially against an
-        // in-process limiter that admits a small number of "drained" tokens
-        // depending on timing of the first per-customer rejections that may
-        // refund slots. Strict invariant: at LEAST 50 admits before the breach.
-        attemptCount.Should().BeGreaterOrEqualTo(50,
-            "company-bucket cap is 50/hour — the breach MUST come at or after the 50th admit");
+        // `attemptCount` is incremented BEFORE the request is dispatched, so
+        // when the breach lands the counter has already counted the rejected
+        // request. The strict invariant is therefore `>= 51`: at least 50
+        // admits MUST have preceded the rejection, and the rejection itself
+        // is the 51st (or later) attempt. Customer-bucket refunds may push
+        // the breach further (52nd, 53rd, ...), so the lower-bound form
+        // matches the in-process limiter's tolerance. (CodeRabbit Round 1 —
+        // off-by-one fix to make the assertion truly load-bearing.)
+        attemptCount.Should().BeGreaterOrEqualTo(51,
+            "company-bucket cap is 50/hour — the breach MUST come at or after "
+            + "the 51st overall attempt (50 admits + the rejected request)");
     }
 
     private void SeedCart(Guid customerId)

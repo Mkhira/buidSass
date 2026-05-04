@@ -68,11 +68,23 @@ public sealed class B2BApiFactory : WebApplicationFactory<Program>, IAsyncLifeti
     public StubOrderFromQuoteHandler OrderFromQuoteHandler { get; } = new();
 
     /// <summary>
+    /// Frozen baseline that <see cref="ResetStubState"/> rewinds <see cref="Time"/> to
+    /// between tests. Captured once at fixture construction so reset is deterministic
+    /// regardless of how far prior tests advanced the clock.
+    /// </summary>
+    private readonly DateTimeOffset _timeBaseline = DateTimeOffset.UtcNow;
+
+    /// <summary>
     /// Test-controlled clock. Cycle B integration tests (rate-limit windows, expiry
     /// workers, validity-extension on publish) advance this with
     /// <see cref="FakeTimeProvider.Advance(TimeSpan)"/> instead of relying on real time.
     /// </summary>
-    public FakeTimeProvider Time { get; } = new(DateTimeOffset.UtcNow);
+    public FakeTimeProvider Time { get; }
+
+    public B2BApiFactory()
+    {
+        Time = new FakeTimeProvider(_timeBaseline);
+    }
 
     /// <summary>
     /// Resets every shared stub's mutable state. xUnit shares the class-fixture across
@@ -97,6 +109,9 @@ public sealed class B2BApiFactory : WebApplicationFactory<Program>, IAsyncLifeti
         OrderFromQuoteHandler.Invocations.Clear();
         OrderFromQuoteHandler.FailureToThrow = null;
         EventCollector.Clear();
+        // Rewind the shared fake clock to the fixture baseline so a prior test's
+        // Time.Advance(...) cannot leak into the next test as inherited time drift.
+        Time.SetUtcNow(_timeBaseline);
     }
 
     public async Task InitializeAsync()

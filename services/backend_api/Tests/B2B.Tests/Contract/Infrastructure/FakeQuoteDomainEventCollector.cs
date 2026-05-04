@@ -22,7 +22,8 @@ public sealed class FakeQuoteDomainEventCollector :
     INotificationHandler<QuoteRejected>,
     INotificationHandler<QuoteApproverRejected>,
     INotificationHandler<QuoteExpired>,
-    INotificationHandler<QuoteWithdrawn>
+    INotificationHandler<QuoteWithdrawn>,
+    INotificationHandler<QuoteRevisionRequested>
 {
     private readonly ConcurrentBag<INotification> _events = new();
 
@@ -79,6 +80,12 @@ public sealed class FakeQuoteDomainEventCollector :
     }
 
     public Task Handle(QuoteWithdrawn notification, CancellationToken cancellationToken)
+    {
+        _events.Add(notification);
+        return Task.CompletedTask;
+    }
+
+    public Task Handle(QuoteRevisionRequested notification, CancellationToken cancellationToken)
     {
         _events.Add(notification);
         return Task.CompletedTask;

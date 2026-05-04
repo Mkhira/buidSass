@@ -226,6 +226,8 @@ public sealed class B2BApiFactory : WebApplicationFactory<Program>, IAsyncLifeti
                 sp => sp.GetRequiredService<FakeQuoteDomainEventCollector>());
             services.AddTransient<MediatR.INotificationHandler<QuoteWithdrawn>>(
                 sp => sp.GetRequiredService<FakeQuoteDomainEventCollector>());
+            services.AddTransient<MediatR.INotificationHandler<QuoteRevisionRequested>>(
+                sp => sp.GetRequiredService<FakeQuoteDomainEventCollector>());
 
             // Deterministic clock for any time-based assertions (rate-limit windows,
             // expiry checks). Tests advance via factory.Time.Advance(...) — same instance

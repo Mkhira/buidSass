@@ -24,8 +24,8 @@ contract surface) but not yet emitted by a live handler.
 | b2b.reason.quote.rate_limit_exceeded | draft | US1/Cycle-B RequestQuoteFromCart (per-customer + per-company FR-045 buckets) | — | — |
 | b2b.reason.quote.market_mismatch | draft | US1/Cycle-B RequestQuoteFromCart (FR-011 cross-market / missing schema fallback) | — | — |
 | b2b.reason.quote.eligibility_required | draft | reserved (US1 SubmitAcceptance / US6 Conversion FR-036) | — | — |
-| b2b.reason.quote.invalid_state_for_action | draft | reserved (US1 Withdraw / RequestRevision / SubmitAcceptance) | — | — |
-| b2b.reason.quote.no_changes_provided | draft | reserved (US1 RequestRevision) | — | — |
+| b2b.reason.quote.invalid_state_for_action | draft | US1/Cycle-C2 WithdrawQuote + RequestRevision (terminal-state attempts; xmin race; non-`revised` source for revision); reserved SubmitAcceptance | — | — |
+| b2b.reason.quote.no_changes_provided | draft | US1/Cycle-C2 RequestRevision (whole-comment-missing — buyer pinged endpoint without saying what to change) | — | — |
 | b2b.reason.quote.no_approver_available | draft | reserved (US1 SubmitAcceptance Q1) | — | — |
 | b2b.reason.quote.cooldown_active | draft | reserved (research §R10 — V1 unused, kept for forward compat) | — | — |
 | b2b.reason.quote.already_decided | draft | reserved (approver finalize race) | — | — |
@@ -37,7 +37,7 @@ contract surface) but not yet emitted by a live handler.
 | b2b.reason.quote.account_inactive | draft | reserved (FR-038 layered in Cycle C once Modules/Shared probe lands) | — | — |
 | b2b.reason.quote.company_suspended | draft | US1/Cycle-B RequestQuoteFromCart (FR-026) | — | — |
 | b2b.reason.quote.product_archived | draft | reserved (US3 admin authoring edge case) | — | — |
-| b2b.reason.quote.not_found | draft | US1/Cycle-C1 GetMyQuote (visibility-leak: 404 fires for both unknown-id and not-authorized; reserved Withdraw / RequestRevision / Document) | — | — |
+| b2b.reason.quote.not_found | draft | US1/Cycle-C1 GetMyQuote + US1/Cycle-C2 WithdrawQuote / RequestRevision (visibility-leak: 404 fires for unknown-id, not-authorized read, OR read-but-not-write authority); reserved Document | — | — |
 | b2b.reason.quote.document_not_found | draft | reserved (US1 DownloadQuoteVersionDocument) | — | — |
 | b2b.reason.company.tax_id_invalid | draft | reserved (US4 RegisterCompany) | — | — |
 | b2b.reason.company.duplicate_tax_id | draft | reserved (US4 RegisterCompany) | — | — |

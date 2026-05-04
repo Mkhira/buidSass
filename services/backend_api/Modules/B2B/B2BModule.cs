@@ -12,6 +12,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
 using Npgsql;
 
@@ -69,6 +70,11 @@ public static class B2BModule
         // Cycle B (US1) — RequestQuoteFromCart slice + the per-customer + per-company
         // rate limiter that backs FR-045. Singleton because the bucket map MUST persist
         // across requests; the limiter has no per-request state.
+        // TimeProvider is registered here (rather than in the host) so the module
+        // is self-contained — both QuoteRequestRateLimiter and the handler depend on
+        // it. Other modules (Verification, Reviews) follow the same pattern. The
+        // TryAdd avoids double-registering when more than one module wires it.
+        services.TryAddSingleton(TimeProvider.System);
         services.AddSingleton<QuoteRequestRateLimiter>();
         services.AddScoped<RequestQuoteFromCartHandler>();
         services.AddScoped<IValidator<RequestQuoteFromCartRequest>, RequestQuoteFromCartValidator>();

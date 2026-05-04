@@ -31,12 +31,12 @@ description: "Phase-1D Spec 021 — Quotes and B2B: dependency-ordered task list
 
 **Purpose**: Spin up the empty `Modules/B2B/` module and its sibling test project so subsequent phases land in a building tree.
 
-- [ ] T001 Create directory skeleton `services/backend_api/Modules/B2B/{Primitives,Quotes/Customer,Quotes/Approver,Quotes/Admin,Companies,Conversion,Documents/PdfTemplates,Workers,Authorization,Hooks,Entities,Persistence/Configurations,Persistence/Migrations,Messages,Seeding}` per [plan.md §Project Structure](./plan.md)
-- [ ] T002 Create `services/backend_api/Modules/B2B/B2BModule.cs` with `AddB2BModule(IServiceCollection, IConfiguration)` extension; register `AddDbContext<B2BDbContext>` suppressing `RelationalEventId.ManyServiceProvidersCreatedWarning` (project-memory rule); leave service registrations empty for now
-- [ ] T003 Wire `AddB2BModule` into `services/backend_api/Program.cs` and add `app.MapB2BEndpoints()` placeholder so the module is composed at startup
-- [ ] T004 [P] Create test-project skeleton `services/backend_api/tests/B2B.Tests/{Unit,Integration,Contract,Fixtures,Benchmarks}` with `B2B.Tests.csproj` referencing `backend_api.csproj`, xUnit, FluentAssertions, `WebApplicationFactory<Program>`, Testcontainers.PostgreSql, `Microsoft.Extensions.TimeProvider.Testing`
-- [ ] T005 [P] Create `services/backend_api/Modules/B2B/Messages/b2b.en.icu` and `b2b.ar.icu` as empty ICU bundles (keys added per slice); create `services/backend_api/Modules/B2B/Messages/AR_EDITORIAL_REVIEW.md` per spec 008 / 020 pattern (tracks AR keys pending editorial sign-off)
-- [ ] T006 [P] Add `services/backend_api/openapi.b2b.json` placeholder file so the OpenAPI emitter writes here (matches spec 004 / 008 / 020 convention)
+- [X] T001 Create directory skeleton `services/backend_api/Modules/B2B/{Primitives,Quotes/Customer,Quotes/Approver,Quotes/Admin,Companies,Conversion,Documents/PdfTemplates,Workers,Authorization,Hooks,Entities,Persistence/Configurations,Persistence/Migrations,Messages,Seeding}` per [plan.md §Project Structure](./plan.md)
+- [X] T002 Create `services/backend_api/Modules/B2B/B2BModule.cs` with `AddB2BModule(IServiceCollection, IConfiguration)` extension; register `AddDbContext<B2BDbContext>` suppressing `RelationalEventId.ManyServiceProvidersCreatedWarning` (project-memory rule); leave service registrations empty for now
+- [X] T003 Wire `AddB2BModule` into `services/backend_api/Program.cs` and add `app.MapB2BEndpoints()` placeholder so the module is composed at startup
+- [X] T004 [P] Create test-project skeleton `services/backend_api/tests/B2B.Tests/{Unit,Integration,Contract,Fixtures,Benchmarks}` with `B2B.Tests.csproj` referencing `backend_api.csproj`, xUnit, FluentAssertions, `WebApplicationFactory<Program>`, Testcontainers.PostgreSql, `Microsoft.Extensions.TimeProvider.Testing`
+- [X] T005 [P] Create `services/backend_api/Modules/B2B/Messages/b2b.en.icu` and `b2b.ar.icu` as empty ICU bundles (keys added per slice); create `services/backend_api/Modules/B2B/Messages/AR_EDITORIAL_REVIEW.md` per spec 008 / 020 pattern (tracks AR keys pending editorial sign-off)
+- [X] T006 [P] Add `services/backend_api/openapi.b2b.json` placeholder file so the OpenAPI emitter writes here (matches spec 004 / 008 / 020 convention)
 
 **Checkpoint**: `dotnet build services/backend_api` is green; `dotnet test services/backend_api/tests/B2B.Tests` runs with zero tests.
 
@@ -50,72 +50,72 @@ description: "Phase-1D Spec 021 — Quotes and B2B: dependency-ordered task list
 
 ### Primitives
 
-- [ ] T007 [P] Create `services/backend_api/Modules/B2B/Primitives/QuoteState.cs` enum: `Requested, Drafted, Revised, PendingApprover, Accepted, Rejected, Expired, Withdrawn` (per [data-model.md §3.1](./data-model.md))
-- [ ] T008 [P] Create `services/backend_api/Modules/B2B/Primitives/QuoteActorKind.cs` enum: `Customer, Buyer, Approver, AdminOperator, System`
-- [ ] T009 [P] Create `services/backend_api/Modules/B2B/Primitives/QuoteReasonCode.cs` enum + ICU-key mapper for every code in [contracts/quotes-and-b2b-contract.md §9](./contracts/quotes-and-b2b-contract.md)
-- [ ] T010 [P] Create `services/backend_api/Modules/B2B/Primitives/QuoteStateMachine.cs`: `CanTransition(from, to, actorKind)` predicate enforcing every allowed transition + every forbidden transition listed in [data-model.md §3.1](./data-model.md); single-method API; pure, no DI
-- [ ] T011 [P] Create `services/backend_api/Modules/B2B/Primitives/CompanyInvitationState.cs` enum: `Pending, Accepted, Declined, Expired`
-- [ ] T012 [P] Create `services/backend_api/Modules/B2B/Primitives/CompanyInvitationStateMachine.cs` per [data-model.md §3.2](./data-model.md)
-- [ ] T013 [P] Create `services/backend_api/Modules/B2B/Primitives/QuoteMarketPolicy.cs` value-object resolved from a `QuoteMarketSchema` row (validity_days, rate-limit caps, tax-preview drift threshold, SLA bounds, holidays_list, invitation_ttl_days)
-- [ ] T014 [P] Create `services/backend_api/Modules/B2B/Primitives/BusinessDayCalculator.cs`: `AddBusinessDays(start, businessDays, weekendDays, holidaysList)` pure function; weekend defaulted to Sun–Thu working week; deliberately duplicates spec 020's calc per [research.md §R2](./research.md)
+- [X] T007 [P] Create `services/backend_api/Modules/B2B/Primitives/QuoteState.cs` enum: `Requested, Drafted, Revised, PendingApprover, Accepted, Rejected, Expired, Withdrawn` (per [data-model.md §3.1](./data-model.md))
+- [X] T008 [P] Create `services/backend_api/Modules/B2B/Primitives/QuoteActorKind.cs` enum: `Customer, Buyer, Approver, AdminOperator, System`
+- [X] T009 [P] Create `services/backend_api/Modules/B2B/Primitives/QuoteReasonCode.cs` enum + ICU-key mapper for every code in [contracts/quotes-and-b2b-contract.md §9](./contracts/quotes-and-b2b-contract.md)
+- [X] T010 [P] Create `services/backend_api/Modules/B2B/Primitives/QuoteStateMachine.cs`: `CanTransition(from, to, actorKind)` predicate enforcing every allowed transition + every forbidden transition listed in [data-model.md §3.1](./data-model.md); single-method API; pure, no DI
+- [X] T011 [P] Create `services/backend_api/Modules/B2B/Primitives/CompanyInvitationState.cs` enum: `Pending, Accepted, Declined, Expired`
+- [X] T012 [P] Create `services/backend_api/Modules/B2B/Primitives/CompanyInvitationStateMachine.cs` per [data-model.md §3.2](./data-model.md)
+- [X] T013 [P] Create `services/backend_api/Modules/B2B/Primitives/QuoteMarketPolicy.cs` value-object resolved from a `QuoteMarketSchema` row (validity_days, rate-limit caps, tax-preview drift threshold, SLA bounds, holidays_list, invitation_ttl_days)
+- [X] T014 [P] Create `services/backend_api/Modules/B2B/Primitives/BusinessDayCalculator.cs`: `AddBusinessDays(start, businessDays, weekendDays, holidaysList)` pure function; weekend defaulted to Sun–Thu working week; deliberately duplicates spec 020's calc per [research.md §R2](./research.md)
 
 #### Foundational unit tests
 
-- [ ] T015 [P] Create `services/backend_api/tests/B2B.Tests/Unit/QuoteStateMachineTests.cs`: every allowed transition returns true; every forbidden transition (terminal→non-terminal, requested→accepted direct, drafted→pending-approver direct) returns false
-- [ ] T016 [P] Create `services/backend_api/tests/B2B.Tests/Unit/CompanyInvitationStateMachineTests.cs`: pending→accepted/declined/expired allowed; terminal→pending forbidden
-- [ ] T017 [P] Create `services/backend_api/tests/B2B.Tests/Unit/BusinessDayCalculatorTests.cs`: Sun–Thu week; spans across weekends; respects holidays list; SLA arithmetic deterministic
-- [ ] T018 [P] Create `services/backend_api/tests/B2B.Tests/Unit/QuoteReasonCodeIcuKeysTests.cs`: every `QuoteReasonCode` enum value has an entry in both `b2b.en.icu` and `b2b.ar.icu`
+- [X] T015 [P] Create `services/backend_api/tests/B2B.Tests/Unit/QuoteStateMachineTests.cs`: every allowed transition returns true; every forbidden transition (terminal→non-terminal, requested→accepted direct, drafted→pending-approver direct) returns false
+- [X] T016 [P] Create `services/backend_api/tests/B2B.Tests/Unit/CompanyInvitationStateMachineTests.cs`: pending→accepted/declined/expired allowed; terminal→pending forbidden
+- [X] T017 [P] Create `services/backend_api/tests/B2B.Tests/Unit/BusinessDayCalculatorTests.cs`: Sun–Thu week; spans across weekends; respects holidays list; SLA arithmetic deterministic
+- [X] T018 [P] Create `services/backend_api/tests/B2B.Tests/Unit/QuoteReasonCodeIcuKeysTests.cs`: every `QuoteReasonCode` enum value has an entry in both `b2b.en.icu` and `b2b.ar.icu`
 
 ### Persistence — entities
 
-- [ ] T019 [P] Create `services/backend_api/Modules/B2B/Entities/Company.cs` per [data-model.md §2.1](./data-model.md) with `xmin` mapped via `IsRowVersion()`
-- [ ] T020 [P] Create `services/backend_api/Modules/B2B/Entities/CompanyMembership.cs` per [data-model.md §2.2](./data-model.md)
-- [ ] T021 [P] Create `services/backend_api/Modules/B2B/Entities/CompanyBranch.cs` per [data-model.md §2.3](./data-model.md)
-- [ ] T022 [P] Create `services/backend_api/Modules/B2B/Entities/CompanyInvitation.cs` per [data-model.md §2.4](./data-model.md)
-- [ ] T023 [P] Create `services/backend_api/Modules/B2B/Entities/Quote.cs` per [data-model.md §2.5](./data-model.md) with `xmin` mapped via `IsRowVersion()`
-- [ ] T024 [P] Create `services/backend_api/Modules/B2B/Entities/QuoteVersion.cs` per [data-model.md §2.6](./data-model.md) (immutable; no UPDATE allowed)
-- [ ] T025 [P] Create `services/backend_api/Modules/B2B/Entities/QuoteVersionDocument.cs` per [data-model.md §2.7](./data-model.md)
-- [ ] T026 [P] Create `services/backend_api/Modules/B2B/Entities/QuoteStateTransition.cs` per [data-model.md §2.8](./data-model.md) (append-only ledger)
-- [ ] T027 [P] Create `services/backend_api/Modules/B2B/Entities/QuoteMarketSchema.cs` per [data-model.md §2.9](./data-model.md)
-- [ ] T028 [P] Create `services/backend_api/Modules/B2B/Entities/RepeatOrderTemplate.cs` per [data-model.md §2.10](./data-model.md)
+- [X] T019 [P] Create `services/backend_api/Modules/B2B/Entities/Company.cs` per [data-model.md §2.1](./data-model.md) with `xmin` mapped via `IsRowVersion()`
+- [X] T020 [P] Create `services/backend_api/Modules/B2B/Entities/CompanyMembership.cs` per [data-model.md §2.2](./data-model.md)
+- [X] T021 [P] Create `services/backend_api/Modules/B2B/Entities/CompanyBranch.cs` per [data-model.md §2.3](./data-model.md)
+- [X] T022 [P] Create `services/backend_api/Modules/B2B/Entities/CompanyInvitation.cs` per [data-model.md §2.4](./data-model.md)
+- [X] T023 [P] Create `services/backend_api/Modules/B2B/Entities/Quote.cs` per [data-model.md §2.5](./data-model.md) with `xmin` mapped via `IsRowVersion()`
+- [X] T024 [P] Create `services/backend_api/Modules/B2B/Entities/QuoteVersion.cs` per [data-model.md §2.6](./data-model.md) (immutable; no UPDATE allowed)
+- [X] T025 [P] Create `services/backend_api/Modules/B2B/Entities/QuoteVersionDocument.cs` per [data-model.md §2.7](./data-model.md)
+- [X] T026 [P] Create `services/backend_api/Modules/B2B/Entities/QuoteStateTransition.cs` per [data-model.md §2.8](./data-model.md) (append-only ledger)
+- [X] T027 [P] Create `services/backend_api/Modules/B2B/Entities/QuoteMarketSchema.cs` per [data-model.md §2.9](./data-model.md)
+- [X] T028 [P] Create `services/backend_api/Modules/B2B/Entities/RepeatOrderTemplate.cs` per [data-model.md §2.10](./data-model.md)
 
 ### Persistence — DbContext + configurations + migration
 
-- [ ] T029 Create `services/backend_api/Modules/B2B/Persistence/B2BDbContext.cs` registering all 10 entities; suppress `ManyServiceProvidersCreatedWarning`
-- [ ] T030 [P] Create `services/backend_api/Modules/B2B/Persistence/Configurations/CompanyConfiguration.cs` (UNIQUE `(market_code, tax_id)`; `xmin` mapping; partial index on `state`)
-- [ ] T031 [P] Create `services/backend_api/Modules/B2B/Persistence/Configurations/CompanyMembershipConfiguration.cs` (UNIQUE `(company_id, user_id, role)`; indexes per data-model)
-- [ ] T032 [P] Create `services/backend_api/Modules/B2B/Persistence/Configurations/CompanyBranchConfiguration.cs`
-- [ ] T033 [P] Create `services/backend_api/Modules/B2B/Persistence/Configurations/CompanyInvitationConfiguration.cs` (UNIQUE token; partial index on `state='pending'`; partial UNIQUE `(company_id, invited_email, target_role) WHERE state='pending'`)
-- [ ] T034 [P] Create `services/backend_api/Modules/B2B/Persistence/Configurations/QuoteConfiguration.cs` (5 indexes per data-model; partial UNIQUE `(company_id, po_number) WHERE company_id IS NOT NULL AND po_number IS NOT NULL` for FR-019)
-- [ ] T035 [P] Create `services/backend_api/Modules/B2B/Persistence/Configurations/QuoteVersionConfiguration.cs` (UNIQUE `(quote_id, version_number)`; immutable — verified by integration test)
-- [ ] T036 [P] Create `services/backend_api/Modules/B2B/Persistence/Configurations/QuoteVersionDocumentConfiguration.cs` (UNIQUE `(quote_version_id, locale)`)
-- [ ] T037 [P] Create `services/backend_api/Modules/B2B/Persistence/Configurations/QuoteStateTransitionConfiguration.cs` plus the EF migration that adds the `BEFORE UPDATE OR DELETE` Postgres trigger enforcing append-only semantics
-- [ ] T038 [P] Create `services/backend_api/Modules/B2B/Persistence/Configurations/QuoteMarketSchemaConfiguration.cs` (composite PK; unique partial "one active per market")
-- [ ] T039 [P] Create `services/backend_api/Modules/B2B/Persistence/Configurations/RepeatOrderTemplateConfiguration.cs` (two unique partial indexes per [research.md §R12](./research.md))
-- [ ] T040 Generate initial EF migration `dotnet ef migrations add B2BInit --context B2BDbContext --output-dir Modules/B2B/Persistence/Migrations` and verify the migration creates all 10 tables + the append-only trigger
-- [ ] T041 Add `IDbContextFactory<B2BDbContext>` registration to `B2BModule.cs` so background workers can construct scopes outside the request pipeline
+- [X] T029 Create `services/backend_api/Modules/B2B/Persistence/B2BDbContext.cs` registering all 10 entities; suppress `ManyServiceProvidersCreatedWarning`
+- [X] T030 [P] Create `services/backend_api/Modules/B2B/Persistence/Configurations/CompanyConfiguration.cs` (UNIQUE `(market_code, tax_id)`; `xmin` mapping; partial index on `state`)
+- [X] T031 [P] Create `services/backend_api/Modules/B2B/Persistence/Configurations/CompanyMembershipConfiguration.cs` (UNIQUE `(company_id, user_id, role)`; indexes per data-model)
+- [X] T032 [P] Create `services/backend_api/Modules/B2B/Persistence/Configurations/CompanyBranchConfiguration.cs`
+- [X] T033 [P] Create `services/backend_api/Modules/B2B/Persistence/Configurations/CompanyInvitationConfiguration.cs` (UNIQUE token; partial index on `state='pending'`; partial UNIQUE `(company_id, invited_email, target_role) WHERE state='pending'`)
+- [X] T034 [P] Create `services/backend_api/Modules/B2B/Persistence/Configurations/QuoteConfiguration.cs` (5 indexes per data-model; partial UNIQUE `(company_id, po_number) WHERE company_id IS NOT NULL AND po_number IS NOT NULL` for FR-019)
+- [X] T035 [P] Create `services/backend_api/Modules/B2B/Persistence/Configurations/QuoteVersionConfiguration.cs` (UNIQUE `(quote_id, version_number)`; immutable — verified by integration test)
+- [X] T036 [P] Create `services/backend_api/Modules/B2B/Persistence/Configurations/QuoteVersionDocumentConfiguration.cs` (UNIQUE `(quote_version_id, locale)`)
+- [X] T037 [P] Create `services/backend_api/Modules/B2B/Persistence/Configurations/QuoteStateTransitionConfiguration.cs` plus the EF migration that adds the `BEFORE UPDATE OR DELETE` Postgres trigger enforcing append-only semantics
+- [X] T038 [P] Create `services/backend_api/Modules/B2B/Persistence/Configurations/QuoteMarketSchemaConfiguration.cs` (composite PK; unique partial "one active per market")
+- [X] T039 [P] Create `services/backend_api/Modules/B2B/Persistence/Configurations/RepeatOrderTemplateConfiguration.cs` (two unique partial indexes per [research.md §R12](./research.md))
+- [X] T040 Generate initial EF migration `dotnet ef migrations add B2BInit --context B2BDbContext --output-dir Modules/B2B/Persistence/Migrations` and verify the migration creates all 10 tables + the append-only trigger
+- [X] T041 Add `IDbContextFactory<B2BDbContext>` registration to `B2BModule.cs` so background workers can construct scopes outside the request pipeline
 
 ### Cross-module hooks (live in `Modules/Shared/`)
 
-- [ ] T042 [P] Create `services/backend_api/Modules/Shared/IOrderFromQuoteHandler.cs` with `CreateAsync(QuoteConversionRequest)` signature + `QuoteConversionRequest`, `QuoteConversionLine`, `OrderConversionResult` records per [contracts §7.1](./contracts/quotes-and-b2b-contract.md) and [research.md §R6](./research.md). Implementation owned by spec 011 — declare here so 021 can consume without cycle (project-memory rule)
-- [ ] T043 [P] Create `services/backend_api/Modules/Shared/IPricingBaselineProvider.cs` with `GetBaselinesAsync(customerId, skus)` + `PricingBaseline`, `AppliedPromotion` records per [research.md §R5](./research.md). Implementation owned by spec 007-a
-- [ ] T044 [P] Create `services/backend_api/Modules/Shared/ICartSnapshotProvider.cs` with `SnapshotAndClearAsync(customerId)` + `CartSnapshot`, `CartSnapshotLine` records per [research.md §R4](./research.md). Implementation owned by spec 009
-- [ ] T044a [P] Create `services/backend_api/Modules/Shared/IProductCatalogQuery.cs` with `IsActiveAsync(sku)` and `IsQuotableAsync(productId)` signatures; consumed by T076 (`product_not_quotable` check) and T086 (`archived_sku_lines` advisory). Implementation owned by spec 005 — declared here so 021 can consume without cycle (project-memory rule)
-- [ ] T045 [P] Create `services/backend_api/Modules/Shared/QuoteDomainEvents.cs` with all eight records from [data-model.md §6](./data-model.md): `QuoteRequested`, `QuotePublished`, `QuotePendingApprover`, `QuoteAccepted`, `QuoteRejected`, `QuoteApproverRejected`, `QuoteExpired`, `QuoteWithdrawn`
-- [ ] T046 [P] Create `services/backend_api/Modules/Shared/CompanyInvitationDomainEvents.cs` with the four records: `CompanyInvitationSent`, `CompanyInvitationAccepted`, `CompanyInvitationDeclined`, `CompanyInvitationExpired`
+- [X] T042 [P] Create `services/backend_api/Modules/Shared/IOrderFromQuoteHandler.cs` with `CreateAsync(QuoteConversionRequest)` signature + `QuoteConversionRequest`, `QuoteConversionLine`, `OrderConversionResult` records per [contracts §7.1](./contracts/quotes-and-b2b-contract.md) and [research.md §R6](./research.md). Implementation owned by spec 011 — declare here so 021 can consume without cycle (project-memory rule)
+- [X] T043 [P] Create `services/backend_api/Modules/Shared/IPricingBaselineProvider.cs` with `GetBaselinesAsync(customerId, skus)` + `PricingBaseline`, `AppliedPromotion` records per [research.md §R5](./research.md). Implementation owned by spec 007-a
+- [X] T044 [P] Create `services/backend_api/Modules/Shared/ICartSnapshotProvider.cs` with `SnapshotAndClearAsync(customerId)` + `CartSnapshot`, `CartSnapshotLine` records per [research.md §R4](./research.md). Implementation owned by spec 009
+- [X] T044a [P] Create `services/backend_api/Modules/Shared/IProductCatalogQuery.cs` with `IsActiveAsync(sku)` and `IsQuotableAsync(productId)` signatures; consumed by T076 (`product_not_quotable` check) and T086 (`archived_sku_lines` advisory). Implementation owned by spec 005 — declared here so 021 can consume without cycle (project-memory rule)
+- [X] T045 [P] Create `services/backend_api/Modules/Shared/QuoteDomainEvents.cs` with all eight records from [data-model.md §6](./data-model.md): `QuoteRequested`, `QuotePublished`, `QuotePendingApprover`, `QuoteAccepted`, `QuoteRejected`, `QuoteApproverRejected`, `QuoteExpired`, `QuoteWithdrawn`
+- [X] T046 [P] Create `services/backend_api/Modules/Shared/CompanyInvitationDomainEvents.cs` with the four records: `CompanyInvitationSent`, `CompanyInvitationAccepted`, `CompanyInvitationDeclined`, `CompanyInvitationExpired`
 
 ### Authorization + audit + market schema seed
 
-- [ ] T047 [P] Create `services/backend_api/Modules/B2B/Authorization/B2BPermissions.cs` with constants `quotes.author`, `quotes.review`, `companies.suspend` (admin-side; `companies.admin` and `companies.read` declared here for spec 019 to grant in its role model)
-- [ ] T048 Create `services/backend_api/Modules/B2B/Seeding/B2BReferenceDataSeeder.cs` implementing the platform `ISeeder` interface; idempotent INSERT of the KSA + EG schema rows from [quickstart.md §2](./quickstart.md) (validity_days=14, rate_limit_per_customer_per_hour=10, rate_limit_per_company_per_hour=50, company_verification_required=false, tax_preview_drift_threshold_pct=5.00, sla_decision_business_days=2, sla_warning_business_days=1, invitation_ttl_days=14)
-- [ ] T049 Register `B2BReferenceDataSeeder` in `B2BModule.cs` so the platform `seed --mode=apply --tag=b2b-reference` includes it
+- [X] T047 [P] Create `services/backend_api/Modules/B2B/Authorization/B2BPermissions.cs` with constants `quotes.author`, `quotes.review`, `companies.suspend` (admin-side; `companies.admin` and `companies.read` declared here for spec 019 to grant in its role model)
+- [X] T048 Create `services/backend_api/Modules/B2B/Seeding/B2BReferenceDataSeeder.cs` implementing the platform `ISeeder` interface; idempotent INSERT of the KSA + EG schema rows from [quickstart.md §2](./quickstart.md) (validity_days=14, rate_limit_per_customer_per_hour=10, rate_limit_per_company_per_hour=50, company_verification_required=false, tax_preview_drift_threshold_pct=5.00, sla_decision_business_days=2, sla_warning_business_days=1, invitation_ttl_days=14)
+- [X] T049 Register `B2BReferenceDataSeeder` in `B2BModule.cs` so the platform `seed --mode=apply --tag=b2b-reference` includes it
 
 #### Foundational integration tests
 
-- [ ] T050 [P] Create `services/backend_api/tests/B2B.Tests/Integration/B2BDbContextSmokeTests.cs`: spins up Testcontainers Postgres, applies migrations, runs the seeder, asserts `quote_market_schemas` has 2 rows (KSA v1 + EG v1) and the unique-active partial index rejects a second active row per market
-- [ ] T051 [P] Create `services/backend_api/tests/B2B.Tests/Integration/StateTransitionAppendOnlyTriggerTests.cs`: verify the append-only Postgres trigger raises on UPDATE / DELETE of `quote_state_transitions`
-- [ ] T052 [P] Create `services/backend_api/tests/B2B.Tests/Integration/QuoteVersionImmutabilityTests.cs`: an EF UPDATE on `quote_versions` is rejected
-- [ ] T053 [P] Create `services/backend_api/tests/B2B.Tests/Fixtures/StubOrderFromQuoteHandler.cs` and `StubPricingBaselineProvider.cs` and `StubCartSnapshotProvider.cs` per [quickstart.md §3](./quickstart.md) — used in tests, never registered in production DI
+- [X] T050 [P] Create `services/backend_api/tests/B2B.Tests/Integration/B2BDbContextSmokeTests.cs`: spins up Testcontainers Postgres, applies migrations, runs the seeder, asserts `quote_market_schemas` has 2 rows (KSA v1 + EG v1) and the unique-active partial index rejects a second active row per market
+- [X] T051 [P] Create `services/backend_api/tests/B2B.Tests/Integration/StateTransitionAppendOnlyTriggerTests.cs`: verify the append-only Postgres trigger raises on UPDATE / DELETE of `quote_state_transitions`
+- [X] T052 [P] Create `services/backend_api/tests/B2B.Tests/Integration/QuoteVersionImmutabilityTests.cs`: an EF UPDATE on `quote_versions` is rejected
+- [X] T053 [P] Create `services/backend_api/tests/B2B.Tests/Fixtures/StubOrderFromQuoteHandler.cs` and `StubPricingBaselineProvider.cs` and `StubCartSnapshotProvider.cs` per [quickstart.md §3](./quickstart.md) — used in tests, never registered in production DI
 
 **Checkpoint**: Foundation ready. `dotnet test` passes T015–T018 + T050–T053. User story implementation can now begin.
 
@@ -143,7 +143,7 @@ description: "Phase-1D Spec 021 — Quotes and B2B: dependency-ordered task list
 ### Implementation for User Story 1
 
 - [X] T062 [US1] Create `services/backend_api/Modules/B2B/Quotes/Customer/RequestQuoteFromCart/RequestQuoteFromCartRequest.cs` (DTO with `company_id?`, `branch_id?`, `po_number?`, `message?`)
-- [X] T063 [US1] Create `services/backend_api/Modules/B2B/Quotes/Customer/RequestQuoteFromCart/RequestQuoteFromCartValidator.cs` (FluentValidation: PO required when `company.po_required=true`; message at-least-one-locale when provided; PO-uniqueness pre-check when `company.unique_po_required=true`)
+- [X] T063 [US1] Create `services/backend_api/Modules/B2B/Quotes/Customer/RequestQuoteFromCart/RequestQuoteFromCartValidator.cs` (FluentValidation, shape-only: `branch_id` only valid when `company_id` is also supplied; `po_number` length and character constraints; `message` at-least-one-locale when supplied). Acceptance criteria for the handler-level rules (now living in the handler, NOT the validator): when `company.po_required=true` the handler MUST require `po_number` and reject with `400 quote.po_required` otherwise; when `company.unique_po_required=true` the handler MUST run a PO-uniqueness pre-check and reject with `409 quote.po_already_used` on collision (race-protected by `UX_quotes_company_po`).
 - [X] T064 [US1] Create `services/backend_api/Modules/B2B/Quotes/Customer/RequestQuoteFromCart/RequestQuoteFromCartHandler.cs` (MediatR; transactional). Pre-write rejection checks, in order, mapping to [contracts §2.1](./contracts/quotes-and-b2b-contract.md): (1) caller account active — else `422 quote.account_inactive` (FR-038 carry-over); (2) rate-limit per-customer + per-company sliding window — else `429 quote.rate_limit_exceeded` with `retry_after_seconds` (FR-045); (3) when `company_id` provided — caller has active membership for that company AND membership role permits quote requests (`buyer` / `companies.admin`) — else `409 quote.no_active_company_membership`; (4) when `company_id` provided — `company.state != 'suspended'` — else `422 quote.company_suspended` (FR-026); (5) market match (caller's market-of-record == company's market or individual customer's market) — else `422 quote.market_mismatch` (FR-011); (6) `company.po_required=true` and PO present — else `400 quote.po_required`; (7) when `company.unique_po_required=true` — PO not already used in any quote ever for this company — else `409 quote.po_already_used` (FR-019). Then the write path: `ICartSnapshotProvider.SnapshotAndClearAsync` → reject empty as `400 quote.cart_empty` → `IProductRestrictionPolicy.GetForSkuAsync` per line → INSERT `Quote` + `QuoteStateTransition` (`__none__ → requested`) → publish `IAuditEventPublisher` event → publish `QuoteRequested` domain event.
 - [X] T065 [US1] Create `services/backend_api/Modules/B2B/Quotes/Customer/RequestQuoteFromCart/RequestQuoteFromCartEndpoint.cs` mapping `POST /api/customer/quotes/from-cart` requiring `Idempotency-Key`
 - [X] T066 [P] [US1] Create slice `services/backend_api/Modules/B2B/Quotes/Customer/ListMyQuotes/{Request,Handler,Endpoint}.cs` per [contracts §2.3](./contracts/quotes-and-b2b-contract.md) with the visibility scope from US1 acceptance scenarios

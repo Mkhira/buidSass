@@ -37,7 +37,7 @@ contract surface) but not yet emitted by a live handler.
 | b2b.reason.quote.account_inactive | draft | reserved (FR-038 layered in Cycle C once Modules/Shared probe lands) | — | — |
 | b2b.reason.quote.company_suspended | draft | US1/Cycle-B RequestQuoteFromCart (FR-026) | — | — |
 | b2b.reason.quote.product_archived | draft | reserved (US3 admin authoring edge case) | — | — |
-| b2b.reason.quote.not_found | draft | reserved (US1 GetMyQuote / Withdraw / RequestRevision / Document) | — | — |
+| b2b.reason.quote.not_found | draft | US1/Cycle-C1 GetMyQuote (visibility-leak: 404 fires for both unknown-id and not-authorized; reserved Withdraw / RequestRevision / Document) | — | — |
 | b2b.reason.quote.document_not_found | draft | reserved (US1 DownloadQuoteVersionDocument) | — | — |
 | b2b.reason.company.tax_id_invalid | draft | reserved (US4 RegisterCompany) | — | — |
 | b2b.reason.company.duplicate_tax_id | draft | reserved (US4 RegisterCompany) | — | — |

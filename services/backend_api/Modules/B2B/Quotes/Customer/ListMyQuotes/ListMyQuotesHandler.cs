@@ -1,3 +1,4 @@
+using BackendApi.Modules.B2B.Entities;
 using BackendApi.Modules.B2B.Persistence;
 using BackendApi.Modules.B2B.Primitives;
 using BackendApi.Modules.B2B.Quotes.Customer.Visibility;
@@ -75,37 +76,31 @@ public sealed class ListMyQuotesHandler
         // Total count BEFORE pagination — same predicate.
         var total = await query.CountAsync(ct);
 
-        // Sort + paginate + project to the wire shape (avoids materializing the full Quote
-        // entity per row; the column subset matches IX_quotes_customer_state coverage).
-        IQueryable<ListMyQuotesItem> projected = sort == ListMyQuotesSort.Oldest
+        // Apply ordering. Two ternary branches converge on a single
+        // <see cref="IQueryable{Quote}"/> so the projection below is written once;
+        // any future field addition to ListMyQuotesItem touches one place, not two
+        // (review fix: prevents wire-shape drift between sort branches).
+        IOrderedQueryable<Quote> ordered = sort == ListMyQuotesSort.Oldest
             ? query.OrderBy(q => q.RequestedAt).ThenBy(q => q.Id)
-                   .Select(q => new ListMyQuotesItem(
-                       q.Id,
-                       q.State,
-                       q.MarketCode,
-                       q.CompanyId,
-                       q.BranchId,
-                       q.PoNumber,
-                       q.RequestedAt,
-                       q.ExpiresAt,
-                       q.DecidedAt,
-                       q.CurrentVersion == null ? (int?)null : q.CurrentVersion.VersionNumber))
-            : query.OrderByDescending(q => q.RequestedAt).ThenByDescending(q => q.Id)
-                   .Select(q => new ListMyQuotesItem(
-                       q.Id,
-                       q.State,
-                       q.MarketCode,
-                       q.CompanyId,
-                       q.BranchId,
-                       q.PoNumber,
-                       q.RequestedAt,
-                       q.ExpiresAt,
-                       q.DecidedAt,
-                       q.CurrentVersion == null ? (int?)null : q.CurrentVersion.VersionNumber));
+            : query.OrderByDescending(q => q.RequestedAt).ThenByDescending(q => q.Id);
 
-        var items = await projected
+        // Project to the wire shape — avoids materializing the full Quote entity per
+        // row. The column subset matches IX_quotes_customer_state coverage; the
+        // CurrentVersion join is a single LEFT JOIN translated by EF (no N+1).
+        var items = await ordered
             .Skip((page - 1) * pageSize)
             .Take(pageSize)
+            .Select(q => new ListMyQuotesItem(
+                q.Id,
+                q.State,
+                q.MarketCode,
+                q.CompanyId,
+                q.BranchId,
+                q.PoNumber,
+                q.RequestedAt,
+                q.ExpiresAt,
+                q.DecidedAt,
+                q.CurrentVersion == null ? (int?)null : q.CurrentVersion.VersionNumber))
             .ToListAsync(ct);
 
         return new ListMyQuotesResponse(

@@ -194,6 +194,16 @@ public sealed class WithdrawQuoteHandler
         // Same pattern as Cycle B's RequestQuoteFromCart: state writes never block
         // on subscriber delivery (FR-043). A throwing publisher logs at Error;
         // OperationCanceledException still bubbles to honor caller cancellation.
+        //
+        // KNOWN TECH-DEBT: this puts the audit publish OUTSIDE the SaveChanges
+        // transaction. If the audit publisher throws, the quote is committed but
+        // no audit row exists — Principle 25 expects every state-changing action
+        // to be auditable. The proper fix is an outbox pattern (write a domain-events
+        // row in the same transaction; a publisher worker drains it). Outbox infra
+        // is a Phase 1.5 cross-spec concern; the LogError below ensures any failed
+        // publish is caught by ops monitoring for manual replay until the outbox
+        // lands. This trade-off is a deliberate cycle-B-vintage choice mirrored here
+        // for consistency across the customer state-mutation surface.
         try
         {
             await _auditPublisher.PublishAsync(new AuditEvent(

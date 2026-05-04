@@ -30,6 +30,11 @@ public sealed class RequestRevisionValidator : AbstractValidator<RequestRevision
 
     public RequestRevisionValidator()
     {
+        // Stop on first failure per RuleFor — a missing comment shouldn't also
+        // emit downstream locale / length errors (review fix: explicit cascade
+        // policy rather than relying on .When() guards).
+        RuleLevelCascadeMode = FluentValidation.CascadeMode.Stop;
+
         // Whole-comment-missing: emits no_changes_provided (the spec's distinct
         // §9 token for "buyer didn't tell us anything").
         RuleFor(x => x.Comment)

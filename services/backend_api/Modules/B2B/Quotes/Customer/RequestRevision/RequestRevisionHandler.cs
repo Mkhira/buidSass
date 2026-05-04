@@ -178,6 +178,14 @@ public sealed class RequestRevisionHandler
         }
 
         // ---------- 7. Audit + domain event (post-commit, isolated) ----------
+        // Same FR-043-compliant pattern as Cycle B / WithdrawQuote: audit + domain
+        // event publish run AFTER the SaveChanges commit, isolated by try/catch,
+        // and a thrown subscriber logs at Error rather than 500-ing the response.
+        //
+        // KNOWN TECH-DEBT: audit publish is OUTSIDE the SaveChanges transaction
+        // (Principle 25 ↔ FR-043 tension). The proper resolution is an outbox
+        // pattern landing in Phase 1.5. Until then, the LogError captures any
+        // failed audit publishes for manual replay.
         try
         {
             await _auditPublisher.PublishAsync(new AuditEvent(

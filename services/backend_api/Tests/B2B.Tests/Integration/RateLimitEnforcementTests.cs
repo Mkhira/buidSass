@@ -69,7 +69,7 @@ public sealed class RateLimitEnforcementTests : IClassFixture<B2BApiFactory>
         {
             SeedCart(customerId);
             using var idemReq = NewIdempotentRequest(client);
-            var resp = await client.PostAsJsonAsync(Route, new { });
+            using var resp = await client.PostAsJsonAsync(Route, new { });
 
             // Every request 1..10 is allowed by the limiter; downstream checks may
             // surface 201 / 400 / 422 depending on the surface state. We DO NOT
@@ -84,7 +84,7 @@ public sealed class RateLimitEnforcementTests : IClassFixture<B2BApiFactory>
         SeedCart(customerId);
         using (NewIdempotentRequest(client))
         {
-            var rejected = await client.PostAsJsonAsync(Route, new { });
+            using var rejected = await client.PostAsJsonAsync(Route, new { });
             rejected.StatusCode.Should().Be(HttpStatusCode.TooManyRequests);
 
             var body = await rejected.Content.ReadFromJsonAsync<JsonElement>();
@@ -112,7 +112,7 @@ public sealed class RateLimitEnforcementTests : IClassFixture<B2BApiFactory>
             SeedCart(customerId);
             using (NewIdempotentRequest(client))
             {
-                _ = await client.PostAsJsonAsync(Route, new { });
+                using var fillResp = await client.PostAsJsonAsync(Route, new { });
             }
         }
 
@@ -120,7 +120,7 @@ public sealed class RateLimitEnforcementTests : IClassFixture<B2BApiFactory>
         SeedCart(customerId);
         using (NewIdempotentRequest(client))
         {
-            var blocked = await client.PostAsJsonAsync(Route, new { });
+            using var blocked = await client.PostAsJsonAsync(Route, new { });
             blocked.StatusCode.Should().Be(HttpStatusCode.TooManyRequests);
         }
 
@@ -131,7 +131,7 @@ public sealed class RateLimitEnforcementTests : IClassFixture<B2BApiFactory>
         SeedCart(customerId);
         using (NewIdempotentRequest(client))
         {
-            var afterWindow = await client.PostAsJsonAsync(Route, new { });
+            using var afterWindow = await client.PostAsJsonAsync(Route, new { });
             afterWindow.StatusCode.Should().NotBe(HttpStatusCode.TooManyRequests,
                 "the sliding-window limiter MUST decay entries older than the configured window (1h)");
         }
@@ -165,7 +165,7 @@ public sealed class RateLimitEnforcementTests : IClassFixture<B2BApiFactory>
                 SeedCart(buyerId);
                 using (NewIdempotentRequest(client))
                 {
-                    var resp = await client.PostAsJsonAsync(Route, new
+                    using var resp = await client.PostAsJsonAsync(Route, new
                     {
                         company_id = companyId.ToString(),
                     });
@@ -179,7 +179,11 @@ public sealed class RateLimitEnforcementTests : IClassFixture<B2BApiFactory>
                         var body = await resp.Content.ReadFromJsonAsync<JsonElement>();
                         body.TryGetProperty("reasonCode", out var reasonCode).Should().BeTrue();
                         reasonCode.GetString().Should().Be("quote.rate_limit_exceeded");
-                        body.TryGetProperty("retry_after_seconds", out _).Should().BeTrue();
+                        body.TryGetProperty("retry_after_seconds", out var retryAfter).Should().BeTrue(
+                            "FR-045 requires retry_after_seconds in the 429 body");
+                        retryAfter.GetInt32().Should().BeGreaterThan(0,
+                            "retry_after_seconds MUST be a positive hint — a zero/negative "
+                            + "value would be a useless retry guidance and silently regresses FR-045");
                         goto done;
                     }
                 }

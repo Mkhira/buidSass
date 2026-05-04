@@ -158,8 +158,16 @@ public sealed class RequestRevisionHandler
 
         // The transition row stores the comment in metadata so US3 (admin authoring)
         // can read it when creating the next QuoteVersion. ReasonJson holds the
-        // bilingual comment for audit-side display; MetadataJson signals which
-        // locale the buyer wrote in (operator UI uses this for default highlighting).
+        // bilingual comment for audit-side display; MetadataJson carries the
+        // documented `customer_revision_comment` handoff key (so US3 doesn't
+        // need to also parse ReasonJson) and a locale hint operators use for
+        // default highlighting (CodeRabbit Round 2).
+        var metadataComment = new
+        {
+            en = string.IsNullOrWhiteSpace(body.Comment!.En) ? null : body.Comment.En,
+            ar = string.IsNullOrWhiteSpace(body.Comment.Ar) ? null : body.Comment.Ar,
+        };
+
         var transition = new QuoteStateTransition
         {
             Id = Guid.NewGuid(),
@@ -173,7 +181,8 @@ public sealed class RequestRevisionHandler
             MetadataJson = JsonSerializer.Serialize(new
             {
                 kind = "customer_revision_request",
-                comment_locale_hint = ResolveLocaleHint(body.Comment!),
+                customer_revision_comment = metadataComment,
+                comment_locale_hint = ResolveLocaleHint(body.Comment),
             }),
             OccurredAt = nowUtc,
         };

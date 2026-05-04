@@ -7,6 +7,7 @@ using BackendApi.Modules.B2B.RateLimit;
 using BackendApi.Modules.Shared;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using Npgsql;
 
 namespace BackendApi.Modules.B2B.Quotes.Customer.RequestQuoteFromCart;
@@ -58,6 +59,7 @@ public sealed class RequestQuoteFromCartHandler
     private readonly IPublisher _domainPublisher;
     private readonly QuoteRequestRateLimiter _rateLimiter;
     private readonly TimeProvider _time;
+    private readonly ILogger<RequestQuoteFromCartHandler> _logger;
 
     public RequestQuoteFromCartHandler(
         B2BDbContext db,
@@ -66,7 +68,8 @@ public sealed class RequestQuoteFromCartHandler
         IAuditEventPublisher auditPublisher,
         IPublisher domainPublisher,
         QuoteRequestRateLimiter rateLimiter,
-        TimeProvider time)
+        TimeProvider time,
+        ILogger<RequestQuoteFromCartHandler> logger)
     {
         _db = db;
         _cartSnapshotProvider = cartSnapshotProvider;
@@ -75,6 +78,7 @@ public sealed class RequestQuoteFromCartHandler
         _domainPublisher = domainPublisher;
         _rateLimiter = rateLimiter;
         _time = time;
+        _logger = logger;
     }
 
     public async Task<RequestQuoteFromCartResult> HandleAsync(
@@ -102,7 +106,10 @@ public sealed class RequestQuoteFromCartHandler
                 detail: $"No active quote_market_schema for market_code='{customerMarketCode}'.");
         }
 
-        // ---------- 1. Rate-limit (per-customer + per-company simultaneously) ----------
+        // ---------- 1. Rate-limit per customer (cheap anti-DoS gate) ----------
+        // The per-COMPANY bucket runs AFTER the membership/suspended/market gate so
+        // a non-member cannot drain a target company's bucket and DoS legitimate
+        // buyers (review fix: gap-1 vs T064 ordering).
         var window = TimeSpan.FromHours(1);
         if (!_rateLimiter.TryAcquireCustomer(customerId, schema.RateLimitPerCustomerPerHour, window))
         {
@@ -115,31 +122,19 @@ public sealed class RequestQuoteFromCartHandler
                     ["retry_after_seconds"] = (int)window.TotalSeconds,
                 });
         }
-        if (body.CompanyId is { } companyIdForRate
-            && !_rateLimiter.TryAcquireCompany(companyIdForRate, schema.RateLimitPerCompanyPerHour, window))
-        {
-            return RequestQuoteFromCartResult.Reject(
-                statusCode: 429,
-                reasonCode: QuoteReasonCode.QuoteRateLimitExceeded,
-                detail: "Per-company rate limit exceeded.",
-                extensions: new Dictionary<string, object?>
-                {
-                    ["retry_after_seconds"] = (int)window.TotalSeconds,
-                });
-        }
 
         // ---------- 2 / 3 / 4. Company gate (membership → suspended → market) ----------
         Company? company = null;
         if (body.CompanyId is { } companyId)
         {
-            // Read both the company and the caller's membership in one round trip.
-            var companyRecord = await _db.Companies
+            // Read the full company entity (no projection — we need PoRequired,
+            // UniquePoRequired, InvoiceBillingEligible, and MarketCode all later in
+            // the write path; AsNoTracking keeps it scoped to a one-shot read).
+            company = await _db.Companies
                 .AsNoTracking()
-                .Where(c => c.Id == companyId)
-                .Select(c => new { c.Id, c.MarketCode, c.State, c.PoRequired, c.UniquePoRequired, Entity = c })
-                .FirstOrDefaultAsync(ct);
+                .FirstOrDefaultAsync(c => c.Id == companyId, ct);
 
-            if (companyRecord is null)
+            if (company is null)
             {
                 // Treat unknown company id as no-membership: handler MUST NOT leak
                 // existence of companies the caller has no relationship with.
@@ -165,7 +160,7 @@ public sealed class RequestQuoteFromCartHandler
             }
 
             // FR-026: suspended companies cannot mint new quotes.
-            if (string.Equals(companyRecord.State, "suspended", StringComparison.OrdinalIgnoreCase))
+            if (string.Equals(company.State, "suspended", StringComparison.OrdinalIgnoreCase))
             {
                 return RequestQuoteFromCartResult.Reject(
                     statusCode: 422,
@@ -173,14 +168,29 @@ public sealed class RequestQuoteFromCartHandler
             }
 
             // FR-011: company market MUST match caller's market-of-record.
-            if (!string.Equals(companyRecord.MarketCode, customerMarketCode, StringComparison.OrdinalIgnoreCase))
+            if (!string.Equals(company.MarketCode, customerMarketCode, StringComparison.OrdinalIgnoreCase))
             {
                 return RequestQuoteFromCartResult.Reject(
                     statusCode: 422,
                     reasonCode: QuoteReasonCode.QuoteMarketMismatch);
             }
 
-            company = companyRecord.Entity;
+            // ---------- 4a. Per-company rate-limit (membership-gated) ----------
+            // Caller has proven membership in an active, market-matched company —
+            // only now does it cost a per-company rate-limit token. This protects the
+            // bucket from non-member DoS attempts that could otherwise drain a
+            // target company's hourly cap before any auth check fired.
+            if (!_rateLimiter.TryAcquireCompany(companyId, schema.RateLimitPerCompanyPerHour, window))
+            {
+                return RequestQuoteFromCartResult.Reject(
+                    statusCode: 429,
+                    reasonCode: QuoteReasonCode.QuoteRateLimitExceeded,
+                    detail: "Per-company rate limit exceeded.",
+                    extensions: new Dictionary<string, object?>
+                    {
+                        ["retry_after_seconds"] = (int)window.TotalSeconds,
+                    });
+            }
 
             // ---------- 5. PO required when company.po_required=true ----------
             if (company.PoRequired && string.IsNullOrWhiteSpace(body.PoNumber))
@@ -238,6 +248,13 @@ public sealed class RequestQuoteFromCartHandler
         }
 
         // ---------- 9. Persist Quote + initial QuoteStateTransition ----------
+        // The initial INSERT is a CREATION, not a STATE TRANSITION — there is no
+        // valid prior state for a brand-new quote, so QuoteStateMachine.CanTransition
+        // is intentionally bypassed here. The transition row uses the literal
+        // sentinel `__none__` for prior_state (data-model §2.8); subsequent slices
+        // (Withdraw, RequestRevision, SubmitAcceptance, FinalizeAcceptance,
+        // QuoteToOrderConverter) MUST go through the state machine before mutating
+        // Quote.State.
         var nowUtc = _time.GetUtcNow();
         var quoteId = Guid.NewGuid();
         var serializerOptions = new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower };
@@ -314,27 +331,47 @@ public sealed class RequestQuoteFromCartHandler
                 reasonCode: QuoteReasonCode.QuotePoAlreadyUsed);
         }
 
-        // ---------- 10. Audit + domain event (post-commit, fire-and-await) ----------
-        // Audit failures must NOT roll back the quote (Principle 25 says audits are
-        // append-only side-channel — but they must still happen for the action to be
-        // traceable). Wrap so a transient outbound publish doesn't 500 the request;
-        // the audit pipeline handles retries.
-        await _auditPublisher.PublishAsync(new AuditEvent(
-            ActorId: customerId,
-            ActorRole: body.CompanyId is null ? "customer" : "buyer",
-            Action: "quote.state_changed",
-            EntityType: "quote",
-            EntityId: quote.Id,
-            BeforeState: new { state = "__none__" },
-            AfterState: new { state = quote.State, market_code = quote.MarketCode, company_id = quote.CompanyId },
-            Reason: null), ct);
+        // ---------- 10. Audit + domain event (post-commit, isolated from response) ----------
+        // FR-043: state writes never block on subscriber delivery. The quote is
+        // already committed; a thrown audit publisher MUST NOT 500 the response.
+        // Principle 25 requires the audit happen — best-effort here, with a hard log
+        // line on failure for the audit-pipeline retry path to pick up.
+        try
+        {
+            await _auditPublisher.PublishAsync(new AuditEvent(
+                ActorId: customerId,
+                ActorRole: body.CompanyId is null ? "customer" : "buyer",
+                Action: "quote.state_changed",
+                EntityType: "quote",
+                EntityId: quote.Id,
+                BeforeState: new { state = "__none__" },
+                AfterState: new { state = quote.State, market_code = quote.MarketCode, company_id = quote.CompanyId },
+                Reason: null), ct);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            _logger.LogError(ex,
+                "Audit publish failed for quote.state_changed (quote_id={QuoteId}, customer_id={CustomerId}). "
+                + "Quote was committed; audit-pipeline retry path is responsible for replay.",
+                quote.Id, customerId);
+        }
 
-        await _domainPublisher.Publish(new QuoteRequested(
-            QuoteId: quote.Id,
-            CustomerId: customerId,
-            CompanyId: quote.CompanyId,
-            MarketCode: quote.MarketCode,
-            LocaleHint: ResolveLocaleHint(body.Message)), ct);
+        try
+        {
+            await _domainPublisher.Publish(new QuoteRequested(
+                QuoteId: quote.Id,
+                CustomerId: customerId,
+                CompanyId: quote.CompanyId,
+                MarketCode: quote.MarketCode,
+                LocaleHint: ResolveLocaleHint(body.Message)), ct);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            _logger.LogError(ex,
+                "QuoteRequested domain-event publish failed (quote_id={QuoteId}). "
+                + "Notification subscribers (spec 025) will not fire for this quote unless replayed.",
+                quote.Id);
+        }
 
         return RequestQuoteFromCartResult.Success(new RequestQuoteFromCartResponse(
             Id: quote.Id,

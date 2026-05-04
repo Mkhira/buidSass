@@ -2,6 +2,7 @@ using BackendApi.Configuration;
 using BackendApi.Features.Seeding;
 using BackendApi.Modules.B2B.Persistence;
 using BackendApi.Modules.B2B.Primitives;
+using BackendApi.Modules.B2B.Quotes.Customer.DownloadQuoteVersionDocument;
 using BackendApi.Modules.B2B.Quotes.Customer.GetMyQuote;
 using BackendApi.Modules.B2B.Quotes.Customer.ListMyQuotes;
 using BackendApi.Modules.B2B.Quotes.Customer.RequestQuoteFromCart;
@@ -98,6 +99,13 @@ public static class B2BModule
         services.AddScoped<RequestRevisionHandler>();
         services.AddScoped<IValidator<RequestRevisionRequest>, RequestRevisionValidator>();
 
+        // Cycle C-tail (US1) — document download. Pure read path; reuses
+        // CustomerQuoteVisibility for the visibility gate and IStorageService
+        // (registered by Modules/Shared/ModuleRegistrationExtensions) for the
+        // signed-URL mint. No separate validator: the only inputs are route
+        // parameters (canonicalized in the endpoint).
+        services.AddScoped<DownloadQuoteVersionDocumentHandler>();
+
         return services;
     }
 
@@ -121,6 +129,10 @@ public static class B2BModule
         // with route templates that don't collide with the GET handlers.
         customerQuotes.MapWithdrawQuoteEndpoint();
         customerQuotes.MapRequestRevisionEndpoint();
+        // Cycle C-tail — document download. GET on a deeper route template
+        // (/{quoteId}/versions/{versionId}/documents/{locale}) so it doesn't
+        // shadow the GET /{id:guid} that GetMyQuote owns.
+        customerQuotes.MapDownloadQuoteVersionDocumentEndpoint();
         return app;
     }
 }

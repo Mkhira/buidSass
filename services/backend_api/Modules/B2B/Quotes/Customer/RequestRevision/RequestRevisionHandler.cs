@@ -113,6 +113,17 @@ public sealed class RequestRevisionHandler
             return RequestRevisionResult.NotFound();
         }
 
+        // ---------- 3a. Re-validate authority on tracked entity (TOCTOU guard) ----------
+        // Buyer membership can be revoked between the visibility read and the
+        // mutation. Re-run the authority predicate against the tracked row
+        // inside the same unit of work so revocations land immediately
+        // (CodeRabbit Round 1 — Critical).
+        var stillAuthorized = await CallerCanRequestRevisionAsync(tracked, customerId, ct);
+        if (!stillAuthorized)
+        {
+            return RequestRevisionResult.NotFound();
+        }
+
         // ---------- 4. State-machine gate ----------
         if (!QuoteStateExtensions.TryParseToken(tracked.State, out var currentState))
         {

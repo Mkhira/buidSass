@@ -105,8 +105,8 @@ public sealed class WithdrawQuoteHandler
         // Read-visibility (buyer/approver) is necessary but not sufficient: §2.5
         // restricts WRITE to customer-owner + companies.admin only. Surface 404
         // for read-but-not-write to preserve visibility symmetry across endpoints.
-        var canWithdraw = await CallerCanWithdrawAsync(visibleQuote, customerId, ct);
-        if (!canWithdraw)
+        var initialAuthority = await ResolveAuthorityAsync(visibleQuote, customerId, ct);
+        if (initialAuthority == WithdrawAuthority.None)
         {
             return WithdrawQuoteResult.NotFound();
         }
@@ -126,6 +126,17 @@ public sealed class WithdrawQuoteHandler
             return WithdrawQuoteResult.NotFound();
         }
 
+        // ---------- 3a. Re-validate authority on tracked entity (TOCTOU guard) ----------
+        // Memberships can be revoked between the visibility check and this fetch;
+        // §2.5 must enforce permissions as of the WRITE moment, not the read.
+        // Re-run the authority predicate against the tracked row inside the same
+        // unit of work (CodeRabbit Round 1 — Critical).
+        var authority = await ResolveAuthorityAsync(tracked, customerId, ct);
+        if (authority == WithdrawAuthority.None)
+        {
+            return WithdrawQuoteResult.NotFound();
+        }
+
         // ---------- 4. State-machine gate ----------
         if (!QuoteStateExtensions.TryParseToken(tracked.State, out var currentState))
         {
@@ -138,9 +149,22 @@ public sealed class WithdrawQuoteHandler
             return WithdrawQuoteResult.InvalidStateForAction();
         }
 
+        // Map the resolved write-authority onto the persisted actor_kind. The DB
+        // CHECK constraint and state-machine vocabulary do not currently include
+        // a "companies.admin" actor token; we keep the closest aligned token
+        // (Buyer for company-quote write paths) so the state machine still
+        // accepts the transition, and we record the precise authority on the
+        // transition's MetadataJson + the audit envelope so the trail is
+        // accurate (CodeRabbit Round 1 — Major).
         var actorKind = tracked.CompanyId is null
             ? QuoteActorKind.Customer
             : QuoteActorKind.Buyer;
+        var actorRoleToken = authority switch
+        {
+            WithdrawAuthority.IndividualOwner => "customer",
+            WithdrawAuthority.CompanyAdmin => "companies.admin",
+            _ => throw new InvalidOperationException("Unreachable: authority validated above."),
+        };
 
         if (!QuoteStateMachine.CanTransition(currentState, QuoteState.Withdrawn, actorKind))
         {
@@ -172,7 +196,11 @@ public sealed class WithdrawQuoteHandler
             ActorKind = actorKind.ToToken(),
             ActorId = customerId,
             ReasonJson = null,
-            MetadataJson = JsonSerializer.Serialize(new { reason_token = reasonToken }),
+            MetadataJson = JsonSerializer.Serialize(new
+            {
+                reason_token = reasonToken,
+                actor_role = actorRoleToken,
+            }),
             OccurredAt = nowUtc,
         };
         _db.QuoteStateTransitions.Add(transition);
@@ -208,7 +236,7 @@ public sealed class WithdrawQuoteHandler
         {
             await _auditPublisher.PublishAsync(new AuditEvent(
                 ActorId: customerId,
-                ActorRole: actorKind == QuoteActorKind.Customer ? "customer" : "buyer",
+                ActorRole: actorRoleToken,
                 Action: "quote.state_changed",
                 EntityType: "quote",
                 EntityId: tracked.Id,
@@ -250,27 +278,46 @@ public sealed class WithdrawQuoteHandler
     }
 
     /// <summary>
-    /// §2.5 write-authority check. Returns true when the caller can WITHDRAW the quote:
-    /// individual quote owners (no company_id) OR <c>companies.admin</c> members of the
-    /// quote's company. <c>buyer</c> and <c>approver</c> roles can READ but cannot
-    /// withdraw — handler surfaces 404 for that case so the wire surface doesn't leak
-    /// "you can see this but you can't withdraw it".
+    /// §2.5 write-authority check. Returns the resolved authority granting the
+    /// caller permission to WITHDRAW the quote (or <see cref="WithdrawAuthority.None"/>
+    /// when neither path applies). Returning the resolved authority — instead of
+    /// a bare bool — lets the handler stamp accurate actor_role metadata on the
+    /// transition + audit envelope (CodeRabbit Round 1 — Major).
+    ///
+    /// <para><c>buyer</c> and <c>approver</c> roles can READ but cannot withdraw —
+    /// handler surfaces 404 for that case so the wire surface doesn't leak
+    /// "you can see this but you can't withdraw it".</para>
     /// </summary>
-    private async Task<bool> CallerCanWithdrawAsync(Quote quote, Guid customerId, CancellationToken ct)
+    private async Task<WithdrawAuthority> ResolveAuthorityAsync(Quote quote, Guid customerId, CancellationToken ct)
     {
         if (quote.CompanyId is null)
         {
             // Individual customer quote — only the owner can withdraw.
-            return quote.CustomerId == customerId;
+            return quote.CustomerId == customerId
+                ? WithdrawAuthority.IndividualOwner
+                : WithdrawAuthority.None;
         }
 
         // Company quote — only companies.admin role.
-        return await _db.CompanyMemberships
+        var hasAdminRole = await _db.CompanyMemberships
             .AsNoTracking()
             .AnyAsync(m => m.CompanyId == quote.CompanyId.Value
                         && m.UserId == customerId
                         && m.Role == "companies.admin", ct);
+        return hasAdminRole ? WithdrawAuthority.CompanyAdmin : WithdrawAuthority.None;
     }
+}
+
+/// <summary>
+/// Resolved write-authority for §2.5 withdraw. Carried from the authority gate
+/// into the audit/transition payloads so the action is attributed to the exact
+/// role that authorized it.
+/// </summary>
+internal enum WithdrawAuthority
+{
+    None = 0,
+    IndividualOwner = 1,
+    CompanyAdmin = 2,
 }
 
 /// <summary>

@@ -5,6 +5,8 @@ using BackendApi.Modules.B2B.Primitives;
 using BackendApi.Modules.B2B.Quotes.Customer.GetMyQuote;
 using BackendApi.Modules.B2B.Quotes.Customer.ListMyQuotes;
 using BackendApi.Modules.B2B.Quotes.Customer.RequestQuoteFromCart;
+using BackendApi.Modules.B2B.Quotes.Customer.RequestRevision;
+using BackendApi.Modules.B2B.Quotes.Customer.WithdrawQuote;
 using BackendApi.Modules.B2B.RateLimit;
 using BackendApi.Modules.B2B.Seeding;
 using FluentValidation;
@@ -86,6 +88,16 @@ public static class B2BModule
         services.AddScoped<IValidator<ListMyQuotesRequest>, ListMyQuotesValidator>();
         services.AddScoped<GetMyQuoteHandler>();
 
+        // Cycle C-2 (US1) — customer-side state mutations. Both reuse
+        // CustomerQuoteVisibility for the read-side gate then re-fetch with EF
+        // tracking enabled for the actual mutation. Each handler owns its own
+        // role-based authority check (§2.5: customer-owner OR companies.admin;
+        // §2.6: customer-owner OR buyer).
+        services.AddScoped<WithdrawQuoteHandler>();
+        services.AddScoped<IValidator<WithdrawQuoteRequest>, WithdrawQuoteValidator>();
+        services.AddScoped<RequestRevisionHandler>();
+        services.AddScoped<IValidator<RequestRevisionRequest>, RequestRevisionValidator>();
+
         return services;
     }
 
@@ -105,6 +117,10 @@ public static class B2BModule
         // the index list.
         customerQuotes.MapListMyQuotesEndpoint();
         customerQuotes.MapGetMyQuoteEndpoint();
+        // Cycle C-2 — customer-side state mutations. Both POST under the same group
+        // with route templates that don't collide with the GET handlers.
+        customerQuotes.MapWithdrawQuoteEndpoint();
+        customerQuotes.MapRequestRevisionEndpoint();
         return app;
     }
 }

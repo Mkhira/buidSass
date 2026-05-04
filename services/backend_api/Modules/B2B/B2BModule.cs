@@ -2,11 +2,15 @@ using BackendApi.Configuration;
 using BackendApi.Features.Seeding;
 using BackendApi.Modules.B2B.Persistence;
 using BackendApi.Modules.B2B.Primitives;
+using BackendApi.Modules.B2B.Quotes.Customer.RequestQuoteFromCart;
+using BackendApi.Modules.B2B.RateLimit;
 using BackendApi.Modules.B2B.Seeding;
+using FluentValidation;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
 using Npgsql;
 
@@ -61,16 +65,31 @@ public static class B2BModule
             .Bind(configuration.GetSection(B2BInvitationOptions.SectionName));
         services.AddSingleton<CompanyInvitationTokenHasher>();
 
+        // Cycle B (US1) — RequestQuoteFromCart slice + the per-customer + per-company
+        // rate limiter that backs FR-045. Singleton because the bucket map MUST persist
+        // across requests; the limiter has no per-request state.
+        // TimeProvider is registered here (rather than in the host) so the module
+        // is self-contained — both QuoteRequestRateLimiter and the handler depend on
+        // it. Other modules (Verification, Reviews) follow the same pattern. The
+        // TryAdd avoids double-registering when more than one module wires it.
+        services.TryAddSingleton(TimeProvider.System);
+        services.AddSingleton<QuoteRequestRateLimiter>();
+        services.AddScoped<RequestQuoteFromCartHandler>();
+        services.AddScoped<IValidator<RequestQuoteFromCartRequest>, RequestQuoteFromCartValidator>();
+
         return services;
     }
 
     /// <summary>
-    /// Endpoint mapping placeholder — Phase 3+ user-story slices will register their
-    /// MediatR-backed endpoints here. Phase 1+2 ships no HTTP surface.
+    /// Wires the spec 021 HTTP surface. Cycle B (US1) ships only the customer
+    /// quote-from-cart slice; subsequent cycles register their slices into the same
+    /// MapGroup tree. Route groups follow the same per-audience convention as the
+    /// Reviews module (<c>/api/customer/reviews</c>, <c>/api/admin/reviews</c>).
     /// </summary>
     public static WebApplication UseB2BModuleEndpoints(this WebApplication app)
     {
-        // No endpoints yet. Customer/Approver/Admin route groups arrive with US1–US7.
+        var customerQuotes = app.MapGroup("/api/customer/quotes");
+        customerQuotes.MapRequestQuoteFromCartEndpoint();
         return app;
     }
 }

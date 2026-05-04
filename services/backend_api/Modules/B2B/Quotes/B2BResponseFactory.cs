@@ -59,11 +59,14 @@ public static class B2BResponseFactory
     /// <summary>
     /// Resolves the customer's market-of-record claim. Spec 021 stores market codes
     /// in lowercase form (<c>eg</c> | <c>ksa</c>) — schema CHECK constraint
-    /// <c>chk_quotes_market</c> enforces this. Returns <c>"ksa"</c> as a safe default
-    /// when the claim is missing (matches the seeded market-of-record default for
-    /// new customer registrations until spec 014 wires per-customer selection).
+    /// <c>chk_quotes_market</c> enforces this. Returns <c>"ksa"</c> when the claim
+    /// is missing (matches the seeded market-of-record default for new customer
+    /// registrations until spec 014 wires per-customer selection). Returns
+    /// <c>null</c> when the claim carries an unknown value — endpoints MUST
+    /// surface a problem-details response in that case rather than fall open to a
+    /// valid market.
     /// </summary>
-    public static string ResolveMarketCode(HttpContext context)
+    public static string? ResolveMarketCode(HttpContext context)
     {
         var raw = context.User.FindFirst("market_code")?.Value
             ?? context.User.FindFirst("market")?.Value;
@@ -72,10 +75,12 @@ public static class B2BResponseFactory
 
     /// <summary>
     /// Coerces a market-code string into the canonical lowercase form used by
-    /// the b2b schema. Unknown codes fall back to <c>"ksa"</c> — caller MUST run
-    /// the FR-011 market_match check before trusting the resolved code.
+    /// the b2b schema. Empty / whitespace claims default to <c>"ksa"</c> (platform
+    /// default for un-migrated identities). Unknown explicit codes return
+    /// <c>null</c> so the caller can fail explicitly instead of silently routing
+    /// a malformed identity into a valid market (CodeRabbit Round 1).
     /// </summary>
-    public static string Normalize(string? raw)
+    public static string? Normalize(string? raw)
     {
         if (string.IsNullOrWhiteSpace(raw)) return "ksa";
         var t = raw.Trim().ToLowerInvariant();
@@ -83,7 +88,7 @@ public static class B2BResponseFactory
         {
             "ksa" or "sa" => "ksa",
             "eg" or "egy" => "eg",
-            _ => "ksa",
+            _ => null,
         };
     }
 }

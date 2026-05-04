@@ -22,13 +22,21 @@ public sealed class ListMyQuotesValidator : AbstractValidator<ListMyQuotesReques
     public const int DefaultPageSize = 20;
     public const int MaxPageSize = 50;
 
+    /// <summary>
+    /// Hard upper bound on <c>page</c> so the handler's <c>(page - 1) * pageSize</c>
+    /// offset cannot overflow into negative SQL (CodeRabbit Round 2). Stays well
+    /// inside int.MaxValue / MaxPageSize while still allowing any realistic deep
+    /// pagination — V1 customers won't see > 1M quotes per account.
+    /// </summary>
+    public const int MaxPage = 1_000_000;
+
     public ListMyQuotesValidator()
     {
         RuleFor(x => x.Page)
-            .GreaterThanOrEqualTo(1)
+            .InclusiveBetween(1, MaxPage)
             .When(x => x.Page is not null)
             .WithErrorCode(QuoteReasonCode.QuoteRequiredFieldMissing.ToToken())
-            .WithMessage("page must be ≥ 1");
+            .WithMessage($"page must be in [1, {MaxPage}]");
 
         RuleFor(x => x.PageSize)
             .InclusiveBetween(1, MaxPageSize)
@@ -51,8 +59,12 @@ public sealed class ListMyQuotesValidator : AbstractValidator<ListMyQuotesReques
     private static bool StateCsvIsValid(string? csv)
     {
         if (string.IsNullOrWhiteSpace(csv)) return true;
-        foreach (var token in csv.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+        // CodeRabbit Round 2: do NOT silently strip empty CSV segments. An input
+        // like "state=," or "state=requested,," should surface as a 400, not be
+        // softened into a partial filter that broadens the result set.
+        foreach (var token in csv.Split(',', StringSplitOptions.TrimEntries))
         {
+            if (string.IsNullOrWhiteSpace(token)) return false;
             if (!QuoteStateExtensions.TryParseToken(token, out _)) return false;
         }
         return true;

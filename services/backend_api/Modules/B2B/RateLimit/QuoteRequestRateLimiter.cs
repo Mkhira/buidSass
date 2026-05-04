@@ -43,6 +43,16 @@ public sealed class QuoteRequestRateLimiter
     public bool TryAcquireCompany(Guid companyId, int capacity, TimeSpan window) =>
         TryAcquire($"company:{companyId:N}", capacity, window);
 
+    /// <summary>
+    /// Refunds the most-recent customer-bucket token. Called when a downstream
+    /// gate (per-company rate limit, write-time validation) rejects a request
+    /// AFTER the per-customer token was acquired — without the refund the customer
+    /// would be charged a slot for a request that never proceeded
+    /// (CodeRabbit Round 1).
+    /// </summary>
+    public void ReleaseCustomer(Guid customerId) =>
+        Release($"customer:{customerId:N}");
+
     /// <summary>Test-only — wipes all buckets so unit / contract tests start clean.</summary>
     public void ResetAll() => _buckets.Clear();
 
@@ -52,18 +62,62 @@ public sealed class QuoteRequestRateLimiter
         var bucket = _buckets.GetOrAdd(key, _ => new Bucket());
         lock (bucket.Gate)
         {
-            // Drop entries older than the window — the standard "sliding count"
-            // approach. Cheap when traffic is bursty + small windows.
-            while (bucket.Timestamps.TryPeek(out var oldest) && oldest + window <= nowUtc)
-            {
-                bucket.Timestamps.Dequeue();
-            }
+            Trim(bucket, nowUtc, window);
             if (bucket.Timestamps.Count >= capacity)
             {
+                // Bucket may now be empty after Trim — best-effort drop the key
+                // to bound _buckets memory under churn (CodeRabbit Round 1).
+                MaybeEvict(key, bucket);
                 return false;
             }
             bucket.Timestamps.Enqueue(nowUtc);
             return true;
+        }
+    }
+
+    private void Release(string key)
+    {
+        if (!_buckets.TryGetValue(key, out var bucket)) return;
+        lock (bucket.Gate)
+        {
+            // Drop the latest enqueue — best-effort; if the queue is already
+            // empty (window rolled past in the meantime), the release is a no-op.
+            if (bucket.Timestamps.Count > 0)
+            {
+                var preserved = new Queue<DateTimeOffset>(bucket.Timestamps.Count - 1);
+                var snapshot = bucket.Timestamps.ToArray();
+                for (var i = 0; i < snapshot.Length - 1; i++)
+                {
+                    preserved.Enqueue(snapshot[i]);
+                }
+                bucket.Timestamps.Clear();
+                foreach (var ts in preserved)
+                {
+                    bucket.Timestamps.Enqueue(ts);
+                }
+            }
+            MaybeEvict(key, bucket);
+        }
+    }
+
+    private static void Trim(Bucket bucket, DateTimeOffset nowUtc, TimeSpan window)
+    {
+        // Drop entries older than the window — standard sliding-count approach.
+        while (bucket.Timestamps.TryPeek(out var oldest) && oldest + window <= nowUtc)
+        {
+            bucket.Timestamps.Dequeue();
+        }
+    }
+
+    private void MaybeEvict(string key, Bucket bucket)
+    {
+        // Caller MUST hold bucket.Gate. Empty queue → drop the key so the
+        // dictionary doesn't grow unbounded as new tenant/customer ids appear.
+        // Concurrent acquires that race past the eviction simply re-create the
+        // bucket via GetOrAdd — correctness is preserved.
+        if (bucket.Timestamps.Count == 0)
+        {
+            _buckets.TryRemove(KeyValuePair.Create(key, bucket));
         }
     }
 

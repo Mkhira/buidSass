@@ -1,5 +1,6 @@
 using BackendApi.Modules.B2B.Entities;
 using BackendApi.Modules.B2B.Persistence;
+using BackendApi.Modules.B2B.Primitives;
 using Microsoft.EntityFrameworkCore;
 
 namespace BackendApi.Modules.B2B.Quotes.Customer.Visibility;
@@ -122,8 +123,16 @@ public static class CustomerQuoteVisibility
         // a stable closure target (some EF Core versions choke on direct
         // IReadOnlyCollection captures inside Contains).
         var ids = visibleCompanyIds.ToArray();
+        // CodeRabbit Round 2: also exclude `drafted` rows from the LIST surface
+        // so the predicate matches the GetMyQuote single-fetch behavior. Drafted
+        // quotes are admin-only-visible per data-model §3.1; without this filter
+        // an otherwise-visible customer/buyer/admin can see drafts in the list.
+        var draftedToken = QuoteState.Drafted.ToToken();
         return q =>
-            (q.CompanyId == null && q.CustomerId == customerId)
-            || (q.CompanyId != null && ids.Contains(q.CompanyId.Value));
+            q.State != draftedToken &&
+            (
+                (q.CompanyId == null && q.CustomerId == customerId)
+                || (q.CompanyId != null && ids.Contains(q.CompanyId.Value))
+            );
     }
 }

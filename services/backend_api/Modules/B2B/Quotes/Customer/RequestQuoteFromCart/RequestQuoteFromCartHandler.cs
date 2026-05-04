@@ -182,6 +182,10 @@ public sealed class RequestQuoteFromCartHandler
             // target company's hourly cap before any auth check fired.
             if (!_rateLimiter.TryAcquireCompany(companyId, schema.RateLimitPerCompanyPerHour, window))
             {
+                // Refund the customer-bucket slot acquired upstream — the request
+                // was rejected at the company gate, so the customer should not be
+                // charged a slot they never used (CodeRabbit Round 1).
+                _rateLimiter.ReleaseCustomer(customerId);
                 return RequestQuoteFromCartResult.Reject(
                     statusCode: 429,
                     reasonCode: QuoteReasonCode.QuoteRateLimitExceeded,

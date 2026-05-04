@@ -64,6 +64,27 @@ public sealed class GetMyQuoteContractTests : IClassFixture<B2BApiFactory>
 
         var resp = await client.GetAsync($"/api/customer/quotes/{Guid.NewGuid()}");
         resp.StatusCode.Should().BeOneOf(HttpStatusCode.NotFound, HttpStatusCode.OK);
+
+        // CodeRabbit Round 1: when the response is 200, validate the next_action
+        // vocabulary so a regression that emits a wrong value (e.g. `cancel`)
+        // doesn't pass silently. The 404-only path is exercised by the dedicated
+        // unknown-id test above; this branch protects the success-shape contract.
+        if (resp.StatusCode == HttpStatusCode.OK)
+        {
+            var body = await resp.Content.ReadFromJsonAsync<JsonElement>();
+            body.TryGetProperty("next_action", out var nextAction).Should().BeTrue();
+            if (nextAction.ValueKind == JsonValueKind.String)
+            {
+                nextAction.GetString().Should().BeOneOf(
+                    "request_revision",
+                    "submit_acceptance",
+                    "renew_now");
+            }
+            else
+            {
+                nextAction.ValueKind.Should().Be(JsonValueKind.Null);
+            }
+        }
     }
 
     private static void AuthenticateAs(HttpClient client, Guid customerId, string market)

@@ -55,8 +55,12 @@ public sealed class ListMyQuotesContractTests : IClassFixture<B2BApiFactory>
 
         var resp = await client.GetAsync($"{Route}?page_size=500");
 
-        // Per contract §2.3: page_size ≤ 50.
+        // Per contract §2.3: page_size ≤ 50. CodeRabbit Round 1: pin the
+        // reasonCode so the test only passes when the page_size branch fires —
+        // a regression that 400s on a different validation rule (sort/state) is
+        // no longer admissible.
         resp.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        await AssertReasonCode(resp, "quote.required_field_missing");
     }
 
     [Fact]
@@ -90,5 +94,12 @@ public sealed class ListMyQuotesContractTests : IClassFixture<B2BApiFactory>
     {
         client.DefaultRequestHeaders.Add("X-Test-Customer-Id", customerId.ToString());
         client.DefaultRequestHeaders.Add("X-Test-Market", market);
+    }
+
+    private static async Task AssertReasonCode(HttpResponseMessage resp, string expected)
+    {
+        var body = await resp.Content.ReadFromJsonAsync<JsonElement>();
+        body.TryGetProperty("reasonCode", out var reasonCode).Should().BeTrue();
+        reasonCode.GetString().Should().Be(expected);
     }
 }

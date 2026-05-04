@@ -1,7 +1,6 @@
 using System.Security.Claims;
 using System.Text.Encodings.Web;
 using BackendApi.Modules.B2B.Persistence;
-using BackendApi.Modules.B2B.RateLimit;
 using BackendApi.Modules.B2B.Seeding;
 using BackendApi.Modules.Shared;
 using B2B.Tests.Fixtures;
@@ -69,16 +68,6 @@ public sealed class B2BApiFactory : WebApplicationFactory<Program>, IAsyncLifeti
     public StubOrderFromQuoteHandler OrderFromQuoteHandler { get; } = new();
 
     /// <summary>
-    /// Production <see cref="QuoteRequestRateLimiter"/> instance resolved from the
-    /// host's DI container. Singleton-scoped, so its bucket dictionary persists for
-    /// the lifetime of the class fixture; <see cref="ResetStubState"/> wipes it
-    /// between tests so per-customer / per-company hourly caps don't leak across
-    /// test boundaries (sliding-window tests would otherwise see exhausted buckets
-    /// from earlier tests in the same class).
-    /// </summary>
-    public QuoteRequestRateLimiter? RateLimiter { get; private set; }
-
-    /// <summary>
     /// Frozen baseline that <see cref="ResetStubState"/> rewinds <see cref="Time"/> to
     /// between tests. Captured once at fixture construction so reset is deterministic
     /// regardless of how far prior tests advanced the clock.
@@ -120,10 +109,6 @@ public sealed class B2BApiFactory : WebApplicationFactory<Program>, IAsyncLifeti
         OrderFromQuoteHandler.Invocations.Clear();
         OrderFromQuoteHandler.FailureToThrow = null;
         EventCollector.Clear();
-        // Wipe per-customer + per-company quote-request rate-limit buckets. Without
-        // this, a test that fires 11 requests to assert the 429 path leaves the
-        // bucket capped for the next test on the same class fixture.
-        RateLimiter?.ResetAll();
         // Rewind the shared fake clock to the fixture baseline so a prior test's
         // Time.Advance(...) cannot leak into the next test as inherited time drift.
         Time.SetUtcNow(_timeBaseline);
@@ -256,11 +241,6 @@ public sealed class B2BApiFactory : WebApplicationFactory<Program>, IAsyncLifeti
 
         var b2bDb = scope.ServiceProvider.GetRequiredService<B2BDbContext>();
         await b2bDb.Database.MigrateAsync();
-
-        // Capture the singleton rate-limiter so ResetStubState can wipe its buckets
-        // between tests. Resolving from the root container (Services, not the local
-        // scope) keeps the reference stable across scopes.
-        RateLimiter = Services.GetRequiredService<QuoteRequestRateLimiter>();
 
         // Seed KSA + EG market schemas so any path needing QuoteMarketPolicy resolves.
         var seeder = new B2BReferenceDataSeeder();

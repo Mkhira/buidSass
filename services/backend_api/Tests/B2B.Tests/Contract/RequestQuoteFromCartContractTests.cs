@@ -231,8 +231,14 @@ public sealed class RequestQuoteFromCartContractTests : IClassFixture<B2BApiFact
             final = await client.PostAsJsonAsync(Route, new { });
             if (final.StatusCode == HttpStatusCode.TooManyRequests)
             {
-                await AssertReasonCode(final, "quote.rate_limit_exceeded");
+                // CodeRabbit Round 2: read the body ONCE — `ReadFromJsonAsync`
+                // does not buffer by default, so reading twice (here previously
+                // via AssertReasonCode then again for retry_after_seconds) can
+                // return empty content on the second call. Assert both fields
+                // off the same JsonElement.
                 var body = await final.Content.ReadFromJsonAsync<JsonElement>();
+                body.TryGetProperty("reasonCode", out var reasonCode).Should().BeTrue();
+                reasonCode.GetString().Should().Be("quote.rate_limit_exceeded");
                 body.TryGetProperty("retry_after_seconds", out var retryAfter)
                     .Should().BeTrue("contract §2.1 requires retry_after_seconds in the 429 body");
                 retryAfter.GetInt32().Should().BeGreaterThan(0);

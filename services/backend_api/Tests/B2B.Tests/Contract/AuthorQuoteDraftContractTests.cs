@@ -203,11 +203,13 @@ public sealed class AuthorQuoteDraftContractTests : IClassFixture<B2BApiFactory>
         // The below-baseline gate passes; outcome is then driven by quote state
         // (unknown id → 404 / 409 invalid_state / 200 if it exists in the right
         // state). FR-040 violation (the only path this test guards against) is
-        // explicitly NOT in the acceptable set.
+        // explicitly NOT in the acceptable set. BadRequest is admitted into the
+        // BeOneOf so the defensive FR-040-code check below is reachable.
         resp.StatusCode.Should().BeOneOf(
             HttpStatusCode.OK,
             HttpStatusCode.Conflict,
-            HttpStatusCode.NotFound);
+            HttpStatusCode.NotFound,
+            HttpStatusCode.BadRequest);
 
         if (resp.StatusCode == HttpStatusCode.BadRequest)
         {

@@ -1,6 +1,6 @@
-using System.Globalization;
 using System.Net;
 using System.Net.Http.Json;
+using System.Text.Json;
 using BackendApi.Modules.B2B.Entities;
 using BackendApi.Modules.B2B.Persistence;
 using BackendApi.Modules.Shared;
@@ -105,15 +105,19 @@ public sealed class BelowBaselineAuditTests : IClassFixture<B2BApiFactory>
 
             var entry = auditEvents[0];
             entry.AfterState.Should().NotBeNull();
-            entry.AfterState!.Should().Contain(belowBaselineSku);
-            // InvariantCulture is load-bearing here: AfterState is JSON which
-            // always uses '.' as the decimal separator. CurrentCulture on a CI
-            // box configured for de-DE / fr-FR would render `0.00` as `75,00`
-            // and produce a misleading false-fail once Cycle B writes the row.
-            entry.AfterState!.Should().Contain(
-                overridePrice.ToString("0.00", CultureInfo.InvariantCulture));
-            entry.AfterState!.Should().Contain(
-                expectedBaseline.ToString("0.00", CultureInfo.InvariantCulture));
+            // AfterState is structured JSON; parse it and assert named fields
+            // rather than substring-matching. Substring checks could pass on
+            // unrelated payload fragments and don't actually prove that
+            // override_reason was written correctly.
+            using var payload = JsonDocument.Parse(entry.AfterState!);
+            payload.RootElement.GetProperty("sku").GetString()
+                .Should().Be(belowBaselineSku);
+            payload.RootElement.GetProperty("override_unit_price").GetDecimal()
+                .Should().Be(overridePrice);
+            payload.RootElement.GetProperty("baseline_unit_price").GetDecimal()
+                .Should().Be(expectedBaseline);
+            payload.RootElement.GetProperty("override_reason").GetProperty("en").GetString()
+                .Should().Be("Volume discount for repeat customer.");
             entry.ActorId.Should().Be(adminId,
                 "the audit row pins the operator's admin user-id (FR-040 'authored_by')");
         }

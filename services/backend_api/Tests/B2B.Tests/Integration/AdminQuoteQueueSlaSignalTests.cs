@@ -110,12 +110,16 @@ public sealed class AdminQuoteQueueSlaSignalTests : IClassFixture<B2BApiFactory>
                 .Should().Be("breach",
                     "age_business_days ≥ sla_decision_business_days=2 → breach");
 
+            // Fake-clock is pinned to a Wednesday with cohorts seeded at
+            // -0d / -1d / -3d. With KSA Sun-Thu workweek and the pinned
+            // anchor, every offset lands on a business day, so the exact
+            // business-day ages are deterministic: 0 / 1 / 3.
             byId[freshQuoteId].GetProperty("age_business_days").GetInt32()
                 .Should().Be(0);
             byId[warningQuoteId].GetProperty("age_business_days").GetInt32()
-                .Should().BeGreaterOrEqualTo(1);
+                .Should().Be(1);
             byId[breachQuoteId].GetProperty("age_business_days").GetInt32()
-                .Should().BeGreaterOrEqualTo(2);
+                .Should().Be(3);
         }
     }
 

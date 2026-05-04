@@ -71,10 +71,20 @@ public sealed class AdminQuoteQueueContractTests : IClassFixture<B2BApiFactory>
         {
             var body = await resp.Content.ReadFromJsonAsync<JsonElement>();
             // Contract §4.1: paginated envelope ({ items, page, page_size, total }).
-            // Items array is the load-bearing field.
+            // All four envelope fields are load-bearing: pinning page/page_size/total
+            // here keeps pagination-metadata regressions detectable in the OK-branch.
             body.TryGetProperty("items", out var items).Should().BeTrue(
                 "contract §4.1 returns a paginated envelope with an items array");
             items.ValueKind.Should().Be(JsonValueKind.Array);
+            body.TryGetProperty("page", out var page).Should().BeTrue(
+                "contract §4.1 envelope MUST expose `page`");
+            page.ValueKind.Should().Be(JsonValueKind.Number);
+            body.TryGetProperty("page_size", out var pageSize).Should().BeTrue(
+                "contract §4.1 envelope MUST expose `page_size`");
+            pageSize.ValueKind.Should().Be(JsonValueKind.Number);
+            body.TryGetProperty("total", out var total).Should().BeTrue(
+                "contract §4.1 envelope MUST expose `total`");
+            total.ValueKind.Should().Be(JsonValueKind.Number);
         }
     }
 

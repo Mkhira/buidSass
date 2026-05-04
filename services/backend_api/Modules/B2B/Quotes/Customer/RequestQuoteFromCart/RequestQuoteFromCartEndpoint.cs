@@ -61,6 +61,14 @@ public static class RequestQuoteFromCartEndpoint
         }
 
         var marketCode = B2BResponseFactory.ResolveMarketCode(context);
+        if (marketCode is null)
+        {
+            // The JWT carried an unknown explicit market value — refuse rather
+            // than fall open to a valid market context (CodeRabbit Round 1).
+            return B2BResponseFactory.Problem(context, 400,
+                QuoteReasonCode.QuoteMarketMismatch,
+                "Unknown market claim.");
+        }
 
         // ---------- Body shape ----------
         if (body is null)

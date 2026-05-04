@@ -7,6 +7,7 @@ using BackendApi.Modules.B2B.Quotes.Customer.GetMyQuote;
 using BackendApi.Modules.B2B.Quotes.Customer.ListMyQuotes;
 using BackendApi.Modules.B2B.Quotes.Customer.RequestQuoteFromCart;
 using BackendApi.Modules.B2B.Quotes.Customer.RequestRevision;
+using BackendApi.Modules.B2B.Quotes.Customer.SubmitAcceptance;
 using BackendApi.Modules.B2B.Quotes.Customer.WithdrawQuote;
 using BackendApi.Modules.B2B.RateLimit;
 using BackendApi.Modules.B2B.Seeding;
@@ -99,6 +100,16 @@ public static class B2BModule
         services.AddScoped<RequestRevisionHandler>();
         services.AddScoped<IValidator<RequestRevisionRequest>, RequestRevisionValidator>();
 
+        // Cycle C-3 (US1) — T070 SubmitAcceptance, the launch-MVP linchpin.
+        // Routes acceptance to either the approver queue (company.approver_required=true
+        // with ≥ 1 approver) or direct-accept + IOrderFromQuoteHandler conversion
+        // (per Clarifications Q1). Depends on the cross-module
+        // ICustomerVerificationEligibilityQuery (spec 020) for the FR-036 gate and
+        // IOrderFromQuoteHandler (spec 011, currently STUBBED until T100). Both
+        // shared interfaces are wired by Modules/Shared/ModuleRegistrationExtensions.
+        services.AddScoped<SubmitAcceptanceHandler>();
+        services.AddScoped<IValidator<SubmitAcceptanceRequest>, SubmitAcceptanceValidator>();
+
         // Cycle C-tail (US1) — document download. Pure read path; reuses
         // CustomerQuoteVisibility for the visibility gate and IStorageService
         // (registered by Modules/Shared/ModuleRegistrationExtensions) for the
@@ -129,6 +140,8 @@ public static class B2BModule
         // with route templates that don't collide with the GET handlers.
         customerQuotes.MapWithdrawQuoteEndpoint();
         customerQuotes.MapRequestRevisionEndpoint();
+        // Cycle C-3 — T070 SubmitAcceptance. POST on /{id}/submit-acceptance.
+        customerQuotes.MapSubmitAcceptanceEndpoint();
         // Cycle C-tail — document download. GET on a deeper route template
         // (/{quoteId}/versions/{versionId}/documents/{locale}) so it doesn't
         // shadow the GET /{id:guid} that GetMyQuote owns.

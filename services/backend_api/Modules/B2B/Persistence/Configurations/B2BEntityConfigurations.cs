@@ -182,6 +182,7 @@ public sealed class QuoteConfiguration : IEntityTypeConfiguration<Quote>
         builder.Property(x => x.OriginatingProductId).HasColumnName("originating_product_id");
         builder.Property(x => x.RestrictionPolicySnapshotJson).HasColumnName("restriction_policy_snapshot").HasColumnType("jsonb").HasDefaultValueSql("'{}'::jsonb").IsRequired();
         builder.Property(x => x.SchemaVersion).HasColumnName("schema_version").IsRequired();
+        builder.Property(x => x.DraftBodyJson).HasColumnName("draft_body").HasColumnType("jsonb");
         builder.Property(x => x.XminRowVersion)
             .HasColumnName("xmin")
             .HasColumnType("xid")

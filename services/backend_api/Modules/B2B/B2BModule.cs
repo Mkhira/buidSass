@@ -1,7 +1,13 @@
 using BackendApi.Configuration;
 using BackendApi.Features.Seeding;
+using BackendApi.Modules.B2B.Documents;
+using BackendApi.Modules.B2B.Documents.PdfTemplates;
 using BackendApi.Modules.B2B.Persistence;
 using BackendApi.Modules.B2B.Primitives;
+using BackendApi.Modules.B2B.Quotes.Admin.AuthorQuoteDraft;
+using BackendApi.Modules.B2B.Quotes.Admin.GetQuoteDetail;
+using BackendApi.Modules.B2B.Quotes.Admin.ListQuoteQueue;
+using BackendApi.Modules.B2B.Quotes.Admin.PublishQuoteVersion;
 using BackendApi.Modules.B2B.Quotes.Customer.DownloadQuoteVersionDocument;
 using BackendApi.Modules.B2B.Quotes.Customer.GetMyQuote;
 using BackendApi.Modules.B2B.Quotes.Customer.ListMyQuotes;
@@ -12,6 +18,8 @@ using BackendApi.Modules.B2B.Quotes.Customer.SubmitAcceptance;
 using BackendApi.Modules.B2B.Quotes.Customer.WithdrawQuote;
 using BackendApi.Modules.B2B.RateLimit;
 using BackendApi.Modules.B2B.Seeding;
+using BackendApi.Modules.Pdf;
+using Microsoft.Extensions.Options;
 using FluentValidation;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
@@ -124,6 +132,20 @@ public static class B2BModule
         // parameters (canonicalized in the endpoint).
         services.AddScoped<DownloadQuoteVersionDocumentHandler>();
 
+        // Phase 5 (US3) — admin authoring slices.
+        services.AddScoped<ListQuoteQueueHandler>();
+        services.AddScoped<GetQuoteDetailHandler>();
+        services.AddScoped<AuthorQuoteDraftHandler>();
+        services.AddScoped<IValidator<AuthorQuoteDraftRequest>, AuthorQuoteDraftValidator>();
+        services.AddScoped<PublishQuoteVersionHandler>();
+        services.AddScoped<QuoteVersionPdfRenderer>();
+
+        // Register the spec 021 quote-version PDF template with the platform's
+        // PdfTemplateRegistry. The registry is a singleton; we extend it once at
+        // module-init via an IHostedService so the registration runs before any
+        // request can hit the publish endpoint.
+        services.AddHostedService<PdfTemplateRegistrationStartup>();
+
         return services;
     }
 
@@ -155,6 +177,37 @@ public static class B2BModule
         // (/{quoteId}/versions/{versionId}/documents/{locale}) so it doesn't
         // shadow the GET /{id:guid} that GetMyQuote owns.
         customerQuotes.MapDownloadQuoteVersionDocumentEndpoint();
+
+        // Phase 5 (US3) — admin quote endpoints.
+        var adminQuotes = app.MapGroup("/api/admin/quotes");
+        adminQuotes.MapListQuoteQueueEndpoint();
+        adminQuotes.MapGetQuoteDetailEndpoint();
+        adminQuotes.MapAuthorQuoteDraftEndpoint();
+        adminQuotes.MapPublishQuoteVersionEndpoint();
         return app;
     }
+}
+
+/// <summary>
+/// Spec 021 — registers the <see cref="QuoteVersionPdfTemplate"/> with the platform's
+/// <see cref="PdfTemplateRegistry"/> at host startup. Runs synchronously in
+/// <see cref="StartAsync"/>; idempotent (the registry's Register replaces by name).
+/// </summary>
+internal sealed class PdfTemplateRegistrationStartup : Microsoft.Extensions.Hosting.IHostedService
+{
+    private readonly PdfTemplateRegistry _registry;
+
+    public PdfTemplateRegistrationStartup(PdfTemplateRegistry registry)
+    {
+        _registry = registry;
+    }
+
+    public Task StartAsync(CancellationToken cancellationToken)
+    {
+        _registry.Register(QuoteVersionPdfTemplate.TemplateName,
+            (locale, data) => new QuoteVersionPdfTemplate(locale, data));
+        return Task.CompletedTask;
+    }
+
+    public Task StopAsync(CancellationToken cancellationToken) => Task.CompletedTask;
 }

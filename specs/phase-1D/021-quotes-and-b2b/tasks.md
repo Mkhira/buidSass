@@ -333,14 +333,14 @@ description: "Phase-1D Spec 021 — Quotes and B2B: dependency-ordered task list
 
 ### Account-lifecycle hook (cross-cutting)
 
-- [ ] T140 Create `services/backend_api/Modules/B2B/Hooks/AccountLifecycleHandler.cs` implementing `ICustomerAccountLifecycleSubscriber` (declared by spec 020) per [research.md §R13](./research.md): `CustomerAccountLocked` → void all non-terminal quotes (state → `withdrawn` reason `account_inactive`); `CustomerAccountDeleted` → void all non-terminal + cascade-delete `CompanyMembership` rows where the customer is the only member; `CustomerMarketChanged` → void all non-terminal (reason `customer_market_changed`)
-- [ ] T141 Register `AccountLifecycleHandler` as the `ICustomerAccountLifecycleSubscriber` binding in `B2BModule.cs`
-- [ ] T142 [P] Create `services/backend_api/tests/B2B.Tests/Integration/AccountLifecycleHandlerTests.cs`: covers the three event paths; verifies non-terminal quotes voided; `accepted` quotes preserved; orphan-company case acknowledged (handled by spec 019)
+- [X] T140 Create `services/backend_api/Modules/B2B/Hooks/AccountLifecycleHandler.cs` implementing `ICustomerAccountLifecycleSubscriber` (declared by spec 020) per [research.md §R13](./research.md): `CustomerAccountLocked` → void all non-terminal quotes (state → `withdrawn` reason `account_inactive`); `CustomerAccountDeleted` → void all non-terminal + cascade-delete `CompanyMembership` rows where the customer is the only member; `CustomerMarketChanged` → void all non-terminal (reason `customer_market_changed`)
+- [X] T141 Register `AccountLifecycleHandler` as the `ICustomerAccountLifecycleSubscriber` binding in `B2BModule.cs`
+- [X] T142 [P] Create `services/backend_api/tests/B2B.Tests/Integration/AccountLifecycleHandlerTests.cs`: covers the three event paths; verifies non-terminal quotes voided; `accepted` quotes preserved; orphan-company case acknowledged (handled by spec 019)
 
 ### Product-archived hook
 
-- [ ] T143 Create `services/backend_api/Modules/B2B/Hooks/ProductArchivedHandler.cs`: subscribes to spec 005's `ProductArchived` event; for any `requested` or `revised` quote referencing the archived SKU, flag the quote with reason `product_archived` in `internal_note` so admin operators see it on next authoring; publishes nothing customer-facing (admin handles)
-- [ ] T144 [P] Create `services/backend_api/tests/B2B.Tests/Integration/ProductArchivedHandlerTests.cs`: archives a SKU on a `revised` quote → admin's authoring view shows the flag
+- [X] T143 Create `services/backend_api/Modules/B2B/Hooks/ProductArchivedHandler.cs`: subscribes to spec 005's `ProductArchived` event; for any `requested` or `revised` quote referencing the archived SKU, flag the quote with reason `product_archived` in `internal_note` so admin operators see it on next authoring; publishes nothing customer-facing (admin handles)
+- [X] T144 [P] Create `services/backend_api/tests/B2B.Tests/Integration/ProductArchivedHandlerTests.cs`: archives a SKU on a `revised` quote → admin's authoring view shows the flag
 
 ### Dev seeder
 

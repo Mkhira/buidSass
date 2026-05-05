@@ -3,6 +3,7 @@ using BackendApi.Features.Seeding;
 using BackendApi.Modules.B2B.Companies;
 using BackendApi.Modules.B2B.Conversion;
 using BackendApi.Modules.B2B.Documents;
+using BackendApi.Modules.B2B.Hooks;
 using BackendApi.Modules.B2B.Documents.PdfTemplates;
 using BackendApi.Modules.B2B.Persistence;
 using BackendApi.Modules.B2B.Primitives;
@@ -26,6 +27,7 @@ using BackendApi.Modules.B2B.RateLimit;
 using BackendApi.Modules.B2B.Seeding;
 using BackendApi.Modules.B2B.Workers;
 using BackendApi.Modules.Pdf;
+using BackendApi.Modules.Shared;
 using Microsoft.Extensions.Options;
 using FluentValidation;
 using Microsoft.EntityFrameworkCore;
@@ -79,6 +81,25 @@ public static class B2BModule
             .Bind(configuration.GetSection(B2BWorkerOptions.SectionName));
         services.AddHostedService<QuoteExpiryWorker>();
         services.AddHostedService<InvitationExpiryWorker>();
+
+        // Phase 10 (T140–T142) — account-lifecycle subscriber. Voids non-terminal
+        // quotes on lock/delete/market-change and removes memberships on delete.
+        // Registered alongside spec 020's existing AccountLifecycleHandler — the
+        // platform's lifecycle bus fans out to every registered subscriber, so
+        // adding ours does not clobber Verification's.
+        services.AddScoped<AccountLifecycleHandler>();
+        services.AddScoped<ICustomerAccountLifecycleSubscriber>(sp =>
+            sp.GetRequiredService<AccountLifecycleHandler>());
+
+        // Phase 10 (T143–T144) — product-lifecycle subscriber. Flags the
+        // archived SKU in the admin's authoring view via internal_note when a
+        // non-terminal quote (`requested` or `revised`) references it. Spec 005
+        // owns the publisher; we only consume the contract declared in
+        // Modules/Shared/IProductLifecycleSubscriber.
+        services.AddScoped<ProductArchivedHandler>();
+        services.AddScoped<IProductLifecycleSubscriber>(sp =>
+            sp.GetRequiredService<ProductArchivedHandler>());
+
         services.AddScoped<ISeeder, B2BReferenceDataSeeder>();
 
         // CompanyInvitation token hashing — plaintext is never persisted; the HMAC-SHA256

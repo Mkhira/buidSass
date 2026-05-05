@@ -145,20 +145,38 @@ public sealed class FinalizeAcceptanceHandler
                 Reason: "approver_finalized"), ct);
         }
         catch (OperationCanceledException) { throw; }
-        catch (Exception) { }
+        catch (Exception ex)
+        {
+            // CodeRabbit Round 2: log audit failures (Principle 25). Quote acceptance
+            // is a critical action; silent swallow leaves a compliance gap.
+            _logger.LogWarning(ex,
+                "FinalizeAcceptance: failed to publish quote.state_changed audit "
+                + "(quote_id={QuoteId}, order_id={OrderId}). Audit-pipeline replay required.",
+                quote.Id, conversion.OrderId);
+        }
 
         try
         {
+            // CodeRabbit Round 2: when IsSuccess is true, OrderId is guaranteed by
+            // ConversionResult.Success() — assert via .Value rather than masking
+            // a real bug with Guid.Empty.
             await _domainPublisher.Publish(new QuoteAccepted(
                 QuoteId: quote.Id,
-                OrderId: conversion.OrderId ?? Guid.Empty,
+                OrderId: conversion.OrderId!.Value,
                 CustomerId: quote.CustomerId,
                 CompanyId: quote.CompanyId,
                 MarketCode: quote.MarketCode,
                 LocaleHint: "en"), ct);
         }
         catch (OperationCanceledException) { throw; }
-        catch (Exception) { }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex,
+                "FinalizeAcceptance: QuoteAccepted domain-event publish failed "
+                + "(quote_id={QuoteId}, order_id={OrderId}). Notification subscribers "
+                + "(spec 025) will not fire unless replayed.",
+                quote.Id, conversion.OrderId);
+        }
 
         return FinalizeResult.Success(quote.Id, conversion.OrderId!.Value);
     }

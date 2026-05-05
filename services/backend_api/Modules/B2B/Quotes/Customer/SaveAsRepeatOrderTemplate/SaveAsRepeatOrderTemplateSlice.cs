@@ -42,9 +42,14 @@ public sealed class SaveAsRepeatOrderTemplateHandler
     private readonly B2BDbContext _db;
     private readonly IAuditEventPublisher _audit;
     private readonly TimeProvider _time;
+    private readonly Microsoft.Extensions.Logging.ILogger<SaveAsRepeatOrderTemplateHandler> _logger;
 
-    public SaveAsRepeatOrderTemplateHandler(B2BDbContext db, IAuditEventPublisher audit, TimeProvider time)
-    { _db = db; _audit = audit; _time = time; }
+    public SaveAsRepeatOrderTemplateHandler(
+        B2BDbContext db,
+        IAuditEventPublisher audit,
+        TimeProvider time,
+        Microsoft.Extensions.Logging.ILogger<SaveAsRepeatOrderTemplateHandler> logger)
+    { _db = db; _audit = audit; _time = time; _logger = logger; }
 
     public async Task<SaveResult> HandleAsync(
         Guid actorId,
@@ -55,13 +60,25 @@ public sealed class SaveAsRepeatOrderTemplateHandler
         var quote = await _db.Quotes.AsNoTracking().FirstOrDefaultAsync(q => q.Id == quoteId, ct);
         if (quote is null) return SaveResult.NotFound();
 
-        // Visibility: customer-owner OR membership.
+        // Visibility: customer-owner OR membership. We capture the actual access
+        // role here so the audit event reflects the real authority used (CodeRabbit
+        // Round 2: was hard-coded to "buyer" for company quotes regardless of the
+        // membership role that granted access).
+        string accessRole = quote.CustomerId == actorId ? "customer" : "unknown";
         var allowed = quote.CustomerId == actorId;
         if (!allowed && quote.CompanyId is { } cid)
         {
-            allowed = await _db.CompanyMemberships.AsNoTracking()
-                .AnyAsync(m => m.CompanyId == cid && m.UserId == actorId
-                    && (m.Role == "buyer" || m.Role == "companies.admin"), ct);
+            var roles = await _db.CompanyMemberships.AsNoTracking()
+                .Where(m => m.CompanyId == cid && m.UserId == actorId
+                    && (m.Role == "buyer" || m.Role == "companies.admin"))
+                .Select(m => m.Role)
+                .ToListAsync(ct);
+            if (roles.Count > 0)
+            {
+                allowed = true;
+                // Prefer companies.admin attribution when both roles are held.
+                accessRole = roles.Contains("companies.admin") ? "companies.admin" : "buyer";
+            }
         }
         if (!allowed) return SaveResult.NotFound();
 
@@ -88,10 +105,13 @@ public sealed class SaveAsRepeatOrderTemplateHandler
 
         // CodeRabbit Round 1 — Principle 25: template creation is a structural
         // change to customer/company data and is auditable.
+        // CodeRabbit Round 2: ActorRole reflects the authority that actually granted
+        // access (resolved above); audit publishing failures are logged so silent
+        // compliance gaps are visible to ops.
         try
         {
             await _audit.PublishAsync(new AuditEvent(
-                ActorId: actorId, ActorRole: quote.CompanyId is null ? "customer" : "buyer",
+                ActorId: actorId, ActorRole: accessRole,
                 Action: "quote.repeat_order_template_saved",
                 EntityType: "repeat_order_template", EntityId: entity.Id,
                 BeforeState: null,
@@ -99,7 +119,14 @@ public sealed class SaveAsRepeatOrderTemplateHandler
                 Reason: null), ct);
         }
         catch (OperationCanceledException) { throw; }
-        catch (Exception) { }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex,
+                "SaveAsRepeatOrderTemplate: failed to publish quote.repeat_order_template_saved "
+                + "audit event (template_id={TemplateId}, source_quote_id={QuoteId}). "
+                + "Audit-pipeline replay required.",
+                entity.Id, quote.Id);
+        }
 
         return SaveResult.Success(entity.Id);
     }

@@ -85,6 +85,17 @@ public sealed class QuoteToOrderConverter
                 .Where(v => v.QuoteId == quote.Id)
                 .OrderByDescending(v => v.VersionNumber)
                 .FirstOrDefaultAsync(ct);
+            // CodeRabbit Round 2: a quote with `CurrentVersionId IS NULL` and no
+            // QuoteVersion rows is malformed for conversion — proceeding would
+            // create a zero-line order. Fail fast with the same diagnostic shape
+            // as the orphan-FK case above.
+            if (version is null)
+            {
+                _logger.LogError(
+                    "QuoteToOrderConverter: quote {QuoteId} has no QuoteVersion rows; aborting conversion.",
+                    quote.Id);
+                return ConversionResult.Failed("Quote has no version rows; cannot convert.");
+            }
         }
 
         var (lines, subtotal, totalDiscount, totalTaxPreview, grandTotal) =
@@ -168,7 +179,16 @@ public sealed class QuoteToOrderConverter
                 Reason: "conversion_committed"), ct);
         }
         catch (OperationCanceledException) { throw; }
-        catch (Exception) { }
+        catch (Exception ex)
+        {
+            // CodeRabbit Round 2: log post-commit audit failures (Principle 25).
+            // The order is already created — failing the conversion would be worse —
+            // but a silent swallow hides compliance gaps from ops.
+            _logger.LogWarning(ex,
+                "QuoteToOrderConverter: failed to publish quote.converted_to_order audit event "
+                + "(quote_id={QuoteId}, order_id={OrderId}). Audit-pipeline replay required.",
+                quote.Id, conversion.OrderId);
+        }
 
         return ConversionResult.Success(conversion.OrderId, conversion.WasIdempotentReplay);
     }

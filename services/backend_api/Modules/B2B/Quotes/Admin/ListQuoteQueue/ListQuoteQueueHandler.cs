@@ -63,25 +63,35 @@ public sealed class ListQuoteQueueHandler
             ? query.OrderByDescending(q => q.RequestedAt)
             : query.OrderBy(q => q.RequestedAt);
 
-        // CodeRabbit Round 1: when `age_min_business_days` filtering is active,
-        // SLA age is derived in-memory (per-row schema lookup), so we cannot apply
-        // it in SQL and pre-page. Materialize first, filter+paginate in memory
-        // so `total` reflects the filtered count and pages don't drop qualifying
-        // rows. When the filter is absent the SQL path is intact.
-        var rows = await query
-            .Select(q => new
-            {
-                q.Id,
-                q.State,
-                q.MarketCode,
-                q.CompanyId,
-                q.CustomerId,
-                q.PoNumber,
-                q.RequestedAt,
-                q.ExpiresAt,
-                q.SchemaVersion,
-            })
-            .ToListAsync(ct);
+        // CodeRabbit Round 2: only materialize the full result set when
+        // age_min_business_days filtering is active (SLA age is derived in-memory
+        // per-row, so we can't push the filter to SQL). When the filter is OFF,
+        // keep the SQL pagination path so large queues don't blow memory.
+        var ageFilterActive = req.AgeMinBusinessDays.HasValue;
+        int total;
+        var projection = query.Select(q => new
+        {
+            q.Id,
+            q.State,
+            q.MarketCode,
+            q.CompanyId,
+            q.CustomerId,
+            q.PoNumber,
+            q.RequestedAt,
+            q.ExpiresAt,
+            q.SchemaVersion,
+        });
+        var rows = ageFilterActive
+            ? await projection.ToListAsync(ct)
+            : await projection.Skip((page - 1) * pageSize).Take(pageSize).ToListAsync(ct);
+        if (!ageFilterActive)
+        {
+            total = await query.CountAsync(ct);
+        }
+        else
+        {
+            total = 0; // computed below after filtering
+        }
 
         // Resolve per-market schema thresholds. We typically only have ONE market in
         // play per query so a single lookup is enough; in heterogeneous-market admin
@@ -98,7 +108,7 @@ public sealed class ListQuoteQueueHandler
         }
 
         var nowUtc = _time.GetUtcNow();
-        var filtered = rows.Select(r =>
+        var mapped = rows.Select(r =>
         {
             var schema = schemas.TryGetValue((r.MarketCode, r.SchemaVersion), out var s) ? s : null;
             var (age, signal) = ResolveSlaSignal(r.RequestedAt, nowUtc, schema);
@@ -117,8 +127,19 @@ public sealed class ListQuoteQueueHandler
                 TotalsSummary: null);
         }).Where(r => r is not null).Cast<ListQuoteQueueRow>().ToList();
 
-        var total = filtered.Count;
-        var items = filtered.Skip((page - 1) * pageSize).Take(pageSize).ToList();
+        IReadOnlyList<ListQuoteQueueRow> items;
+        if (ageFilterActive)
+        {
+            // Filtered + paginated in memory because the predicate can't be pushed
+            // to SQL.
+            total = mapped.Count;
+            items = mapped.Skip((page - 1) * pageSize).Take(pageSize).ToList();
+        }
+        else
+        {
+            // SQL already paginated for us.
+            items = mapped;
+        }
 
         return new ListQuoteQueueResponse(items, page, pageSize, total);
     }

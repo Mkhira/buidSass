@@ -7,6 +7,7 @@ using BackendApi.Modules.B2B.Persistence;
 using BackendApi.Modules.B2B.Primitives;
 using BackendApi.Modules.Pdf;
 using BackendApi.Modules.Shared;
+using BackendApi.Modules.Storage;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
@@ -27,6 +28,7 @@ public sealed class PublishQuoteVersionHandler
 {
     private readonly B2BDbContext _db;
     private readonly QuoteVersionPdfRenderer _renderer;
+    private readonly IStorageService _storage;
     private readonly IAuditEventPublisher _auditPublisher;
     private readonly IPublisher _domainPublisher;
     private readonly TimeProvider _time;
@@ -35,6 +37,7 @@ public sealed class PublishQuoteVersionHandler
     public PublishQuoteVersionHandler(
         B2BDbContext db,
         QuoteVersionPdfRenderer renderer,
+        IStorageService storage,
         IAuditEventPublisher auditPublisher,
         IPublisher domainPublisher,
         TimeProvider time,
@@ -42,6 +45,7 @@ public sealed class PublishQuoteVersionHandler
     {
         _db = db;
         _renderer = renderer;
+        _storage = storage;
         _auditPublisher = auditPublisher;
         _domainPublisher = domainPublisher;
         _time = time;
@@ -165,6 +169,13 @@ public sealed class PublishQuoteVersionHandler
         }
         catch (DbUpdateConcurrencyException)
         {
+            // CodeRabbit Round 2: SaveChanges failed AFTER the PDFs were uploaded —
+            // best-effort cleanup so we don't accumulate orphan files in storage on
+            // every retry. The state remains `drafted`; client retries are safe via
+            // the Idempotency-Key path. Cleanup failures are logged but don't
+            // override the original DbUpdateConcurrencyException return path.
+            await TryDeleteOrphanPdfAsync(enKey, ct);
+            await TryDeleteOrphanPdfAsync(arKey, ct);
             return PublishQuoteVersionResult.InvalidState();
         }
 
@@ -187,7 +198,14 @@ public sealed class PublishQuoteVersionHandler
                 Reason: "publish"), ct);
         }
         catch (OperationCanceledException) { throw; }
-        catch (Exception) { }
+        catch (Exception ex)
+        {
+            // CodeRabbit Round 2: log audit failures so operational gaps are visible.
+            _logger.LogWarning(ex,
+                "PublishQuoteVersion: failed to publish quote.state_changed audit "
+                + "(quote_id={QuoteId}, version={VersionId}). Audit-pipeline replay required.",
+                quote.Id, draftVersion.Id);
+        }
 
         try
         {
@@ -206,7 +224,14 @@ public sealed class PublishQuoteVersionHandler
                 }), ct);
         }
         catch (OperationCanceledException) { throw; }
-        catch (Exception) { }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex,
+                "PublishQuoteVersion: QuotePublished domain-event publish failed "
+                + "(quote_id={QuoteId}, version={VersionId}). Notification subscribers "
+                + "(spec 025) will not fire unless replayed.",
+                quote.Id, draftVersion.Id);
+        }
 
         return PublishQuoteVersionResult.Success(new PublishQuoteVersionResponse(
             Id: quote.Id,
@@ -216,17 +241,39 @@ public sealed class PublishQuoteVersionHandler
             ExpiresAt: newExpiresAt));
     }
 
+    /// <summary>
+    /// Best-effort cleanup of an orphaned PDF blob after a failed
+    /// <c>SaveChangesAsync</c>. The storage key is the GUID returned by
+    /// <see cref="QuoteVersionPdfRenderer.RenderAndUploadAsync"/> (which mints a
+    /// fresh <see cref="StoredFileResult.FileId"/> per upload). Failure to delete
+    /// is logged but does not override the upstream error path.
+    /// </summary>
+    private async Task TryDeleteOrphanPdfAsync(string storageKey, CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(storageKey)) return;
+        try
+        {
+            await _storage.DeleteAsync(storageKey, ct);
+        }
+        catch (OperationCanceledException) { throw; }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex,
+                "PublishQuoteVersion: failed to delete orphan PDF storage_key={StorageKey} "
+                + "after SaveChanges failure. Storage-cleanup worker should reap it.",
+                storageKey);
+        }
+    }
+
     private async Task<QuoteVersion?> CreateFallbackVersionAsync(
         Quote quote, Guid actorId, DateTimeOffset nowUtc, CancellationToken ct)
     {
-        var lines = ExtractCartSnapshotLines(quote.OriginatingCartSnapshotJson);
-        if (lines.Count == 0) return null;
-        // CodeRabbit Round 1: derive the fallback currency from the market code
-        // instead of hardcoding "SAR" — production traffic in EG would otherwise
-        // mint EGP-denominated quotes with the wrong currency token. Map narrowly:
-        // ksa → SAR, eg → EGP; unknown markets fall back to SAR (matches the
-        // KSA-default convention applied elsewhere when claims are missing).
+        // CodeRabbit Round 2: derive currency BEFORE building the line snapshot so
+        // the per-line `currency` token matches the totals header — Round 1 fixed
+        // the totals but the line-items helper was still hardcoding SAR.
         var currency = string.Equals(quote.MarketCode, "eg", StringComparison.OrdinalIgnoreCase) ? "EGP" : "SAR";
+        var lines = ExtractCartSnapshotLines(quote.OriginatingCartSnapshotJson, currency);
+        if (lines.Count == 0) return null;
         var totalsJson = $"{{\"subtotal\":0,\"total_discount\":0,\"total_tax_preview\":0,\"grand_total\":0,\"currency\":\"{currency}\"}}";
         var version = new QuoteVersion
         {
@@ -247,7 +294,7 @@ public sealed class PublishQuoteVersionHandler
         return version;
     }
 
-    private static List<object> ExtractCartSnapshotLines(string? json)
+    private static List<object> ExtractCartSnapshotLines(string? json, string currency)
     {
         var result = new List<object>();
         if (string.IsNullOrWhiteSpace(json)) return result;
@@ -273,7 +320,7 @@ public sealed class PublishQuoteVersionHandler
                         override_reason = (object?)null,
                         line_discount_amount = 0m,
                         line_tax_preview = 0m,
-                        currency = "SAR",
+                        currency,
                     });
                 }
             }

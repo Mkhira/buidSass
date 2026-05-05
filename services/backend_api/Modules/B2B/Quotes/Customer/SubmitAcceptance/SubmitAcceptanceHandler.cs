@@ -274,8 +274,11 @@ public sealed class SubmitAcceptanceHandler
         }
 
         // ---------- 9. Routing fork ----------
-        // Determine the target state. Approver routing applies only to company
-        // quotes with approver_required=true.
+        // Determine the target state. Approver routing applies only to COMPANY
+        // quotes with approver_required=true. Individual-customer quotes
+        // (CompanyId IS NULL) ALWAYS take the direct-accept path per spec 021
+        // FR-027 + Clarifications Q1 — no approver-queue concept exists outside
+        // the company workflow. T077 (US2) exercises this branch end-to-end.
         bool approverRouting = false;
         IReadOnlyList<Guid> approverUserIds = Array.Empty<Guid>();
         if (company is not null && company.ApproverRequired)
@@ -387,6 +390,13 @@ public sealed class SubmitAcceptanceHandler
         {
             try
             {
+                // FR-027 + T077 (US2): individual-customer quotes (CompanyId IS NULL)
+                // MUST convert with invoice_billing=false. The persisted Quote.InvoiceBilling
+                // is already false in that case (it falls back from null InvoiceBillingEligible
+                // at request-time), but we make the invariant explicit here so a future
+                // schema/refactor change cannot silently flip an individual quote into
+                // the invoice-billing path.
+                var convertInvoiceBilling = tracked.CompanyId is null ? false : tracked.InvoiceBilling;
                 var conversion = await _orderFromQuoteHandler.CreateAsync(
                     new QuoteConversionRequest(
                         QuoteId: tracked.Id,
@@ -395,7 +405,7 @@ public sealed class SubmitAcceptanceHandler
                         CompanyBranchId: tracked.BranchId,
                         MarketCode: tracked.MarketCode,
                         PoNumber: tracked.PoNumber,
-                        InvoiceBilling: tracked.InvoiceBilling,
+                        InvoiceBilling: convertInvoiceBilling,
                         TermsDays: null, // populated from QuoteVersion.TermsDays once the cycle wires the version snapshot pull-through; stub-tolerant.
                         Lines: Array.Empty<QuoteConversionLine>(), // line snapshot is on QuoteVersion; T100 hydrates the real list.
                         Subtotal: 0m,

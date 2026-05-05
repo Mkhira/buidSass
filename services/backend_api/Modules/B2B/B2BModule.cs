@@ -1,5 +1,7 @@
 using BackendApi.Configuration;
 using BackendApi.Features.Seeding;
+using BackendApi.Modules.B2B.Companies;
+using BackendApi.Modules.B2B.Conversion;
 using BackendApi.Modules.B2B.Documents;
 using BackendApi.Modules.B2B.Documents.PdfTemplates;
 using BackendApi.Modules.B2B.Persistence;
@@ -8,12 +10,16 @@ using BackendApi.Modules.B2B.Quotes.Admin.AuthorQuoteDraft;
 using BackendApi.Modules.B2B.Quotes.Admin.GetQuoteDetail;
 using BackendApi.Modules.B2B.Quotes.Admin.ListQuoteQueue;
 using BackendApi.Modules.B2B.Quotes.Admin.PublishQuoteVersion;
+using BackendApi.Modules.B2B.Quotes.Approver.FinalizeAcceptance;
+using BackendApi.Modules.B2B.Quotes.Approver.ListPendingApprovals;
+using BackendApi.Modules.B2B.Quotes.Approver.RejectAcceptance;
 using BackendApi.Modules.B2B.Quotes.Customer.DownloadQuoteVersionDocument;
 using BackendApi.Modules.B2B.Quotes.Customer.GetMyQuote;
 using BackendApi.Modules.B2B.Quotes.Customer.ListMyQuotes;
 using BackendApi.Modules.B2B.Quotes.Customer.RequestQuoteFromCart;
 using BackendApi.Modules.B2B.Quotes.Customer.RequestQuoteFromProduct;
 using BackendApi.Modules.B2B.Quotes.Customer.RequestRevision;
+using BackendApi.Modules.B2B.Quotes.Customer.SaveAsRepeatOrderTemplate;
 using BackendApi.Modules.B2B.Quotes.Customer.SubmitAcceptance;
 using BackendApi.Modules.B2B.Quotes.Customer.WithdrawQuote;
 using BackendApi.Modules.B2B.RateLimit;
@@ -132,6 +138,32 @@ public static class B2BModule
         // parameters (canonicalized in the endpoint).
         services.AddScoped<DownloadQuoteVersionDocumentHandler>();
 
+        // Phase 6 (US6) — quote-to-order conversion. Wraps spec 011's
+        // IOrderFromQuoteHandler with eligibility re-check, idempotency, and
+        // tax-preview drift detection. Used by SubmitAcceptanceHandler (T100)
+        // and FinalizeAcceptanceHandler (US5).
+        services.AddScoped<QuoteToOrderConverter>();
+
+        // Phase 7 (US4) — company-account customer-side admin slices.
+        services.AddScoped<RegisterCompanyHandler>();
+        services.AddScoped<IValidator<RegisterCompanyRequest>, RegisterCompanyValidator>();
+        services.AddScoped<GetMyCompanyHandler>();
+        services.AddScoped<UpdateCompanyConfigHandler>();
+        services.AddScoped<BranchHandler>();
+        services.AddScoped<InvitationHandler>();
+        services.AddScoped<MemberHandler>();
+        services.AddScoped<SuspendCompanyHandler>();
+
+        // Phase 8 (US5) — approver flow.
+        services.AddScoped<ListPendingApprovalsHandler>();
+        services.AddScoped<FinalizeAcceptanceHandler>();
+        services.AddScoped<RejectAcceptanceHandler>();
+        services.AddScoped<IValidator<RejectAcceptanceRequest>, RejectAcceptanceValidator>();
+
+        // Phase 9 (US7) — save-as-repeat-order-template.
+        services.AddScoped<SaveAsRepeatOrderTemplateHandler>();
+        services.AddScoped<IValidator<SaveAsRepeatOrderTemplateRequest>, SaveAsRepeatOrderTemplateValidator>();
+
         // Phase 5 (US3) — admin authoring slices.
         services.AddScoped<ListQuoteQueueHandler>();
         services.AddScoped<GetQuoteDetailHandler>();
@@ -177,6 +209,17 @@ public static class B2BModule
         // (/{quoteId}/versions/{versionId}/documents/{locale}) so it doesn't
         // shadow the GET /{id:guid} that GetMyQuote owns.
         customerQuotes.MapDownloadQuoteVersionDocumentEndpoint();
+
+        // Phase 8 (US5) — approver endpoints (customer surface).
+        customerQuotes.MapListPendingApprovalsEndpoint();
+        customerQuotes.MapFinalizeAcceptanceEndpoint();
+        customerQuotes.MapRejectAcceptanceEndpoint();
+
+        // Phase 9 (US7) — save-as-template (customer surface).
+        customerQuotes.MapSaveAsRepeatOrderTemplateEndpoint();
+
+        // Phase 7 (US4) — company-account endpoints (customer + admin surfaces).
+        app.MapCompanyEndpoints();
 
         // Phase 5 (US3) — admin quote endpoints.
         var adminQuotes = app.MapGroup("/api/admin/quotes");

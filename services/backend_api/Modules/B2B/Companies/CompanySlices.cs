@@ -117,13 +117,21 @@ public sealed class RegisterCompanyHandler
         // Caller becomes both companies.admin and buyer.
         _db.CompanyMemberships.Add(new CompanyMembership
         {
-            Id = Guid.NewGuid(), CompanyId = companyId, MarketCode = market,
-            UserId = actorId, Role = "companies.admin", JoinedAt = nowUtc,
+            Id = Guid.NewGuid(),
+            CompanyId = companyId,
+            MarketCode = market,
+            UserId = actorId,
+            Role = "companies.admin",
+            JoinedAt = nowUtc,
         });
         _db.CompanyMemberships.Add(new CompanyMembership
         {
-            Id = Guid.NewGuid(), CompanyId = companyId, MarketCode = market,
-            UserId = actorId, Role = "buyer", JoinedAt = nowUtc,
+            Id = Guid.NewGuid(),
+            CompanyId = companyId,
+            MarketCode = market,
+            UserId = actorId,
+            Role = "buyer",
+            JoinedAt = nowUtc,
         });
 
         try { await _db.SaveChangesAsync(ct); }
@@ -273,10 +281,14 @@ public sealed class UpdateCompanyConfigHandler
                 q.State = QuoteState.Revised.ToToken();
                 _db.QuoteStateTransitions.Add(new QuoteStateTransition
                 {
-                    Id = Guid.NewGuid(), QuoteId = q.Id, MarketCode = q.MarketCode,
-                    PriorState = prior, NewState = q.State,
+                    Id = Guid.NewGuid(),
+                    QuoteId = q.Id,
+                    MarketCode = q.MarketCode,
+                    PriorState = prior,
+                    NewState = q.State,
                     ActorKind = QuoteActorKind.System.ToToken(),
-                    ActorId = actorId, ReasonJson = null,
+                    ActorId = actorId,
+                    ReasonJson = null,
                     MetadataJson = "{\"reason\":\"approver_required_disabled\"}",
                     OccurredAt = company.UpdatedAt,
                 });
@@ -333,7 +345,9 @@ public sealed class BranchHandler
         var branchId = Guid.NewGuid();
         _db.CompanyBranches.Add(new CompanyBranch
         {
-            Id = branchId, CompanyId = companyId, MarketCode = company.MarketCode,
+            Id = branchId,
+            CompanyId = companyId,
+            MarketCode = company.MarketCode,
             NameJson = JsonSerializer.Serialize(new { en = req.Name?.En ?? "", ar = req.Name?.Ar ?? "" }),
             AddressJson = req.Address?.GetRawText() ?? "{}",
             ContactPhone = req.ContactPhone,
@@ -486,8 +500,12 @@ public sealed class InvitationHandler
         {
             _db.CompanyMemberships.Add(new CompanyMembership
             {
-                Id = Guid.NewGuid(), CompanyId = inv.CompanyId, MarketCode = company.MarketCode,
-                UserId = actorId, Role = inv.TargetRole, JoinedAt = nowUtc,
+                Id = Guid.NewGuid(),
+                CompanyId = inv.CompanyId,
+                MarketCode = company.MarketCode,
+                UserId = actorId,
+                Role = inv.TargetRole,
+                JoinedAt = nowUtc,
             });
         }
         inv.State = "accepted";
@@ -646,10 +664,14 @@ public sealed class MemberHandler
                 q.State = QuoteState.Revised.ToToken();
                 _db.QuoteStateTransitions.Add(new QuoteStateTransition
                 {
-                    Id = Guid.NewGuid(), QuoteId = q.Id, MarketCode = q.MarketCode,
-                    PriorState = prior, NewState = q.State,
+                    Id = Guid.NewGuid(),
+                    QuoteId = q.Id,
+                    MarketCode = q.MarketCode,
+                    PriorState = prior,
+                    NewState = q.State,
                     ActorKind = QuoteActorKind.System.ToToken(),
-                    ActorId = actorId, ReasonJson = null,
+                    ActorId = actorId,
+                    ReasonJson = null,
                     MetadataJson = "{\"reason\":\"last_approver_left\"}",
                     OccurredAt = nowUtc,
                 });

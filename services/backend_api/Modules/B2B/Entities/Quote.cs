@@ -82,5 +82,14 @@ public sealed class Quote
     /// <summary>FK to <c>quote_market_schemas (market_code, version)</c>.</summary>
     public int SchemaVersion { get; set; }
 
+    /// <summary>
+    /// Spec 021 US3 — in-progress draft body for the next <see cref="QuoteVersion"/>.
+    /// Populated by <c>AuthorQuoteDraftHandler</c> when state transitions to
+    /// <c>drafted</c>; cleared on <c>publish</c> when the draft materializes into an
+    /// immutable <see cref="QuoteVersion"/>. Kept on the Quote row (not on QuoteVersion)
+    /// because QuoteVersion is row-immutable.
+    /// </summary>
+    public string? DraftBodyJson { get; set; }
+
     public uint XminRowVersion { get; set; }
 }

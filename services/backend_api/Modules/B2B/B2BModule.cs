@@ -1,16 +1,31 @@
 using BackendApi.Configuration;
 using BackendApi.Features.Seeding;
+using BackendApi.Modules.B2B.Companies;
+using BackendApi.Modules.B2B.Conversion;
+using BackendApi.Modules.B2B.Documents;
+using BackendApi.Modules.B2B.Documents.PdfTemplates;
 using BackendApi.Modules.B2B.Persistence;
 using BackendApi.Modules.B2B.Primitives;
+using BackendApi.Modules.B2B.Quotes.Admin.AuthorQuoteDraft;
+using BackendApi.Modules.B2B.Quotes.Admin.GetQuoteDetail;
+using BackendApi.Modules.B2B.Quotes.Admin.ListQuoteQueue;
+using BackendApi.Modules.B2B.Quotes.Admin.PublishQuoteVersion;
+using BackendApi.Modules.B2B.Quotes.Approver.FinalizeAcceptance;
+using BackendApi.Modules.B2B.Quotes.Approver.ListPendingApprovals;
+using BackendApi.Modules.B2B.Quotes.Approver.RejectAcceptance;
 using BackendApi.Modules.B2B.Quotes.Customer.DownloadQuoteVersionDocument;
 using BackendApi.Modules.B2B.Quotes.Customer.GetMyQuote;
 using BackendApi.Modules.B2B.Quotes.Customer.ListMyQuotes;
 using BackendApi.Modules.B2B.Quotes.Customer.RequestQuoteFromCart;
+using BackendApi.Modules.B2B.Quotes.Customer.RequestQuoteFromProduct;
 using BackendApi.Modules.B2B.Quotes.Customer.RequestRevision;
+using BackendApi.Modules.B2B.Quotes.Customer.SaveAsRepeatOrderTemplate;
 using BackendApi.Modules.B2B.Quotes.Customer.SubmitAcceptance;
 using BackendApi.Modules.B2B.Quotes.Customer.WithdrawQuote;
 using BackendApi.Modules.B2B.RateLimit;
 using BackendApi.Modules.B2B.Seeding;
+using BackendApi.Modules.Pdf;
+using Microsoft.Extensions.Options;
 using FluentValidation;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
@@ -83,6 +98,12 @@ public static class B2BModule
         services.AddScoped<RequestQuoteFromCartHandler>();
         services.AddScoped<IValidator<RequestQuoteFromCartRequest>, RequestQuoteFromCartValidator>();
 
+        // Phase 4 (US2) — RequestQuoteFromProduct slice. Reuses the same singleton
+        // QuoteRequestRateLimiter as the from-cart slice so per-customer + per-company
+        // hourly caps apply to the combined request volume from both surfaces.
+        services.AddScoped<RequestQuoteFromProductHandler>();
+        services.AddScoped<IValidator<RequestQuoteFromProductRequest>, RequestQuoteFromProductValidator>();
+
         // Cycle C-1 (US1) — read paths. Both handlers share the visibility helper
         // in Modules/B2B/Quotes/Customer/Visibility/CustomerQuoteVisibility (static —
         // no DI registration needed).
@@ -117,6 +138,46 @@ public static class B2BModule
         // parameters (canonicalized in the endpoint).
         services.AddScoped<DownloadQuoteVersionDocumentHandler>();
 
+        // Phase 6 (US6) — quote-to-order conversion. Wraps spec 011's
+        // IOrderFromQuoteHandler with eligibility re-check, idempotency, and
+        // tax-preview drift detection. Used by SubmitAcceptanceHandler (T100)
+        // and FinalizeAcceptanceHandler (US5).
+        services.AddScoped<QuoteToOrderConverter>();
+
+        // Phase 7 (US4) — company-account customer-side admin slices.
+        services.AddScoped<RegisterCompanyHandler>();
+        services.AddScoped<IValidator<RegisterCompanyRequest>, RegisterCompanyValidator>();
+        services.AddScoped<GetMyCompanyHandler>();
+        services.AddScoped<UpdateCompanyConfigHandler>();
+        services.AddScoped<BranchHandler>();
+        services.AddScoped<InvitationHandler>();
+        services.AddScoped<MemberHandler>();
+        services.AddScoped<SuspendCompanyHandler>();
+
+        // Phase 8 (US5) — approver flow.
+        services.AddScoped<ListPendingApprovalsHandler>();
+        services.AddScoped<FinalizeAcceptanceHandler>();
+        services.AddScoped<RejectAcceptanceHandler>();
+        services.AddScoped<IValidator<RejectAcceptanceRequest>, RejectAcceptanceValidator>();
+
+        // Phase 9 (US7) — save-as-repeat-order-template.
+        services.AddScoped<SaveAsRepeatOrderTemplateHandler>();
+        services.AddScoped<IValidator<SaveAsRepeatOrderTemplateRequest>, SaveAsRepeatOrderTemplateValidator>();
+
+        // Phase 5 (US3) — admin authoring slices.
+        services.AddScoped<ListQuoteQueueHandler>();
+        services.AddScoped<GetQuoteDetailHandler>();
+        services.AddScoped<AuthorQuoteDraftHandler>();
+        services.AddScoped<IValidator<AuthorQuoteDraftRequest>, AuthorQuoteDraftValidator>();
+        services.AddScoped<PublishQuoteVersionHandler>();
+        services.AddScoped<QuoteVersionPdfRenderer>();
+
+        // Register the spec 021 quote-version PDF template with the platform's
+        // PdfTemplateRegistry. The registry is a singleton; we extend it once at
+        // module-init via an IHostedService so the registration runs before any
+        // request can hit the publish endpoint.
+        services.AddHostedService<PdfTemplateRegistrationStartup>();
+
         return services;
     }
 
@@ -130,6 +191,8 @@ public static class B2BModule
     {
         var customerQuotes = app.MapGroup("/api/customer/quotes");
         customerQuotes.MapRequestQuoteFromCartEndpoint();
+        // Phase 4 (US2) — POST /api/customer/quotes/from-product (contract §2.2).
+        customerQuotes.MapRequestQuoteFromProductEndpoint();
         // Cycle C-1 — read paths. ListMyQuotes maps to GET / (relative to the group);
         // GetMyQuote maps to GET /{id:guid}. ASP.NET routing prefers the more specific
         // route when both match a request, so the {id:guid} route does not shadow
@@ -146,6 +209,48 @@ public static class B2BModule
         // (/{quoteId}/versions/{versionId}/documents/{locale}) so it doesn't
         // shadow the GET /{id:guid} that GetMyQuote owns.
         customerQuotes.MapDownloadQuoteVersionDocumentEndpoint();
+
+        // Phase 8 (US5) — approver endpoints (customer surface).
+        customerQuotes.MapListPendingApprovalsEndpoint();
+        customerQuotes.MapFinalizeAcceptanceEndpoint();
+        customerQuotes.MapRejectAcceptanceEndpoint();
+
+        // Phase 9 (US7) — save-as-template (customer surface).
+        customerQuotes.MapSaveAsRepeatOrderTemplateEndpoint();
+
+        // Phase 7 (US4) — company-account endpoints (customer + admin surfaces).
+        app.MapCompanyEndpoints();
+
+        // Phase 5 (US3) — admin quote endpoints.
+        var adminQuotes = app.MapGroup("/api/admin/quotes");
+        adminQuotes.MapListQuoteQueueEndpoint();
+        adminQuotes.MapGetQuoteDetailEndpoint();
+        adminQuotes.MapAuthorQuoteDraftEndpoint();
+        adminQuotes.MapPublishQuoteVersionEndpoint();
         return app;
     }
+}
+
+/// <summary>
+/// Spec 021 — registers the <see cref="QuoteVersionPdfTemplate"/> with the platform's
+/// <see cref="PdfTemplateRegistry"/> at host startup. Runs synchronously in
+/// <see cref="StartAsync"/>; idempotent (the registry's Register replaces by name).
+/// </summary>
+internal sealed class PdfTemplateRegistrationStartup : Microsoft.Extensions.Hosting.IHostedService
+{
+    private readonly PdfTemplateRegistry _registry;
+
+    public PdfTemplateRegistrationStartup(PdfTemplateRegistry registry)
+    {
+        _registry = registry;
+    }
+
+    public Task StartAsync(CancellationToken cancellationToken)
+    {
+        _registry.Register(QuoteVersionPdfTemplate.TemplateName,
+            (locale, data) => new QuoteVersionPdfTemplate(locale, data));
+        return Task.CompletedTask;
+    }
+
+    public Task StopAsync(CancellationToken cancellationToken) => Task.CompletedTask;
 }

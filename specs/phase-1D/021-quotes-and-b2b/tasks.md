@@ -167,13 +167,13 @@ description: "Phase-1D Spec 021 — Quotes and B2B: dependency-ordered task list
 
 ### Tests for User Story 2
 
-- [ ] T074 [P] [US2] Create `services/backend_api/tests/B2B.Tests/Contract/RequestQuoteFromProductContractTests.cs` covering [contracts §2.2](./contracts/quotes-and-b2b-contract.md): happy path + every error reason (`product_not_quotable`, `required_field_missing`, `account_inactive`, `rate_limit_exceeded`); cart NOT cleared
-- [ ] T075 [P] [US2] Create `services/backend_api/tests/B2B.Tests/Integration/IndividualAcceptanceTests.cs`: individual quote (no `company_id`) → buyer accepts → state direct to `accepted`, no `pending-approver` step, `invoice_billing=false` on the converted order
+- [X] T074 [P] [US2] Create `services/backend_api/tests/B2B.Tests/Contract/RequestQuoteFromProductContractTests.cs` covering [contracts §2.2](./contracts/quotes-and-b2b-contract.md): happy path + every error reason (`product_not_quotable`, `required_field_missing`, `account_inactive`, `rate_limit_exceeded`); cart NOT cleared
+- [X] T075 [P] [US2] Create `services/backend_api/tests/B2B.Tests/Integration/IndividualAcceptanceTests.cs`: individual quote (no `company_id`) → buyer accepts → state direct to `accepted`, no `pending-approver` step, `invoice_billing=false` on the converted order
 
 ### Implementation for User Story 2
 
-- [ ] T076 [US2] Create slice `services/backend_api/Modules/B2B/Quotes/Customer/RequestQuoteFromProduct/{Request,Validator,Handler,Endpoint}.cs` per [contracts §2.2](./contracts/quotes-and-b2b-contract.md): single line item from `(product_id, quantity)`; `originating_product_id` set; cart NOT cleared. Reuses `IProductRestrictionPolicy` snapshot logic from US1. Reuses the same pre-write rejection sequence as T064 (account_inactive → rate_limit → membership → company_suspended → market_match → po_required → po_already_used), plus a product-specific check: the product must exist and be flagged quotable in spec 005's catalog → else `400 quote.product_not_quotable`
-- [ ] T077 [US2] Update `SubmitAcceptanceHandler` (T070) to handle the individual-customer branch — when `company_id IS NULL`, skip approver routing entirely and go direct to `accepted` + conversion (FR-027 case)
+- [X] T076 [US2] Create slice `services/backend_api/Modules/B2B/Quotes/Customer/RequestQuoteFromProduct/{Request,Validator,Handler,Endpoint}.cs` per [contracts §2.2](./contracts/quotes-and-b2b-contract.md): single line item from `(product_id, quantity)`; `originating_product_id` set; cart NOT cleared. Reuses `IProductRestrictionPolicy` snapshot logic from US1. Reuses the same pre-write rejection sequence as T064 (account_inactive → rate_limit → membership → company_suspended → market_match → po_required → po_already_used), plus a product-specific check: the product must exist and be flagged quotable in spec 005's catalog → else `400 quote.product_not_quotable`
+- [X] T077 [US2] Update `SubmitAcceptanceHandler` (T070) to handle the individual-customer branch — when `company_id IS NULL`, skip approver routing entirely and go direct to `accepted` + conversion (FR-027 case)
 
 **Checkpoint**: US2 is independently testable. US1 + US2 both produce `requested` quotes that flow through US3's admin authoring.
 

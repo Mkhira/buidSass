@@ -395,7 +395,11 @@ public sealed class SubmitAcceptanceHandler
                         CompanyBranchId: tracked.BranchId,
                         MarketCode: tracked.MarketCode,
                         PoNumber: tracked.PoNumber,
-                        InvoiceBilling: tracked.InvoiceBilling,
+                        // T077 (US2) — hard-pin individual quotes to invoice_billing=false
+                        // regardless of any future schema or refactor that might flip a
+                        // company-eligibility flag on this column. Individual quotes are
+                        // always retail-billed (FR-027 / spec.md US2 independent test).
+                        InvoiceBilling: tracked.CompanyId is null ? false : tracked.InvoiceBilling,
                         TermsDays: null, // populated from QuoteVersion.TermsDays once the cycle wires the version snapshot pull-through; stub-tolerant.
                         Lines: Array.Empty<QuoteConversionLine>(), // line snapshot is on QuoteVersion; T100 hydrates the real list.
                         Subtotal: 0m,

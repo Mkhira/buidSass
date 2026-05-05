@@ -24,6 +24,7 @@ using BackendApi.Modules.B2B.Quotes.Customer.SubmitAcceptance;
 using BackendApi.Modules.B2B.Quotes.Customer.WithdrawQuote;
 using BackendApi.Modules.B2B.RateLimit;
 using BackendApi.Modules.B2B.Seeding;
+using BackendApi.Modules.B2B.Workers;
 using BackendApi.Modules.Pdf;
 using Microsoft.Extensions.Options;
 using FluentValidation;
@@ -70,14 +71,14 @@ public static class B2BModule
             options.ConfigureWarnings(w => w.Ignore(CoreEventId.ManyServiceProvidersCreatedWarning));
         });
 
-        // NOTE: hosted workers (QuoteExpiryWorker, InvitationExpiryWorker per research §R7)
-        // will need an IDbContextFactory<B2BDbContext> to construct scopes outside the
-        // request pipeline. The registration is deferred to the worker-introducing slice
-        // because mixing AddDbContext (scoped) + AddDbContextFactory (singleton) for the
-        // same TContext fails ServiceProvider validation at design time (EF Tooling
-        // notices the lifetime conflict). The Polish-phase worker task (T041 follow-up)
-        // will swap to AddDbContextFactory + a thin scoped wrapper, mirroring the path
-        // CMS / Reviews modules will follow when their workers go production.
+        // Phase 10 (T135–T139) — hosted workers. We use IServiceScopeFactory to create
+        // per-pass DbContext scopes inside ExecuteAsync, mirroring Verification's pattern
+        // (no IDbContextFactory needed; the scoped-provider lifetime conflict noted in the
+        // earlier comment only arises when both registrations target the same TContext).
+        services.AddOptions<B2BWorkerOptions>()
+            .Bind(configuration.GetSection(B2BWorkerOptions.SectionName));
+        services.AddHostedService<QuoteExpiryWorker>();
+        services.AddHostedService<InvitationExpiryWorker>();
         services.AddScoped<ISeeder, B2BReferenceDataSeeder>();
 
         // CompanyInvitation token hashing — plaintext is never persisted; the HMAC-SHA256

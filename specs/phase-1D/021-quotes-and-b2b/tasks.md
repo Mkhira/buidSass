@@ -325,11 +325,11 @@ description: "Phase-1D Spec 021 — Quotes and B2B: dependency-ordered task list
 
 ### Workers
 
-- [ ] T135 Create `services/backend_api/Modules/B2B/Workers/QuoteExpiryWorker.cs` (`BackgroundService` + `PeriodicTimer`); injected `TimeProvider`; advisory lock per [research.md §R7](./research.md); transitions every non-terminal quote (`revised`, `pending-approver`) with `expires_at <= now` to `expired`; publishes `QuoteExpired`; audits
-- [ ] T136 Create `services/backend_api/Modules/B2B/Workers/InvitationExpiryWorker.cs`: same pattern; transitions every `pending` invitation past `expires_at` to `expired`; publishes `CompanyInvitationExpired`; idempotent
-- [ ] T137 Register both workers as `IHostedService` in `B2BModule.cs`; expose `appsettings.json` keys per [quickstart.md §8](./quickstart.md): `B2B:Workers:Expiry:{Period: "1.00:00:00", StartUtc: "03:15:00"}` and `B2B:Workers:Invitation:{Period: "1.00:00:00", StartUtc: "03:45:00"}`. Production / Staging use these defaults; `appsettings.Development.json` overrides Period to `00:01:00` and StartUtc to `00:00:00`
-- [ ] T138 [P] Create `services/backend_api/tests/B2B.Tests/Integration/QuoteExpiryWorkerTests.cs` driven by `FakeTimeProvider`: expiry transition + audit + cache-invalidation + `QuoteExpired` event; idempotent on re-run
-- [ ] T139 [P] Create `services/backend_api/tests/B2B.Tests/Integration/InvitationExpiryWorkerTests.cs`: TTL elapsed → `expired`; idempotent on re-run; advisory-lock prevents double-execution by parallel instances
+- [X] T135 Create `services/backend_api/Modules/B2B/Workers/QuoteExpiryWorker.cs` (`BackgroundService` + `PeriodicTimer`); injected `TimeProvider`; advisory lock per [research.md §R7](./research.md); transitions every non-terminal quote (`revised`, `pending-approver`) with `expires_at <= now` to `expired`; publishes `QuoteExpired`; audits
+- [X] T136 Create `services/backend_api/Modules/B2B/Workers/InvitationExpiryWorker.cs`: same pattern; transitions every `pending` invitation past `expires_at` to `expired`; publishes `CompanyInvitationExpired`; idempotent
+- [X] T137 Register both workers as `IHostedService` in `B2BModule.cs`; expose `appsettings.json` keys per [quickstart.md §8](./quickstart.md): `B2B:Workers:Expiry:{Period: "1.00:00:00", StartUtc: "03:15:00"}` and `B2B:Workers:Invitation:{Period: "1.00:00:00", StartUtc: "03:45:00"}`. Production / Staging use these defaults; `appsettings.Development.json` overrides Period to `00:01:00` and StartUtc to `00:00:00`
+- [X] T138 [P] Create `services/backend_api/tests/B2B.Tests/Integration/QuoteExpiryWorkerTests.cs` driven by `FakeTimeProvider`: expiry transition + audit + cache-invalidation + `QuoteExpired` event; idempotent on re-run
+- [X] T139 [P] Create `services/backend_api/tests/B2B.Tests/Integration/InvitationExpiryWorkerTests.cs`: TTL elapsed → `expired`; idempotent on re-run; advisory-lock prevents double-execution by parallel instances
 
 ### Account-lifecycle hook (cross-cutting)
 

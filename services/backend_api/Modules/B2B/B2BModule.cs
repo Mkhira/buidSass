@@ -101,6 +101,7 @@ public static class B2BModule
             sp.GetRequiredService<ProductArchivedHandler>());
 
         services.AddScoped<ISeeder, B2BReferenceDataSeeder>();
+        services.AddScoped<ISeeder, B2BDevDataSeeder>();
 
         // CompanyInvitation token hashing — plaintext is never persisted; the HMAC-SHA256
         // signing key is bound from configuration (env / Key Vault / user-secrets).

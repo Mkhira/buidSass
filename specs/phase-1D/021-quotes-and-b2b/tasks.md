@@ -344,8 +344,8 @@ description: "Phase-1D Spec 021 — Quotes and B2B: dependency-ordered task list
 
 ### Dev seeder
 
-- [ ] T145 [P] Create `services/backend_api/Modules/B2B/Seeding/B2BDevDataSeeder.cs` (Dev-gated via `SeedGuard` per spec 003) seeding synthetic data per the implementation plan task list item 8: 3 companies (one with `approver_required=true` + 2 approvers; one with `approver_required=false`; one in `pending-verification` state if toggled), branches, memberships, invitations across all states, quotes spanning every Quote state (`requested`, `drafted`, `revised`, `pending-approver`, `accepted`, `rejected`, `expired`, `withdrawn`), 2 repeat-order templates. Idempotent
-- [ ] T146 [P] Update `services/backend_api/seed-data/README.md` (per spec 003 convention) with the `quotes-b2b-v1` synthetic dataset description
+- [X] T145 [P] Create `services/backend_api/Modules/B2B/Seeding/B2BDevDataSeeder.cs` (Dev-gated via `SeedGuard` per spec 003) seeding synthetic data per the implementation plan task list item 8: 3 companies (one with `approver_required=true` + 2 approvers; one with `approver_required=false`; one in `pending-verification` state if toggled), branches, memberships, invitations across all states, quotes spanning every Quote state (`requested`, `drafted`, `revised`, `pending-approver`, `accepted`, `rejected`, `expired`, `withdrawn`), 2 repeat-order templates. Idempotent
+- [X] T146 [P] Update `services/backend_api/seed-data/README.md` (per spec 003 convention) with the `quotes-b2b-v1` synthetic dataset description (this repo has no `seed-data/` root — seeder docs live next to the seeder at `Modules/B2B/Seeding/README.md`).
 
 ### AR editorial sweep + OpenAPI consolidation
 

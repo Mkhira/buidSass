@@ -193,7 +193,7 @@ public sealed class QuoteToOrderConverter
         return ConversionResult.Success(conversion.OrderId, conversion.WasIdempotentReplay);
     }
 
-    private static (List<QuoteConversionLine> lines, decimal subtotal, decimal totalDiscount,
+    private (List<QuoteConversionLine> lines, decimal subtotal, decimal totalDiscount,
         decimal totalTaxPreview, decimal grandTotal) ExtractLines(string? lineItemsJson)
     {
         var lines = new List<QuoteConversionLine>();
@@ -220,7 +220,19 @@ public sealed class QuoteToOrderConverter
                 totalTaxPreview += lineTaxPreview;
             }
         }
-        catch (JsonException) { }
+        catch (JsonException ex)
+        {
+            // CodeRabbit Round 3: malformed line_items jsonb on a published QuoteVersion
+            // is a data-integrity event — log loudly so ops can investigate. We still
+            // return what we managed to parse rather than throwing, because failing
+            // the conversion at this layer is worse than producing a partial order
+            // (the order pipeline downstream re-validates lines against the catalog).
+            _logger.LogError(ex,
+                "QuoteToOrderConverter.ExtractLines: malformed line_items jsonb encountered "
+                + "(prefix={JsonPrefix}). Conversion proceeding with parsed lines={LineCount}.",
+                lineItemsJson is null ? "(null)" : lineItemsJson[..Math.Min(120, lineItemsJson.Length)],
+                lines.Count);
+        }
         return (lines, subtotal, totalDiscount, totalTaxPreview, subtotal - totalDiscount + totalTaxPreview);
     }
 }

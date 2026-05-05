@@ -221,6 +221,13 @@ public sealed class PublishQuoteVersionHandler
     {
         var lines = ExtractCartSnapshotLines(quote.OriginatingCartSnapshotJson);
         if (lines.Count == 0) return null;
+        // CodeRabbit Round 1: derive the fallback currency from the market code
+        // instead of hardcoding "SAR" — production traffic in EG would otherwise
+        // mint EGP-denominated quotes with the wrong currency token. Map narrowly:
+        // ksa → SAR, eg → EGP; unknown markets fall back to SAR (matches the
+        // KSA-default convention applied elsewhere when claims are missing).
+        var currency = string.Equals(quote.MarketCode, "eg", StringComparison.OrdinalIgnoreCase) ? "EGP" : "SAR";
+        var totalsJson = $"{{\"subtotal\":0,\"total_discount\":0,\"total_tax_preview\":0,\"grand_total\":0,\"currency\":\"{currency}\"}}";
         var version = new QuoteVersion
         {
             Id = Guid.NewGuid(),
@@ -233,7 +240,7 @@ public sealed class PublishQuoteVersionHandler
             TermsTextJson = """{"en":"","ar":""}""",
             TermsDays = 0,
             ValidityExtends = false,
-            TotalsSummaryJson = """{"subtotal":0,"total_discount":0,"total_tax_preview":0,"grand_total":0,"currency":"SAR"}""",
+            TotalsSummaryJson = totalsJson,
             CustomerRevisionCommentJson = null,
         };
         _db.QuoteVersions.Add(version);
@@ -280,12 +287,21 @@ public sealed class PublishQuoteVersionHandler
     {
         var (lines, subtotal, totalDiscount, totalTaxPreview, grandTotal, currency) = ExtractPdfLines(version.LineItemsJson);
         var (termsEn, termsAr) = ExtractTerms(version.TermsTextJson);
+        // CodeRabbit Round 1: company/customer NAME resolution requires reading
+        // outside spec 021 (Identity / B2B.Companies cross-module read). For the
+        // V1 PDF surface we render the bilingual company name from the existing
+        // Company.NameJson when known, and fall back to the entity-id token for
+        // the customer (resolved by spec 014's Flutter render layer when fetching
+        // the signed-URL PDF). When spec 014 wires identity-name lookup into the
+        // PDF render path, this fallback can be replaced.
         return new QuoteVersionPdfData(
             QuoteId: quote.Id,
             VersionNumber: version.VersionNumber,
             MarketCode: quote.MarketCode,
-            CompanyName: quote.CompanyId?.ToString() ?? "—",
-            CustomerName: quote.CustomerId.ToString(),
+            CompanyName: quote.CompanyId is null
+                ? "—"
+                : $"company:{quote.CompanyId:N}",
+            CustomerName: $"customer:{quote.CustomerId:N}",
             PoNumber: quote.PoNumber,
             PublishedAt: publishedAt,
             ExpiresAt: expiresAt,
@@ -364,5 +380,10 @@ public sealed record PublishQuoteVersionResult(
     public static PublishQuoteVersionResult NotFound() => new(false, 404, QuoteReasonCode.QuoteNotFound, null);
     public static PublishQuoteVersionResult InvalidState() => new(false, 409, QuoteReasonCode.QuoteInvalidStateForAction, null);
     public static PublishQuoteVersionResult RequiredFieldMissing() => new(false, 400, QuoteReasonCode.QuoteRequiredFieldMissing, null);
-    public static PublishQuoteVersionResult PdfFailed() => new(false, 500, QuoteReasonCode.QuoteRequiredFieldMissing, null);
+    // CodeRabbit Round 1: PdfFailed previously reused QuoteRequiredFieldMissing,
+    // which is misleading. There is no dedicated PDF-failure reason code in the
+    // contract, so we re-use QuoteInvalidStateForAction with a 500 status — the
+    // PDF generation is part of publish state transition, and a 500 surface
+    // matches §4.4 ("500 if PDF generation fails, the entire publish is rolled back").
+    public static PublishQuoteVersionResult PdfFailed() => new(false, 500, QuoteReasonCode.QuoteInvalidStateForAction, null);
 }

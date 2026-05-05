@@ -1,5 +1,6 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using BackendApi.Modules.AuditLog;
 using BackendApi.Modules.B2B.Entities;
 using BackendApi.Modules.B2B.Persistence;
 using BackendApi.Modules.B2B.Primitives;
@@ -39,10 +40,11 @@ public sealed class SaveAsRepeatOrderTemplateValidator : AbstractValidator<SaveA
 public sealed class SaveAsRepeatOrderTemplateHandler
 {
     private readonly B2BDbContext _db;
+    private readonly IAuditEventPublisher _audit;
     private readonly TimeProvider _time;
 
-    public SaveAsRepeatOrderTemplateHandler(B2BDbContext db, TimeProvider time)
-    { _db = db; _time = time; }
+    public SaveAsRepeatOrderTemplateHandler(B2BDbContext db, IAuditEventPublisher audit, TimeProvider time)
+    { _db = db; _audit = audit; _time = time; }
 
     public async Task<SaveResult> HandleAsync(
         Guid actorId,
@@ -83,6 +85,22 @@ public sealed class SaveAsRepeatOrderTemplateHandler
         {
             return SaveResult.NameAlreadyExists();
         }
+
+        // CodeRabbit Round 1 — Principle 25: template creation is a structural
+        // change to customer/company data and is auditable.
+        try
+        {
+            await _audit.PublishAsync(new AuditEvent(
+                ActorId: actorId, ActorRole: quote.CompanyId is null ? "customer" : "buyer",
+                Action: "quote.repeat_order_template_saved",
+                EntityType: "repeat_order_template", EntityId: entity.Id,
+                BeforeState: null,
+                AfterState: new { source_quote_id = quote.Id, company_id = quote.CompanyId, market_code = quote.MarketCode },
+                Reason: null), ct);
+        }
+        catch (OperationCanceledException) { throw; }
+        catch (Exception) { }
+
         return SaveResult.Success(entity.Id);
     }
 

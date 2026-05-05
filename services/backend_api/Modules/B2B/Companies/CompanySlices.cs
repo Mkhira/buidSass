@@ -332,7 +332,9 @@ public sealed record AddBranchRequest(
 public sealed class BranchHandler
 {
     private readonly B2BDbContext _db;
-    public BranchHandler(B2BDbContext db) => _db = db;
+    private readonly IAuditEventPublisher _audit;
+    public BranchHandler(B2BDbContext db, IAuditEventPublisher audit)
+    { _db = db; _audit = audit; }
 
     public async Task<CompanyResult> AddAsync(Guid actorId, Guid companyId, AddBranchRequest req, CancellationToken ct)
     {
@@ -353,6 +355,21 @@ public sealed class BranchHandler
             ContactPhone = req.ContactPhone,
         });
         await _db.SaveChangesAsync(ct);
+
+        // CodeRabbit Round 1 — Principle 25: structural changes to company data are
+        // audited.
+        try
+        {
+            await _audit.PublishAsync(new AuditEvent(
+                ActorId: actorId, ActorRole: "companies.admin",
+                Action: "company.branch_added", EntityType: "company_branch", EntityId: branchId,
+                BeforeState: null,
+                AfterState: new { company_id = companyId, market_code = company.MarketCode },
+                Reason: null), ct);
+        }
+        catch (OperationCanceledException) { throw; }
+        catch (Exception) { }
+
         return CompanyResult.SuccessWithId(branchId);
     }
 
@@ -373,6 +390,19 @@ public sealed class BranchHandler
 
         _db.CompanyBranches.Remove(branch);
         await _db.SaveChangesAsync(ct);
+
+        try
+        {
+            await _audit.PublishAsync(new AuditEvent(
+                ActorId: actorId, ActorRole: "companies.admin",
+                Action: "company.branch_removed", EntityType: "company_branch", EntityId: branchId,
+                BeforeState: new { company_id = companyId },
+                AfterState: null,
+                Reason: null), ct);
+        }
+        catch (OperationCanceledException) { throw; }
+        catch (Exception) { }
+
         return CompanyResult.Success(null);
     }
 }
@@ -608,6 +638,10 @@ public sealed class MemberHandler
         Guid actorId, Guid companyId, CompanyMembership target,
         bool removalOnly, string? newRole, CancellationToken ct)
     {
+        // CodeRabbit Round 1: capture the original role BEFORE any mutation so the
+        // audit BeforeState reports the pre-change role, not the new one.
+        var originalRole = target.Role;
+
         var company = await _db.Companies.AsNoTracking().FirstOrDefaultAsync(c => c.Id == companyId, ct);
         if (company is null) return CompanyResult.Reject(404, QuoteReasonCode.QuoteNotFound);
 
@@ -690,7 +724,7 @@ public sealed class MemberHandler
                 ActorId: actorId, ActorRole: "companies.admin",
                 Action: removalOnly ? "company.member_removed" : "company.member_role_changed",
                 EntityType: "company_membership", EntityId: target.Id,
-                BeforeState: new { role = target.Role },
+                BeforeState: new { role = originalRole },
                 AfterState: removalOnly ? null : new { role = newRole },
                 Reason: null), ct);
         }

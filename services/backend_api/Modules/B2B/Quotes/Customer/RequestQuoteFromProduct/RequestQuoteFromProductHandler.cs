@@ -90,6 +90,12 @@ public sealed class RequestQuoteFromProductHandler
         }
 
         // ---------- 1. Per-customer rate-limit ----------
+        // Account-state (FR-038 / `quote.account_inactive`) carry-over: same posture as
+        // RequestQuoteFromCartHandler (lines 44-48) — spec 021 has no runtime contract
+        // with spec 020's `customer_account_state` in this slice; the auth layer
+        // ensures locked accounts cannot mint a JWT in the first place. The
+        // 422 quote.account_inactive surface is reserved for the post-auth lifecycle
+        // hook landing in Phase 10 (T140-T142).
         var window = TimeSpan.FromHours(1);
         if (!_rateLimiter.TryAcquireCustomer(customerId, schema.RateLimitPerCustomerPerHour, window))
         {
@@ -104,6 +110,16 @@ public sealed class RequestQuoteFromProductHandler
         }
 
         // ---------- 2 / 3 / 4. Company gate (membership → suspended → market) ----------
+        // CodeRabbit Round 1: every reject after Step 1 acquires the customer-bucket
+        // slot must release it so a malformed/unauthorized request doesn't permanently
+        // burn the caller's hourly quota. Helper inlined to keep the cascade readable.
+        RequestQuoteFromProductResult RejectAndRelease(int statusCode, QuoteReasonCode code,
+            string? detail = null, IDictionary<string, object?>? extensions = null)
+        {
+            _rateLimiter.ReleaseCustomer(customerId);
+            return RequestQuoteFromProductResult.Reject(statusCode, code, detail, extensions);
+        }
+
         Company? company = null;
         if (body.CompanyId is { } companyId)
         {
@@ -112,9 +128,7 @@ public sealed class RequestQuoteFromProductHandler
                 .FirstOrDefaultAsync(c => c.Id == companyId, ct);
             if (company is null)
             {
-                return RequestQuoteFromProductResult.Reject(
-                    statusCode: 409,
-                    reasonCode: QuoteReasonCode.QuoteNoActiveCompanyMembership);
+                return RejectAndRelease(409, QuoteReasonCode.QuoteNoActiveCompanyMembership);
             }
 
             var membershipRoles = await _db.CompanyMemberships
@@ -125,34 +139,26 @@ public sealed class RequestQuoteFromProductHandler
             var hasAllowedRole = membershipRoles.Any(r => r == "buyer" || r == "companies.admin");
             if (!hasAllowedRole)
             {
-                return RequestQuoteFromProductResult.Reject(
-                    statusCode: 409,
-                    reasonCode: QuoteReasonCode.QuoteNoActiveCompanyMembership);
+                return RejectAndRelease(409, QuoteReasonCode.QuoteNoActiveCompanyMembership);
             }
 
             if (string.Equals(company.State, "suspended", StringComparison.OrdinalIgnoreCase))
             {
-                return RequestQuoteFromProductResult.Reject(
-                    statusCode: 422,
-                    reasonCode: QuoteReasonCode.QuoteCompanySuspended);
+                return RejectAndRelease(422, QuoteReasonCode.QuoteCompanySuspended);
             }
 
             if (!string.Equals(company.MarketCode, customerMarketCode, StringComparison.OrdinalIgnoreCase))
             {
-                return RequestQuoteFromProductResult.Reject(
-                    statusCode: 422,
-                    reasonCode: QuoteReasonCode.QuoteMarketMismatch);
+                return RejectAndRelease(422, QuoteReasonCode.QuoteMarketMismatch);
             }
 
             // Per-company rate-limit (membership-gated to prevent cross-tenant DoS).
             if (!_rateLimiter.TryAcquireCompany(companyId, schema.RateLimitPerCompanyPerHour, window))
             {
-                _rateLimiter.ReleaseCustomer(customerId);
-                return RequestQuoteFromProductResult.Reject(
-                    statusCode: 429,
-                    reasonCode: QuoteReasonCode.QuoteRateLimitExceeded,
-                    detail: "Per-company rate limit exceeded.",
-                    extensions: new Dictionary<string, object?>
+                return RejectAndRelease(429,
+                    QuoteReasonCode.QuoteRateLimitExceeded,
+                    "Per-company rate limit exceeded.",
+                    new Dictionary<string, object?>
                     {
                         ["retry_after_seconds"] = (int)window.TotalSeconds,
                     });
@@ -160,9 +166,7 @@ public sealed class RequestQuoteFromProductHandler
 
             if (company.PoRequired && string.IsNullOrWhiteSpace(body.PoNumber))
             {
-                return RequestQuoteFromProductResult.Reject(
-                    statusCode: 400,
-                    reasonCode: QuoteReasonCode.QuotePoRequired);
+                return RejectAndRelease(400, QuoteReasonCode.QuotePoRequired);
             }
 
             if (company.UniquePoRequired && !string.IsNullOrWhiteSpace(body.PoNumber))
@@ -172,9 +176,7 @@ public sealed class RequestQuoteFromProductHandler
                     .AnyAsync(q => q.CompanyId == company.Id && q.PoNumber == body.PoNumber, ct);
                 if (poClash)
                 {
-                    return RequestQuoteFromProductResult.Reject(
-                        statusCode: 409,
-                        reasonCode: QuoteReasonCode.QuotePoAlreadyUsed);
+                    return RejectAndRelease(409, QuoteReasonCode.QuotePoAlreadyUsed);
                 }
             }
 
@@ -185,9 +187,7 @@ public sealed class RequestQuoteFromProductHandler
                     .AnyAsync(b => b.Id == branchId && b.CompanyId == company.Id, ct);
                 if (!branchOk)
                 {
-                    return RequestQuoteFromProductResult.Reject(
-                        statusCode: 409,
-                        reasonCode: QuoteReasonCode.QuoteNoActiveCompanyMembership);
+                    return RejectAndRelease(409, QuoteReasonCode.QuoteNoActiveCompanyMembership);
                 }
             }
         }
@@ -198,9 +198,7 @@ public sealed class RequestQuoteFromProductHandler
         var quotable = await _catalog.IsQuotableAsync(productId, ct);
         if (!quotable)
         {
-            return RequestQuoteFromProductResult.Reject(
-                statusCode: 400,
-                reasonCode: QuoteReasonCode.QuoteProductNotQuotable);
+            return RejectAndRelease(400, QuoteReasonCode.QuoteProductNotQuotable);
         }
 
         // ---------- 6. Restriction-policy snapshot (single line) ----------
@@ -286,6 +284,9 @@ public sealed class RequestQuoteFromProductHandler
         }
         catch (DbUpdateException ex) when (IsUniqueViolation(ex))
         {
+            // PO unique-constraint race lost — release rate-limit tokens since the
+            // request never produced a persisted quote (CodeRabbit Round 1).
+            _rateLimiter.ReleaseCustomer(customerId);
             return RequestQuoteFromProductResult.Reject(
                 statusCode: 409,
                 reasonCode: QuoteReasonCode.QuotePoAlreadyUsed);

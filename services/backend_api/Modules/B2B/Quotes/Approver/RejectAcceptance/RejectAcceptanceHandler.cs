@@ -53,6 +53,16 @@ public sealed class RejectAcceptanceHandler
             .AnyAsync(m => m.CompanyId == quote.CompanyId && m.UserId == approverId && m.Role == "approver", ct);
         if (!hasApprover) return RejectResult.NotFound();
 
+        // CodeRabbit Round 1: suspended companies cannot be acted upon — symmetric
+        // with SubmitAcceptanceHandler's company-suspended gate (FR-026).
+        var company = await _db.Companies.AsNoTracking()
+            .FirstOrDefaultAsync(c => c.Id == quote.CompanyId, ct);
+        if (company is null) return RejectResult.NotFound();
+        if (string.Equals(company.State, "suspended", StringComparison.OrdinalIgnoreCase))
+        {
+            return RejectResult.CompanySuspended();
+        }
+
         if (!QuoteStateExtensions.TryParseToken(quote.State, out var current)) return RejectResult.InvalidState();
         if (current != QuoteState.PendingApprover)
         {
@@ -139,6 +149,7 @@ public sealed record RejectResult(
     public static RejectResult InvalidState() => new(false, 409, QuoteReasonCode.QuoteInvalidStateForAction);
     public static RejectResult AlreadyDecided() => new(false, 409, QuoteReasonCode.QuoteAlreadyDecided);
     public static RejectResult ReasonRequired() => new(false, 400, QuoteReasonCode.QuoteReasonRequired);
+    public static RejectResult CompanySuspended() => new(false, 422, QuoteReasonCode.QuoteCompanySuspended);
 }
 
 public sealed record RejectAcceptanceRequest(

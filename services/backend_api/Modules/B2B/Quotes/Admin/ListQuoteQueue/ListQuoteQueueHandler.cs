@@ -31,7 +31,11 @@ public sealed class ListQuoteQueueHandler
         ListQuoteQueueRequest req,
         CancellationToken ct)
     {
-        var market = string.IsNullOrWhiteSpace(req.Market) ? callerMarketCode : req.Market.ToLowerInvariant();
+        // CodeRabbit Round 1: market is ALWAYS the caller's claim — `req.Market` is
+        // ignored to prevent cross-market scope expansion. The endpoint already
+        // rejects mismatched query values with 400 quote.market_mismatch; this
+        // assignment is the defense-in-depth layer at the handler boundary.
+        var market = callerMarketCode.ToLowerInvariant();
         var page = Math.Max(1, req.Page);
         var pageSize = Math.Clamp(req.PageSize <= 0 ? DefaultPageSize : req.PageSize, 1, MaxPageSize);
 
@@ -59,10 +63,12 @@ public sealed class ListQuoteQueueHandler
             ? query.OrderByDescending(q => q.RequestedAt)
             : query.OrderBy(q => q.RequestedAt);
 
-        var total = await query.CountAsync(ct);
+        // CodeRabbit Round 1: when `age_min_business_days` filtering is active,
+        // SLA age is derived in-memory (per-row schema lookup), so we cannot apply
+        // it in SQL and pre-page. Materialize first, filter+paginate in memory
+        // so `total` reflects the filtered count and pages don't drop qualifying
+        // rows. When the filter is absent the SQL path is intact.
         var rows = await query
-            .Skip((page - 1) * pageSize)
-            .Take(pageSize)
             .Select(q => new
             {
                 q.Id,
@@ -92,7 +98,7 @@ public sealed class ListQuoteQueueHandler
         }
 
         var nowUtc = _time.GetUtcNow();
-        var items = rows.Select(r =>
+        var filtered = rows.Select(r =>
         {
             var schema = schemas.TryGetValue((r.MarketCode, r.SchemaVersion), out var s) ? s : null;
             var (age, signal) = ResolveSlaSignal(r.RequestedAt, nowUtc, schema);
@@ -110,6 +116,9 @@ public sealed class ListQuoteQueueHandler
                 SlaSignal: signal,
                 TotalsSummary: null);
         }).Where(r => r is not null).Cast<ListQuoteQueueRow>().ToList();
+
+        var total = filtered.Count;
+        var items = filtered.Skip((page - 1) * pageSize).Take(pageSize).ToList();
 
         return new ListQuoteQueueResponse(items, page, pageSize, total);
     }

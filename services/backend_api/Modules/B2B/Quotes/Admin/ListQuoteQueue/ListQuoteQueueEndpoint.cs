@@ -41,6 +41,20 @@ public static class ListQuoteQueueEndpoint
         }
 
         var query = context.Request.Query;
+
+        // CodeRabbit Round 1: a `market` query value that disagrees with the caller's
+        // market claim is rejected at the boundary so the cross-market scope-expansion
+        // attempt cannot reach the handler. The handler also pins `market = callerMarketCode`
+        // as defense-in-depth.
+        var requestedMarket = query["market"].ToString();
+        if (!string.IsNullOrWhiteSpace(requestedMarket)
+            && !string.Equals(requestedMarket, marketCode, StringComparison.OrdinalIgnoreCase))
+        {
+            return B2BResponseFactory.Problem(context, 400,
+                QuoteReasonCode.QuoteMarketMismatch,
+                "Requested market does not match the caller's market claim.");
+        }
+
         var page = int.TryParse(query["page"], out var p) ? p : 1;
         var pageSize = int.TryParse(query["page_size"], out var ps) ? ps : ListQuoteQueueHandler.DefaultPageSize;
         var ageMin = int.TryParse(query["age_min_business_days"], out var a) ? (int?)a : null;

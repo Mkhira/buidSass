@@ -85,6 +85,13 @@ public sealed class FinalizeAcceptanceHandler
                 return FinalizeResult.EligibilityRequired();
             if (conversion.ReasonCode == QuoteReasonCode.QuoteTaxPreviewDriftThresholdExceeded)
                 return FinalizeResult.TaxDrift();
+            // CodeRabbit Round 1: a converter failure with a null ReasonCode (spec 011
+            // exception, missing version row, etc.) carries a free-text Detail. Log it
+            // and surface 500 quote.invalid_state_for_action so the caller doesn't see
+            // a misleading state-machine reject. The detail is logged at converter level.
+            _logger.LogError(
+                "FinalizeAcceptance: conversion failed without a known reason code (quote_id={QuoteId}, detail={Detail}).",
+                quote.Id, conversion.Detail);
             return FinalizeResult.InvalidState();
         }
 

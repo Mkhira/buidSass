@@ -64,12 +64,28 @@ public sealed class QuoteToOrderConverter
         bool taxPreviewDriftAcknowledged,
         CancellationToken ct)
     {
-        var version = quote.CurrentVersionId is { } vid
-            ? await _db.QuoteVersions.AsNoTracking().FirstOrDefaultAsync(v => v.Id == vid, ct)
-            : await _db.QuoteVersions.AsNoTracking()
+        Entities.QuoteVersion? version;
+        if (quote.CurrentVersionId is { } vid)
+        {
+            version = await _db.QuoteVersions.AsNoTracking().FirstOrDefaultAsync(v => v.Id == vid, ct);
+            // CodeRabbit Round 1: when CurrentVersionId is set but the row is missing
+            // (orphan / cross-FK drift), fail fast — silently producing an empty
+            // conversion would create a zero-line order, far worse than a 500.
+            if (version is null)
+            {
+                _logger.LogError(
+                    "QuoteToOrderConverter: quote {QuoteId} has CurrentVersionId={VersionId} but the QuoteVersion row was not found; aborting conversion.",
+                    quote.Id, vid);
+                return ConversionResult.Failed("CurrentVersionId references a missing QuoteVersion row.");
+            }
+        }
+        else
+        {
+            version = await _db.QuoteVersions.AsNoTracking()
                 .Where(v => v.QuoteId == quote.Id)
                 .OrderByDescending(v => v.VersionNumber)
                 .FirstOrDefaultAsync(ct);
+        }
 
         var (lines, subtotal, totalDiscount, totalTaxPreview, grandTotal) =
             ExtractLines(version?.LineItemsJson);

@@ -2,10 +2,88 @@
   "openapi": "3.0.1",
   "info": {
     "title": "Backend API — Quotes and B2B (spec 021)",
-    "version": "v1-phase1+2-foundation",
-    "description": "Spec 021 module surface. Phase 1+2 (foundation) ships no HTTP endpoints — DbContext, entities, state machines, cross-module hooks, and the reference-data seeder only. Customer / approver / admin endpoints land in Phase 3+ user-story slices."
+    "version": "v1-phase10-surface-map",
+    "description": "Spec 021 module surface across all phases (1–10). The full per-endpoint schemas are emitted by `scripts/generate-openapi-b2b.sh` once spec 005 (`IProductCatalogQuery`) and spec 007-a (`IPricingBaselineProvider`) producers are registered in production DI. Until then, this document is the canonical path surface map; consumers can dereference it against `contracts/quotes-and-b2b-contract.md` for request/response shapes."
   },
-  "paths": {},
+  "paths": {
+    "/api/customer/quotes/from-cart": {
+      "post": { "summary": "US1 §2.1 RequestQuoteFromCart", "operationId": "RequestQuoteFromCart" }
+    },
+    "/api/customer/quotes/from-product": {
+      "post": { "summary": "US2 §2.2 RequestQuoteFromProduct", "operationId": "RequestQuoteFromProduct" }
+    },
+    "/api/customer/quotes": {
+      "get": { "summary": "US1 §2.3 ListMyQuotes", "operationId": "ListMyQuotes" }
+    },
+    "/api/customer/quotes/{id}": {
+      "get": { "summary": "US1 §2.4 GetMyQuote", "operationId": "GetMyQuote" }
+    },
+    "/api/customer/quotes/{id}/withdraw": {
+      "post": { "summary": "US1 §2.5 WithdrawQuote", "operationId": "WithdrawQuote" }
+    },
+    "/api/customer/quotes/{id}/request-revision": {
+      "post": { "summary": "US1 §2.6 RequestRevision", "operationId": "RequestRevision" }
+    },
+    "/api/customer/quotes/{id}/submit-acceptance": {
+      "post": { "summary": "US1 §2.7 SubmitAcceptance", "operationId": "SubmitAcceptance" }
+    },
+    "/api/customer/quotes/{quoteId}/versions/{versionId}/documents/{locale}": {
+      "get": { "summary": "US1 §2.8 DownloadQuoteVersionDocument", "operationId": "DownloadQuoteVersionDocument" }
+    },
+    "/api/customer/quotes/awaiting-my-approval": {
+      "get": { "summary": "US5 §3.1 ListPendingApprovals", "operationId": "ListPendingApprovals" }
+    },
+    "/api/customer/quotes/{id}/finalize-acceptance": {
+      "post": { "summary": "US5 §3.2 FinalizeAcceptance", "operationId": "FinalizeAcceptance" }
+    },
+    "/api/customer/quotes/{id}/reject-acceptance": {
+      "post": { "summary": "US5 §3.3 RejectAcceptance", "operationId": "RejectAcceptance" }
+    },
+    "/api/customer/quotes/{id}/save-as-template": {
+      "post": { "summary": "US7 §8 SaveAsRepeatOrderTemplate", "operationId": "SaveAsRepeatOrderTemplate" }
+    },
+    "/api/admin/quotes": {
+      "get": { "summary": "US3 §4.1 ListQuoteQueue", "operationId": "ListQuoteQueue" }
+    },
+    "/api/admin/quotes/{id}": {
+      "get": { "summary": "US3 §4.2 GetQuoteDetail", "operationId": "GetQuoteDetail" }
+    },
+    "/api/admin/quotes/{id}/draft": {
+      "post": { "summary": "US3 §4.3 AuthorQuoteDraft", "operationId": "AuthorQuoteDraft" }
+    },
+    "/api/admin/quotes/{id}/publish": {
+      "post": { "summary": "US3 §4.4 PublishQuoteVersion", "operationId": "PublishQuoteVersion" }
+    },
+    "/api/customer/companies": {
+      "post": { "summary": "US4 §5.1 RegisterCompany", "operationId": "RegisterCompany" }
+    },
+    "/api/customer/companies/{id}": {
+      "get": { "summary": "US4 §5.2 GetMyCompany", "operationId": "GetMyCompany" },
+      "patch": { "summary": "US4 §5.3 UpdateCompanyConfig", "operationId": "UpdateCompanyConfig" }
+    },
+    "/api/customer/companies/{id}/branches": {
+      "post": { "summary": "US4 §5.4 AddBranch", "operationId": "AddBranch" }
+    },
+    "/api/customer/companies/{id}/branches/{branchId}": {
+      "delete": { "summary": "US4 §5.5 RemoveBranch", "operationId": "RemoveBranch" }
+    },
+    "/api/customer/companies/{id}/invitations": {
+      "post": { "summary": "US4 §5.6 InviteUser", "operationId": "InviteUser" }
+    },
+    "/api/customer/companies/invitations/{token}/accept": {
+      "post": { "summary": "US4 §5.7 AcceptInvitation", "operationId": "AcceptInvitation" }
+    },
+    "/api/customer/companies/invitations/{token}/decline": {
+      "post": { "summary": "US4 §5.8 DeclineInvitation", "operationId": "DeclineInvitation" }
+    },
+    "/api/customer/companies/{id}/memberships/{membershipId}": {
+      "delete": { "summary": "US4 §5.9 RemoveMember", "operationId": "RemoveMember" },
+      "patch": { "summary": "US4 §5.10 ChangeMemberRole", "operationId": "ChangeMemberRole" }
+    },
+    "/api/admin/companies/{id}/suspend": {
+      "post": { "summary": "US4 §6.1 SuspendCompany", "operationId": "SuspendCompany" }
+    }
+  },
   "components": {
     "securitySchemes": {
       "bearerAuth": {

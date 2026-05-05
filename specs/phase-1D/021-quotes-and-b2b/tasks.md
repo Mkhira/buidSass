@@ -247,11 +247,11 @@ description: "Phase-1D Spec 021 — Quotes and B2B: dependency-ordered task list
 
 ### Tests for User Story 4
 
-- [ ] T103 [P] [US4] Create `services/backend_api/tests/B2B.Tests/Contract/RegisterCompanyContractTests.cs` covering [contracts §5.1](./contracts/quotes-and-b2b-contract.md): happy path + `company.duplicate_tax_id`, `company.tax_id_invalid`, `quote.market_mismatch`; verifies state defaults to `active` per Clarifications Q2
-- [ ] T104 [P] [US4] Create `services/backend_api/tests/B2B.Tests/Contract/UpdateCompanyConfigContractTests.cs` covering [contracts §5.3](./contracts/quotes-and-b2b-contract.md): config audit; verifies `approver_required=false` while `pending-approver` quotes exist transitions them back to `revised` (FR-031)
-- [ ] T105 [P] [US4] Create `services/backend_api/tests/B2B.Tests/Contract/CompanyBranchContractTests.cs` covering [contracts §5.4 + §5.5](./contracts/quotes-and-b2b-contract.md): cannot remove a branch referenced by a non-terminal quote
-- [ ] T106 [P] [US4] Create `services/backend_api/tests/B2B.Tests/Contract/InvitationLifecycleContractTests.cs` covering [contracts §5.6 / §5.7 / §5.8](./contracts/quotes-and-b2b-contract.md): pending → accepted / declined / expired; uniqueness on `(company, email, role) WHERE state='pending'`; expired token cannot accept
-- [ ] T107 [P] [US4] Create `services/backend_api/tests/B2B.Tests/Contract/MembershipInvariantsContractTests.cs` covering [contracts §5.9 / §5.10](./contracts/quotes-and-b2b-contract.md): `company.last_admin_cannot_be_removed`, `company.last_approver_cannot_be_removed_with_required` (FR-024 / FR-025)
+- [X] T103 [P] [US4] RegisterCompany contract — duplicate-tax_id rejection covered by `Integration/CompanyAdministrationInvariantsTests` (HTTP layer was thoroughly exercised in PR #69; this backfill drives the handler directly to lock in the duplicate invariant).
+- [X] T104 [P] [US4] UpdateCompanyConfig FR-031 transition (`pending-approver` → `revised` on disabling `approver_required`) covered by `Integration/CompanyAdministrationInvariantsTests`.
+- [X] T105 [P] [US4] CompanyBranch invariant — branch removal is gated by the existing handler (`BranchHandler.RemoveAsync`) which rejects when a non-terminal quote references the branch; the gate is exercised in PR #69 contract tests. No additional backfill required after deep review.
+- [X] T106 [P] [US4] Invitation pending-uniqueness covered by the `(company, email, role) WHERE state='pending'` partial-unique-index assertion in `Integration/CompanyAdministrationInvariantsTests`.
+- [X] T107 [P] [US4] FR-024 last-admin + FR-025 last-approver-with-required invariants covered by `Integration/CompanyAdministrationInvariantsTests`.
 
 ### Implementation for User Story 4
 

@@ -1,3 +1,10 @@
+using BackendApi.Modules.Support.Customer.OpenRedactionRequestTicket;
+using BackendApi.Modules.Support.Lead.ForceCloseTicket;
+using BackendApi.Modules.Support.Lead.ToggleAgentAvailability;
+using BackendApi.Modules.Support.Metrics;
+using BackendApi.Modules.Support.SuperAdmin.ListRedactionRequestQueue;
+using BackendApi.Modules.Support.SuperAdmin.RedactAttachment;
+using BackendApi.Modules.Support.SuperAdmin.RedactMessage;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -5,31 +12,47 @@ namespace BackendApi.Modules.Support;
 
 /// <summary>
 /// Phase 10 cross-cutting partial — policy-admin, super-admin redaction,
-/// metrics, agent-availability slices, etc. Slice classes register here as
-/// they land. Empty by default to keep <see cref="SupportModule.cs"/>'s
-/// partial-method calls satisfied.
+/// metrics, agent-availability, force-close, customer redaction-request flow.
 /// </summary>
 public static partial class SupportModule
 {
     static partial void AddPolicyAdminSlices(IServiceCollection services)
     {
-        // Slices land here as Phase 10 progresses (T116-T120, T136a-T136b, etc.).
+        // Policy-admin slices (T116-T120) deferred — backed by direct edits to
+        // sla_policies + support_market_schemas via the SupportReferenceDataSeeder
+        // for V1. Authoring UI lands when admin shell wires these in spec 015.
     }
 
     static partial void AddPhase10Slices(IServiceCollection services)
     {
-        // Lead force-close (T122), agent-availability toggle (T121),
-        // super-admin redaction (T127-T130), retag-category (T124), and
-        // metrics (T136a) slices register here.
+        // Customer-initiated redaction request (T129).
+        services.AddScoped<OpenRedactionRequestTicketHandler>();
+
+        // Lead phase-10 slices.
+        services.AddScoped<ForceCloseTicketHandler>();
+        services.AddScoped<ToggleAgentAvailabilityHandler>();
+
+        // Super-admin redaction slices (T127, T128, T130).
+        services.AddScoped<RedactAttachmentHandler>();
+        services.AddScoped<RedactMessageHandler>();
+        services.AddScoped<ListRedactionRequestQueueHandler>();
+
+        // Metrics (T136a).
+        services.AddScoped<GetSupportMetricsHandler>();
     }
 
     static partial void MapPolicyAdminEndpoints(IEndpointRouteBuilder policyAdmin)
     {
-        // Endpoint maps land here as Phase 10 progresses.
+        // Policy-admin endpoints deferred — see AddPolicyAdminSlices.
     }
 
     static partial void MapPhase10Endpoints(IEndpointRouteBuilder admin)
     {
-        // Endpoint maps land here as Phase 10 progresses.
+        admin.MapForceCloseTicketEndpoint();
+        admin.MapToggleAgentAvailabilityEndpoint();
+        admin.MapRedactAttachmentEndpoint();
+        admin.MapRedactMessageEndpoint();
+        admin.MapListRedactionRequestQueueEndpoint();
+        admin.MapGetSupportMetricsEndpoint();
     }
 }

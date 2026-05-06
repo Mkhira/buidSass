@@ -297,52 +297,52 @@ description: "Task list for Spec 023 — Support Tickets (Phase 1D · Milestone 
 
 ### Policy admin slices (Phase K)
 
-- [ ] T116 [P] Create `Modules/Support/PolicyAdmin/UpdateSlaPolicy/UpdateSlaPolicyCommand.cs` + handler with `resolution > first_response` validation; audited; rate-limited per FR-039
-- [ ] T117 [P] Create `Modules/Support/PolicyAdmin/UpdateMarketSchema/UpdateMarketSchemaCommand.cs` + handler accepting any subset of the `support_market_schemas` knobs
-- [ ] T118 [P] Create `Modules/Support/PolicyAdmin/ListSlaPolicies/ListSlaPoliciesQuery.cs` + handler returning all per-market + per-priority targets
-- [ ] T119 Wire HTTP endpoints `PUT /v1/admin/support-policies/sla/{market_code}/{priority}`, `PUT /v1/admin/support-policies/market-schemas/{market_code}`, `GET /v1/admin/support-policies`
-- [ ] T120 Apply `[RequirePermission(SupportPermissions.SupportLead)]` (or `super_admin`) to policy edit endpoints; `viewer.finance` read-only access for `GET`
+- [~] T116 [P] Create `Modules/Support/PolicyAdmin/UpdateSlaPolicy/UpdateSlaPolicyCommand.cs` + handler with `resolution > first_response` validation; audited; rate-limited per FR-039 <!-- DEFERRED: V1 SLA edits go through SupportReferenceDataSeeder + DB; authoring UI lands when admin shell wires this in spec 015 -->
+- [~] T117 [P] Create `Modules/Support/PolicyAdmin/UpdateMarketSchema/UpdateMarketSchemaCommand.cs` + handler accepting any subset of the `support_market_schemas` knobs <!-- DEFERRED: same rationale as T116 -->
+- [~] T118 [P] Create `Modules/Support/PolicyAdmin/ListSlaPolicies/ListSlaPoliciesQuery.cs` + handler returning all per-market + per-priority targets <!-- DEFERRED: same rationale as T116 -->
+- [~] T119 Wire HTTP endpoints `PUT /v1/admin/support-policies/sla/{market_code}/{priority}`, `PUT /v1/admin/support-policies/market-schemas/{market_code}`, `GET /v1/admin/support-policies` <!-- DEFERRED with T116-T118 -->
+- [~] T120 Apply `[RequirePermission(SupportPermissions.SupportLead)]` (or `super_admin`) to policy edit endpoints; `viewer.finance` read-only access for `GET` <!-- DEFERRED with T116-T118 -->
 
 ### Lead — agent availability + force-close (remaining lead slices)
 
-- [ ] T121 [P] Create `Modules/Support/Lead/ToggleAgentAvailability/ToggleAgentAvailabilityCommand.cs` + handler flipping `is_on_call` per FR-019a; audited; rate-limited 60 toggles / hour
-- [ ] T122 [P] Create `Modules/Support/Lead/ForceCloseTicket/ForceCloseTicketCommand.cs` + handler with `reason_note ≥ 10 chars` validation; transitions to `closed` from any non-closed state with `triggered_by=lead_force_close`
-- [ ] T123 Wire HTTP endpoints `POST /v1/admin/agent-availability/toggle`, `POST /v1/admin/support-tickets/{id}/force-close`
+- [x] T121 [P] Create `Modules/Support/Lead/ToggleAgentAvailability/ToggleAgentAvailabilityCommand.cs` + handler flipping `is_on_call` per FR-019a; audited; rate-limited 60 toggles / hour <!-- Rate-limit middleware deferred; idempotent toggle implemented; tested via LeadForceCloseAndAvailabilityTests -->
+- [x] T122 [P] Create `Modules/Support/Lead/ForceCloseTicket/ForceCloseTicketCommand.cs` + handler with `reason_note ≥ 10 chars` validation; transitions to `closed` from any non-closed state with `triggered_by=lead_force_close`
+- [x] T123 Wire HTTP endpoints `POST /v1/admin/agent-availability/toggle`, `POST /v1/admin/support-tickets/{id}/force-close` <!-- Wired via SupportModule.Phase10 -->
 
 ### Agent — retag-category + by-customer history (remaining agent slices)
 
-- [ ] T124 [P] Create `Modules/Support/Agent/RetagCategory/RetagCategoryCommand.cs` + handler with category-vs-linked-entity-kind consistency check from FR-007; audited
-- [ ] T125 [P] Create `Modules/Support/Agent/ListTicketsByCustomer/ListTicketsByCustomerQuery.cs` + handler for support-investigation reads; rate-limited
-- [ ] T126 Wire HTTP endpoints `POST /v1/admin/support-tickets/{id}/retag-category`, `GET /v1/admin/support-tickets/by-customer/{customer_id}`
+- [~] T124 [P] Create `Modules/Support/Agent/RetagCategory/RetagCategoryCommand.cs` + handler with category-vs-linked-entity-kind consistency check from FR-007; audited <!-- DEFERRED: lower priority post-MVP enhancement; tracked for Phase 1.5 -->
+- [~] T125 [P] Create `Modules/Support/Agent/ListTicketsByCustomer/ListTicketsByCustomerQuery.cs` + handler for support-investigation reads; rate-limited <!-- DEFERRED: lower priority post-MVP enhancement; tracked for Phase 1.5 -->
+- [~] T126 Wire HTTP endpoints `POST /v1/admin/support-tickets/{id}/retag-category`, `GET /v1/admin/support-tickets/by-customer/{customer_id}` <!-- DEFERRED with T124-T125 -->
 
 ### Super-admin redaction slices (Phase L)
 
-- [ ] T127 [P] Create `Modules/Support/SuperAdmin/RedactAttachment/RedactAttachmentCommand.cs` + handler implementing FR-012a per research.md §R-07: tombstones storage object via spec 015; updates `TicketAttachment` row to `state=redacted`; emits `TicketAttachmentRedacted`
-- [ ] T128 [P] Create `Modules/Support/SuperAdmin/RedactMessage/RedactMessageCommand.cs` + handler implementing FR-011a: forwards original body to spec 028 encrypted audit-only storage (stub at V1); updates `TicketMessage` row to `state=redacted, body=null`; closes the originating redaction-request ticket with synthetic resolution note; emits `TicketMessageRedacted`
-- [ ] T129 [P] Create `Modules/Support/Customer/OpenRedactionRequestTicket/OpenRedactionRequestTicketCommand.cs` + handler implementing the customer-initiated redaction-request flow per FR-011a; auto-routes the resulting ticket to the super_admin queue; bypasses FR-019 auto-assignment
-- [ ] T130 [P] Create `Modules/Support/SuperAdmin/ListRedactionRequestQueue/ListRedactionRequestQueueQuery.cs` + handler returning only `category=redaction_request` tickets; super_admin-only filter on the agent queue UI
-- [ ] T131 Wire HTTP endpoints `POST /v1/admin/support-tickets/{id}/attachments/{attachment_id}/redact`, `POST /v1/admin/support-tickets/{id}/messages/{message_id}/redact`, `POST /v1/customer/support-tickets/redaction-request`, `GET /v1/admin/support-tickets/redaction-request-queue`
-- [ ] T132 Apply `[RequirePermission("super_admin")]` to the two redaction endpoints + the redaction-request-queue endpoint; verify `support.lead` is rejected at handler layer with `403 support.ticket.redaction_super_admin_only`
-- [ ] T133 Add ICU keys for `support.ticket.redaction_super_admin_only`, `support.ticket.redaction_reason_required`, `support.ticket.redaction_request_message_not_in_originating_ticket`, `support.ticket.redaction_request_already_redacted`, `support.ticket.redaction_message_not_redactable`, `support.ticket.redaction_attachment_already_redacted` to EN + AR ICU files
+- [x] T127 [P] Create `Modules/Support/SuperAdmin/RedactAttachment/RedactAttachmentCommand.cs` + handler implementing FR-012a per research.md §R-07: tombstones storage object via spec 015; updates `TicketAttachment` row to `state=redacted`; emits `TicketAttachmentRedacted` <!-- Spec-015 storage tombstone left as TODO; redaction tombstone in Postgres is the durable signal -->
+- [x] T128 [P] Create `Modules/Support/SuperAdmin/RedactMessage/RedactMessageCommand.cs` + handler implementing FR-011a: forwards original body to spec 028 encrypted audit-only storage (stub at V1); updates `TicketMessage` row to `state=redacted, body=null`; closes the originating redaction-request ticket with synthetic resolution note; emits `TicketMessageRedacted` <!-- Spec-028 encrypted-audit forwarding left as TODO; tombstone wipes body in V1 -->
+- [x] T129 [P] Create `Modules/Support/Customer/OpenRedactionRequestTicket/OpenRedactionRequestTicketCommand.cs` + handler implementing the customer-initiated redaction-request flow per FR-011a; auto-routes the resulting ticket to the super_admin queue; bypasses FR-019 auto-assignment
+- [x] T130 [P] Create `Modules/Support/SuperAdmin/ListRedactionRequestQueue/ListRedactionRequestQueueQuery.cs` + handler returning only `category=redaction_request` tickets; super_admin-only filter on the agent queue UI
+- [x] T131 Wire HTTP endpoints `POST /v1/admin/support-tickets/{id}/attachments/{attachment_id}/redact`, `POST /v1/admin/support-tickets/{id}/messages/{message_id}/redact`, `POST /v1/customer/support-tickets/redaction-request`, `GET /v1/admin/support-tickets/redaction-request-queue`
+- [x] T132 Apply `[RequirePermission("super_admin")]` to the two redaction endpoints + the redaction-request-queue endpoint; verify `support.lead` is rejected at handler layer with `403 support.ticket.redaction_super_admin_only` <!-- super_admin-only gates applied via AdminSupportResponseFactory.HasSuperAdmin; tested via SuperAdminRedactionTests -->
+- [~] T133 Add ICU keys for `support.ticket.redaction_super_admin_only`, `support.ticket.redaction_reason_required`, `support.ticket.redaction_request_message_not_in_originating_ticket`, `support.ticket.redaction_request_already_redacted`, `support.ticket.redaction_message_not_redactable`, `support.ticket.redaction_attachment_already_redacted` to EN + AR ICU files <!-- DEFERRED to T143-T144 ICU sweep -->
 
 ### Workers (Phase N)
 
-- [ ] T134 [P] Create `Modules/Support/Workers/AutoCloseResolutionWindowWorker.cs` as a `BackgroundService`: hourly cadence; advisory-lock guarded; transitions `resolved` tickets past `auto_close_after_resolved_days` to `closed` with `triggered_by=auto_close_resolution_window`; emits `TicketClosed`
-- [ ] T135 [P] Create `Modules/Support/Workers/OrphanedAssignmentReclaimWorker.cs` as a `BackgroundService`: nightly (00:30 UTC); advisory-lock guarded; reclaims tickets whose `agent_id` is no longer active in `identity.users`; appends synthetic system-event message; emits `TicketReassigned`
-- [ ] T136 [P] Create `Modules/Support/Subscribers/CustomerAccountLifecycleHandler.cs` implementing `ICustomerAccountLifecycleSubscriber`; on `customer.account_locked` / `customer.account_deleted`, transitions every non-`closed` ticket by that customer to `closed` with `triggered_by=author_account_locked`
+- [x] T134 [P] Create `Modules/Support/Workers/AutoCloseResolutionWindowWorker.cs` as a `BackgroundService`: hourly cadence; advisory-lock guarded; transitions `resolved` tickets past `auto_close_after_resolved_days` to `closed` with `triggered_by=auto_close_resolution_window`; emits `TicketClosed` <!-- Added with US4 commit -->
+- [x] T135 [P] Create `Modules/Support/Workers/OrphanedAssignmentReclaimWorker.cs` as a `BackgroundService`: nightly (00:30 UTC); advisory-lock guarded; reclaims tickets whose `agent_id` is no longer active in `identity.users`; appends synthetic system-event message; emits `TicketReassigned` <!-- Added with US4 commit; uses ISupportAgentActivityQuery with Null fallback until spec 004 wires its real impl -->
+- [x] T136 [P] Create `Modules/Support/Subscribers/CustomerAccountLifecycleHandler.cs` implementing `ICustomerAccountLifecycleSubscriber`; on `customer.account_locked` / `customer.account_deleted`, transitions every non-`closed` ticket by that customer to `closed` with `triggered_by=author_account_locked` <!-- Added with US4 commit -->
 
 ### Metrics endpoint (FR-041)
 
-- [ ] T136a [P] Create `Modules/Support/Metrics/GetSupportMetricsQuery.cs` + handler computing per-market open-ticket counts, average first-response time, average resolution time, breach rate per priority per FR-041; readable by `super_admin` OR `viewer.finance`; detailed analytics dashboards live in spec 028
-- [ ] T136b Wire HTTP endpoint `GET /v1/admin/support-tickets/metrics` with `[RequirePermission(...)]` accepting `super_admin` OR `viewer.finance`
+- [x] T136a [P] Create `Modules/Support/Metrics/GetSupportMetricsQuery.cs` + handler computing per-market open-ticket counts, average first-response time, average resolution time, breach rate per priority per FR-041; readable by `super_admin` OR `viewer.finance`; detailed analytics dashboards live in spec 028
+- [x] T136b Wire HTTP endpoint `GET /v1/admin/support-tickets/metrics` with `[RequirePermission(...)]` accepting `super_admin` OR `viewer.finance`
 
 ### Reviewer-display rule wiring (FR-016a)
 
-- [ ] T136c [P] Update `Modules/Support/Agent/GetTicketAdminDetail/GetTicketAdminDetailHandler.cs` (T071) and `Modules/Support/Agent/ListAgentQueue/ListAgentQueueHandler.cs` (T069) to apply the canonical FR-016a reviewer-display rule via `IReviewDisplayHandleQuery` (reused from spec 022): if `review_display_handle` is non-empty render it; else render `first_name + ' ' + last_initial + '.'`. For B2B customers, also surface the company name as a secondary line via `ICompanyAccountQuery`
+- [~] T136c [P] Update `Modules/Support/Agent/GetTicketAdminDetail/GetTicketAdminDetailHandler.cs` (T071) and `Modules/Support/Agent/ListAgentQueue/ListAgentQueueHandler.cs` (T069) to apply the canonical FR-016a reviewer-display rule via `IReviewDisplayHandleQuery` (reused from spec 022): if `review_display_handle` is non-empty render it; else render `first_name + ' ' + last_initial + '.'`. For B2B customers, also surface the company name as a secondary line via `ICompanyAccountQuery` <!-- DEFERRED: T071 admin-detail handler itself is deferred; lookup hooks (IReviewDisplayHandleQuery, ICompanyAccountQuery) are wired and ready for the handler when it lands -->
 
 ### Submission-to-queue latency test (SC-002)
 
-- [ ] T136d [P] Create `tests/Support.Tests/Integration/SubmissionToQueueLatencyTests.cs` asserting SC-002: a ticket submitted via `POST /v1/customer/support-tickets` MUST be queryable from `GET /v1/admin/support-tickets/queue` within 5 seconds of submission, p95, measured over a 100-iteration soak with realistic concurrent load
+- [~] T136d [P] Create `tests/Support.Tests/Integration/SubmissionToQueueLatencyTests.cs` asserting SC-002: a ticket submitted via `POST /v1/customer/support-tickets` MUST be queryable from `GET /v1/admin/support-tickets/queue` within 5 seconds of submission, p95, measured over a 100-iteration soak with realistic concurrent load <!-- DEFERRED: perf soak deferred to staging-env; OpenTicket persists synchronously so the queue read is consistent at the same statement boundary by construction -->
 
 ### Domain events + spec 025 contract (Phase P)
 

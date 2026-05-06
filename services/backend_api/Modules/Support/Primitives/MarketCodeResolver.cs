@@ -50,7 +50,9 @@ public sealed class MarketCodeResolver
                     "customerMarketOfRecord must be non-empty for standalone tickets.",
                     nameof(customerMarketOfRecord));
             }
-            return new MarketResolution(customerMarketOfRecord, OwnedByActor: true, VendorId: null);
+            // Trim defensively so a stray-whitespace claim like " SA " never
+            // ends up as the literal partition key on a ticket row.
+            return new MarketResolution(customerMarketOfRecord.Trim(), OwnedByActor: true, VendorId: null);
         }
         if (linkedEntityKind is null || linkedEntityId is null)
         {
@@ -93,7 +95,7 @@ public sealed class MarketCodeResolver
             throw new MarketCodeUnresolvableException(linkedEntityKind, linkedEntityId.Value);
         }
 
-        return new MarketResolution(hit.MarketCode, hit.OwnedByActor, hit.VendorId);
+        return new MarketResolution(hit.MarketCode.Trim(), hit.OwnedByActor, hit.VendorId);
     }
 }
 

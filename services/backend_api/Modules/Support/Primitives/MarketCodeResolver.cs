@@ -44,6 +44,12 @@ public sealed class MarketCodeResolver
         // against it here as defense-in-depth so we never silently fall back.
         if (linkedEntityKind is null && linkedEntityId is null)
         {
+            if (string.IsNullOrWhiteSpace(customerMarketOfRecord))
+            {
+                throw new ArgumentException(
+                    "customerMarketOfRecord must be non-empty for standalone tickets.",
+                    nameof(customerMarketOfRecord));
+            }
             return new MarketResolution(customerMarketOfRecord, OwnedByActor: true, VendorId: null);
         }
         if (linkedEntityKind is null || linkedEntityId is null)
@@ -66,12 +72,24 @@ public sealed class MarketCodeResolver
                 => await _reviews.ReadAsync(linkedEntityId.Value, actorCustomerId, ct),
             TicketLinkedEntityKindNames.Verification
                 => await _verifications.ReadAsync(linkedEntityId.Value, actorCustomerId, ct),
-            _ => throw new InvalidOperationException($"Unknown linked-entity kind '{linkedEntityKind}'."),
+            // ArgumentOutOfRangeException so a caller-input drift surfaces as
+            // 4xx not 5xx if the OpenTicketValidator's enum check is ever bypassed.
+            _ => throw new ArgumentOutOfRangeException(
+                nameof(linkedEntityKind), linkedEntityKind,
+                $"Unknown linked-entity kind '{linkedEntityKind}'."),
         };
 
         if (hit is null)
         {
             // Linked entity unavailable / not found → explicit failure (Clarification Q3).
+            throw new MarketCodeUnresolvableException(linkedEntityKind, linkedEntityId.Value);
+        }
+
+        if (string.IsNullOrWhiteSpace(hit.MarketCode))
+        {
+            // The cross-module read contract returned a row with no market —
+            // treat as unresolvable rather than silently inserting an empty
+            // partition key into our tenant-owned table.
             throw new MarketCodeUnresolvableException(linkedEntityKind, linkedEntityId.Value);
         }
 

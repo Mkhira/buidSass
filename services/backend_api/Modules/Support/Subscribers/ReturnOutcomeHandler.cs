@@ -37,14 +37,30 @@ public sealed class ReturnOutcomeHandler : IReturnOutcomeSubscriber
         Guid? originatingTicketId, Guid returnRequestId, string outcome, CancellationToken ct)
     {
         // Locate the originating ticket either via the explicit notice payload or via
-        // back-traversal of the ticket_links table.
+        // back-traversal of the ticket_links table. In both paths we require a
+        // ticket_links row that actually associates this ticket with the inbound
+        // return-request id — without that, a stale or mismatched notice could
+        // drive the wrong ticket to resolution.
         SupportTicket? ticket = null;
         if (originatingTicketId is not null)
         {
-            ticket = await _db.Tickets.FirstOrDefaultAsync(t => t.Id == originatingTicketId, ct);
+            var linkExists = await _db.Links.AsNoTracking().AnyAsync(l =>
+                l.TicketId == originatingTicketId.Value
+                && l.LinkedEntityId == returnRequestId
+                && l.Kind == TicketLinkedEntityKindNames.ReturnRequest, ct);
+            if (linkExists)
+            {
+                ticket = await _db.Tickets.FirstOrDefaultAsync(
+                    t => t.Id == originatingTicketId.Value, ct);
+            }
         }
-        else
+
+        if (ticket is null)
         {
+            // Either no originating-ticket id was supplied or the asserted
+            // (ticket, return-request) link does not exist. Fall back to a
+            // back-traversal of ticket_links keyed on the return-request id;
+            // pick the most recent link.
             var link = await _db.Links.AsNoTracking()
                 .Where(l => l.LinkedEntityId == returnRequestId
                     && l.Kind == TicketLinkedEntityKindNames.ReturnRequest)

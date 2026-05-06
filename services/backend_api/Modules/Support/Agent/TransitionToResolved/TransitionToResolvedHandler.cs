@@ -39,15 +39,19 @@ public sealed class TransitionToResolvedHandler
     public async Task<TransitionToResolvedResult> HandleAsync(
         TransitionToResolvedCommand cmd, CancellationToken ct)
     {
-        if (!cmd.ActorIsAssigned && !cmd.ActorIsLeadOrSuperAdmin)
+        var ticket = await _db.Tickets.FirstOrDefaultAsync(t => t.Id == cmd.TicketId, ct);
+        if (ticket is null) return Failure(TicketReasonCode.LinkedEntityNotFound, "Ticket not found.");
+        if (ticket.State == TicketStateNames.Closed) return Failure(TicketReasonCode.ClosedTerminal, "Ticket closed.");
+
+        // Re-validate assignment against the persisted row rather than trusting
+        // the inbound flag — guards against stale or mismatched commands where
+        // ActorIsAssigned was computed before a concurrent reassignment.
+        var actuallyAssigned = ticket.AssignedAgentId == cmd.ActorId;
+        if (!actuallyAssigned && !cmd.ActorIsLeadOrSuperAdmin)
         {
             return Failure(TicketReasonCode.ActionRequiresAssignment,
                 "Resolve requires ticket assignment or lead intervention.");
         }
-
-        var ticket = await _db.Tickets.FirstOrDefaultAsync(t => t.Id == cmd.TicketId, ct);
-        if (ticket is null) return Failure(TicketReasonCode.LinkedEntityNotFound, "Ticket not found.");
-        if (ticket.State == TicketStateNames.Closed) return Failure(TicketReasonCode.ClosedTerminal, "Ticket closed.");
 
         var fromState = TicketStateNames.FromWire(ticket.State);
         if (!TicketStateMachine.TryTransition(

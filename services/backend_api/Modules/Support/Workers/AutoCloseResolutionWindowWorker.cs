@@ -80,25 +80,31 @@ public sealed class AutoCloseResolutionWindowWorker(
         // cheap and avoids per-ticket lookup.
         var schemas = await db.MarketSchemas.AsNoTracking().ToDictionaryAsync(s => s.MarketCode, ct);
 
-        // Candidate tickets: state=resolved with a non-null resolved_at_utc
-        // older than the per-market window. We compute the window in-process
-        // because schemas are small and Postgres doesn't have direct access
-        // to the per-market knob table from a single SQL filter.
+        // CodeRabbit Loop-2: avoid the prior N+1 ticket-fetch pattern by
+        // loading the full ticket rows up front. We still need tracked
+        // entities (we mutate State + ClosedAtUtc + UpdatedAtUtc), so we
+        // pull a tracked Where() rather than a projection-into-record.
+        // Volume is bounded — auto-close runs hourly and only sees tickets
+        // that have actually been in `resolved` for at least the per-market
+        // window — so the working set is small.
         var candidates = await db.Tickets
             .Where(t => t.State == TicketStateNames.Resolved
                      && t.ResolvedAtUtc != null)
-            .Select(t => new AutoCloseCandidate(
-                t.Id,
-                t.MarketCode,
-                t.ResolvedAtUtc!.Value))
             .ToListAsync(ct);
 
         var closed = 0;
-        foreach (var candidate in candidates)
+        foreach (var ticket in candidates)
         {
-            var schema = schemas.TryGetValue(candidate.MarketCode, out var s) ? s : null;
+            // Re-check: state may have flipped (reopen) between scan and now.
+            // The Where() above filtered on the candidate set but EF tracks
+            // mutations, so a parallel reopen during this pass is still
+            // possible. Refusing the transition is the safe default.
+            if (ticket.State != TicketStateNames.Resolved) continue;
+            if (ticket.ResolvedAtUtc is null) continue;
+
+            var schema = schemas.TryGetValue(ticket.MarketCode, out var s) ? s : null;
             var policy = schema is null
-                ? SupportMarketPolicy.DefaultFor(candidate.MarketCode)
+                ? SupportMarketPolicy.DefaultFor(ticket.MarketCode)
                 : new SupportMarketPolicy(
                     schema.MarketCode,
                     schema.AutoAssignmentEnabled,
@@ -110,17 +116,14 @@ public sealed class AutoCloseResolutionWindowWorker(
                     schema.AttachmentCumulativeMaxMb,
                     schema.AllowedMimeTypes);
 
-            var threshold = candidate.ResolvedAtUtc.AddDays(policy.AutoCloseAfterResolvedDays);
+            // CodeRabbit Loop-2: respect per-market policy disablement
+            // (AutoCloseAfterResolvedDays <= 0). Skipping the threshold math
+            // entirely when disabled also avoids creating a misleading
+            // candidate.ResolvedAtUtc.AddDays(0) threshold that always fires.
+            if (!policy.AutoCloseEnabled) continue;
+
+            var threshold = ticket.ResolvedAtUtc.Value.AddDays(policy.AutoCloseAfterResolvedDays);
             if (nowUtc < threshold) continue;
-
-            var ticket = await db.Tickets.FirstOrDefaultAsync(t => t.Id == candidate.TicketId, ct);
-            if (ticket is null) continue;
-
-            // Re-check: state may have flipped (reopen) between candidate scan
-            // and now. Refusing the transition is the safe default.
-            if (ticket.State != TicketStateNames.Resolved) continue;
-            if (ticket.ResolvedAtUtc is null) continue;
-            if (nowUtc < ticket.ResolvedAtUtc.Value.AddDays(policy.AutoCloseAfterResolvedDays)) continue;
 
             var fromState = TicketStateNames.FromWire(ticket.State);
             if (!TicketStateMachine.TryTransition(
@@ -197,8 +200,7 @@ public sealed class AutoCloseResolutionWindowWorker(
         }
     }
 
-    private sealed record AutoCloseCandidate(
-        Guid TicketId,
-        string MarketCode,
-        DateTimeOffset ResolvedAtUtc);
+    // AutoCloseCandidate removed in Loop-2 fix (CodeRabbit) — the worker now
+    // pulls full tracked SupportTicket rows in a single Where() query instead
+    // of projecting into a record + re-fetching per-candidate.
 }

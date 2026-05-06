@@ -90,6 +90,7 @@ support.ticket.row.delete_forbidden
 3. Author the `support.ar.icu` + `support.en.icu` files alongside the existing
    per-module ICU resources. The reason-code list above is the authoritative
    set — every code MUST have both an EN and an AR entry.
-4. Run a contract test that asserts the per-code mapping is complete (one
-   exists in `tests/Support.Tests/Unit/TicketReasonCodeMapperTests.cs` once
-   the resource files land).
+4. Run a contract test that asserts the per-code mapping is complete (the
+   test will live at
+   `services/backend_api/tests/Support.Tests/Unit/TicketReasonCodeMapperTests.cs`
+   once the resource files land).

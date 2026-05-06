@@ -4,6 +4,7 @@ using BackendApi.Modules.Shared;
 using BackendApi.Modules.Support.Persistence;
 using BackendApi.Modules.Support.Primitives;
 using BackendApi.Modules.Support.Seeding;
+using BackendApi.Modules.Support.Subscribers;
 using MediatR;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.EntityFrameworkCore;
@@ -66,8 +67,12 @@ public static partial class SupportModule
 
         services.AddScoped<MarketCodeResolver>();
 
+        // Subscriber bindings (cross-module event consumers).
+        services.AddScoped<IReturnOutcomeSubscriber, ReturnOutcomeHandler>();
+
         // Per-phase slice registrations.
         AddUs1Slices(services);
+        AddUs2Slices(services);
 
         services.TryAddSingleton(TimeProvider.System);
         return services;
@@ -77,9 +82,14 @@ public static partial class SupportModule
     {
         var customer = endpoints.MapGroup("/api/customer/support-tickets");
         MapUs1CustomerEndpoints(customer);
+
+        var admin = endpoints.MapGroup("/api/admin/support-tickets");
+        MapUs2AgentEndpoints(admin);
         return endpoints;
     }
 
     static partial void AddUs1Slices(IServiceCollection services);
+    static partial void AddUs2Slices(IServiceCollection services);
     static partial void MapUs1CustomerEndpoints(IEndpointRouteBuilder customer);
+    static partial void MapUs2AgentEndpoints(IEndpointRouteBuilder admin);
 }

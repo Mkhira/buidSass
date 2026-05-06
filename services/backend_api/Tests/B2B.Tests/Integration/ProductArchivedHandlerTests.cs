@@ -65,7 +65,7 @@ public sealed class ProductArchivedHandlerTests : IAsyncLifetime
         var unrelatedId = await SeedRevisedQuoteWithVersionAsync(skuOnLine: "SKU-OTHER");
 
         await _handler.OnProductArchivedAsync(
-            new ProductArchived(Guid.NewGuid(), "SKU-ARC-1", Guid.NewGuid(), _clock.GetUtcNow()),
+            new ProductArchived(Guid.NewGuid(), "SKU-ARC-1", "ksa", Guid.NewGuid(), _clock.GetUtcNow()),
             CancellationToken.None);
 
         await using var verify = NewContext();
@@ -82,7 +82,7 @@ public sealed class ProductArchivedHandlerTests : IAsyncLifetime
         var id = await SeedRequestedQuoteAsync(cartSku: "SKU-CART-7");
 
         await _handler.OnProductArchivedAsync(
-            new ProductArchived(Guid.NewGuid(), "SKU-CART-7", Guid.NewGuid(), _clock.GetUtcNow()),
+            new ProductArchived(Guid.NewGuid(), "SKU-CART-7", "ksa", Guid.NewGuid(), _clock.GetUtcNow()),
             CancellationToken.None);
 
         await using var verify = NewContext();
@@ -96,7 +96,7 @@ public sealed class ProductArchivedHandlerTests : IAsyncLifetime
         var acceptedId = await SeedRevisedQuoteWithVersionAsync(skuOnLine: "SKU-T-1", overrideState: "accepted");
 
         await _handler.OnProductArchivedAsync(
-            new ProductArchived(Guid.NewGuid(), "SKU-T-1", Guid.NewGuid(), _clock.GetUtcNow()),
+            new ProductArchived(Guid.NewGuid(), "SKU-T-1", "ksa", Guid.NewGuid(), _clock.GetUtcNow()),
             CancellationToken.None);
 
         await using var verify = NewContext();
@@ -110,10 +110,10 @@ public sealed class ProductArchivedHandlerTests : IAsyncLifetime
         var id = await SeedRevisedQuoteWithVersionAsync(skuOnLine: "SKU-IDEMP");
 
         await _handler.OnProductArchivedAsync(
-            new ProductArchived(Guid.NewGuid(), "SKU-IDEMP", Guid.NewGuid(), _clock.GetUtcNow()),
+            new ProductArchived(Guid.NewGuid(), "SKU-IDEMP", "ksa", Guid.NewGuid(), _clock.GetUtcNow()),
             CancellationToken.None);
         await _handler.OnProductArchivedAsync(
-            new ProductArchived(Guid.NewGuid(), "SKU-IDEMP", Guid.NewGuid(), _clock.GetUtcNow()),
+            new ProductArchived(Guid.NewGuid(), "SKU-IDEMP", "ksa", Guid.NewGuid(), _clock.GetUtcNow()),
             CancellationToken.None);
 
         await using var verify = NewContext();

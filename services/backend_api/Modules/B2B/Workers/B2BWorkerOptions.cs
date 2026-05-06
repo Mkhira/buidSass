@@ -25,7 +25,15 @@ public sealed class B2BWorkerOptions
 
 public sealed class WorkerSchedule
 {
-    /// <summary>How long between passes. Production defaults to 1 day.</summary>
+    /// <summary>
+    /// Hard upper bound on <see cref="Period"/>. Anchoring against today's
+    /// <see cref="StartUtc"/> drifts when the period is longer than a day, and
+    /// the workers in this module are designed for sub-daily / daily cadences.
+    /// </summary>
+    public static readonly TimeSpan MaxPeriod = TimeSpan.FromDays(1);
+
+    /// <summary>How long between passes. Production defaults to 1 day; values
+    /// greater than <see cref="MaxPeriod"/> are rejected by <see cref="FirstDelay"/>.</summary>
     public TimeSpan Period { get; set; } = TimeSpan.FromDays(1);
 
     /// <summary>Wall-clock UTC time of day for the first pass.</summary>
@@ -40,8 +48,23 @@ public sealed class WorkerSchedule
     /// <see cref="Period"/> is sub-hourly (dev override) the alignment is skipped
     /// and the worker runs on its first tick.
     /// </summary>
+    /// <exception cref="InvalidOperationException">
+    /// Thrown when <see cref="Period"/> exceeds <see cref="MaxPeriod"/> — the
+    /// today-anchored math would silently drift, so we fail fast at config time.
+    /// </exception>
     public TimeSpan FirstDelay(DateTimeOffset nowUtc)
     {
+        if (Period <= TimeSpan.Zero)
+        {
+            throw new InvalidOperationException(
+                $"WorkerSchedule.Period must be positive (got {Period}).");
+        }
+        if (Period > MaxPeriod)
+        {
+            throw new InvalidOperationException(
+                $"WorkerSchedule.Period must be <= 24h to keep the StartUtc anchor stable (got {Period}). " +
+                "If a multi-day cadence is needed, switch to a fixed-epoch anchor first.");
+        }
         if (Period < TimeSpan.FromHours(1))
         {
             return TimeSpan.Zero;

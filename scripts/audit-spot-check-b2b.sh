@@ -94,7 +94,7 @@ run_query "
    WHERE entity_type = 'quote'
      AND entity_id = :'quote_id'
      AND action = 'quote.line_override'
-   ORDER BY occurred_at;" || true
+   ORDER BY occurred_at;"
 
 echo
 echo "--- audit_log_entries.action='quote.po_warning_acknowledged' rows ---"
@@ -104,7 +104,7 @@ run_query "
    WHERE entity_type = 'quote'
      AND entity_id = :'quote_id'
      AND action = 'quote.po_warning_acknowledged'
-   ORDER BY occurred_at;" || true
+   ORDER BY occurred_at;"
 
 echo
 echo "--- audit_log_entries.action='quote.repeat_order_template_saved' for templates of this quote ---"
@@ -114,7 +114,7 @@ run_query "
    WHERE entity_type = 'repeat_order_template'
      AND action = 'quote.repeat_order_template_saved'
      AND (after_state->>'source_quote_id') = :'quote_id'
-   ORDER BY occurred_at;" || true
+   ORDER BY occurred_at;"
 
 echo
 echo "--- company-side audit (membership / invitation / config / suspension) for the quote's company ---"
@@ -132,7 +132,13 @@ run_query "
              JOIN b2b.quotes q ON q.company_id = m.company_id
             WHERE q.\"Id\" = :'quote_id'
        )
-   ORDER BY a.occurred_at;" || true
+      OR a.entity_id IN (
+           SELECT ci.\"Id\"
+             FROM b2b.company_invitations ci
+             JOIN b2b.quotes q ON q.company_id = ci.company_id
+            WHERE q.\"Id\" = :'quote_id'
+       )
+   ORDER BY a.occurred_at;"
 
 echo
 echo "PASS — replay surface emitted and transition/audit counts reconcile."

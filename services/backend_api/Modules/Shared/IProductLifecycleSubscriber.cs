@@ -21,9 +21,15 @@ public interface IProductLifecycleSubscriber
 /// A SKU was archived in the catalog. Downstream modules MUST treat this as a
 /// soft-delete: existing references stay valid for audit, but the SKU MUST NOT
 /// be selectable for new operations (cart, quote authoring, restock, etc.).
+///
+/// <para><see cref="MarketCode"/> identifies the catalog partition that owns
+/// the archived SKU (ADR-010: every tenant-owned entity is partitioned by
+/// market). Subscribers MUST scope their updates to the originating market so
+/// a same-SKU row in another market is not affected.</para>
 /// </summary>
 public sealed record ProductArchived(
     Guid ProductId,
     string Sku,
+    string MarketCode,
     Guid ArchivedBy,
     DateTimeOffset OccurredAt);

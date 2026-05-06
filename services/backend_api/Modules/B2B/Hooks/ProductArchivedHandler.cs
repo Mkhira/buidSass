@@ -31,6 +31,7 @@ public sealed class ProductArchivedHandler(
     {
         var nowUtc = clock.GetUtcNow();
         var sku = evt.Sku;
+        var marketCode = evt.MarketCode;
 
         // The SKU appears in either the originating cart snapshot (requested
         // quotes never published) or the current version's line items (revised
@@ -62,14 +63,17 @@ public sealed class ProductArchivedHandler(
             cmd.CommandText = @"
                 SELECT q.""Id"" FROM b2b.quotes q
                 WHERE q.state IN ('requested','revised')
+                  AND q.market_code = @market
                   AND q.originating_cart_snapshot::text ILIKE @p
                 UNION
                 SELECT q.""Id"" FROM b2b.quotes q
                 JOIN b2b.quote_versions v
                   ON v.""Id"" = q.current_version_id
                 WHERE q.state IN ('requested','revised')
+                  AND q.market_code = @market
                   AND v.line_items::text ILIKE @p";
             cmd.Parameters.Add(new NpgsqlParameter("p", pattern));
+            cmd.Parameters.Add(new NpgsqlParameter("market", marketCode));
             await using var reader = await cmd.ExecuteReaderAsync(ct);
             while (await reader.ReadAsync(ct))
             {
@@ -82,13 +86,16 @@ public sealed class ProductArchivedHandler(
             return;
         }
 
-        // Re-apply the requested/revised filter on the tracked reload — between
-        // the raw-SQL id resolution above and SaveChanges below, a concurrent
-        // operator action could have advanced one of these quotes to
-        // `pending-approver` or a terminal state, in which case appending a
-        // product_archived hint is no longer correct.
+        // Re-apply the requested/revised filter and market_code partition on the
+        // tracked reload — between the raw-SQL id resolution above and
+        // SaveChanges below, a concurrent operator action could have advanced
+        // one of these quotes to `pending-approver` or a terminal state, in
+        // which case appending a product_archived hint is no longer correct.
+        // Market scoping (ADR-010) is reasserted defensively so a same-SKU row
+        // in another market is never touched by an event for this market.
         var quotes = await db.Quotes
             .Where(q => matchingIds.Contains(q.Id)
+                     && q.MarketCode == marketCode
                      && (q.State == "requested" || q.State == "revised"))
             .ToListAsync(ct);
 
@@ -97,10 +104,15 @@ public sealed class ProductArchivedHandler(
             return;
         }
 
+        // Idempotency-token boundary: persisted hints always include the
+        // " (archived at ..." suffix, so probing for `hint + " ("` avoids a
+        // false-positive when a longer SKU starts with the same prefix
+        // (e.g. `product_archived:AB` would otherwise match `product_archived:ABC`).
+        var hintProbe = hint + " (";
         foreach (var quote in quotes)
         {
             var existing = quote.InternalNote ?? string.Empty;
-            if (existing.Contains(hint, StringComparison.Ordinal))
+            if (existing.Contains(hintProbe, StringComparison.Ordinal))
             {
                 continue;
             }

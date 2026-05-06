@@ -69,33 +69,53 @@ public sealed class AccountLifecycleHandler(
     {
         var nowUtc = clock.GetUtcNow();
 
-        // Snapshot every quote where the impacted customer is the owner. The
-        // FK alignment (Quote.CustomerId == evt.CustomerId) covers individual
-        // customers and the buyer-of-record on a company quote. Approver users
-        // who never authored a quote do NOT have rows here.
-        var quotes = await db.Quotes
+        // Read a lightweight snapshot of candidate quotes (id + market + prior
+        // state for ledger metadata). The actual transition is performed via a
+        // per-row conditional UPDATE so a quote that advances between this read
+        // and the write is left alone — `rowsAffected == 0` is the signal that
+        // we lost the race, and we skip emitting a ledger row / event for that
+        // quote rather than overwriting stale state.
+        var snapshots = await db.Quotes
+            .AsNoTracking()
             .Where(q => q.CustomerId == customerId
                      && (q.State == "requested"
                       || q.State == "drafted"
                       || q.State == "revised"
                       || q.State == "pending-approver"))
+            .Select(q => new { q.Id, q.State, q.CompanyId, q.MarketCode })
             .ToListAsync(ct);
 
+        var withdrawnToken = QuoteState.Withdrawn.ToToken();
         var voidedQuoteIds = new List<(Guid Id, string PriorState, Guid? CompanyId, string Market)>();
-        foreach (var quote in quotes)
+        foreach (var snap in snapshots)
         {
-            var priorState = quote.State;
-            quote.State = QuoteState.Withdrawn.ToToken();
-            quote.TerminalAt = nowUtc;
-            quote.TerminalReason = reasonToken;
+            // Atomic write-time guard: only transition rows whose DB-visible
+            // state is still in the non-terminal set. A concurrent writer that
+            // already moved this row out of that set causes 0 rows affected and
+            // we treat it as a no-op for this hook.
+            var rowsAffected = await db.Quotes
+                .Where(q => q.Id == snap.Id
+                         && (q.State == "requested"
+                          || q.State == "drafted"
+                          || q.State == "revised"
+                          || q.State == "pending-approver"))
+                .ExecuteUpdateAsync(s => s
+                    .SetProperty(q => q.State, withdrawnToken)
+                    .SetProperty(q => q.TerminalAt, (DateTimeOffset?)nowUtc)
+                    .SetProperty(q => q.TerminalReason, reasonToken), ct);
+
+            if (rowsAffected == 0)
+            {
+                continue;
+            }
 
             db.QuoteStateTransitions.Add(new QuoteStateTransition
             {
                 Id = Guid.NewGuid(),
-                QuoteId = quote.Id,
-                MarketCode = quote.MarketCode,
-                PriorState = priorState,
-                NewState = QuoteState.Withdrawn.ToToken(),
+                QuoteId = snap.Id,
+                MarketCode = snap.MarketCode,
+                PriorState = snap.State,
+                NewState = withdrawnToken,
                 ActorKind = QuoteActorKind.System.ToToken(),
                 ActorId = null,
                 ReasonJson = null,
@@ -103,7 +123,7 @@ public sealed class AccountLifecycleHandler(
                 OccurredAt = nowUtc,
             });
 
-            voidedQuoteIds.Add((quote.Id, priorState, quote.CompanyId, quote.MarketCode));
+            voidedQuoteIds.Add((snap.Id, snap.State, snap.CompanyId, snap.MarketCode));
         }
 
         // Account-deleted only: remove company memberships so the deleted user no

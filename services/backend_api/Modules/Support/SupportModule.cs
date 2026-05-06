@@ -50,6 +50,8 @@ public static partial class SupportModule
         }, lifetime: ServiceLifetime.Singleton);
 
         services.AddScoped<ISeeder, SupportReferenceDataSeeder>();
+        // Dev/staging-only synthetic dataset (US7); SeedGuard short-circuits Production.
+        services.AddScoped<ISeeder, SupportV1DevSeeder>();
 
         // MediatR — idempotent across modules; appends our assembly's handlers.
         services.AddMediatR(cfg => cfg.RegisterServicesFromAssemblyContaining<TicketOpened>());

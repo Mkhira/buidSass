@@ -2,15 +2,14 @@ using BackendApi.Modules.Support.Customer.ConvertToReturnRequest;
 using BackendApi.Modules.Support.Customer.GetMyTicket;
 using BackendApi.Modules.Support.Customer.ListMyTickets;
 using BackendApi.Modules.Support.Customer.OpenTicket;
+using BackendApi.Modules.Support.Customer.ReopenTicket;
 using BackendApi.Modules.Support.Customer.ReplyAsCustomer;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace BackendApi.Modules.Support;
 
-/// <summary>
-/// Customer surface partial — US1 + US3 slices.
-/// </summary>
+/// <summary>Customer surface partial — US1 / US3 / US6 slices.</summary>
 public static partial class SupportModule
 {
     static partial void AddUs1Slices(IServiceCollection services)
@@ -20,6 +19,7 @@ public static partial class SupportModule
         services.AddScoped<ListMyTicketsHandler>();
         services.AddScoped<GetMyTicketHandler>();
         services.AddScoped<ConvertToReturnRequestHandler>();
+        services.AddScoped<ReopenTicketHandler>();
     }
 
     static partial void MapUs1CustomerEndpoints(IEndpointRouteBuilder customer)
@@ -29,5 +29,6 @@ public static partial class SupportModule
         customer.MapGetMyTicketEndpoint();
         customer.MapReplyAsCustomerEndpoint();
         customer.MapConvertToReturnRequestEndpoint();
+        customer.MapReopenTicketEndpoint();
     }
 }

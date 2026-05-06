@@ -144,21 +144,27 @@ public sealed class ConvertToReturnRequestHandler
             CreatedAtUtc = nowUtc,
         });
 
-        // Transition the ticket to waiting_customer (we're waiting on the
-        // return-request flow to produce its outcome).
-        var fromState = TicketStateNames.FromWire(ticket.State);
-        if (fromState == TicketState.Open || fromState == TicketState.InProgress)
+        // Append a system_event message to the thread documenting the conversion.
+        // The ticket's state is intentionally NOT mutated here — there's no
+        // legal state-machine transition for "customer initiates a return-request
+        // conversion" (the trigger taxonomy in TicketTriggerKind covers the
+        // outcome side via return_outcome). When spec 013 publishes
+        // return.completed | return.rejected, ReturnOutcomeHandler walks the
+        // state machine through TryTransition and emits TicketStateChanged,
+        // closing the audit loop cleanly.
+        ticket.UpdatedAtUtc = nowUtc;
+        _db.Messages.Add(new Entities.TicketMessage
         {
-            // open → in_progress would be required first if currently open;
-            // the subsequent transition to waiting_customer is the convert action's
-            // operational step.
-            if (fromState == TicketState.Open)
-            {
-                ticket.State = TicketStateNames.ToWire(TicketState.InProgress);
-            }
-            ticket.State = TicketStateNames.ToWire(TicketState.WaitingCustomer);
-            ticket.UpdatedAtUtc = nowUtc;
-        }
+            Id = Guid.NewGuid(),
+            TicketId = ticket.Id,
+            Kind = TicketMessageKindNames.SystemEvent,
+            ActorId = null,
+            ActorRole = TicketActorKindNames.System,
+            Body = "Ticket converted to return-request; awaiting return outcome.",
+            BodyLocale = ticket.Locale,
+            LeadIntervention = false,
+            CreatedAtUtc = nowUtc,
+        });
 
         try
         {

@@ -90,8 +90,10 @@ public sealed class ReturnOutcomeHandler : IReturnOutcomeSubscriber
             Kind = TicketMessageKindNames.SystemEvent,
             ActorId = null,
             ActorRole = TicketActorKindNames.System,
-            Body = null,
-            BodyLocale = null,
+            // Capture the outcome in the message body so the audit trail
+            // preserves whether the return was completed or rejected.
+            Body = $"Return request {outcome}.",
+            BodyLocale = ticket.Locale,
             LeadIntervention = false,
             CreatedAtUtc = nowUtc,
         });
@@ -119,9 +121,12 @@ public sealed class ReturnOutcomeHandler : IReturnOutcomeSubscriber
             TriggeredBy: TicketTriggerKind.ReturnOutcome,
             OccurredAtUtc: nowUtc), ct);
 
+        // System-triggered resolution — no human agent performed the action,
+        // so ResolvedByAgentId is null. The originating return-request is
+        // already captured in TicketReturnOutcomeReceived above.
         await _publisher.Publish(new TicketResolved(
             TicketId: ticket.Id,
-            ResolvedByAgentId: ticket.AssignedAgentId,
+            ResolvedByAgentId: null,
             ResolvedAtUtc: nowUtc), ct);
     }
 }

@@ -1,4 +1,5 @@
 using BackendApi.Modules.Support.Persistence;
+using BackendApi.Modules.Support.Primitives;
 using Microsoft.EntityFrameworkCore;
 
 namespace BackendApi.Modules.Support.Agent.ListAgentQueue;
@@ -63,7 +64,7 @@ public sealed class ListAgentQueueHandler
         else
         {
             // Default: open + in_progress + waiting_customer (operational queue scope).
-            query = query.Where(t => t.State != "closed");
+            query = query.Where(t => t.State != TicketStateNames.Closed);
         }
         if (q.AssignedAgentId is not null)
         {
@@ -105,8 +106,10 @@ public sealed class ListAgentQueueHandler
         var take = Math.Clamp(q.Take, 1, 200);
         var skip = Math.Max(0, q.Skip);
 
-        // Default sort: priority DESC then first_response_due ASC then created ASC
-        // (worst-priority + oldest-due first per contracts §2 default sort).
+        // Default sort: first_response_due ASC then created ASC — oldest-due first
+        // per SLA urgency. (Priority is stored as a wire-text value, so a true
+        // priority sort needs a CASE-mapped expression; that's deferred to a
+        // dedicated sort-options Phase 10 task.)
         var rows = await query
             .OrderBy(t => t.FirstResponseDueUtc)
             .ThenBy(t => t.CreatedAtUtc)

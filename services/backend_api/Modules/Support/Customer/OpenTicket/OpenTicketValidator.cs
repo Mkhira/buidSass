@@ -71,6 +71,14 @@ public static class OpenTicketValidator
                 $"Unknown linked entity kind '{cmd.LinkedEntityKind}'.");
         }
 
+        // Reject the all-zero GUID — callers must supply a real id, not the
+        // default empty value (defense-in-depth against malformed payloads).
+        if (cmd.LinkedEntityId is { } lid && lid == Guid.Empty)
+        {
+            return (false, TicketReasonCode.LinkedEntityKindInconsistent,
+                "linked_entity_id must not be the empty GUID.");
+        }
+
         return (true, null, null);
     }
 }

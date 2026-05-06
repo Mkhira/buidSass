@@ -91,9 +91,12 @@ public sealed class TransitionToResolvedHandler
             TriggeredBy: TicketTriggerKind.AgentResolve,
             OccurredAtUtc: nowUtc), ct);
 
+        // Use the actor who actually triggered the resolution rather than the
+        // assigned agent — when a lead/super_admin resolves a ticket they
+        // didn't claim, the audit trail must reflect them, not the assignee.
         await _publisher.Publish(new TicketResolved(
             TicketId: ticket.Id,
-            ResolvedByAgentId: ticket.AssignedAgentId,
+            ResolvedByAgentId: cmd.ActorId,
             ResolvedAtUtc: nowUtc), ct);
 
         return new TransitionToResolvedResult(true, null, null);

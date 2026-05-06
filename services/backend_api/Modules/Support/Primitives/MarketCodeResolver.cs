@@ -37,10 +37,19 @@ public sealed class MarketCodeResolver
         string customerMarketOfRecord,
         CancellationToken ct)
     {
+        // Both null → standalone ticket (FR-006a customer-of-record fallback).
+        // Both set → linked-entity-driven resolution (the path below).
+        // Half-set → caller bug; the validator (OpenTicketValidator) already
+        // rejects this combination with linked_entity_kind_inconsistent. Guard
+        // against it here as defense-in-depth so we never silently fall back.
+        if (linkedEntityKind is null && linkedEntityId is null)
+        {
+            return new MarketResolution(customerMarketOfRecord, OwnedByActor: true, VendorId: null);
+        }
         if (linkedEntityKind is null || linkedEntityId is null)
         {
-            // Standalone — fall back to customer's market-of-record.
-            return new MarketResolution(customerMarketOfRecord, OwnedByActor: true, VendorId: null);
+            throw new ArgumentException(
+                "linkedEntityKind and linkedEntityId must be both null (standalone) or both set (linked).");
         }
 
         LinkedEntityReadResult? hit = linkedEntityKind switch

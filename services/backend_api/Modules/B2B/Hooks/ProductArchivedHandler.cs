@@ -69,6 +69,7 @@ public sealed class ProductArchivedHandler(
                 SELECT q.""Id"" FROM b2b.quotes q
                 JOIN b2b.quote_versions v
                   ON v.""Id"" = q.current_version_id
+                  AND v.market_code = @market
                 WHERE q.state IN ('requested','revised')
                   AND q.market_code = @market
                   AND v.line_items::text ILIKE @p";
@@ -104,6 +105,28 @@ public sealed class ProductArchivedHandler(
             return;
         }
 
+        // Reload the current versions for tracked quotes so we can revalidate
+        // that the archived SKU still appears on the live payload. Between the
+        // raw-SQL id scan and this loop, an admin can publish a new revision
+        // that swaps in a replacement SKU; the quote stays `revised`, but no
+        // longer references `evt.Sku` and shouldn't be flagged.
+        var currentVersionIds = quotes
+            .Select(q => q.CurrentVersionId)
+            .Where(id => id is not null)
+            .Select(id => id!.Value)
+            .ToList();
+        var currentVersions = currentVersionIds.Count == 0
+            ? new Dictionary<Guid, string>()
+            : await db.QuoteVersions
+                .AsNoTracking()
+                .Where(v => currentVersionIds.Contains(v.Id) && v.MarketCode == marketCode)
+                .ToDictionaryAsync(v => v.Id, v => v.LineItemsJson, ct);
+
+        // SKU appears in JSON payloads as a `"<sku>"` token (snapshot rows store
+        // SKUs as quoted strings). The SQL ILIKE pattern wraps with `\"…\"`, so
+        // the in-memory check uses the same delimiters to stay consistent.
+        var skuToken = "\"" + sku + "\"";
+
         // Idempotency-token boundary: persisted hints always include the
         // " (archived at ..." suffix, so probing for `hint + " ("` avoids a
         // false-positive when a longer SKU starts with the same prefix
@@ -111,6 +134,18 @@ public sealed class ProductArchivedHandler(
         var hintProbe = hint + " (";
         foreach (var quote in quotes)
         {
+            var cartHasSku = (quote.OriginatingCartSnapshotJson ?? string.Empty)
+                .Contains(skuToken, StringComparison.Ordinal);
+            var versionHasSku = quote.CurrentVersionId is { } versionId
+                && currentVersions.TryGetValue(versionId, out var lineItemsJson)
+                && lineItemsJson.Contains(skuToken, StringComparison.Ordinal);
+            if (!cartHasSku && !versionHasSku)
+            {
+                // A new revision dropped the archived SKU after the raw-SQL
+                // scan — nothing to flag on this quote anymore.
+                continue;
+            }
+
             var existing = quote.InternalNote ?? string.Empty;
             if (existing.Contains(hintProbe, StringComparison.Ordinal))
             {

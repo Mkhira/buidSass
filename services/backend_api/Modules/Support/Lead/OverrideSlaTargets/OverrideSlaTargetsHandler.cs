@@ -66,22 +66,31 @@ public sealed class OverrideSlaTargetsHandler
         }
 
         var nowUtc = _clock.GetUtcNow();
-        var priorFirstResponse = ticket.FirstResponseTargetMinutesSnapshot;
-        var priorResolution = ticket.ResolutionTargetMinutesSnapshot;
+        var priorFirstResponseTarget = ticket.FirstResponseTargetMinutesSnapshot;
+        var priorResolutionTarget = ticket.ResolutionTargetMinutesSnapshot;
+
+        // CodeRabbit Loop-1: capture prior due timestamps BEFORE overwriting.
+        // We must compare new-due against prior-due (not against now()) so a
+        // tightening override doesn't spuriously clear acknowledgments — the
+        // new due is always > now() by construction, which made the prior
+        // check vacuously true for every override.
+        var priorFirstResponseDueUtc = ticket.FirstResponseDueUtc;
+        var priorResolutionDueUtc = ticket.ResolutionDueUtc;
 
         ticket.FirstResponseTargetMinutesSnapshot = cmd.NewFirstResponseTargetMinutes;
         ticket.ResolutionTargetMinutesSnapshot = cmd.NewResolutionTargetMinutes;
         ticket.FirstResponseDueUtc = nowUtc.AddMinutes(cmd.NewFirstResponseTargetMinutes);
         ticket.ResolutionDueUtc = nowUtc.AddMinutes(cmd.NewResolutionTargetMinutes);
 
-        // Per FR-026: clear acknowledgment if the override moves the deadline
-        // forward. Acknowledgments at the older deadline no longer reflect the
-        // operational reality, so allow the worker to re-detect.
-        if (ticket.FirstResponseDueUtc > nowUtc)
+        // Per FR-026: clear the acknowledgment ONLY when the override actually
+        // pushes the deadline beyond where it was. A shorter SLA must keep
+        // the existing breach acknowledgment intact — otherwise we'd lose the
+        // record that the breach already happened.
+        if (ticket.FirstResponseDueUtc > priorFirstResponseDueUtc)
         {
             ticket.BreachAcknowledgedAtFirstResponse = null;
         }
-        if (ticket.ResolutionDueUtc > nowUtc)
+        if (ticket.ResolutionDueUtc > priorResolutionDueUtc)
         {
             ticket.BreachAcknowledgedAtResolution = null;
         }
@@ -98,22 +107,27 @@ public sealed class OverrideSlaTargetsHandler
                 "Ticket was modified concurrently; retry the request.");
         }
 
-        // No dedicated event for SLA override per data-model §6 — the
-        // state-changed catch-all is not appropriate (state did not change).
-        // Audit row is captured via spec 003 audit log (FR-031, deferred wiring).
-        // Publish a state-changed-style notification so downstream notifications
-        // (spec 025) may surface the change to the assigned agent.
-        await _publisher.Publish(new TicketStateChanged(
+        // CodeRabbit Loop-1: emit a dedicated TicketSlaOverridden notification
+        // rather than a no-op TicketStateChanged with same FromState/ToState.
+        // This surfaces actor + justification + old/new targets to spec 025
+        // (notifications) + the audit-log consumer without misleading
+        // state-machine subscribers into thinking a real transition happened.
+        await _publisher.Publish(new TicketSlaOverridden(
             TicketId: ticket.Id,
-            FromState: ticket.State,
-            ToState: ticket.State,
-            TriggeredBy: "lead_sla_override",
+            LeadActorId: cmd.LeadActorId,
+            PriorFirstResponseTargetMinutes: priorFirstResponseTarget,
+            PriorResolutionTargetMinutes: priorResolutionTarget,
+            NewFirstResponseTargetMinutes: cmd.NewFirstResponseTargetMinutes,
+            NewResolutionTargetMinutes: cmd.NewResolutionTargetMinutes,
+            NewFirstResponseDueUtc: ticket.FirstResponseDueUtc,
+            NewResolutionDueUtc: ticket.ResolutionDueUtc,
+            JustificationNote: cmd.JustificationNote.Trim(),
             OccurredAtUtc: nowUtc), ct);
 
         return new OverrideSlaTargetsResult(
             Success: true,
-            PriorFirstResponseTargetMinutes: priorFirstResponse,
-            PriorResolutionTargetMinutes: priorResolution,
+            PriorFirstResponseTargetMinutes: priorFirstResponseTarget,
+            PriorResolutionTargetMinutes: priorResolutionTarget,
             NewFirstResponseTargetMinutes: cmd.NewFirstResponseTargetMinutes,
             NewResolutionTargetMinutes: cmd.NewResolutionTargetMinutes,
             NewFirstResponseDueUtc: ticket.FirstResponseDueUtc,

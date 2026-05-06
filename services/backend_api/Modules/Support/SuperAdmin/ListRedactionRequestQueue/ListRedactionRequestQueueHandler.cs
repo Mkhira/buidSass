@@ -26,6 +26,16 @@ public sealed class ListRedactionRequestQueueHandler
             _ => q.PageSize,
         };
 
+        // CodeRabbit Loop-1: guard Skip() against integer overflow on a hostile
+        // or buggy `page` value. (page - 1) * pageSize is computed as int by
+        // default and can wrap silently into a wrong (or negative) offset.
+        var skipLong = ((long)page - 1L) * pageSize;
+        if (skipLong > int.MaxValue)
+        {
+            throw new ArgumentOutOfRangeException(nameof(q), "page is too large.");
+        }
+        var skip = (int)skipLong;
+
         var query = _db.Tickets.AsNoTracking()
             .Where(t => t.Category == TicketCategoryNames.RedactionRequest
                      && t.State != TicketStateNames.Closed);
@@ -40,7 +50,7 @@ public sealed class ListRedactionRequestQueueHandler
         var rows = await query
             .OrderBy(t => t.FirstResponseDueUtc)
             .ThenBy(t => t.CreatedAtUtc)
-            .Skip((page - 1) * pageSize)
+            .Skip(skip)
             .Take(pageSize)
             .Select(t => new RedactionRequestQueueRow(
                 t.Id,

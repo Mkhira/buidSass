@@ -141,7 +141,13 @@ public sealed class OrphanedAssignmentReclaimWorker(
                 }
                 catch (DbUpdateConcurrencyException)
                 {
-                    db.Entry(ticket).State = EntityState.Detached;
+                    // Clear the entire ChangeTracker — the prior-assignment
+                    // supersession edits + the audit TicketMessage we added
+                    // above must NOT leak into the next iteration's
+                    // SaveChangesAsync, otherwise we'd corrupt the assignment
+                    // history + audit trail of unrelated tickets.
+                    // (CodeRabbit Loop-1 finding.)
+                    db.ChangeTracker.Clear();
                     logger.LogInformation(
                         "OrphanedAssignmentReclaim concurrency miss on ticket {TicketId}; will retry next pass.",
                         ticket.Id);

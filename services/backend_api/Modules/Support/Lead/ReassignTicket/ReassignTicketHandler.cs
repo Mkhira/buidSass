@@ -41,6 +41,12 @@ public sealed class ReassignTicketHandler
                 $"Justification note must be at least {MinimumJustificationLength} characters.");
         }
 
+        if (cmd.TargetAgentId == Guid.Empty)
+        {
+            return Failure(TicketReasonCode.TargetAgentNotInMarket,
+                "target_agent_id is required.");
+        }
+
         var ticket = await _db.Tickets.FirstOrDefaultAsync(t => t.Id == cmd.TicketId, ct);
         if (ticket is null)
         {
@@ -51,6 +57,23 @@ public sealed class ReassignTicketHandler
         {
             return Failure(TicketReasonCode.ClosedTerminal,
                 "Cannot reassign a closed ticket.");
+        }
+
+        // CodeRabbit Loop-1 (Critical, ADR-010 tenant isolation): the target
+        // agent MUST be registered for this ticket's market_code. We use the
+        // SupportAgentAvailability row as the canonical "this agent works
+        // this market" signal — it's the per-(agent, market) row Lead toggles
+        // on/off-call, and existence of the row implies the agent has been
+        // provisioned for that market by an upstream identity flow.
+        // This blocks (a) reassigning to an agent who doesn't work the
+        // ticket's market, and (b) cross-market data leaks via assignment.
+        var targetIsInMarket = await _db.AgentAvailability.AsNoTracking()
+            .AnyAsync(a => a.AgentId == cmd.TargetAgentId
+                        && a.MarketCode == ticket.MarketCode, ct);
+        if (!targetIsInMarket)
+        {
+            return Failure(TicketReasonCode.TargetAgentNotInMarket,
+                $"Target agent is not provisioned for market '{ticket.MarketCode}'.");
         }
 
         if (ticket.AssignedAgentId == cmd.TargetAgentId)

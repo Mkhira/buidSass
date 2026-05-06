@@ -24,7 +24,7 @@ completes the locale-completeness gate. All reason codes from
 
 Reason codes pending editorial sign-off:
 
-```
+```text
 support.ticket.opened
 support.ticket.linked_entity_not_owned
 support.ticket.linked_entity_kind_inconsistent

@@ -154,7 +154,11 @@ public sealed class AutoCloseResolutionWindowWorker(
             }
             catch (DbUpdateConcurrencyException)
             {
-                db.Entry(ticket).State = EntityState.Detached;
+                // Clear the entire ChangeTracker, not just the ticket entry —
+                // we also added a TicketMessage above that would otherwise
+                // leak into the next iteration's SaveChangesAsync and corrupt
+                // the audit trail of an unrelated ticket. (CodeRabbit Loop-1.)
+                db.ChangeTracker.Clear();
                 logger.LogInformation(
                     "AutoCloseResolutionWindow optimistic-concurrency miss on ticket {TicketId}; will retry next pass.",
                     ticket.Id);

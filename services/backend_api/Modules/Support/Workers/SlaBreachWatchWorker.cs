@@ -206,9 +206,13 @@ public sealed class SlaBreachWatchWorker(
             catch (DbUpdateException ex)
                 when (ex.InnerException is PostgresException pg && pg.SqlState == "23505")
             {
-                // Composite-PK collision — another replica raced us within the same
-                // detected_at_utc tick. Treat as already-emitted and continue.
-                db.Entry(ticket).State = EntityState.Detached;
+                // Composite-PK collision — another replica raced us within the
+                // same detected_at_utc tick. Treat as already-emitted and continue.
+                // Clear the entire ChangeTracker (not just the ticket entry) so
+                // the new TicketSlaBreachEvent + any prior-event supersede edits
+                // from this iteration do NOT carry over into the next ticket's
+                // SaveChangesAsync. (CodeRabbit Loop-1 finding.)
+                db.ChangeTracker.Clear();
                 logger.LogInformation(
                     "SlaBreachWatch race lost on (ticket_id={TicketId}, breach_kind={BreachKind}); already emitted.",
                     ticket.Id, breachKind);
@@ -217,8 +221,10 @@ public sealed class SlaBreachWatchWorker(
             catch (DbUpdateConcurrencyException)
             {
                 // Ticket row changed mid-flight (another transition / override);
-                // skip — the next tick will re-evaluate.
-                db.Entry(ticket).State = EntityState.Detached;
+                // skip — the next tick will re-evaluate. Clear the entire
+                // ChangeTracker so the new TicketSlaBreachEvent + supersede
+                // edits don't leak into the next iteration. (CodeRabbit Loop-1.)
+                db.ChangeTracker.Clear();
                 logger.LogInformation(
                     "SlaBreachWatch optimistic-concurrency miss on ticket {TicketId}; will retry next pass.",
                     ticket.Id);
@@ -227,6 +233,9 @@ public sealed class SlaBreachWatchWorker(
 
             // Emit the kind-specific event. Failures here do not roll back the
             // persisted breach row — the ack stamp is the durable signal.
+            // Use the reloaded ticket.AssignedAgentId rather than the candidate's
+            // snapshot — the assignment may have flipped between candidate scan
+            // and the breach-event SaveChangesAsync. (CodeRabbit Loop-1.)
             try
             {
                 if (breachKind == TicketSlaBreachKind.FirstResponse)
@@ -234,7 +243,7 @@ public sealed class SlaBreachWatchWorker(
                     await publisher.Publish(new TicketSlaBreachedFirstResponse(
                         TicketId: ticket.Id,
                         TargetDueUtc: dueAt,
-                        AgentId: candidate.AssignedAgentId,
+                        AgentId: ticket.AssignedAgentId,
                         DetectedAtUtc: nowUtc), ct);
                 }
                 else
@@ -242,7 +251,7 @@ public sealed class SlaBreachWatchWorker(
                     await publisher.Publish(new TicketSlaBreachedResolution(
                         TicketId: ticket.Id,
                         TargetDueUtc: dueAt,
-                        AgentId: candidate.AssignedAgentId,
+                        AgentId: ticket.AssignedAgentId,
                         DetectedAtUtc: nowUtc), ct);
                 }
             }

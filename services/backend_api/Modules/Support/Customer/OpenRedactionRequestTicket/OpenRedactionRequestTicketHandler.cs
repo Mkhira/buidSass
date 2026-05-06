@@ -143,12 +143,22 @@ public sealed class OpenRedactionRequestTicketHandler
         });
 
         // Persist a back-link to the originating ticket so admin queue UI can
-        // present full context. We use the redaction-request ticket's own id
-        // as the originating_redaction_request_ticket_id when SuperAdmin
-        // ultimately calls RedactMessage.
-        // Note: TicketLinkedEntityKind doesn't include "ticket" — we encode the
-        // origin link as kind="redaction_request_origin" via the wire string
-        // path to avoid extending the enum prematurely.
+        // present full context, and so the SuperAdmin redact-message flow can
+        // resolve the originating-ticket id from the redaction-request ticket
+        // alone. (CodeRabbit Loop-1: this was promised by the comment but
+        // never persisted.) TicketLinkedEntityKind doesn't include "ticket"
+        // so we use the wire string "redaction_request_origin" — extending
+        // the enum is held off until a second use case appears.
+        _db.Links.Add(new TicketLink
+        {
+            Id = Guid.NewGuid(),
+            TicketId = ticketId,
+            Kind = "redaction_request_origin",
+            LinkedEntityId = cmd.OriginatingTicketId,
+            CreatedVia = TicketLinkCreatedVia.Submission,
+            IdempotencyKey = null,
+            CreatedAtUtc = nowUtc,
+        });
 
         await _db.SaveChangesAsync(ct);
 

@@ -63,9 +63,13 @@ public sealed class RedactMessageHandler
                 "System-event messages have no body to redact.");
         }
 
-        // FR-011a guard: the message must belong to the redaction-request's
-        // originating ticket if one is supplied. This stops a customer's
-        // redaction-request ticket from cascading into an unrelated thread.
+        // FR-011a guard: the message must belong to a thread owned by the
+        // customer whose redaction-request ticket triggered this redaction.
+        // CodeRabbit Loop-1 (Major): close the cross-thread loophole — the
+        // prior check was bypassable when the caller passed
+        // OriginatingRedactionRequestTicketId but omitted RequestingCustomerId.
+        // We now resolve the target ticket's customer too and require BOTH
+        // tickets to belong to the same customer.
         if (cmd.OriginatingRedactionRequestTicketId is not null)
         {
             var requestTicket = await _db.Tickets.AsNoTracking()
@@ -76,6 +80,18 @@ public sealed class RedactMessageHandler
                     "Originating redaction-request ticket not found.");
             }
 
+            var targetTicketCustomerId = await _db.Tickets.AsNoTracking()
+                .Where(t => t.Id == cmd.TicketId)
+                .Select(t => (Guid?)t.CustomerId)
+                .FirstOrDefaultAsync(ct);
+            if (targetTicketCustomerId is null
+                || requestTicket.CustomerId != targetTicketCustomerId.Value)
+            {
+                return Failure(TicketReasonCode.RedactionRequestMessageNotInOriginatingTicket,
+                    "Originating redaction-request ticket does not belong to the target ticket's customer.");
+            }
+
+            // If the caller also supplied requesting_customer_id, it must match.
             if (cmd.RequestingCustomerId is not null
                 && requestTicket.CustomerId != cmd.RequestingCustomerId.Value)
             {
@@ -100,10 +116,17 @@ public sealed class RedactMessageHandler
                 "Message was modified concurrently; retry the request.");
         }
 
+        // CodeRabbit Loop-1: include the super-admin actor id in the event
+        // payload so spec 003's audit-log consumer can record exact-actor
+        // accountability for this critical admin action (Principle 25).
+        // (A persisted column on TicketMessage for redacted_by_actor_id will
+        // land in a follow-up migration; the event is the durable audit
+        // signal in V1 and is consumed by spec 025 + the audit pipeline.)
         await _publisher.Publish(new TicketMessageRedacted(
             TicketId: cmd.TicketId,
             MessageId: cmd.MessageId,
             RequestingCustomerId: cmd.RequestingCustomerId ?? Guid.Empty,
+            SuperAdminActorId: cmd.SuperAdminActorId,
             OccurredAtUtc: nowUtc), ct);
 
         return new RedactMessageResult(true, nowUtc, null, null);

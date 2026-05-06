@@ -21,6 +21,10 @@ if [[ -z "${PGURL}" ]]; then
 fi
 
 quote_id="${1:-b2b00040-0000-0000-0000-000000000005}"
+if ! [[ "${quote_id}" =~ ^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$ ]]; then
+  echo "ERROR: quote_id must be a UUID (got: ${quote_id})." >&2
+  exit 2
+fi
 
 require_psql() {
   if ! command -v psql >/dev/null 2>&1; then
@@ -29,8 +33,11 @@ require_psql() {
   fi
 }
 
+# Pass quote_id via psql variable so the value is quoted by libpq, not by shell
+# interpolation. SQL bodies reference `:'quote_id'` for a safely-quoted literal.
 run_query() {
   psql --no-psqlrc --no-align --tuples-only --quiet --field-separator=$'\t' \
+       --set=quote_id="${quote_id}" \
        --dbname "${PGURL}" --command "$1"
 }
 
@@ -44,7 +51,7 @@ transitions=$(run_query "
   SELECT \"PriorState\" || ' -> ' || \"NewState\" || E'\t' ||
          \"ActorKind\" || E'\t' || COALESCE(\"MetadataJson\"::text, '{}') || E'\t' || \"OccurredAt\"
     FROM b2b.quote_state_transitions
-   WHERE \"QuoteId\" = '${quote_id}'
+   WHERE \"QuoteId\" = :'quote_id'
    ORDER BY \"OccurredAt\";")
 echo "${transitions:-<no transitions>}"
 echo
@@ -55,7 +62,7 @@ audit_state_changed=$(run_query "
          actor_role || E'\t' || COALESCE(reason, '') || E'\t' || occurred_at
     FROM audit_log_entries
    WHERE entity_type = 'quote'
-     AND entity_id = '${quote_id}'
+     AND entity_id = :'quote_id'
      AND action = 'quote.state_changed'
    ORDER BY occurred_at;")
 echo "${audit_state_changed:-<no audit rows>}"
@@ -68,6 +75,14 @@ echo
 transition_count=$(echo "${transitions}" | grep -c -v '^$' || true)
 audit_count=$(echo "${audit_state_changed}" | grep -c -v '^$' || true)
 echo "transitions: ${transition_count}    audit.state_changed: ${audit_count}"
+# Dev seeds insert a synthetic `__none__ -> <state>` ledger row that has no
+# matching audit entry. Allow exactly one extra ledger row over the audit
+# count for that case; anything bigger is a real divergence.
+allow_seed_skew=$(( transition_count - audit_count ))
+if (( audit_count != transition_count && allow_seed_skew != 1 )); then
+  echo "FAIL — quote ${quote_id}: ${transition_count} transition ledger row(s) but ${audit_count} audit.state_changed row(s)." >&2
+  exit 1
+fi
 
 echo
 echo "--- audit_log_entries.action='quote.line_override' rows for this quote ---"
@@ -77,7 +92,7 @@ run_query "
          actor_role || E'\t' || occurred_at
     FROM audit_log_entries
    WHERE entity_type = 'quote'
-     AND entity_id = '${quote_id}'
+     AND entity_id = :'quote_id'
      AND action = 'quote.line_override'
    ORDER BY occurred_at;" || true
 
@@ -87,7 +102,7 @@ run_query "
   SELECT after_state || E'\t' || actor_role || E'\t' || occurred_at
     FROM audit_log_entries
    WHERE entity_type = 'quote'
-     AND entity_id = '${quote_id}'
+     AND entity_id = :'quote_id'
      AND action = 'quote.po_warning_acknowledged'
    ORDER BY occurred_at;" || true
 
@@ -98,7 +113,7 @@ run_query "
     FROM audit_log_entries
    WHERE entity_type = 'repeat_order_template'
      AND action = 'quote.repeat_order_template_saved'
-     AND (after_state->>'source_quote_id') = '${quote_id}'
+     AND (after_state->>'source_quote_id') = :'quote_id'
    ORDER BY occurred_at;" || true
 
 echo
@@ -109,15 +124,15 @@ run_query "
    WHERE a.entity_id IN (
            SELECT q.company_id::text::uuid
              FROM b2b.quotes q
-            WHERE q.\"Id\" = '${quote_id}' AND q.company_id IS NOT NULL
+            WHERE q.\"Id\" = :'quote_id' AND q.company_id IS NOT NULL
        )
       OR a.entity_id IN (
            SELECT m.\"Id\"
              FROM b2b.company_memberships m
              JOIN b2b.quotes q ON q.company_id = m.company_id
-            WHERE q.\"Id\" = '${quote_id}'
+            WHERE q.\"Id\" = :'quote_id'
        )
    ORDER BY a.occurred_at;" || true
 
 echo
-echo "PASS — replay surface emitted; cross-reference counts above against the spec.md SC-005 expected list."
+echo "PASS — replay surface emitted and transition/audit counts reconcile."

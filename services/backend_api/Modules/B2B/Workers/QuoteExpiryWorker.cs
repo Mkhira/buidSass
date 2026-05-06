@@ -13,10 +13,12 @@ using Microsoft.Extensions.Options;
 namespace BackendApi.Modules.B2B.Workers;
 
 /// <summary>
-/// Spec 021 task T135. Daily worker that transitions every non-terminal quote
-/// (<c>requested</c>, <c>drafted</c>, <c>revised</c>, <c>pending-approver</c>) whose
-/// <c>expires_at &lt;= now</c> to <c>expired</c>. Publishes <see cref="QuoteExpired"/>,
-/// audits the transition, and writes a <see cref="QuoteStateTransition"/> ledger row.
+/// Spec 021 task T135. Daily worker that transitions every authored-but-not-yet-acted
+/// quote (<c>revised</c>, <c>pending-approver</c>) whose <c>expires_at &lt;= now</c>
+/// to <c>expired</c>. <c>requested</c> and <c>drafted</c> quotes are operator-driven
+/// states with no customer-visible expiry surface and MUST NOT be auto-terminated.
+/// Publishes <see cref="QuoteExpired"/>, audits the transition, and writes a
+/// <see cref="QuoteStateTransition"/> ledger row.
 ///
 /// <para>Per pass:</para>
 /// <list type="number">
@@ -87,12 +89,12 @@ public sealed class QuoteExpiryWorker(
 
         var nowUtc = clock.GetUtcNow();
 
-        // Bounded by index on (state, expires_at). Non-terminal states only.
+        // Bounded by index on (state, expires_at). Spec 021 T135 limits the
+        // expirable surface to states the customer can actually accept against —
+        // `requested` and `drafted` are operator-driven and stay retryable.
         var dueIds = await db.Quotes
             .AsNoTracking()
-            .Where(q => (q.State == "requested"
-                      || q.State == "drafted"
-                      || q.State == "revised"
+            .Where(q => (q.State == "revised"
                       || q.State == "pending-approver")
                      && q.ExpiresAt != null
                      && q.ExpiresAt <= nowUtc)
@@ -139,8 +141,11 @@ public sealed class QuoteExpiryWorker(
             return false;
         }
 
-        // Idempotent guard — skip rows that another instance / tick already expired or moved terminal.
-        if (!QuoteStateExtensions.TryParseToken(quote.State, out var currentState) || currentState.IsTerminal())
+        // Idempotent guard — skip rows that another instance / tick already expired
+        // or moved terminal. Defensive: even when called directly, refuse to expire
+        // anything outside the spec-allowed surface (`revised`, `pending-approver`).
+        if (!QuoteStateExtensions.TryParseToken(quote.State, out var currentState)
+            || (currentState != QuoteState.Revised && currentState != QuoteState.PendingApprover))
         {
             return false;
         }

@@ -1,87 +1,630 @@
 {
   "openapi": "3.0.1",
   "info": {
-    "title": "Backend API — Quotes and B2B (spec 021)",
+    "title": "Backend API \u2014 Quotes and B2B (spec 021)",
     "version": "v1-phase10-surface-map",
-    "description": "Spec 021 module surface across all phases (1–10). The full per-endpoint schemas are emitted by `scripts/generate-openapi-b2b.sh` once spec 005 (`IProductCatalogQuery`) and spec 007-a (`IPricingBaselineProvider`) producers are registered in production DI. Until then, this document is the canonical path surface map; consumers can dereference it against `contracts/quotes-and-b2b-contract.md` for request/response shapes."
+    "description": "Spec 021 module surface across all phases (1\u201310). The full per-endpoint schemas are emitted by `scripts/generate-openapi-b2b.sh` once spec 005 (`IProductCatalogQuery`) and spec 007-a (`IPricingBaselineProvider`) producers are registered in production DI. Until then, this document is the canonical path surface map; consumers can dereference it against `contracts/quotes-and-b2b-contract.md` for request/response shapes."
   },
   "paths": {
     "/api/customer/quotes/from-cart": {
-      "post": { "summary": "US1 §2.1 RequestQuoteFromCart", "operationId": "RequestQuoteFromCart" }
+      "post": {
+        "summary": "US1 \u00a72.1 RequestQuoteFromCart",
+        "operationId": "RequestQuoteFromCart",
+        "responses": {
+          "200": {
+            "description": "OK \u2014 see contracts/quotes-and-b2b-contract.md for the response shape."
+          },
+          "default": {
+            "description": "Error \u2014 see contracts/quotes-and-b2b-contract.md for the error envelope."
+          }
+        }
+      }
     },
     "/api/customer/quotes/from-product": {
-      "post": { "summary": "US2 §2.2 RequestQuoteFromProduct", "operationId": "RequestQuoteFromProduct" }
+      "post": {
+        "summary": "US2 \u00a72.2 RequestQuoteFromProduct",
+        "operationId": "RequestQuoteFromProduct",
+        "responses": {
+          "200": {
+            "description": "OK \u2014 see contracts/quotes-and-b2b-contract.md for the response shape."
+          },
+          "default": {
+            "description": "Error \u2014 see contracts/quotes-and-b2b-contract.md for the error envelope."
+          }
+        }
+      }
     },
     "/api/customer/quotes": {
-      "get": { "summary": "US1 §2.3 ListMyQuotes", "operationId": "ListMyQuotes" }
+      "get": {
+        "summary": "US1 \u00a72.3 ListMyQuotes",
+        "operationId": "ListMyQuotes",
+        "responses": {
+          "200": {
+            "description": "OK \u2014 see contracts/quotes-and-b2b-contract.md for the response shape."
+          },
+          "default": {
+            "description": "Error \u2014 see contracts/quotes-and-b2b-contract.md for the error envelope."
+          }
+        }
+      }
     },
     "/api/customer/quotes/{id}": {
-      "get": { "summary": "US1 §2.4 GetMyQuote", "operationId": "GetMyQuote" }
+      "get": {
+        "summary": "US1 \u00a72.4 GetMyQuote",
+        "operationId": "GetMyQuote",
+        "responses": {
+          "200": {
+            "description": "OK \u2014 see contracts/quotes-and-b2b-contract.md for the response shape."
+          },
+          "default": {
+            "description": "Error \u2014 see contracts/quotes-and-b2b-contract.md for the error envelope."
+          }
+        }
+      },
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      ]
     },
     "/api/customer/quotes/{id}/withdraw": {
-      "post": { "summary": "US1 §2.5 WithdrawQuote", "operationId": "WithdrawQuote" }
+      "post": {
+        "summary": "US1 \u00a72.5 WithdrawQuote",
+        "operationId": "WithdrawQuote",
+        "responses": {
+          "200": {
+            "description": "OK \u2014 see contracts/quotes-and-b2b-contract.md for the response shape."
+          },
+          "default": {
+            "description": "Error \u2014 see contracts/quotes-and-b2b-contract.md for the error envelope."
+          }
+        }
+      },
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      ]
     },
     "/api/customer/quotes/{id}/request-revision": {
-      "post": { "summary": "US1 §2.6 RequestRevision", "operationId": "RequestRevision" }
+      "post": {
+        "summary": "US1 \u00a72.6 RequestRevision",
+        "operationId": "RequestRevision",
+        "responses": {
+          "200": {
+            "description": "OK \u2014 see contracts/quotes-and-b2b-contract.md for the response shape."
+          },
+          "default": {
+            "description": "Error \u2014 see contracts/quotes-and-b2b-contract.md for the error envelope."
+          }
+        }
+      },
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      ]
     },
     "/api/customer/quotes/{id}/submit-acceptance": {
-      "post": { "summary": "US1 §2.7 SubmitAcceptance", "operationId": "SubmitAcceptance" }
+      "post": {
+        "summary": "US1 \u00a72.7 SubmitAcceptance",
+        "operationId": "SubmitAcceptance",
+        "responses": {
+          "200": {
+            "description": "OK \u2014 see contracts/quotes-and-b2b-contract.md for the response shape."
+          },
+          "default": {
+            "description": "Error \u2014 see contracts/quotes-and-b2b-contract.md for the error envelope."
+          }
+        }
+      },
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      ]
     },
     "/api/customer/quotes/{quoteId}/versions/{versionId}/documents/{locale}": {
-      "get": { "summary": "US1 §2.8 DownloadQuoteVersionDocument", "operationId": "DownloadQuoteVersionDocument" }
+      "get": {
+        "summary": "US1 \u00a72.8 DownloadQuoteVersionDocument",
+        "operationId": "DownloadQuoteVersionDocument",
+        "responses": {
+          "200": {
+            "description": "OK \u2014 see contracts/quotes-and-b2b-contract.md for the response shape."
+          },
+          "default": {
+            "description": "Error \u2014 see contracts/quotes-and-b2b-contract.md for the error envelope."
+          }
+        }
+      },
+      "parameters": [
+        {
+          "name": "quoteId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        {
+          "name": "versionId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        {
+          "name": "locale",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "enum": [
+              "ar",
+              "en"
+            ]
+          }
+        }
+      ]
     },
     "/api/customer/quotes/awaiting-my-approval": {
-      "get": { "summary": "US5 §3.1 ListPendingApprovals", "operationId": "ListPendingApprovals" }
+      "get": {
+        "summary": "US5 \u00a73.1 ListPendingApprovals",
+        "operationId": "ListPendingApprovals",
+        "responses": {
+          "200": {
+            "description": "OK \u2014 see contracts/quotes-and-b2b-contract.md for the response shape."
+          },
+          "default": {
+            "description": "Error \u2014 see contracts/quotes-and-b2b-contract.md for the error envelope."
+          }
+        }
+      }
     },
     "/api/customer/quotes/{id}/finalize-acceptance": {
-      "post": { "summary": "US5 §3.2 FinalizeAcceptance", "operationId": "FinalizeAcceptance" }
+      "post": {
+        "summary": "US5 \u00a73.2 FinalizeAcceptance",
+        "operationId": "FinalizeAcceptance",
+        "responses": {
+          "200": {
+            "description": "OK \u2014 see contracts/quotes-and-b2b-contract.md for the response shape."
+          },
+          "default": {
+            "description": "Error \u2014 see contracts/quotes-and-b2b-contract.md for the error envelope."
+          }
+        }
+      },
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      ]
     },
     "/api/customer/quotes/{id}/reject-acceptance": {
-      "post": { "summary": "US5 §3.3 RejectAcceptance", "operationId": "RejectAcceptance" }
+      "post": {
+        "summary": "US5 \u00a73.3 RejectAcceptance",
+        "operationId": "RejectAcceptance",
+        "responses": {
+          "200": {
+            "description": "OK \u2014 see contracts/quotes-and-b2b-contract.md for the response shape."
+          },
+          "default": {
+            "description": "Error \u2014 see contracts/quotes-and-b2b-contract.md for the error envelope."
+          }
+        }
+      },
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      ]
     },
     "/api/customer/quotes/{id}/save-as-template": {
-      "post": { "summary": "US7 §8 SaveAsRepeatOrderTemplate", "operationId": "SaveAsRepeatOrderTemplate" }
+      "post": {
+        "summary": "US7 \u00a78 SaveAsRepeatOrderTemplate",
+        "operationId": "SaveAsRepeatOrderTemplate",
+        "responses": {
+          "200": {
+            "description": "OK \u2014 see contracts/quotes-and-b2b-contract.md for the response shape."
+          },
+          "default": {
+            "description": "Error \u2014 see contracts/quotes-and-b2b-contract.md for the error envelope."
+          }
+        }
+      },
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      ]
     },
     "/api/admin/quotes": {
-      "get": { "summary": "US3 §4.1 ListQuoteQueue", "operationId": "ListQuoteQueue" }
+      "get": {
+        "summary": "US3 \u00a74.1 ListQuoteQueue",
+        "operationId": "ListQuoteQueue",
+        "responses": {
+          "200": {
+            "description": "OK \u2014 see contracts/quotes-and-b2b-contract.md for the response shape."
+          },
+          "default": {
+            "description": "Error \u2014 see contracts/quotes-and-b2b-contract.md for the error envelope."
+          }
+        }
+      }
     },
     "/api/admin/quotes/{id}": {
-      "get": { "summary": "US3 §4.2 GetQuoteDetail", "operationId": "GetQuoteDetail" }
+      "get": {
+        "summary": "US3 \u00a74.2 GetQuoteDetail",
+        "operationId": "GetQuoteDetail",
+        "responses": {
+          "200": {
+            "description": "OK \u2014 see contracts/quotes-and-b2b-contract.md for the response shape."
+          },
+          "default": {
+            "description": "Error \u2014 see contracts/quotes-and-b2b-contract.md for the error envelope."
+          }
+        }
+      },
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      ]
     },
     "/api/admin/quotes/{id}/draft": {
-      "post": { "summary": "US3 §4.3 AuthorQuoteDraft", "operationId": "AuthorQuoteDraft" }
+      "post": {
+        "summary": "US3 \u00a74.3 AuthorQuoteDraft",
+        "operationId": "AuthorQuoteDraft",
+        "responses": {
+          "200": {
+            "description": "OK \u2014 see contracts/quotes-and-b2b-contract.md for the response shape."
+          },
+          "default": {
+            "description": "Error \u2014 see contracts/quotes-and-b2b-contract.md for the error envelope."
+          }
+        }
+      },
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      ]
     },
     "/api/admin/quotes/{id}/publish": {
-      "post": { "summary": "US3 §4.4 PublishQuoteVersion", "operationId": "PublishQuoteVersion" }
+      "post": {
+        "summary": "US3 \u00a74.4 PublishQuoteVersion",
+        "operationId": "PublishQuoteVersion",
+        "responses": {
+          "200": {
+            "description": "OK \u2014 see contracts/quotes-and-b2b-contract.md for the response shape."
+          },
+          "default": {
+            "description": "Error \u2014 see contracts/quotes-and-b2b-contract.md for the error envelope."
+          }
+        }
+      },
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      ]
     },
     "/api/customer/companies": {
-      "post": { "summary": "US4 §5.1 RegisterCompany", "operationId": "RegisterCompany" }
+      "post": {
+        "summary": "US4 \u00a75.1 RegisterCompany",
+        "operationId": "RegisterCompany",
+        "responses": {
+          "200": {
+            "description": "OK \u2014 see contracts/quotes-and-b2b-contract.md for the response shape."
+          },
+          "default": {
+            "description": "Error \u2014 see contracts/quotes-and-b2b-contract.md for the error envelope."
+          }
+        }
+      }
     },
     "/api/customer/companies/{id}": {
-      "get": { "summary": "US4 §5.2 GetMyCompany", "operationId": "GetMyCompany" },
-      "patch": { "summary": "US4 §5.3 UpdateCompanyConfig", "operationId": "UpdateCompanyConfig" }
+      "get": {
+        "summary": "US4 \u00a75.2 GetMyCompany",
+        "operationId": "GetMyCompany",
+        "responses": {
+          "200": {
+            "description": "OK \u2014 see contracts/quotes-and-b2b-contract.md for the response shape."
+          },
+          "default": {
+            "description": "Error \u2014 see contracts/quotes-and-b2b-contract.md for the error envelope."
+          }
+        }
+      },
+      "patch": {
+        "summary": "US4 \u00a75.3 UpdateCompanyConfig",
+        "operationId": "UpdateCompanyConfig",
+        "responses": {
+          "200": {
+            "description": "OK \u2014 see contracts/quotes-and-b2b-contract.md for the response shape."
+          },
+          "default": {
+            "description": "Error \u2014 see contracts/quotes-and-b2b-contract.md for the error envelope."
+          }
+        }
+      },
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      ]
     },
     "/api/customer/companies/{id}/branches": {
-      "post": { "summary": "US4 §5.4 AddBranch", "operationId": "AddBranch" }
+      "post": {
+        "summary": "US4 \u00a75.4 AddBranch",
+        "operationId": "AddBranch",
+        "responses": {
+          "200": {
+            "description": "OK \u2014 see contracts/quotes-and-b2b-contract.md for the response shape."
+          },
+          "default": {
+            "description": "Error \u2014 see contracts/quotes-and-b2b-contract.md for the error envelope."
+          }
+        }
+      },
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      ]
     },
     "/api/customer/companies/{id}/branches/{branchId}": {
-      "delete": { "summary": "US4 §5.5 RemoveBranch", "operationId": "RemoveBranch" }
+      "delete": {
+        "summary": "US4 \u00a75.5 RemoveBranch",
+        "operationId": "RemoveBranch",
+        "responses": {
+          "200": {
+            "description": "OK \u2014 see contracts/quotes-and-b2b-contract.md for the response shape."
+          },
+          "default": {
+            "description": "Error \u2014 see contracts/quotes-and-b2b-contract.md for the error envelope."
+          }
+        }
+      },
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        {
+          "name": "branchId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      ]
     },
     "/api/customer/companies/{id}/invitations": {
-      "post": { "summary": "US4 §5.6 InviteUser", "operationId": "InviteUser" }
+      "post": {
+        "summary": "US4 \u00a75.6 InviteUser",
+        "operationId": "InviteUser",
+        "responses": {
+          "200": {
+            "description": "OK \u2014 see contracts/quotes-and-b2b-contract.md for the response shape."
+          },
+          "default": {
+            "description": "Error \u2014 see contracts/quotes-and-b2b-contract.md for the error envelope."
+          }
+        }
+      },
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      ]
     },
     "/api/customer/companies/invitations/{token}/accept": {
-      "post": { "summary": "US4 §5.7 AcceptInvitation", "operationId": "AcceptInvitation" }
+      "post": {
+        "summary": "US4 \u00a75.7 AcceptInvitation",
+        "operationId": "AcceptInvitation",
+        "responses": {
+          "200": {
+            "description": "OK \u2014 see contracts/quotes-and-b2b-contract.md for the response shape."
+          },
+          "default": {
+            "description": "Error \u2014 see contracts/quotes-and-b2b-contract.md for the error envelope."
+          }
+        }
+      },
+      "parameters": [
+        {
+          "name": "token",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ]
     },
     "/api/customer/companies/invitations/{token}/decline": {
-      "post": { "summary": "US4 §5.8 DeclineInvitation", "operationId": "DeclineInvitation" }
+      "post": {
+        "summary": "US4 \u00a75.8 DeclineInvitation",
+        "operationId": "DeclineInvitation",
+        "responses": {
+          "200": {
+            "description": "OK \u2014 see contracts/quotes-and-b2b-contract.md for the response shape."
+          },
+          "default": {
+            "description": "Error \u2014 see contracts/quotes-and-b2b-contract.md for the error envelope."
+          }
+        }
+      },
+      "parameters": [
+        {
+          "name": "token",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ]
     },
     "/api/customer/companies/{id}/memberships/{membershipId}": {
-      "delete": { "summary": "US4 §5.9 RemoveMember", "operationId": "RemoveMember" },
-      "patch": { "summary": "US4 §5.10 ChangeMemberRole", "operationId": "ChangeMemberRole" }
+      "delete": {
+        "summary": "US4 \u00a75.9 RemoveMember",
+        "operationId": "RemoveMember",
+        "responses": {
+          "200": {
+            "description": "OK \u2014 see contracts/quotes-and-b2b-contract.md for the response shape."
+          },
+          "default": {
+            "description": "Error \u2014 see contracts/quotes-and-b2b-contract.md for the error envelope."
+          }
+        }
+      },
+      "patch": {
+        "summary": "US4 \u00a75.10 ChangeMemberRole",
+        "operationId": "ChangeMemberRole",
+        "responses": {
+          "200": {
+            "description": "OK \u2014 see contracts/quotes-and-b2b-contract.md for the response shape."
+          },
+          "default": {
+            "description": "Error \u2014 see contracts/quotes-and-b2b-contract.md for the error envelope."
+          }
+        }
+      },
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        {
+          "name": "membershipId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      ]
     },
     "/api/admin/companies/{id}/suspend": {
-      "post": { "summary": "US4 §6.1 SuspendCompany", "operationId": "SuspendCompany" }
+      "post": {
+        "summary": "US4 \u00a76.1 SuspendCompany",
+        "operationId": "SuspendCompany",
+        "responses": {
+          "200": {
+            "description": "OK \u2014 see contracts/quotes-and-b2b-contract.md for the response shape."
+          },
+          "default": {
+            "description": "Error \u2014 see contracts/quotes-and-b2b-contract.md for the error envelope."
+          }
+        }
+      },
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      ]
     }
   },
   "components": {
@@ -94,6 +637,8 @@
     }
   },
   "security": [
-    { "bearerAuth": [] }
+    {
+      "bearerAuth": []
+    }
   ]
 }

@@ -58,6 +58,12 @@ public sealed class B2BDevDataSeeder : ISeeder
             return;
         }
 
+        // Wrap every staged save in one transaction so a partial failure rolls back
+        // the canary company. Without this, a mid-run crash would leave the canary
+        // present and every subsequent rerun would short-circuit to a no-op,
+        // permanently freezing the dev dataset in a half-seeded state.
+        await using var tx = await db.Database.BeginTransactionAsync(ct);
+
         SeedCompanies(db);
         SeedBranches(db);
         SeedMemberships(db);
@@ -71,6 +77,8 @@ public sealed class B2BDevDataSeeder : ISeeder
 
         SeedTemplates(db);
         await db.SaveChangesAsync(ct);
+
+        await tx.CommitAsync(ct);
     }
 
     private static void SeedCompanies(B2BDbContext db)

@@ -82,8 +82,14 @@ public sealed class ProductArchivedHandler(
             return;
         }
 
+        // Re-apply the requested/revised filter on the tracked reload — between
+        // the raw-SQL id resolution above and SaveChanges below, a concurrent
+        // operator action could have advanced one of these quotes to
+        // `pending-approver` or a terminal state, in which case appending a
+        // product_archived hint is no longer correct.
         var quotes = await db.Quotes
-            .Where(q => matchingIds.Contains(q.Id))
+            .Where(q => matchingIds.Contains(q.Id)
+                     && (q.State == "requested" || q.State == "revised"))
             .ToListAsync(ct);
 
         if (quotes.Count == 0)

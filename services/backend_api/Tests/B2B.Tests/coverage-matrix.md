@@ -6,22 +6,26 @@ DoD walkthrough.
 
 ## Functional requirements
 
-| FR | Description | Test |
-|---|---|---|
-| FR-011 | Cross-market quote requests rejected with `quote.market_mismatch`. | `Contract/RequestQuoteFromCartContractTests` |
-| FR-019 | Per-company PO uniqueness when `unique_po_required=true`. | `Contract/SubmitAcceptanceContractTests`, `Integration/PoSoftWarningFlowTests` |
-| FR-024 | Last admin removal forbidden. | `Integration/CompanyAdministrationInvariantsTests.RemoveLastAdmin_*` |
-| FR-025 | Last approver removal under `approver_required=true` forbidden. | `Integration/CompanyAdministrationInvariantsTests.RemoveLastApprover_*` |
-| FR-026 | Suspended companies rejected on customer-facing actions. | `Contract/RequestQuoteFromCartContractTests`, `RejectAcceptanceHandler` (CodeRabbit Round 1) |
-| FR-027 | Cross-market individual-customer flow uses `invoice_billing=false`. | `Integration/IndividualAcceptanceTests` |
-| FR-030 | Last approver leaves → pending-approver quotes return to revised. | `MemberHandler.ApplyMembershipChange` (covered by FR-025 path) |
-| FR-031 | `approver_required=true → false` while pending-approver quotes exist transitions them back to revised. | `Integration/CompanyAdministrationInvariantsTests.UpdateCompanyConfig_*` |
-| FR-036 | Eligibility re-check at acceptance. | `Integration/AdminDetailVerificationWarningsTests`, `QuoteToOrderConverter` |
-| FR-038 | `account_inactive` carry-over. | `Contract/RequestQuoteFromCartContractTests`, `Hooks/AccountLifecycleHandler` |
-| FR-040 | Below-baseline reason required + audited. | `Integration/BelowBaselineAuditTests` |
-| FR-041 / FR-042 | EN + AR error envelopes (token-stable). | `Integration/CustomerQuoteLocaleTests` |
-| FR-043 | Subscriber failures don't roll back state writes. | `Hooks/AccountLifecycleHandler`, `QuoteExpiryWorker`, `InvitationExpiryWorker` |
-| FR-045 | Per-customer + per-company hourly rate-limit. | `Integration/RateLimitEnforcementTests` |
+The `Test` column lists executable test classes (xUnit). The `Implementation / proof`
+column points to the production code or hook whose behavior the test exercises —
+keep the two columns separate so the matrix reads cleanly during DoD review.
+
+| FR | Description | Test | Implementation / proof |
+|---|---|---|---|
+| FR-011 | Cross-market quote requests rejected with `quote.market_mismatch`. | `Contract/RequestQuoteFromCartContractTests` | `Modules/B2B/Quotes/Customer/RequestQuoteFromCart/Handler` |
+| FR-019 | Per-company PO uniqueness when `unique_po_required=true`. | `Contract/SubmitAcceptanceContractTests`, `Integration/PoSoftWarningFlowTests` | `Modules/B2B/Quotes/Customer/SubmitAcceptance/Handler` |
+| FR-024 | Last admin removal forbidden. | `Integration/CompanyAdministrationInvariantsTests.RemoveLastAdmin_*` | `Modules/B2B/Companies/Members/Handlers/RemoveMemberHandler` |
+| FR-025 | Last approver removal under `approver_required=true` forbidden. | `Integration/CompanyAdministrationInvariantsTests.RemoveLastApprover_*` | `Modules/B2B/Companies/Members/Handlers/RemoveMemberHandler` |
+| FR-026 | Suspended companies rejected on customer-facing actions. | `Contract/RequestQuoteFromCartContractTests` | `Modules/B2B/Quotes/Customer/RejectAcceptance/Handler` (CodeRabbit Round 1) |
+| FR-027 | Cross-market individual-customer flow uses `invoice_billing=false`. | `Integration/IndividualAcceptanceTests` | `Modules/B2B/Quotes/Customer/SubmitAcceptance/Handler` |
+| FR-030 | Last approver leaves → pending-approver quotes return to revised. | `Integration/CompanyAdministrationInvariantsTests.RemoveLastApprover_*` | `Modules/B2B/Companies/Members/Handlers/MemberHandler.ApplyMembershipChange` |
+| FR-031 | `approver_required=true → false` while pending-approver quotes exist transitions them back to revised. | `Integration/CompanyAdministrationInvariantsTests.UpdateCompanyConfig_*` | `Modules/B2B/Companies/UpdateCompanyConfig/Handler` |
+| FR-036 | Eligibility re-check at acceptance. | `Integration/AdminDetailVerificationWarningsTests` | `Modules/B2B/Quotes/Conversion/QuoteToOrderConverter` |
+| FR-038 | `account_inactive` carry-over. | `Contract/RequestQuoteFromCartContractTests`, `Integration/AccountLifecycleHandlerTests` | `Modules/B2B/Hooks/AccountLifecycleHandler` |
+| FR-040 | Below-baseline reason required + audited. | `Integration/BelowBaselineAuditTests` | `Modules/B2B/Quotes/Admin/AuthorQuoteDraft/Handler` |
+| FR-041 / FR-042 | EN + AR error envelopes (token-stable). | `Integration/CustomerQuoteLocaleTests` | `Modules/B2B/Messages/B2BErrorMessages` |
+| FR-043 | Subscriber failures don't roll back state writes. | `Integration/AccountLifecycleHandlerTests`, `Integration/QuoteExpiryWorkerTests`, `Integration/InvitationExpiryWorkerTests` | `Modules/B2B/Hooks/AccountLifecycleHandler`, `Modules/B2B/Workers/QuoteExpiryWorker`, `Modules/B2B/Workers/InvitationExpiryWorker` |
+| FR-045 | Per-customer + per-company hourly rate-limit. | `Integration/RateLimitEnforcementTests` | `Modules/B2B/Quotes/RateLimit/QuoteRateLimiter` |
 
 ## Success criteria
 

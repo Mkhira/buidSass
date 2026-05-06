@@ -112,6 +112,9 @@ public sealed class AccountLifecycleHandler(
         var memberships = removeMemberships
             ? await db.CompanyMemberships.Where(m => m.UserId == customerId).ToListAsync(ct)
             : new List<CompanyMembership>();
+        var removedMembershipSnapshots = memberships
+            .Select(m => (m.Id, m.CompanyId, m.Role, m.MarketCode))
+            .ToList();
         if (memberships.Count > 0)
         {
             db.CompanyMemberships.RemoveRange(memberships);
@@ -151,6 +154,28 @@ public sealed class AccountLifecycleHandler(
             catch (Exception ex)
             {
                 logger.LogWarning(ex, "AccountLifecycleHandler domain publish failed for quote {QuoteId}.", id);
+            }
+        }
+
+        // Audit each removed membership — Principle 25 requires a trail for role /
+        // permission changes. Best-effort fan-out, same pattern as the quote leg.
+        foreach (var (membershipId, companyId, role, marketCode) in removedMembershipSnapshots)
+        {
+            try
+            {
+                await auditPublisher.PublishAsync(new AuditEvent(
+                    ActorId: SystemActorId,
+                    ActorRole: "system",
+                    Action: "company_membership.removed",
+                    EntityType: "company_membership",
+                    EntityId: membershipId,
+                    BeforeState: new { company_id = companyId, role, market_code = marketCode },
+                    AfterState: null,
+                    Reason: reasonToken), ct);
+            }
+            catch (Exception ex)
+            {
+                logger.LogWarning(ex, "AccountLifecycleHandler membership-removal audit publish failed for membership {MembershipId}.", membershipId);
             }
         }
     }

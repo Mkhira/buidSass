@@ -32,7 +32,11 @@ public sealed class WorkerSchedule
     public TimeOnly StartUtc { get; set; } = new TimeOnly(3, 0);
 
     /// <summary>
-    /// Returns the delay until the next StartUtc-aligned tick. If the configured
+    /// Returns the delay until the next <see cref="StartUtc"/>-anchored tick. The
+    /// next tick is the smallest multiple of <see cref="Period"/> after
+    /// <see cref="StartUtc"/> that is strictly greater than <paramref name="nowUtc"/>,
+    /// so sub-daily periods (e.g. 6h with StartUtc=03:15) align to 09:15/15:15/21:15
+    /// rather than waiting until tomorrow's StartUtc. If the configured
     /// <see cref="Period"/> is sub-hourly (dev override) the alignment is skipped
     /// and the worker runs on its first tick.
     /// </summary>
@@ -49,6 +53,8 @@ public sealed class WorkerSchedule
         {
             return todayStart - nowUtc;
         }
-        return todayStart.AddDays(1) - nowUtc;
+        var elapsed = nowUtc - todayStart;
+        var remainder = TimeSpan.FromTicks(elapsed.Ticks % Period.Ticks);
+        return remainder == TimeSpan.Zero ? TimeSpan.Zero : Period - remainder;
     }
 }

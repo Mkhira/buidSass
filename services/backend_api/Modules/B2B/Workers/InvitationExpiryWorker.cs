@@ -16,8 +16,16 @@ namespace BackendApi.Modules.B2B.Workers;
 /// invitation past its <c>expires_at</c> to <c>expired</c>; publishes
 /// <see cref="CompanyInvitationExpired"/> and audits the transition.
 ///
-/// Idempotent on re-run; advisory lock prevents double-execution by parallel
-/// instances (research §R7).
+/// <para>Idempotent on re-run; advisory lock prevents double-execution by parallel
+/// instances (research §R7).</para>
+///
+/// <para>Audit and domain publication run best-effort after the state commit —
+/// matching <see cref="QuoteExpiryWorker"/> and <see cref="Hooks.AccountLifecycleHandler"/>.
+/// A subscriber failure logs a warning but does NOT roll back the expiry
+/// transition; this is the codebase-wide convention for system-driven side
+/// effects. A durable outbox is the planned hardening path (research §R7) and
+/// the place to fix this consistently across all three call sites — not in this
+/// worker alone.</para>
 /// </summary>
 public sealed class InvitationExpiryWorker(
     IServiceScopeFactory scopeFactory,

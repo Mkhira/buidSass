@@ -73,7 +73,6 @@ public sealed class ApproverFlowAndConversionTests : IAsyncLifetime
     {
         var (companyId, _, approverA) = await SeedCompanyWithApproverAsync(approverRequired: true);
         var approverB = await SeedMembershipAsync(companyId, Guid.NewGuid(), "approver");
-        _ = approverB;
         var (quoteId, _) = await SeedPendingApproverQuoteAsync(companyId);
 
         // Race two finalize calls. We use sequential-but-conflicting invocations to
@@ -97,7 +96,10 @@ public sealed class ApproverFlowAndConversionTests : IAsyncLifetime
                 taxPreviewDriftAcknowledged: false, CancellationToken.None);
             first.IsSuccess.Should().BeTrue();
 
-            var second = await handlerB.HandleAsync(quoteId, approverA, Guid.NewGuid(),
+            // Use approverB on the losing leg so the test actually exercises the
+            // multi-approver finalize rule (two distinct approvers racing) rather
+            // than a same-user replay.
+            var second = await handlerB.HandleAsync(quoteId, approverB, Guid.NewGuid(),
                 taxPreviewDriftAcknowledged: false, CancellationToken.None);
             second.IsSuccess.Should().BeFalse();
             second.ReasonCode.Should().Be(QuoteReasonCode.QuoteAlreadyDecided);
@@ -229,15 +231,19 @@ public sealed class ApproverFlowAndConversionTests : IAsyncLifetime
             new CompanyMembership
             {
                 Id = Guid.NewGuid(),
-                CompanyId = companyId, MarketCode = "ksa",
-                UserId = adminUserId, Role = "companies.admin",
+                CompanyId = companyId,
+                MarketCode = "ksa",
+                UserId = adminUserId,
+                Role = "companies.admin",
                 JoinedAt = _clock.GetUtcNow(),
             },
             new CompanyMembership
             {
                 Id = Guid.NewGuid(),
-                CompanyId = companyId, MarketCode = "ksa",
-                UserId = approverUserId, Role = "approver",
+                CompanyId = companyId,
+                MarketCode = "ksa",
+                UserId = approverUserId,
+                Role = "approver",
                 JoinedAt = _clock.GetUtcNow(),
             });
         await _db.SaveChangesAsync();
@@ -332,14 +338,19 @@ public sealed class ApproverFlowAndConversionTests : IAsyncLifetime
 
     private static QuoteMarketSchema BuildSchema(string market) => new()
     {
-        MarketCode = market, Version = 1,
-        EffectiveFrom = DateTimeOffset.UtcNow, EffectiveTo = null,
+        MarketCode = market,
+        Version = 1,
+        EffectiveFrom = DateTimeOffset.UtcNow,
+        EffectiveTo = null,
         ValidityDays = 14,
-        RateLimitPerCustomerPerHour = 10, RateLimitPerCompanyPerHour = 50,
+        RateLimitPerCustomerPerHour = 10,
+        RateLimitPerCompanyPerHour = 50,
         CompanyVerificationRequired = false,
         TaxPreviewDriftThresholdPct = 5.00m,
-        SlaDecisionBusinessDays = 2, SlaWarningBusinessDays = 1,
-        InvitationTtlDays = 14, HolidaysListJson = "[]",
+        SlaDecisionBusinessDays = 2,
+        SlaWarningBusinessDays = 1,
+        InvitationTtlDays = 14,
+        HolidaysListJson = "[]",
     };
 
     private sealed class RecordingAuditPublisher : IAuditEventPublisher

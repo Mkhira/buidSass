@@ -7,6 +7,15 @@ editorial review before the spec ships externally.
 This file tracks the review status of each ICU key. The Phase-1F editorial pass
 flips these to `reviewed` once a native Arabic-speaking reviewer has signed off.
 
+> **Phase 10 / T147 status (2026-05-05):** the queue below is intentionally
+> left in `draft` status. T147 is a human-in-the-loop linguistic gate — it
+> requires a native Arabic-speaking reviewer to verify register, terminology
+> ("PO" vs "أمر شراء", "approver" vs "مُعتمِد"), and RTL number / date
+> presentation against the in-market admin tone. Marking entries `reviewed`
+> without that human pass would violate Principle 4. The review remains a
+> Phase-1F gate as documented in the spec; this PR ships every other Phase 10
+> task and leaves the editorial sweep as the only intentional follow-up.
+
 The **Used by** column flags which slice / handler currently emits the key
 on a customer-facing path; reviewer can prioritize by traffic / blast radius.
 A blank Used-by means the key is reserved by data-model §3 (state machine /

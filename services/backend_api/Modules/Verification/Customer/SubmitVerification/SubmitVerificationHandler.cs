@@ -69,6 +69,83 @@ public sealed class SubmitVerificationHandler(
             return SubmitResult.Fail(schemaReason!.Value, schemaDetail ?? "Submission failed schema validation.");
         }
 
+        // 1.6. m2 — document-id integrity check (FR-006). If the request
+        // references documents, every id MUST: (a) exist; (b) belong to a
+        // verification owned by this customer; (c) have scan_status='clean';
+        // (d) the aggregate count ≤ 5 and aggregate size ≤ 25 MB. Documents
+        // attached to other customers' verifications, or in a non-clean scan
+        // state, are rejected with the matching FR-006 reason code.
+        if (request.DocumentIds is { Count: > 0 })
+        {
+            const int MaxDocumentsPerSubmission = 5;
+            const long MaxAggregateBytesPerSubmission = 25L * 1024 * 1024;
+
+            if (request.DocumentIds.Count > MaxDocumentsPerSubmission)
+            {
+                return SubmitResult.Fail(
+                    VerificationReasonCode.DocumentCountExceeded,
+                    $"Maximum {MaxDocumentsPerSubmission} documents per submission.");
+            }
+
+            var docIds = request.DocumentIds.ToList();
+            var docs = await db.Documents
+                .AsNoTracking()
+                .Where(d => docIds.Contains(d.Id))
+                .Select(d => new
+                {
+                    d.Id,
+                    d.VerificationId,
+                    d.SizeBytes,
+                    d.ScanStatus,
+                    d.PurgedAt,
+                })
+                .ToListAsync(ct);
+
+            if (docs.Count != docIds.Count)
+            {
+                return SubmitResult.Fail(
+                    VerificationReasonCode.DocumentsInvalid,
+                    "One or more document_ids do not exist.");
+            }
+
+            // Owner gate — every doc's parent verification MUST belong to this customer.
+            var parentIds = docs.Select(d => d.VerificationId).Distinct().ToList();
+            var ownedParentIds = await db.Verifications
+                .AsNoTracking()
+                .Where(v => parentIds.Contains(v.Id) && v.CustomerId == customerId)
+                .Select(v => v.Id)
+                .ToListAsync(ct);
+            var ownedSet = ownedParentIds.ToHashSet();
+            if (docs.Any(d => !ownedSet.Contains(d.VerificationId)))
+            {
+                return SubmitResult.Fail(
+                    VerificationReasonCode.DocumentsInvalid,
+                    "One or more document_ids reference a verification not owned by this customer.");
+            }
+
+            // Scan-status gate — every doc MUST be clean (FR-006).
+            var nonClean = docs.FirstOrDefault(d => d.PurgedAt is not null
+                                                 || !string.Equals(d.ScanStatus, "clean", StringComparison.Ordinal));
+            if (nonClean is not null)
+            {
+                var failCode = string.Equals(nonClean.ScanStatus, "infected", StringComparison.Ordinal)
+                    ? VerificationReasonCode.DocumentScanInfected
+                    : string.Equals(nonClean.ScanStatus, "pending", StringComparison.Ordinal)
+                        ? VerificationReasonCode.DocumentScanPending
+                        : VerificationReasonCode.DocumentsInvalid;
+                return SubmitResult.Fail(failCode,
+                    $"Document {nonClean.Id} has scan_status='{nonClean.ScanStatus}' or has been purged.");
+            }
+
+            var aggregate = docs.Sum(d => d.SizeBytes);
+            if (aggregate > MaxAggregateBytesPerSubmission)
+            {
+                return SubmitResult.Fail(
+                    VerificationReasonCode.DocumentAggregateSizeExceeded,
+                    $"Aggregate document size {aggregate} exceeds {MaxAggregateBytesPerSubmission} bytes.");
+            }
+        }
+
         // 2. Validate SupersedesId before any guard bypass. A non-null
         //    SupersedesId is the renewal entry-point (data-model §3.2 renewal
         //    exception), but ONLY when it points to a row that:

@@ -35,8 +35,8 @@ description: "Task list — Spec 007-b Promotions UX & Campaigns (Phase 1D · Mi
 - [X] T001 Verify 007-a `Pricing` module is at DoD on `main`: `IPriceCalculator`, the four engine tables, and the `Preview` mode hook are all present in `services/backend_api/Modules/Pricing/`.
 - [X] T002 Verify spec 015 `admin-foundation` contract (RBAC primitives, audit panel, idempotency middleware) is merged on `main`.
 - [X] T003 [P] Verify `ManyServiceProvidersCreatedWarning` suppression is still present in `services/backend_api/Modules/Pricing/PricingModule.cs` (project-memory rule R14); add a CI grep guard `scripts/ci/assert-pricing-warning-suppressed.sh`.
-- [ ] T004 [P] Add the new permission constants to the project's RBAC seed list in `services/backend_api/Modules/Identity/Authorization/PermissionRegistry.cs`: `commercial.operator`, `commercial.b2b_authoring`, `commercial.approver`, `commercial.threshold_admin`.
-- [ ] T005 [P] Update the OpenAPI generation task in `services/backend_api/services.sln`'s `dotnet swagger tofile` step to emit `services/backend_api/openapi.pricing.commercial.json` (per research §R18).
+- [X] T004 [P] Add the new permission constants to the project's RBAC seed list. The project does not have a `PermissionRegistry.cs`; the canonical seed list lives in `services/backend_api/Modules/Identity/Seeding/IdentityReferenceDataSeeder.cs`. Added `commercial.operator`, `commercial.b2b_authoring`, `commercial.approver`, `commercial.threshold_admin` (sourced from `CommercialPermissions`); seeder version bumped to 3.
+- [X] T005 [P] Add `scripts/generate-openapi-pricing-commercial.sh` matching the project pattern (`Microsoft.AspNetCore.OpenApi` + curl filter), emitting `services/backend_api/openapi.pricing.commercial.json` filtered to `/v1/admin/commercial/*` paths (research §R18). Spec said `dotnet swagger tofile` but the project standardised on the runtime curl approach (see `generate-openapi-support.sh`, `generate-openapi-reviews.sh`, `generate-openapi-b2b.sh`).
 
 ---
 
@@ -87,24 +87,24 @@ description: "Task list — Spec 007-b Promotions UX & Campaigns (Phase 1D · Mi
 - [X] T035 [P] Create `services/backend_api/Modules/Shared/IB2BCompanySuspendedSubscriber.cs` and `IB2BCompanySuspendedPublisher.cs`.
 - [X] T036 [P] Create `services/backend_api/Modules/Shared/ICheckoutGraceWindowProvider.cs`.
 - [X] T037 [P] Create `services/backend_api/Modules/Shared/CommercialDomainEvents.cs` containing all 10 `INotification` records from data-model §6.
-- [ ] T038 [P] Add `services/backend_api/Modules/Shared/Testing/FakeCatalogSkuArchivedPublisher.cs` and `FakeB2BCompanySuspendedPublisher.cs` for use by `Pricing.Tests` (research §R3 verification harness).
+- [X] T038 [P] Add `services/backend_api/Modules/Shared/Testing/FakeCatalogSkuArchivedPublisher.cs` and `FakeB2BCompanySuspendedPublisher.cs` for use by `Pricing.Tests` (research §R3 verification harness).
 
 ### Authorization + threshold seeder
 
 - [X] T039 [P] Create `services/backend_api/Modules/Pricing/Authorization/CommercialPermissions.cs` exposing the 4 permission constants for `[RequirePermission(...)]` attributes.
-- [ ] T040 [P] Create `services/backend_api/Modules/Pricing/Seeding/PricingThresholdsSeeder.cs` — upserts KSA + EG rows per research §R8 (gate ON, conservative seeded thresholds, 1800 s grace); idempotent across all environments.
-- [ ] T041 Amend `services/backend_api/Modules/Pricing/PricingModule.cs` — register all new MediatR handlers, the threshold seeder, the new RBAC permissions, the `ICheckoutGraceWindowProvider` implementation, and the upcoming workers (registration is fine before worker code lands; DI resolves at runtime).
+- [X] T040 [P] Create `services/backend_api/Modules/Pricing/Seeding/PricingThresholdsSeeder.cs` — upserts SA + EG rows per research §R8 (gate ON, conservative seeded thresholds, 1800 s grace); idempotent across all environments. Foundation migration also seeds via raw SQL `ON CONFLICT DO NOTHING`; this `ISeeder` backstops bare-DB bootstraps and matches peer-module patterns.
+- [X] T041 Amend `services/backend_api/Modules/Pricing/PricingModule.cs` — registered the threshold seeder. MediatR handlers / workers / `ICheckoutGraceWindowProvider` impl will be wired here as their user-story slices land (per inline comment).
 
 ### Foundational tests
 
 - [X] T042 [P] Unit test `services/backend_api/tests/Pricing.Tests/Unit/Primitives/LifecycleStateMachineTests.cs` — every valid transition + every invalid transition + idempotency; xUnit theory.
 - [X] T043 [P] Unit test `tests/Pricing.Tests/Unit/Primitives/BusinessPricingStateMachineTests.cs`.
 - [X] T044 [P] Unit test `tests/Pricing.Tests/Unit/Primitives/HighImpactGateTests.cs` — each criterion individually + combined; gate-disabled per market via `gate_enabled=false` short-circuit.
-- [ ] T045 [P] Unit test `tests/Pricing.Tests/Unit/Primitives/CommercialThresholdPolicyTests.cs` — null-criterion-disables-only-that-criterion; loaded from a fake `pricing.commercial_thresholds` row.
+- [X] T045 [P] Unit test `tests/Pricing.Tests/Unit/Commercial/CommercialThresholdPolicyTests.cs` (path uses repo's `Commercial/` subfolder convention) — null-criterion-disables-only-that-criterion; loaded from a fake `CommercialThreshold` row; gate-disabled short-circuit covered.
 - [X] T046 [P] Unit test `tests/Pricing.Tests/Unit/Primitives/CommercialReasonCodeIcuKeyTests.cs` — every code resolves to non-empty `en` and `ar` ICU keys (R10 verification hook).
-- [ ] T047 Integration test `tests/Pricing.Tests/Integration/Persistence/MigrationApplicationTests.cs` — applies all 3 new migrations to a Testcontainers Postgres in order; asserts schema shape via `pg_catalog` queries.
-- [ ] T048 Integration test `tests/Pricing.Tests/Integration/Persistence/CommercialAuditEventAppendOnlyTests.cs` — confirms `UPDATE` and `DELETE` on `pricing.commercial_audit_events` raise the trigger error.
-- [ ] T049 Integration test `tests/Pricing.Tests/Integration/Seeding/PricingThresholdsSeederTests.cs` — runs the seeder twice; asserts exactly 2 rows; asserts `gate_enabled=true` and seeded values per market.
+- [X] T047 Integration test `tests/Pricing.Tests/Integration/Persistence/MigrationApplicationTests.cs` — exercises the consolidated `Pricing_007b_CommercialAuthoring` migration (single migration vs the spec's 3-migration split) via the shared `PricingTestFactory` (Testcontainers Postgres); asserts each commercial table exists in the `pricing` schema, the immutability trigger is wired, and EF DbSets resolve.
+- [X] T048 Integration test `tests/Pricing.Tests/Integration/Persistence/CommercialAuditEventAppendOnlyTests.cs` — confirms `UPDATE` and `DELETE` on `pricing.commercial_audit_events` raise the trigger error.
+- [X] T049 Integration test `tests/Pricing.Tests/Integration/Seeding/PricingThresholdsSeederTests.cs` — runs the seeder; asserts exactly 2 rows; asserts `gate_enabled=true` and per-market values; idempotency across multiple runs; tuned-value preservation across re-seed.
 
 **Checkpoint**: Phase 2 complete — Foundation ready. User stories may proceed in parallel.
 

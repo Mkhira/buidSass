@@ -65,12 +65,10 @@ public sealed class DecideModerationHandler
                 "Row version conflict — review changed during decision.");
         }
 
+        // Validator already restricts body.ToState to {visible, hidden, deleted}; ParseTargetState
+        // can no longer return null on a valid request. (M1) Throw a meaningful exception instead
+        // of branching on an unreachable null so a future validator regression fails loudly.
         var toState = ParseTargetState(body.ToState);
-        if (toState is null)
-        {
-            return DecideModerationResult.Reject(400, ReviewReasonCode.ModerationInvalidState,
-                "Unknown target state.");
-        }
 
         // delete chord — only super_admin may transition to Deleted.
         if (toState == ReviewState.Deleted && !hasSuperAdmin)
@@ -80,7 +78,7 @@ public sealed class DecideModerationHandler
         }
 
         // Idempotency: a no-op decision returns 200 without writing audit / aggregate.
-        if (review.State == toState.Value)
+        if (review.State == toState)
         {
             return DecideModerationResult.Success(BuildResponse(review));
         }
@@ -92,7 +90,7 @@ public sealed class DecideModerationHandler
             ? ReviewActorKind.SuperAdmin
             : ReviewActorKind.Moderator;
 
-        if (!ReviewStateMachine.TryTransition(review.State, toState.Value, trigger, actorKind, out var failureReason))
+        if (!ReviewStateMachine.TryTransition(review.State, toState, trigger, actorKind, out var failureReason))
         {
             // delete_terminal vs invalid_state distinguishes "from deleted" from "to unreachable".
             var status = failureReason == ReviewReasonCode.ModerationDeleteTerminal ? 400 : 400;
@@ -103,7 +101,7 @@ public sealed class DecideModerationHandler
 
         var nowUtc = _time.GetUtcNow();
         var fromState = review.State;
-        review.State = toState.Value;
+        review.State = toState;
         review.StateChangedAtUtc = nowUtc;
         review.StateChangedByActorId = actorId;
         review.StateChangedReasonNote = body.ReasonNote;
@@ -121,7 +119,7 @@ public sealed class DecideModerationHandler
             ActorId = actorId,
             ActorRole = toState == ReviewState.Deleted ? "super_admin" : "reviews.moderator",
             FromState = fromState,
-            ToState = toState.Value,
+            ToState = toState,
             TriggeredBy = trigger,
             ReasonNote = body.ReasonNote,
             AdminNote = body.AdminNote,
@@ -150,7 +148,7 @@ public sealed class DecideModerationHandler
                     "Row version conflict — review changed during decision.");
             }
 
-            if (ReviewStateMachine.TransitionAffectsAggregate(fromState, toState.Value))
+            if (ReviewStateMachine.TransitionAffectsAggregate(fromState, toState))
             {
                 await _aggregate.RecomputeAsync(review.ProductId, review.MarketCode, ct);
             }
@@ -172,12 +170,16 @@ public sealed class DecideModerationHandler
         StateChangedAtUtc: r.StateChangedAtUtc,
         StateChangedByActorId: r.StateChangedByActorId);
 
-    private static ReviewState? ParseTargetState(string raw) => raw switch
+    private static ReviewState ParseTargetState(string raw) => raw switch
     {
         "visible" => ReviewState.Visible,
         "hidden" => ReviewState.Hidden,
         "deleted" => ReviewState.Deleted,
-        _ => null,
+        // The validator (DecideModerationValidator) restricts to_state to the three values above
+        // BEFORE the handler is invoked. Reaching this branch means the validator regressed —
+        // fail loudly so the contract violation surfaces immediately.
+        _ => throw new InvalidOperationException(
+            $"ParseTargetState reached default branch with '{raw}' — DecideModerationValidator must reject this upstream."),
     };
 
     private static string ToWire(ReviewState s) => s switch

@@ -87,7 +87,13 @@ public sealed class PricingThresholdsSeeder : ISeeder
         {
             var parameters = new object[]
             {
-                new NpgsqlParameter("p_market", NpgsqlDbType.Citext) { Value = row.MarketCode },
+                // Use Text rather than Citext: PostgreSQL implicitly casts text → citext
+                // on INSERT, and the ON CONFLICT lookup is resolved via OID-based table
+                // schema (not client-side type matching). This avoids an OID-cache-miss
+                // failure ("The NpgsqlDbType 'Citext' isn't present in your database")
+                // on hand-bootstrapped fresh DBs where the connection pool primed before
+                // the citext extension was created (CodeRabbit Minor, loop 2).
+                new NpgsqlParameter("p_market", NpgsqlDbType.Text) { Value = row.MarketCode },
                 new NpgsqlParameter("p_gate", NpgsqlDbType.Boolean) { Value = row.GateEnabled },
                 new NpgsqlParameter("p_pct", NpgsqlDbType.Numeric)
                 {

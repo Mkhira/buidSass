@@ -110,9 +110,12 @@ public sealed class CommercialAuditEventAppendOnlyTests(PricingTestFactory facto
             cmd.Parameters.AddWithValue("id", id);
             await cmd.ExecuteNonQueryAsync();
         }
-        catch (PostgresException)
+        catch (PostgresException ex) when (ex.SqlState == "P0001")
         {
-            // expected
+            // expected — the immutable-trigger error from
+            // raise_immutable_audit_violation() (ERRCODE='P0001'). Any other
+            // PostgresException must propagate so the test fails on real DB
+            // problems (CodeRabbit Minor, loop 2).
         }
     }
 }

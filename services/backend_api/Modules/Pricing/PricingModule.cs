@@ -47,6 +47,18 @@ public static class PricingModule
 
         services.AddScoped<ISeeder, PricingReferenceDataSeeder>();
 
+        // Spec 007-b T040 / T041: per-market commercial-threshold seeder. Idempotent;
+        // runs in every environment so the high-impact-gate defaults are present even
+        // when the 007-b foundation migration's INSERT path was bypassed (rebuilds,
+        // bare-DB bootstraps). See Modules/Pricing/Seeding/PricingThresholdsSeeder.cs
+        // for the seeded values (research §R8) and idempotency contract.
+        services.AddScoped<ISeeder, PricingThresholdsSeeder>();
+
+        // NOTE: 007-b commercial-authoring MediatR handlers, workers, and the
+        // ICheckoutGraceWindowProvider implementation register here as their
+        // user-story slices land (US1–US7 + Polish). DI will resolve at runtime;
+        // the foundation PR keeps registrations limited to what already compiles.
+
         return services;
     }
 

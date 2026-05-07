@@ -69,6 +69,21 @@
     <EmbeddedResource Remove="B2B.Tests\**" />
     <None Remove="B2B.Tests\**" />
     <Content Remove="B2B.Tests\**" />
+
+    <Compile Remove="Verification.Tests\**" />
+    <EmbeddedResource Remove="Verification.Tests\**" />
+    <None Remove="Verification.Tests\**" />
+    <Content Remove="Verification.Tests\**" />
+
+    <Compile Remove="Support.Tests\**" />
+    <EmbeddedResource Remove="Support.Tests\**" />
+    <None Remove="Support.Tests\**" />
+    <Content Remove="Support.Tests\**" />
+
+    <Compile Remove="Cms.Tests\**" />
+    <EmbeddedResource Remove="Cms.Tests\**" />
+    <None Remove="Cms.Tests\**" />
+    <Content Remove="Cms.Tests\**" />
   </ItemGroup>
 
   <ItemGroup>
@@ -79,6 +94,7 @@
     <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" Version="9.0.10" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.InMemory" Version="9.0.10" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Relational" Version="9.0.10" />
+    <PackageReference Include="Microsoft.Extensions.TimeProvider.Testing" Version="9.1.0" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.12.0" />
     <PackageReference Include="Npgsql" Version="9.0.3" />
     <PackageReference Include="Respawn" Version="6.2.1" />

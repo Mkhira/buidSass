@@ -1,6 +1,7 @@
 using BackendApi.Features.Seeding;
 using BackendApi.Modules.Identity.Entities;
 using BackendApi.Modules.Identity.Persistence;
+using BackendApi.Modules.Pricing.Authorization;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -9,7 +10,7 @@ namespace BackendApi.Modules.Identity.Seeding;
 public sealed class IdentityReferenceDataSeeder : ISeeder
 {
     public string Name => "identity.reference-data";
-    public int Version => 2;
+    public int Version => 3;
     public IReadOnlyList<string> DependsOn => [];
 
     public async Task ApplyAsync(SeedContext ctx, CancellationToken ct)
@@ -80,6 +81,11 @@ public sealed class IdentityReferenceDataSeeder : ISeeder
             "inventory.internal.release",
             "inventory.internal.convert",
             "inventory.internal.return",
+            // Pricing — commercial authoring (spec 007-b T004 / FR roles table)
+            CommercialPermissions.Operator,
+            CommercialPermissions.B2BAuthoring,
+            CommercialPermissions.Approver,
+            CommercialPermissions.ThresholdAdmin,
         }.Select(code => new Permission
         {
             Id = Guid.NewGuid(),

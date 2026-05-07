@@ -147,6 +147,67 @@ public sealed class OpenHistoricalDocumentContractTests
     }
 
     [Fact]
+    public async Task Open_200_OK_with_isHistoricalOpen_true_for_terminal_parent()
+    {
+        // T068 / contracts §3.7 — the terminal-parent branch documented at
+        // class-summary lines 24–27. When the parent verification is in any
+        // terminal state (rejected / expired / revoked / superseded / void)
+        // the endpoint returns 200 with `isHistoricalOpen=true`. We use
+        // `revoked` here (the most operationally relevant terminal — admin
+        // pulls a revoked customer's docs for an audit), but the branch is
+        // covered for any terminal state. Direct DB flip — bypassing the
+        // decide endpoints keeps this contract test focused on the
+        // wire-level behavior of the open endpoint.
+        await _factory.ResetVerificationAsync();
+        var customerId = Guid.NewGuid();
+        var verificationId = await SubmitNewVerificationAsync(customerId);
+
+        var storedFileId = Guid.NewGuid();
+        await using (var scope = _factory.Services.CreateAsyncScope())
+        {
+            var appDb = scope.ServiceProvider.GetRequiredService<BackendApi.Modules.Shared.AppDbContext>();
+            appDb.StoredFiles.Add(new BackendApi.Modules.Storage.StoredFile
+            {
+                Id = storedFileId,
+                BucketKey = $"ksa/{storedFileId}-doc.pdf",
+                Market = "ksa",
+                OriginalFilename = "doc.pdf",
+                SizeBytes = 4096,
+                MimeType = "application/pdf",
+                VirusScanStatus = "clean",
+                UploadedAt = DateTimeOffset.UtcNow,
+            });
+            await appDb.SaveChangesAsync();
+        }
+
+        var documentId = await InsertDocumentAsync(verificationId, storageKey: storedFileId.ToString());
+
+        // Flip parent → revoked terminal state directly (the open endpoint
+        // only inspects parent.State, not the transition ledger).
+        await using (var db = _factory.NewDbContext())
+        {
+            var v = await db.Verifications.SingleAsync(x => x.Id == verificationId);
+            v.State = VerificationState.Revoked;
+            v.DecidedAt = DateTimeOffset.UtcNow;
+            await db.SaveChangesAsync();
+        }
+
+        var reviewerId = Guid.NewGuid();
+        using var client = NewAdminClient(reviewerId, VerificationPermissions.Review);
+
+        var resp = await client.GetAsync(
+            $"/api/admin/verifications/{verificationId}/documents/{documentId}/open");
+
+        resp.StatusCode.Should().Be(HttpStatusCode.OK);
+        var body = await resp.Content.ReadFromJsonAsync<JsonElement>();
+        body.GetProperty("verificationId").GetString().Should().Be(verificationId.ToString());
+        body.GetProperty("documentId").GetString().Should().Be(documentId.ToString());
+        body.GetProperty("signedUrl").GetString().Should().NotBeNullOrWhiteSpace();
+        body.GetProperty("isHistoricalOpen").GetBoolean()
+            .Should().BeTrue("revoked parent is terminal — historical_open=true (FR-022a)");
+    }
+
+    [Fact]
     public async Task Open_410_purged_when_document_body_already_purged()
     {
         await _factory.ResetVerificationAsync();

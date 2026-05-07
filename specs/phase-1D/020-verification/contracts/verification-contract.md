@@ -322,6 +322,29 @@ public interface ICustomerVerificationEligibilityQuery
 // Markets are independently regulated, so eligibility is evaluated against the
 // cache row for `(customerId, customerCurrentMarket)` — a customer's KSA
 // approval does NOT grant eligibility for an EG-restricted purchase.
+//
+// **Parameter validation rules** (per Principle 28 — implementation-ready specs):
+//
+//   * `customerCurrentMarket` MUST be a non-null, non-empty, lowercase market
+//     code that exists in the `verification.market_schemas` registry. The V1
+//     valid set is `{ "ksa", "eg" }`; the registry is the authoritative source
+//     for any future markets. Casing is normalized at module entry — callers
+//     SHOULD pass already-lowercase, but implementations MUST defensively
+//     lowercase before lookup.
+//   * Null, empty, whitespace, or unknown market codes MUST throw
+//     `ArgumentException` (fail-fast). Implementations MUST NOT silently fall
+//     back to a default market — eligibility for the wrong market is a
+//     compliance hazard (Principle 5).
+//   * **Caller responsibility**: the caller (Catalog / Cart / Checkout) MUST
+//     pass the customer's current market-of-record as resolved from spec 004
+//     identity. The eligibility query does NOT cross-validate against the
+//     identity store — passing a mismatched market will return the result for
+//     `(customerId, customerCurrentMarket)`, not the customer's actual market.
+//     This is intentional: the query is a hot-path lookup (p95 ≤ 5 ms) and the
+//     identity round-trip would breach SC-004.
+//   * `sku` MUST be non-null and non-empty; same fail-fast `ArgumentException`
+//     contract.
+//   * `customerId` of `Guid.Empty` MUST throw `ArgumentException`.
 
 public sealed record EligibilityResult(
     EligibilityClass Class,

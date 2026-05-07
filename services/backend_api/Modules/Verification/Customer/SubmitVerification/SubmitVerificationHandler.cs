@@ -80,14 +80,17 @@ public sealed class SubmitVerificationHandler(
             const int MaxDocumentsPerSubmission = 5;
             const long MaxAggregateBytesPerSubmission = 25L * 1024 * 1024;
 
-            if (request.DocumentIds.Count > MaxDocumentsPerSubmission)
+            // Deduplicate before counting / querying so that callers passing the
+            // same DocumentId twice (e.g., a buggy retry) don't trip the
+            // existence check below — the DB query returns distinct rows, so
+            // docs.Count would otherwise be < docIds.Count for a valid input.
+            var docIds = request.DocumentIds.Distinct().ToList();
+            if (docIds.Count > MaxDocumentsPerSubmission)
             {
                 return SubmitResult.Fail(
                     VerificationReasonCode.DocumentCountExceeded,
                     $"Maximum {MaxDocumentsPerSubmission} documents per submission.");
             }
-
-            var docIds = request.DocumentIds.ToList();
             var docs = await db.Documents
                 .AsNoTracking()
                 .Where(d => docIds.Contains(d.Id))

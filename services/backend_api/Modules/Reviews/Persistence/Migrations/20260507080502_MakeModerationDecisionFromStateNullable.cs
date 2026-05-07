@@ -23,13 +23,21 @@ namespace BackendApi.Modules.Reviews.Persistence.Migrations
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
+            // Backfill NULL FromState rows to a valid wire value before
+            // re-adding NOT NULL. The empty-string default of the prior
+            // revision broke ReviewState.FromWire on read.
+            migrationBuilder.Sql(
+                "UPDATE reviews.review_moderation_decisions " +
+                "SET \"FromState\" = 'visible' " +
+                "WHERE \"FromState\" IS NULL;");
+
             migrationBuilder.AlterColumn<string>(
                 name: "FromState",
                 schema: "reviews",
                 table: "review_moderation_decisions",
                 type: "text",
                 nullable: false,
-                defaultValue: "",
+                defaultValue: "visible",
                 oldClrType: typeof(string),
                 oldType: "text",
                 oldNullable: true);

@@ -1,4 +1,5 @@
 using BackendApi.Modules.Shared;
+using BackendApi.Modules.Support.Entities;
 using BackendApi.Modules.Support.Persistence;
 using BackendApi.Modules.Support.Primitives;
 using MediatR;
@@ -106,6 +107,87 @@ public sealed class RedactMessageHandler
         message.RedactedByRole = TicketActorKindNames.SuperAdmin;
         message.OriginatingRedactionRequestTicketId = cmd.OriginatingRedactionRequestTicketId;
 
+        // I1 fix — FR-011a / T128: when the redaction was triggered by a
+        // customer redaction-request ticket, auto-resolve that originating
+        // ticket in the same transaction. Walk the state machine through
+        // Open → InProgress (AgentAssignment, System actor) → Resolved
+        // (AgentResolve, SuperAdmin actor). Append a system_event message
+        // recording the resolution narrative and publish TicketResolved +
+        // TicketStateChanged so spec 025 + the audit pipeline observe the
+        // closure of the request loop.
+        SupportTicket? requestTicketTracked = null;
+        TicketState requestPriorState = default;
+        if (cmd.OriginatingRedactionRequestTicketId is not null)
+        {
+            requestTicketTracked = await _db.Tickets
+                .FirstOrDefaultAsync(t => t.Id == cmd.OriginatingRedactionRequestTicketId.Value, ct);
+            if (requestTicketTracked is not null
+                && requestTicketTracked.State != TicketStateNames.Resolved
+                && requestTicketTracked.State != TicketStateNames.Closed)
+            {
+                requestPriorState = TicketStateNames.FromWire(requestTicketTracked.State);
+
+                // If currently Open, walk to InProgress first.
+                if (requestPriorState == TicketState.Open)
+                {
+                    if (!TicketStateMachine.TryTransition(
+                            TicketState.Open, TicketState.InProgress,
+                            TicketTriggerKind.AgentAssignment,
+                            TicketActorKind.System,
+                            out _))
+                    {
+                        // Defensive: if the transition is rejected we abort
+                        // the auto-resolve but DO NOT roll back the redaction
+                        // itself; the originating ticket simply remains in
+                        // its prior state and may be resolved manually.
+                        requestTicketTracked = null;
+                    }
+                    else
+                    {
+                        requestTicketTracked.State = TicketStateNames.InProgress;
+                        requestTicketTracked.UpdatedAtUtc = nowUtc;
+                    }
+                }
+
+                if (requestTicketTracked is not null
+                    && requestTicketTracked.State == TicketStateNames.InProgress)
+                {
+                    if (TicketStateMachine.TryTransition(
+                            TicketState.InProgress, TicketState.Resolved,
+                            TicketTriggerKind.AgentResolve,
+                            TicketActorKind.SuperAdmin,
+                            out _))
+                    {
+                        requestTicketTracked.State = TicketStateNames.Resolved;
+                        requestTicketTracked.ResolvedAtUtc = nowUtc;
+                        requestTicketTracked.UpdatedAtUtc = nowUtc;
+
+                        var trimmedReason = cmd.ReasonNote.Trim();
+                        _db.Messages.Add(new TicketMessage
+                        {
+                            Id = Guid.NewGuid(),
+                            TicketId = requestTicketTracked.Id,
+                            Kind = TicketMessageKindNames.SystemEvent,
+                            ActorId = cmd.SuperAdminActorId,
+                            ActorRole = TicketActorKindNames.SuperAdmin,
+                            Body = $"Redaction completed by super_admin: {trimmedReason}",
+                            BodyLocale = requestTicketTracked.Locale,
+                            LeadIntervention = false,
+                            CreatedAtUtc = nowUtc,
+                        });
+                    }
+                    else
+                    {
+                        requestTicketTracked = null;
+                    }
+                }
+            }
+            else
+            {
+                requestTicketTracked = null;
+            }
+        }
+
         try
         {
             await _db.SaveChangesAsync(ct);
@@ -128,6 +210,22 @@ public sealed class RedactMessageHandler
             RequestingCustomerId: cmd.RequestingCustomerId ?? Guid.Empty,
             SuperAdminActorId: cmd.SuperAdminActorId,
             OccurredAtUtc: nowUtc), ct);
+
+        if (requestTicketTracked is not null)
+        {
+            // Auto-resolve closure events for the redaction-request ticket.
+            await _publisher.Publish(new TicketStateChanged(
+                TicketId: requestTicketTracked.Id,
+                FromState: TicketStateNames.ToWire(requestPriorState),
+                ToState: TicketStateNames.Resolved,
+                TriggeredBy: TicketTriggerKind.AgentResolve,
+                OccurredAtUtc: nowUtc), ct);
+
+            await _publisher.Publish(new TicketResolved(
+                TicketId: requestTicketTracked.Id,
+                ResolvedByAgentId: cmd.SuperAdminActorId,
+                ResolvedAtUtc: nowUtc), ct);
+        }
 
         return new RedactMessageResult(true, nowUtc, null, null);
     }

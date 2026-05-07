@@ -104,8 +104,14 @@ public sealed class FinalizeAcceptanceHandler
         // already-expired quote. The xmin token on `quote` is the EF concurrency
         // gate; the explicit re-reads here turn races into deterministic
         // 409 Expired / InvalidState responses.
-        var commitNowUtc = _time.GetUtcNow();
+        //
+        // CodeRabbit Loop 1 (Major): capture commitNowUtc AFTER ReloadAsync so a
+        // slow reload cannot cause us to compare ExpiresAt against a stale
+        // timestamp captured before the reload (would let an expired quote slip
+        // through). Use this fresh post-reload instant for both the expiry check
+        // and the terminal/decision timestamps below.
         await _db.Entry(quote).ReloadAsync(ct);
+        var commitNowUtc = _time.GetUtcNow();
         if (!QuoteStateExtensions.TryParseToken(quote.State, out var rechecked)
             || rechecked != QuoteState.PendingApprover)
         {

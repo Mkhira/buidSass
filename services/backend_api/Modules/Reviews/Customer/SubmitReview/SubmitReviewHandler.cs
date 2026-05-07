@@ -61,12 +61,10 @@ public sealed class SubmitReviewHandler
 
         // Market-scoped per ADR-010: an active review for the same
         // (customer, product) in another market must NOT block a submission
-        // in this market. The legacy unique partial index
-        // UX_reviews_customer_product_active is `(CustomerId, ProductId)`
-        // (not market-scoped); tightening that index is a separate schema
-        // change. The DbUpdateException race-fallback below still surfaces
-        // EligibilityAlreadyReviewed if the cross-market collision races to
-        // INSERT — which is a safe (over-restrictive) failure mode.
+        // in this market. Mirrors the partial unique index
+        // UX_reviews_customer_product_active which was tightened in
+        // migration 20260507092458_TightenActiveReviewUniqueIndexOnMarket
+        // to `(CustomerId, ProductId, MarketCode)`.
         var existing = await _db.Reviews
             .Where(r => r.CustomerId == customerId
                 && r.ProductId == body.ProductId

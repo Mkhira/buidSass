@@ -95,11 +95,36 @@ public sealed class FinalizeAcceptanceHandler
             return FinalizeResult.InvalidState();
         }
 
+        // Re-validate state + expiry inside the finalize transaction (after the
+        // converter call has potentially taken non-trivial wall-clock time).
+        // Without this re-check, the QuoteExpiryWorker could mark the quote
+        // `expired` between the initial expiry check above and the SaveChanges
+        // commit below, resulting in a converted order against an
+        // already-expired quote. The xmin token on `quote` is the EF concurrency
+        // gate; the explicit re-reads here turn races into deterministic
+        // 409 Expired / InvalidState responses.
+        var commitNowUtc = _time.GetUtcNow();
+        await _db.Entry(quote).ReloadAsync(ct);
+        if (!QuoteStateExtensions.TryParseToken(quote.State, out var rechecked)
+            || rechecked != QuoteState.PendingApprover)
+        {
+            if (rechecked == QuoteState.Accepted || rechecked == QuoteState.Rejected
+                || rechecked == QuoteState.Expired || rechecked == QuoteState.Withdrawn)
+            {
+                return FinalizeResult.AlreadyDecided();
+            }
+            return FinalizeResult.InvalidState();
+        }
+        if (quote.ExpiresAt.HasValue && quote.ExpiresAt.Value <= commitNowUtc)
+        {
+            return FinalizeResult.Expired();
+        }
+
         var priorState = quote.State;
         quote.State = QuoteState.Accepted.ToToken();
-        quote.DecidedAt = nowUtc;
+        quote.DecidedAt = commitNowUtc;
         quote.DecidedBy = approverId;
-        quote.TerminalAt = nowUtc;
+        quote.TerminalAt = commitNowUtc;
         quote.TerminalReason = "accepted";
 
         var transition = new QuoteStateTransition
@@ -118,7 +143,7 @@ public sealed class FinalizeAcceptanceHandler
                 order_id = conversion.OrderId,
                 was_idempotent_replay = conversion.WasIdempotentReplay,
             }),
-            OccurredAt = nowUtc,
+            OccurredAt = commitNowUtc,
         };
         _db.QuoteStateTransitions.Add(transition);
 

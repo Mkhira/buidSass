@@ -304,6 +304,7 @@ public interface ICustomerVerificationEligibilityQuery
     /// </remarks>
     ValueTask<EligibilityResult> EvaluateAsync(
         Guid customerId,
+        string customerCurrentMarket,
         string sku,
         CancellationToken cancellationToken);
 
@@ -312,9 +313,15 @@ public interface ICustomerVerificationEligibilityQuery
     /// </summary>
     ValueTask<IReadOnlyDictionary<string, EligibilityResult>> EvaluateManyAsync(
         Guid customerId,
+        string customerCurrentMarket,
         IReadOnlyCollection<string> skus,
         CancellationToken cancellationToken);
 }
+
+// `customerCurrentMarket` is the customer's market-of-record (per ADR-010).
+// Markets are independently regulated, so eligibility is evaluated against the
+// cache row for `(customerId, customerCurrentMarket)` — a customer's KSA
+// approval does NOT grant eligibility for an EG-restricted purchase.
 
 public sealed record EligibilityResult(
     EligibilityClass Class,

@@ -61,3 +61,16 @@ public sealed class NullReturnRequestCreationContract : IReturnRequestCreationCo
             ReasonCode: TicketReasonCode.ReturnCreationContractFailed,
             Idempotent: false));
 }
+
+/// <summary>
+/// Null-fallback for <see cref="IReviewDisplayHandleQuery"/>. Spec 019
+/// (customer profile) wins at registration when its module is loaded;
+/// the support detail handler degrades to "(unknown customer)" when this
+/// fallback is in use, which is the correct V1 behaviour for the bare
+/// support-only host (e.g. integration tests without spec 019).
+/// </summary>
+public sealed class NullReviewDisplayHandleQuery : IReviewDisplayHandleQuery
+{
+    public Task<CustomerDisplayInfo?> GetAsync(Guid customerId, CancellationToken ct)
+        => Task.FromResult<CustomerDisplayInfo?>(null);
+}

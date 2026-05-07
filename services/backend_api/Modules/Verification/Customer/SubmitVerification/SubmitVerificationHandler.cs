@@ -111,11 +111,17 @@ public sealed class SubmitVerificationHandler(
                     "One or more document_ids do not exist.");
             }
 
-            // Owner gate — every doc's parent verification MUST belong to this customer.
+            // Owner gate — every doc's parent verification MUST belong to this
+            // customer AND be in the same market as this submission. The market
+            // partition (ADR-010) is mandatory: docs attached to a customer's
+            // KSA verification MUST NOT be reusable for an EG submission, and
+            // vice versa. Markets are independently regulated (Principle 5).
             var parentIds = docs.Select(d => d.VerificationId).Distinct().ToList();
             var ownedParentIds = await db.Verifications
                 .AsNoTracking()
-                .Where(v => parentIds.Contains(v.Id) && v.CustomerId == customerId)
+                .Where(v => parentIds.Contains(v.Id)
+                         && v.CustomerId == customerId
+                         && v.MarketCode == schema.MarketCode)
                 .Select(v => v.Id)
                 .ToListAsync(ct);
             var ownedSet = ownedParentIds.ToHashSet();
@@ -123,7 +129,7 @@ public sealed class SubmitVerificationHandler(
             {
                 return SubmitResult.Fail(
                     VerificationReasonCode.DocumentsInvalid,
-                    "One or more document_ids reference a verification not owned by this customer.");
+                    "One or more document_ids reference a verification not owned by this customer in this market.");
             }
 
             // Scan-status gate — every doc MUST be clean (FR-006).

@@ -63,11 +63,16 @@ public static class RetagCategoryEndpoint
 
         if (!result.Success)
         {
+            // CodeRabbit Loop-3: map authorization-style failures to 403 so
+            // a foreign-market read (which surfaces as `LinkedEntityNotFound`
+            // by design) and a permission failure (`QueueForbidden`) both
+            // produce semantically-correct HTTP statuses.
             var status = result.ReasonCode switch
             {
                 TicketReasonCode.LinkedEntityNotFound => 404,
                 TicketReasonCode.ClosedTerminal => 409,
                 TicketReasonCode.VersionConflict => 409,
+                TicketReasonCode.QueueForbidden => 403,
                 _ => 400,
             };
             return AdminSupportResponseFactory.Problem(context, status,

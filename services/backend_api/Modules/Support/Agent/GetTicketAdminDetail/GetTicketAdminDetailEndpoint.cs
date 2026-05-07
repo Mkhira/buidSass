@@ -53,7 +53,15 @@ public static class GetTicketAdminDetailEndpoint
 
         if (!result.Success)
         {
-            var status = result.ReasonCode == TicketReasonCode.LinkedEntityNotFound ? 404 : 400;
+            // CodeRabbit Loop-3: explicit per-reason HTTP-status mapping.
+            // `QueueForbidden` => 403 surfaces permission-style failures
+            // distinctly from generic 400s.
+            var status = result.ReasonCode switch
+            {
+                TicketReasonCode.LinkedEntityNotFound => 404,
+                TicketReasonCode.QueueForbidden => 403,
+                _ => 400,
+            };
             return AdminSupportResponseFactory.Problem(context, status,
                 result.ReasonCode ?? TicketReasonCode.QueueForbidden,
                 result.Detail ?? "Ticket detail read failed.");

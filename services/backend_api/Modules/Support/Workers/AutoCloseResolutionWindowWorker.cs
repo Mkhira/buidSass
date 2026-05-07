@@ -80,16 +80,34 @@ public sealed class AutoCloseResolutionWindowWorker(
         // cheap and avoids per-ticket lookup.
         var schemas = await db.MarketSchemas.AsNoTracking().ToDictionaryAsync(s => s.MarketCode, ct);
 
+        // I3 fix: bound the working set by pushing the date threshold into
+        // the SQL query. Compute the *minimum* per-market auto-close window
+        // across all enabled schemas (auto_close_after_resolved_days > 0)
+        // so the query returns only tickets that *might* be eligible in any
+        // market. Per-ticket re-validation against its own market policy
+        // still happens inside the foreach below. If no schema enables
+        // auto-close, we fall back to a conservative 3-day floor so the
+        // worker never loads the full Resolved set.
+        const int conservativeFloorDays = 3;
+        var enabledWindows = schemas.Values
+            .Select(s => s.AutoCloseAfterResolvedDays)
+            .Where(d => d > 0)
+            .ToArray();
+        var minAutoCloseDays = enabledWindows.Length > 0
+            ? enabledWindows.Min()
+            : conservativeFloorDays;
+        var maxResolvedAtUtc = nowUtc.AddDays(-minAutoCloseDays);
+
         // CodeRabbit Loop-2: avoid the prior N+1 ticket-fetch pattern by
         // loading the full ticket rows up front. We still need tracked
         // entities (we mutate State + ClosedAtUtc + UpdatedAtUtc), so we
         // pull a tracked Where() rather than a projection-into-record.
-        // Volume is bounded — auto-close runs hourly and only sees tickets
-        // that have actually been in `resolved` for at least the per-market
-        // window — so the working set is small.
+        // The added ResolvedAtUtc <= maxResolvedAtUtc predicate (I3) keeps
+        // the working set bounded even as the Resolved population grows.
         var candidates = await db.Tickets
             .Where(t => t.State == TicketStateNames.Resolved
-                     && t.ResolvedAtUtc != null)
+                     && t.ResolvedAtUtc != null
+                     && t.ResolvedAtUtc <= maxResolvedAtUtc)
             .ToListAsync(ct);
 
         var closed = 0;

@@ -134,7 +134,7 @@ public sealed class UpdateReviewHandler
 
         // Re-evaluate filter + media against the new content.
         var hasMedia = MediaAttachmentDetector.HasMedia(review.MediaUrlsJson);
-        var profanityResult = _profanity.Evaluate(review.MarketCode, review.Headline, review.Body);
+        var profanityResult = await _profanity.EvaluateAsync(review.MarketCode, new[] { review.Headline, review.Body }, ct);
         var shouldHold = profanityResult.Tripped || hasMedia;
 
         ReviewState toState;

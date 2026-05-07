@@ -92,7 +92,7 @@ public sealed class SubmitReviewHandler
         }
 
         var hasMedia = body.MediaUrls is { Count: > 0 };
-        var profanityResult = _profanity.Evaluate(marketCode, body.Headline, body.Body);
+        var profanityResult = await _profanity.EvaluateAsync(marketCode, new[] { body.Headline, body.Body }, ct);
         var holdForModeration = profanityResult.Tripped || hasMedia;
 
         var initialState = holdForModeration ? Primitives.ReviewState.PendingModeration : Primitives.ReviewState.Visible;

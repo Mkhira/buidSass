@@ -126,7 +126,7 @@ public sealed class PolicyAdminHandlerTests
         var filter = new ProfanityFilter(BuildScopeFactory(), normalizer, TimeSpan.FromSeconds(60));
 
         // Warm the cache for SA.
-        var before = filter.Evaluate("SA", "totally clean text").Tripped;
+        var before = (await filter.EvaluateAsync("SA", "totally clean text")).Tripped;
         before.Should().BeFalse();
 
         // Add a new term + invalidation should refresh the next call.
@@ -137,7 +137,7 @@ public sealed class PolicyAdminHandlerTests
                 new UpsertWordlistTermRequest("SA", "newword", null), CancellationToken.None);
         }
 
-        var after = filter.Evaluate("SA", "this contains newword in the body");
+        var after = await filter.EvaluateAsync("SA", "this contains newword in the body");
         after.Tripped.Should().BeTrue();
         after.MatchedTerms.Should().Contain("newword");
     }

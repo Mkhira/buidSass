@@ -397,7 +397,10 @@ public sealed record QuoteRejected(Guid QuoteId, Guid CustomerId, Guid? CompanyI
 public sealed record QuoteApproverRejected(Guid QuoteId, Guid BuyerUserId, Guid RejectingApproverUserId, string MarketCode);
 public sealed record QuoteExpired(Guid QuoteId, Guid CustomerId, Guid? CompanyId, string MarketCode, string LocaleHint);
 public sealed record QuoteWithdrawn(Guid QuoteId, Guid CustomerId, Guid? CompanyId, string Reason, string MarketCode);
+public sealed record QuoteRevisionRequested(Guid QuoteId, Guid CustomerId, Guid? CompanyId, Guid ActorUserId, string MarketCode, string CommentLocaleHint);
 ```
+
+`QuoteRevisionRequested` fires from `RequestRevisionHandler` (contract §2.6) on the `revised → drafted` transition. `ActorUserId` distinguishes individual-customer requests (where it equals `CustomerId`) from buyer-membership requests on a company quote where the buyer's user-id and the quote's logical customer-of-record may differ. `CommentLocaleHint` carries the buyer's revision comment locale so spec 025 renders the operator-queue notification correctly.
 
 `Modules/Shared/CompanyInvitationDomainEvents.cs`:
 

@@ -127,7 +127,11 @@ public sealed class SubmitReviewHandler
             ReviewId = review.Id,
             ActorId = customerId,
             ActorRole = "customer",
-            FromState = Primitives.ReviewState.Visible, // submission has no prior state; using Visible as the conventional sentinel
+            // Submission has no prior state — leave FromState null rather than
+            // stamping Visible (M3): a Visible sentinel falsely read as
+            // Visible→PendingModeration in the audit log when the submission
+            // landed in moderation hold.
+            FromState = null,
             ToState = initialState,
             TriggeredBy = ReviewTriggerKind.CustomerSubmission,
             CreatedAtUtc = nowUtc,

@@ -21,6 +21,16 @@ public static class AdminSupportResponseFactory
     public static Guid? ResolveActorId(HttpContext context) =>
         SupportResponseFactory.ResolveCustomerId(context);
 
+    /// <summary>
+    /// Admin-side market-code resolution. Reads the same `market_code` /
+    /// `market` claim that the customer factory uses but is exposed here so
+    /// admin endpoints don't reach across into <see cref="SupportResponseFactory"/>
+    /// for tenant-partition resolution. Keeps the admin/customer factory
+    /// boundary clean per ADR-010 (CodeRabbit Loop-2).
+    /// </summary>
+    public static string ResolveMarketCode(HttpContext context) =>
+        SupportResponseFactory.ResolveMarketCode(context);
+
     public static bool HasAgentPermission(HttpContext context) =>
         HasPermissionClaim(context, SupportPermissions.SupportAgent);
 

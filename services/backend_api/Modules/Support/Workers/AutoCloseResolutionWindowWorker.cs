@@ -80,16 +80,40 @@ public sealed class AutoCloseResolutionWindowWorker(
         // cheap and avoids per-ticket lookup.
         var schemas = await db.MarketSchemas.AsNoTracking().ToDictionaryAsync(s => s.MarketCode, ct);
 
+        // I3 fix: bound the working set by pushing the date threshold into
+        // the SQL query. Compute the *minimum* per-market auto-close window
+        // across all enabled schemas (auto_close_after_resolved_days > 0)
+        // so the query returns only tickets that *might* be eligible in any
+        // market. Per-ticket re-validation against its own market policy
+        // still happens inside the foreach below.
+        //
+        // CodeRabbit Loop-1: keep the SQL floor at 1 day (the smallest valid
+        // policy window). Schema-missing markets fall back to
+        // `SupportMarketPolicy.DefaultFor(...)` whose default could in theory
+        // be as low as 1 day; a higher floor would silently delay closure
+        // for those tickets. We never load the full Resolved set because
+        // `ResolvedAtUtc != null` + the 1-day cutoff still excludes
+        // just-resolved tickets.
+        const int conservativeFloorDays = 1;
+        var enabledWindows = schemas.Values
+            .Select(s => s.AutoCloseAfterResolvedDays)
+            .Where(d => d > 0)
+            .ToArray();
+        var minAutoCloseDays = enabledWindows.Length > 0
+            ? Math.Min(enabledWindows.Min(), conservativeFloorDays)
+            : conservativeFloorDays;
+        var maxResolvedAtUtc = nowUtc.AddDays(-minAutoCloseDays);
+
         // CodeRabbit Loop-2: avoid the prior N+1 ticket-fetch pattern by
         // loading the full ticket rows up front. We still need tracked
         // entities (we mutate State + ClosedAtUtc + UpdatedAtUtc), so we
         // pull a tracked Where() rather than a projection-into-record.
-        // Volume is bounded — auto-close runs hourly and only sees tickets
-        // that have actually been in `resolved` for at least the per-market
-        // window — so the working set is small.
+        // The added ResolvedAtUtc <= maxResolvedAtUtc predicate (I3) keeps
+        // the working set bounded even as the Resolved population grows.
         var candidates = await db.Tickets
             .Where(t => t.State == TicketStateNames.Resolved
-                     && t.ResolvedAtUtc != null)
+                     && t.ResolvedAtUtc != null
+                     && t.ResolvedAtUtc <= maxResolvedAtUtc)
             .ToListAsync(ct);
 
         var closed = 0;

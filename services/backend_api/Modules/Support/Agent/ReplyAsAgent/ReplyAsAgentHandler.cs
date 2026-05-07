@@ -10,7 +10,6 @@ namespace BackendApi.Modules.Support.Agent.ReplyAsAgent;
 public sealed record ReplyAsAgentCommand(
     Guid TicketId,
     Guid ActorId,
-    bool ActorIsAssigned,
     bool ActorIsLeadOrSuperAdmin,
     string ActorRole,
     string Body,
@@ -51,13 +50,14 @@ public sealed class ReplyAsAgentHandler
             return Failure(TicketReasonCode.MessageBodyTooLong, "Body exceeds 8000 characters.");
         }
 
-        // FR-014a — only assigned agent OR lead/super_admin may reply.
-        if (!cmd.ActorIsAssigned && !cmd.ActorIsLeadOrSuperAdmin)
-        {
-            return Failure(TicketReasonCode.ActionRequiresAssignment,
-                "Customer-visible replies require ticket assignment or lead intervention.");
-        }
-
+        // CodeRabbit Loop-1 (outside-diff): the prior preflight reject (using
+        // the endpoint-resolved cmd.ActorIsAssigned) was a stale TOCTOU read
+        // that could *falsely deny* a now-validly-assigned actor when a lead
+        // had reassigned the ticket between endpoint and handler. The
+        // post-load revalidation below uses the freshly-loaded ticket row and
+        // is the single source of truth for FR-014a — the preflight is
+        // redundant once that exists, so we remove it here to close the
+        // false-negative TOCTOU window.
         var ticket = await _db.Tickets.FirstOrDefaultAsync(t => t.Id == cmd.TicketId, ct);
         if (ticket is null)
         {
@@ -68,10 +68,22 @@ public sealed class ReplyAsAgentHandler
             return Failure(TicketReasonCode.ClosedTerminal, "Ticket is closed.");
         }
 
+        // C1 (TOCTOU close): re-validate FR-014a against the freshly-loaded
+        // ticket row. This is now the single source of truth for assignment
+        // (the endpoint pre-load + the `ActorIsAssigned` command field were
+        // removed in CodeRabbit Loop-2). We allow the action when the actor
+        // is currently the assigned agent OR explicitly lead/super_admin.
+        var actorCurrentlyAssigned = ticket.AssignedAgentId == cmd.ActorId;
+        if (!actorCurrentlyAssigned && !cmd.ActorIsLeadOrSuperAdmin)
+        {
+            return Failure(TicketReasonCode.ActionRequiresAssignment,
+                "Customer-visible replies require ticket assignment or lead intervention.");
+        }
+
         var fromState = TicketStateNames.FromWire(ticket.State);
         var nowUtc = _clock.GetUtcNow();
         var messageId = Guid.NewGuid();
-        var leadIntervention = cmd.ActorIsLeadOrSuperAdmin && !cmd.ActorIsAssigned;
+        var leadIntervention = cmd.ActorIsLeadOrSuperAdmin && !actorCurrentlyAssigned;
 
         _db.Messages.Add(new TicketMessage
         {

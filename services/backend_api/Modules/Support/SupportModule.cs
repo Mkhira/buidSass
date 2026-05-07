@@ -66,6 +66,7 @@ public static partial class SupportModule
         services.TryAddScoped<IVerificationLinkedReadContract, NullVerificationLinkedReadContract>();
         services.TryAddScoped<ICompanyAccountQuery, NullCompanyAccountQuery>();
         services.TryAddScoped<IReturnRequestCreationContract, NullReturnRequestCreationContract>();
+        services.TryAddScoped<IReviewDisplayHandleQuery, NullReviewDisplayHandleQuery>();
 
         services.AddScoped<MarketCodeResolver>();
 

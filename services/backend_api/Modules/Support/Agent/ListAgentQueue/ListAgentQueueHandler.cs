@@ -63,8 +63,17 @@ public sealed class ListAgentQueueHandler
         }
         else
         {
-            // Default: open + in_progress + waiting_customer (operational queue scope).
-            query = query.Where(t => t.State != TicketStateNames.Closed);
+            // C2 fix: default to the *operational* queue states only. The prior
+            // predicate `t.State != Closed` admitted Resolved rows, which are
+            // post-resolution and should not appear in the default agent queue.
+            // Explicitly include Open + InProgress + WaitingCustomer.
+            var defaultStates = new[]
+            {
+                TicketStateNames.Open,
+                TicketStateNames.InProgress,
+                TicketStateNames.WaitingCustomer,
+            };
+            query = query.Where(t => defaultStates.Contains(t.State));
         }
         if (q.AssignedAgentId is not null)
         {

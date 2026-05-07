@@ -1,4 +1,5 @@
 using BackendApi.Modules.Shared;
+using BackendApi.Modules.Support.Entities;
 using BackendApi.Modules.Support.Persistence;
 using BackendApi.Modules.Support.Primitives;
 using MediatR;
@@ -96,6 +97,32 @@ public sealed class OverrideSlaTargetsHandler
         }
 
         ticket.UpdatedAtUtc = nowUtc;
+
+        // I4 fix: append a system_event message to the thread mirroring the
+        // pattern used by Reopen / ForceClose / Reassign. Without this the
+        // override is invisible in the per-ticket thread view; the domain
+        // event alone reaches downstream notifications/audit but leaves
+        // operators staring at an unchanged thread.
+        //
+        // CodeRabbit Loop-1: keep the customer-visible thread entry generic.
+        // Customer reads include `system_event` rows, so leaking the lead's
+        // internal justification text here would expose internal operational
+        // notes. Detailed justification still travels through the
+        // TicketSlaOverridden domain event below (consumed by audit + 025
+        // internal channels), which is the correct destination.
+        _db.Messages.Add(new TicketMessage
+        {
+            Id = Guid.NewGuid(),
+            TicketId = ticket.Id,
+            Kind = TicketMessageKindNames.SystemEvent,
+            ActorId = cmd.LeadActorId,
+            ActorRole = TicketActorKindNames.Lead,
+            Body = $"SLA targets overridden — first_response={cmd.NewFirstResponseTargetMinutes}m, "
+                + $"resolution={cmd.NewResolutionTargetMinutes}m.",
+            BodyLocale = ticket.Locale,
+            LeadIntervention = false,
+            CreatedAtUtc = nowUtc,
+        });
 
         try
         {

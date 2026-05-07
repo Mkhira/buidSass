@@ -4,6 +4,8 @@ using BackendApi.Modules.Pricing.Entities;
 using BackendApi.Modules.Pricing.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using Npgsql;
+using NpgsqlTypes;
 
 namespace BackendApi.Modules.Pricing.Seeding;
 
@@ -64,30 +66,48 @@ public sealed class PricingThresholdsSeeder : ISeeder
         var db = ctx.Services.GetRequiredService<PricingDbContext>();
         var nowUtc = DateTimeOffset.UtcNow;
 
+        // Atomic upsert via ON CONFLICT DO NOTHING — guarantees idempotency under
+        // concurrent multi-instance startup (CodeRabbit Major: check-then-insert
+        // race). Mirrors the foundation migration's seed-INSERT pattern. The
+        // parameter list is bound positionally; column names use the project's
+        // PascalCase EF mapping (citext market_code primary key, quoted).
+        const string Sql = @"
+            INSERT INTO pricing.commercial_thresholds
+                (""MarketCode"", ""GateEnabled"",
+                 ""ThresholdPercentOff"", ""ThresholdAmountOffMinor"", ""ThresholdDurationDays"",
+                 ""CouponInFlightGraceSeconds"", ""PromotionInFlightGraceSeconds"",
+                 ""UpdatedAtUtc"", ""UpdatedByActorId"")
+            VALUES (@p_market, @p_gate,
+                    @p_pct, @p_amount, @p_days,
+                    @p_coupon_grace, @p_promo_grace,
+                    @p_updated_at, @p_updated_by)
+            ON CONFLICT (""MarketCode"") DO NOTHING;";
+
         foreach (var row in SeedRows)
         {
-            var exists = await db.CommercialThresholds
-                .AsNoTracking()
-                .AnyAsync(t => t.MarketCode == row.MarketCode, ct);
-            if (exists)
+            var parameters = new object[]
             {
-                continue;
-            }
+                new NpgsqlParameter("p_market", NpgsqlDbType.Citext) { Value = row.MarketCode },
+                new NpgsqlParameter("p_gate", NpgsqlDbType.Boolean) { Value = row.GateEnabled },
+                new NpgsqlParameter("p_pct", NpgsqlDbType.Numeric)
+                {
+                    Value = (object?)row.ThresholdPercentOff ?? DBNull.Value,
+                },
+                new NpgsqlParameter("p_amount", NpgsqlDbType.Bigint)
+                {
+                    Value = (object?)row.ThresholdAmountOffMinor ?? DBNull.Value,
+                },
+                new NpgsqlParameter("p_days", NpgsqlDbType.Integer)
+                {
+                    Value = (object?)row.ThresholdDurationDays ?? DBNull.Value,
+                },
+                new NpgsqlParameter("p_coupon_grace", NpgsqlDbType.Integer) { Value = row.CouponInFlightGraceSeconds },
+                new NpgsqlParameter("p_promo_grace", NpgsqlDbType.Integer) { Value = row.PromotionInFlightGraceSeconds },
+                new NpgsqlParameter("p_updated_at", NpgsqlDbType.TimestampTz) { Value = nowUtc },
+                new NpgsqlParameter("p_updated_by", NpgsqlDbType.Uuid) { Value = CommercialPermissions.SystemActorId },
+            };
 
-            db.CommercialThresholds.Add(new CommercialThreshold
-            {
-                MarketCode = row.MarketCode,
-                GateEnabled = row.GateEnabled,
-                ThresholdPercentOff = row.ThresholdPercentOff,
-                ThresholdAmountOffMinor = row.ThresholdAmountOffMinor,
-                ThresholdDurationDays = row.ThresholdDurationDays,
-                CouponInFlightGraceSeconds = row.CouponInFlightGraceSeconds,
-                PromotionInFlightGraceSeconds = row.PromotionInFlightGraceSeconds,
-                UpdatedAtUtc = nowUtc,
-                UpdatedByActorId = CommercialPermissions.SystemActorId,
-            });
+            await db.Database.ExecuteSqlRawAsync(Sql, parameters, ct);
         }
-
-        await db.SaveChangesAsync(ct);
     }
 }

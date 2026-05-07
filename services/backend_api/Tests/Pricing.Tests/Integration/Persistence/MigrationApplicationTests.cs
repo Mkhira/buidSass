@@ -45,12 +45,15 @@ public sealed class MigrationApplicationTests(PricingTestFactory factory)
             FROM pg_trigger t
             JOIN pg_class c ON c.oid = t.tgrelid
             JOIN pg_namespace n ON n.oid = c.relnamespace
+            JOIN pg_proc p ON p.oid = t.tgfoid
             WHERE n.nspname = 'pricing'
               AND c.relname = 'commercial_audit_events'
-              AND NOT t.tgisinternal;";
+              AND NOT t.tgisinternal
+              AND t.tgname = 'trg_commercial_audit_events_immutable'
+              AND p.proname = 'raise_immutable_audit_violation';";
 
         var count = (long)(await cmd.ExecuteScalarAsync())!;
-        count.Should().BeGreaterThan(0, "trg_commercial_audit_events_immutable must be present");
+        count.Should().Be(1, "the immutable trigger must be wired to the expected function (CodeRabbit nit)");
     }
 
     [Fact]
@@ -59,17 +62,27 @@ public sealed class MigrationApplicationTests(PricingTestFactory factory)
         await using var connection = new NpgsqlConnection(factory.ConnectionString);
         await connection.OpenAsync();
         await using var cmd = connection.CreateCommand();
+        // Verify the PK is on the expected column (MarketCode), not just that
+        // some PK exists (CodeRabbit nit). The schema uses the project's
+        // PascalCase EF mapping, so we lower-case the result for a stable
+        // comparison.
         cmd.CommandText = @"
-            SELECT COUNT(*)
+            SELECT array_agg(lower(a.attname) ORDER BY u.ord)
             FROM pg_constraint c
             JOIN pg_class r ON r.oid = c.conrelid
             JOIN pg_namespace n ON n.oid = r.relnamespace
+            JOIN LATERAL unnest(c.conkey) WITH ORDINALITY u(attnum, ord) ON true
+            JOIN pg_attribute a ON a.attrelid = r.oid AND a.attnum = u.attnum
             WHERE n.nspname = 'pricing'
               AND r.relname = 'commercial_thresholds'
-              AND c.contype = 'p';";
+              AND c.contype = 'p'
+            GROUP BY c.oid;";
 
-        var count = (long)(await cmd.ExecuteScalarAsync())!;
-        count.Should().Be(1, "PK on (MarketCode) must exist on pricing.commercial_thresholds");
+        var pkColumns = (string[])(await cmd.ExecuteScalarAsync())!;
+        pkColumns.Should().BeEquivalentTo(
+            new[] { "marketcode" },
+            opts => opts.WithStrictOrdering(),
+            "PK must be on the MarketCode column");
     }
 
     [Fact]

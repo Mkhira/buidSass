@@ -33,9 +33,13 @@ public sealed class CommercialAuditEventAppendOnlyTests(PricingTestFactory facto
             await cmd.ExecuteNonQueryAsync();
         };
 
+        // SQLSTATE P0001 == raise_exception (the trigger function uses
+        // ERRCODE='P0001' explicitly). Anchor on SQLSTATE and the literal
+        // 'append-only' phrase from the trigger message so an unrelated DB
+        // error cannot make this test pass (CodeRabbit nit).
         await act.Should().ThrowAsync<PostgresException>()
-            .Where(ex => ex.MessageText.Contains("immutable", StringComparison.OrdinalIgnoreCase)
-                      || ex.MessageText.Contains("audit", StringComparison.OrdinalIgnoreCase));
+            .Where(ex => ex.SqlState == "P0001"
+                      && ex.MessageText.Contains("append-only", StringComparison.OrdinalIgnoreCase));
 
         await CleanupAuditRowAsync(auditId);
     }
@@ -55,9 +59,13 @@ public sealed class CommercialAuditEventAppendOnlyTests(PricingTestFactory facto
             await cmd.ExecuteNonQueryAsync();
         };
 
+        // SQLSTATE P0001 == raise_exception (the trigger function uses
+        // ERRCODE='P0001' explicitly). Anchor on SQLSTATE and the literal
+        // 'append-only' phrase from the trigger message so an unrelated DB
+        // error cannot make this test pass (CodeRabbit nit).
         await act.Should().ThrowAsync<PostgresException>()
-            .Where(ex => ex.MessageText.Contains("immutable", StringComparison.OrdinalIgnoreCase)
-                      || ex.MessageText.Contains("audit", StringComparison.OrdinalIgnoreCase));
+            .Where(ex => ex.SqlState == "P0001"
+                      && ex.MessageText.Contains("append-only", StringComparison.OrdinalIgnoreCase));
 
         // Cleanup unreachable — the row CANNOT be deleted by design. We let the
         // test DB carry the seeded row; subsequent tests do not depend on it.

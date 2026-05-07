@@ -103,6 +103,18 @@ public sealed class CommercialThresholdPolicyTests
     }
 
     [Fact]
+    public void Cap_Path_Triggers_Amount_Criterion_When_AmountOff_Is_Null()
+    {
+        // Criterion 2 evaluates `cap_minor ?? amount_off_minor` against the
+        // configured threshold. Lock down the "or cap" branch with a candidate
+        // that carries no amount_off but a cap above threshold (CodeRabbit nit).
+        var policy = ToPolicy(BaseRow());
+
+        var capCandidate = Candidate(percentOff: null, amountOffMinor: null, capMinor: 6_000_000L);
+        HighImpactGate.IsTriggered(capCandidate, policy).Should().BeTrue();
+    }
+
+    [Fact]
     public void Null_DurationDays_Disables_Only_Duration_Criterion()
     {
         var row = BaseRow();

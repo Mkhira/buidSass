@@ -144,14 +144,48 @@ public sealed class ConvertToReturnRequestHandler
             CreatedAtUtc = nowUtc,
         });
 
-        // Append a system_event message to the thread documenting the conversion.
-        // The ticket's state is intentionally NOT mutated here — there's no
-        // legal state-machine transition for "customer initiates a return-request
-        // conversion" (the trigger taxonomy in TicketTriggerKind covers the
-        // outcome side via return_outcome). When spec 013 publishes
-        // return.completed | return.rejected, ReturnOutcomeHandler walks the
-        // state machine through TryTransition and emits TicketStateChanged,
-        // closing the audit loop cleanly.
+        // I2 fix — FR-028 / T078: transition to waiting_customer once the
+        // return-request has been created. The ticket is now waiting on the
+        // customer / return-outcome flow rather than the support agent, so
+        // the queue-side state must reflect that. The reverse path (ticket
+        // back to in_progress) lands when spec 013 publishes
+        // return.completed | return.rejected and ReturnOutcomeHandler walks
+        // the machine to Resolved via the return_outcome trigger.
+        var fromState = TicketStateNames.FromWire(ticket.State);
+        var transitionedToWaitingCustomer = false;
+        if (fromState is TicketState.Open or TicketState.InProgress)
+        {
+            // The state machine permits InProgress → WaitingCustomer via
+            // AgentReply. For a customer-initiated conversion the closest
+            // semantic is a system-driven "ticket now waits for customer
+            // (return) action". We use AgentReply with System actor —
+            // matches the existing transition guard and is already covered
+            // in the audit taxonomy.
+            if (fromState == TicketState.Open)
+            {
+                // Walk Open → InProgress first (AgentAssignment, System).
+                if (TicketStateMachine.TryTransition(
+                        TicketState.Open, TicketState.InProgress,
+                        TicketTriggerKind.AgentAssignment,
+                        TicketActorKind.System,
+                        out _))
+                {
+                    ticket.State = TicketStateNames.InProgress;
+                }
+            }
+
+            if (TicketStateMachine.TryTransition(
+                    TicketStateNames.FromWire(ticket.State),
+                    TicketState.WaitingCustomer,
+                    TicketTriggerKind.AgentReply,
+                    TicketActorKind.System,
+                    out _))
+            {
+                ticket.State = TicketStateNames.WaitingCustomer;
+                transitionedToWaitingCustomer = true;
+            }
+        }
+
         ticket.UpdatedAtUtc = nowUtc;
         _db.Messages.Add(new Entities.TicketMessage
         {
@@ -191,6 +225,16 @@ public sealed class ConvertToReturnRequestHandler
             TicketId: ticket.Id,
             ReturnRequestId: creationResult.ReturnRequestId.Value,
             OccurredAtUtc: nowUtc), ct);
+
+        if (transitionedToWaitingCustomer)
+        {
+            await _publisher.Publish(new TicketStateChanged(
+                TicketId: ticket.Id,
+                FromState: TicketStateNames.ToWire(fromState),
+                ToState: TicketStateNames.WaitingCustomer,
+                TriggeredBy: TicketTriggerKind.AgentReply,
+                OccurredAtUtc: nowUtc), ct);
+        }
 
         return new ConvertToReturnRequestResult(
             Success: true,

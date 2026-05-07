@@ -347,7 +347,7 @@ description: "Task list for Spec 023 — Support Tickets (Phase 1D · Milestone 
 ### Domain events + spec 025 contract (Phase P)
 
 - [x] T137 Verify all 16 events from `Modules/Shared/SupportTicketDomainEvents.cs` (T044) are published by their corresponding handlers via grep + a contract test; spec 025 binding deferred to its own PR <!-- Verified: TicketOpened, TicketAssigned, TicketReassigned, TicketCustomerReplyReceived, TicketAgentReplySent, TicketStateChanged, TicketResolved, TicketClosed, TicketReopened, TicketSlaBreachedFirstResponse, TicketSlaBreachedResolution, TicketConvertedToReturn, TicketReturnOutcomeReceived, TicketAttachmentRedacted, TicketMessageRedacted, TicketAgentAvailabilityChanged are all published by their owning handlers + workers (grepped) -->
-- [~] T138 Document the event payload schemas in `contracts/support-tickets-contract.md §9` and add an OpenAPI extension stub for spec 025 to consume <!-- DEFERRED: payload schemas implicit in record definitions; doc-update is non-blocking -->
+- [x] T138 Document the event payload schemas in `contracts/support-tickets-contract.md §9` and add an OpenAPI extension stub for spec 025 to consume <!-- DONE in PR phase-1D/023-fix-deferred-and-bugs: §9 expanded to 17-row event-catalog table with fields, semantic meaning, and downstream-consumer mapping; §9.2 covers delivery/ordering guarantees; §9.3 declares the x-domain-events OpenAPI extension stub for spec 025 -->
 
 ### OpenAPI artifact (Phase Q)
 

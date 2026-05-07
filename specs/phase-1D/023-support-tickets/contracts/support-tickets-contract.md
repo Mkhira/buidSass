@@ -387,9 +387,46 @@ All reason codes are namespaced `support.ticket.*` and resolve to ICU keys in `s
 
 ---
 
-## §9 · Domain events emitted (16 total)
+## §9 · Domain events emitted (17 total)
 
-See `data-model.md §6` for the full list. Each event is published on the in-process MediatR bus after the corresponding successful state-change transaction commits. Spec 025 subscribes once at its V1 PR; until then, events emit but have no subscriber (the bus is no-op-friendly).
+See `data-model.md §6` for the canonical list. Each event is published on the in-process MediatR bus after the corresponding successful state-change transaction commits. Spec 025 subscribes once at its V1 PR; until then, events emit but have no subscriber (the bus is no-op-friendly).
+
+The original 16 events were defined at module foundation; `TicketSlaOverridden` was added in the Phase-10 SLA-override slice (T086) so leads emit a dedicated signal instead of misusing `TicketStateChanged` for a non-transition. **Total: 17 events.**
+
+### §9.1 · Event payload schemas
+
+All events are `MediatR.INotification` records under `BackendApi.Modules.Shared.SupportTicketDomainEvents` and carry `OccurredAtUtc : DateTimeOffset` (UTC instant of the publish-side commit) unless noted. `*Id` fields are `Guid`; market codes are `string` (`"SA" | "EG"`); state / trigger / outcome strings come from the wire-text taxonomies (`TicketStateNames`, `TicketTriggerKind`).
+
+| # | Event | Fields | Semantic meaning | Downstream consumers (V1) |
+|---|-------|--------|------------------|---------------------------|
+| 1 | `TicketOpened` | `TicketId, CustomerId, MarketCode, Category, Priority, OccurredAtUtc` | A new ticket was just created and persisted (state = `open`). | spec 025 notifications (customer ack push/email); spec 003 audit log |
+| 2 | `TicketAssigned` | `TicketId, AgentId, AssignmentKind, OccurredAtUtc` | An agent took ownership (`AssignmentKind ∈ {self_claim, lead_assignment, auto_assignment}`); ticket is now `in_progress`. | spec 025 (agent push); audit log |
+| 3 | `TicketReassigned` | `TicketId, PriorAgentId?, NewAgentId, JustificationNote, OccurredAtUtc` | Lead reassigned the ticket; the prior `TicketAssignment` was superseded and a new active row was inserted. | spec 025 (notify both agents); audit log |
+| 4 | `TicketCustomerReplyReceived` | `TicketId, MessageId, OccurredAtUtc` | Customer-visible message of `kind=customer_reply` appended; may have transitioned `waiting_customer → in_progress`. | spec 025 (agent push); audit log |
+| 5 | `TicketAgentReplySent` | `TicketId, MessageId, LeadIntervention, OccurredAtUtc` | Agent reply (or lead-intervention reply) appended; may have transitioned `in_progress → waiting_customer` if request-info flagged. `LeadIntervention=true` only when a non-assigned lead/super_admin replied. | spec 025 (customer push/email); audit log |
+| 6 | `TicketStateChanged` | `TicketId, FromState, ToState, TriggeredBy, OccurredAtUtc` | Any state-machine transition. Catch-all event; subscribers MAY filter by `(FromState, ToState, TriggeredBy)`. NOT emitted for SLA target overrides — those use `TicketSlaOverridden` so subscribers don't see a no-op self-transition. | spec 025; spec 003 audit; SLA breach worker (resolved-at clearing) |
+| 7 | `TicketResolved` | `TicketId, ResolvedByAgentId?, ResolvedAtUtc` | Ticket reached `resolved`. `ResolvedByAgentId` is `null` when the resolution came from a system trigger (e.g., `return_outcome`). Auto-resolve from a super_admin redaction sets it to the super_admin's actor id. | spec 025 (customer "your case is resolved"); audit log; rating-prompt sender (future) |
+| 8 | `TicketClosed` | `TicketId, TriggeredBy, ClosedAtUtc` | Ticket reached terminal `closed`. `TriggeredBy ∈ {auto_close_resolution_window, lead_force_close, author_account_locked}`. | spec 025; audit log; analytics |
+| 9 | `TicketReopened` | `TicketId, ReopenCount, OccurredAtUtc` | Customer reopened a previously-resolved ticket. Companion `TicketStateChanged(resolved → in_progress)` is also published. | spec 025 (re-notify originally-assigned agent); audit log |
+| 10 | `TicketSlaBreachedFirstResponse` | `TicketId, TargetDueUtc, AgentId?, DetectedAtUtc` | The `SlaBreachWatchWorker` observed `now > first_response_due_utc` and the ticket has not yet had an agent reply. Idempotent on `(ticket_id, breach_kind=first_response)`. | spec 025 (lead alert); audit log; ops dashboard |
+| 11 | `TicketSlaBreachedResolution` | `TicketId, TargetDueUtc, AgentId?, DetectedAtUtc` | Same shape as #10 but for the resolution deadline. | spec 025; audit; ops dashboard |
+| 12 | `TicketConvertedToReturn` | `TicketId, ReturnRequestId, OccurredAtUtc` | Customer (or system) called `IReturnRequestCreationContract.CreateAsync` from this ticket; a `TicketLink(kind=return_request)` row was inserted. The ticket transitions to `waiting_customer`. | spec 013 (the return module's own logging); spec 025; audit log |
+| 13 | `TicketReturnOutcomeReceived` | `TicketId, ReturnRequestId, Outcome, OccurredAtUtc` | Spec 013 published `return.completed` / `return.rejected` and the support module's `IReturnOutcomeSubscriber` consumed it. `Outcome ∈ {completed, rejected}`. May have triggered a state transition on this ticket (resolved). | spec 025; audit log |
+| 14 | `TicketAttachmentRedacted` | `TicketId, AttachmentId, RequestingActorId, OccurredAtUtc` | Super_admin replaced a `TicketAttachment.storage_object_id` with `null` and stamped `redacted_at_utc`. `RequestingActorId` is the super_admin actor (FR-012a). | spec 003 audit (always); spec 025 (no customer notification — this is silent on purpose) |
+| 15 | `TicketMessageRedacted` | `TicketId, MessageId, RequestingCustomerId, SuperAdminActorId, OccurredAtUtc` | Super_admin wiped a message body in response to a redaction-request ticket. Both actor identities are carried so spec 003 records full accountability per Principle 25. The originating redaction-request ticket is auto-resolved (companion `TicketResolved` + `TicketStateChanged` events follow). | spec 003 audit; spec 025 (silent for the redacted thread; the originating-request ticket gets a normal "resolved" notification) |
+| 16 | `TicketAgentAvailabilityChanged` | `AgentId, MarketCode, IsOnCall, OccurredAtUtc` | Lead toggled `SupportAgentAvailability.is_on_call` for an `(agent, market)` pair. | spec 025 (informational lead-dashboard refresh); audit log |
+| 17 | `TicketSlaOverridden` | `TicketId, LeadActorId, PriorFirstResponseTargetMinutes, PriorResolutionTargetMinutes, NewFirstResponseTargetMinutes, NewResolutionTargetMinutes, NewFirstResponseDueUtc, NewResolutionDueUtc, JustificationNote, OccurredAtUtc` | Lead overrode the per-ticket SLA targets. The prior + new targets and recomputed due timestamps are carried so subscribers do not need to reload the ticket. | spec 025 (lead-dashboard refresh; assigned-agent push if recomputed deadline tightens); spec 003 audit (FR-026) |
+
+### §9.2 · Delivery & ordering guarantees
+
+- All events are published **after** `SaveChangesAsync` succeeds; subscribers MUST NOT assume they execute in the same DB transaction as the producing handler.
+- Within a single handler, multiple events publish in deterministic source-order (e.g. convert-to-return: `TicketConvertedToReturn` → `TicketStateChanged`). Cross-handler ordering is not guaranteed.
+- Events are at-most-once on the in-process bus; a subscriber crash does NOT trigger redelivery. Spec 025 owns its own reliable-delivery layer downstream.
+- `OccurredAtUtc` reflects the producing handler's `TimeProvider.GetUtcNow()` at the moment of publish (post-commit), not the underlying state-change wall clock; the difference is sub-millisecond and irrelevant to consumers.
+
+### §9.3 · OpenAPI extension stub for spec 025
+
+A future OpenAPI extension (`x-domain-events`) on the support-ticket endpoints will list the events each endpoint may publish. The schema is intentionally **not** generated at V1 — spec 025's notifications module owns the canonical event-catalog publication once it ships. This subsection is the source-of-truth list spec 025 will consume.
 
 ---
 

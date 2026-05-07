@@ -168,6 +168,42 @@ public sealed class UpdateReviewHandlerTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task Edit_cross_market_returns_not_found_and_does_not_mutate_row()
+    {
+        // M2 regression — UpdateReviewHandler must filter by MarketCode so a
+        // customer authenticated in one market cannot PATCH a review they
+        // authored in another market. 404 (not 403) so existence is hidden.
+        var (customerId, reviewId, _, _) = await SubmitVisibleReviewAsync();
+
+        await using var beforeCtx = NewContext();
+        var before = await beforeCtx.Reviews.AsNoTracking()
+            .Where(r => r.Id == reviewId)
+            .Select(r => new { r.State, r.Rating, r.Headline, r.EditCount, r.Xmin })
+            .FirstAsync();
+
+        var handler = NewUpdateHandler(out _);
+        var result = await handler.HandleAsync(
+            customerId, "EG", reviewId, ifMatchRowVersion: null,
+            new UpdateReviewRequest(Rating: 1, Headline: "should-not-apply", Body: null, Locale: null, MediaUrls: null),
+            CancellationToken.None);
+
+        result.IsSuccess.Should().BeFalse();
+        result.Status.Should().Be(404);
+
+        await using var afterCtx = NewContext();
+        var after = await afterCtx.Reviews.AsNoTracking()
+            .Where(r => r.Id == reviewId)
+            .Select(r => new { r.State, r.Rating, r.Headline, r.EditCount, r.Xmin })
+            .FirstAsync();
+
+        after.State.Should().Be(before.State);
+        after.Rating.Should().Be(before.Rating);
+        after.Headline.Should().Be(before.Headline);
+        after.EditCount.Should().Be(before.EditCount);
+        after.Xmin.Should().Be(before.Xmin);
+    }
+
+    [Fact]
     public async Task Stale_if_match_returns_version_conflict()
     {
         var (customerId, reviewId, _, _) = await SubmitVisibleReviewAsync();

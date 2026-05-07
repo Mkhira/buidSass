@@ -190,7 +190,34 @@ public sealed class SubmitAcceptanceHandler
             return SubmitAcceptanceResult.MarketMismatch();
         }
 
-        // ---------- 7. Eligibility gate (FR-036) ----------
+        // ---------- 7. Company-suspended gate ----------
+        // Spec.md §Edge Case "operator publishes a quote, then the customer's
+        // company is suspended" — buyer MUST be unable to accept. This MUST run
+        // before the eligibility gate so a suspended company sees
+        // `quote.company_suspended` regardless of restricted-SKU eligibility
+        // state (the eligibility surface would otherwise mask the underlying
+        // suspension reason). Existing accepted quotes are unaffected (orders
+        // already exist).
+        Company? company = null;
+        if (tracked.CompanyId is { } companyId)
+        {
+            company = await _db.Companies
+                .AsNoTracking()
+                .FirstOrDefaultAsync(c => c.Id == companyId, ct);
+            if (company is null)
+            {
+                // Defensive: a quote with a non-null CompanyId but no Company row
+                // shouldn't exist (FK enforcement). Treat as not-found.
+                return SubmitAcceptanceResult.NotFound();
+            }
+
+            if (string.Equals(company.State, "suspended", StringComparison.OrdinalIgnoreCase))
+            {
+                return SubmitAcceptanceResult.CompanySuspended();
+            }
+        }
+
+        // ---------- 8. Eligibility gate (FR-036) ----------
         // For every restricted SKU on the most recent QuoteVersion, the buyer-of-
         // record (Quote.CustomerId — the customer who will receive the order) must
         // be Eligible (or Unrestricted) per spec 020. Ineligible → 422.
@@ -206,29 +233,7 @@ public sealed class SubmitAcceptanceHandler
             return SubmitAcceptanceResult.EligibilityRequired();
         }
 
-        // ---------- 8. Company gates + PO collision branch ----------
-        Company? company = null;
-        if (tracked.CompanyId is { } companyId)
-        {
-            company = await _db.Companies
-                .AsNoTracking()
-                .FirstOrDefaultAsync(c => c.Id == companyId, ct);
-            if (company is null)
-            {
-                // Defensive: a quote with a non-null CompanyId but no Company row
-                // shouldn't exist (FK enforcement). Treat as not-found.
-                return SubmitAcceptanceResult.NotFound();
-            }
-
-            // Spec.md §Edge Case "operator publishes a quote, then the customer's
-            // company is suspended" — buyer MUST be unable to accept. Reason-code
-            // mapping table maps `quote.company_suspended` → §2.7. Existing accepted
-            // quotes are unaffected (orders already exist).
-            if (string.Equals(company.State, "suspended", StringComparison.OrdinalIgnoreCase))
-            {
-                return SubmitAcceptanceResult.CompanySuspended();
-            }
-        }
+        // ---------- 8a. PO collision branch ----------
 
         // The PO under evaluation: prefer the body override; fall back to the quote's
         // existing PO_number (set at request time).

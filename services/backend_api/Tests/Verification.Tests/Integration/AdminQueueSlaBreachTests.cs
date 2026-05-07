@@ -147,7 +147,7 @@ public sealed class AdminQueueSlaBreachTests : IAsyncLifetime
         await using (var db = NewContext())
         {
             var requestInfo = new DecideRequestInfoHandler(
-                db, new EligibilityCacheInvalidator(), new RecordingAuditPublisher(),
+                db, new EligibilityCacheInvalidator(TimeProvider.System), new RecordingAuditPublisher(),
                 new NullVerificationDomainEventPublisher(),
                 new FakeTimeProvider(requestInfoTime),
                 NullLogger<DecideRequestInfoHandler>.Instance);
@@ -182,7 +182,7 @@ public sealed class AdminQueueSlaBreachTests : IAsyncLifetime
 
         await using var db = NewContext();
         var submit = new SubmitVerificationHandler(
-            db, new EligibilityCacheInvalidator(), new RecordingAuditPublisher(),
+            db, new EligibilityCacheInvalidator(TimeProvider.System), new RecordingAuditPublisher(),
             clock, NullLogger<SubmitVerificationHandler>.Instance);
         var result = await submit.HandleAsync(customerId, "ksa",
             new SubmitVerificationRequest(

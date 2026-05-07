@@ -77,7 +77,7 @@ public sealed class ResubmitAndRenewalTests : IAsyncLifetime
         await using (var db = NewContext())
         {
             var reqInfo = new DecideRequestInfoHandler(
-                db, new EligibilityCacheInvalidator(), new RecordingAuditPublisher(),
+                db, new EligibilityCacheInvalidator(TimeProvider.System), new RecordingAuditPublisher(),
                 new NullVerificationDomainEventPublisher(),
                 new FakeTimeProvider(infoRequestedAt),
                 NullLogger<DecideRequestInfoHandler>.Instance);
@@ -106,7 +106,7 @@ public sealed class ResubmitAndRenewalTests : IAsyncLifetime
         var resubmitAt = infoRequestedAt.AddDays(2);
         await using var db2 = NewContext();
         var handler = new ResubmitWithInfoHandler(
-            db2, new EligibilityCacheInvalidator(), new RecordingAuditPublisher(),
+            db2, new EligibilityCacheInvalidator(TimeProvider.System), new RecordingAuditPublisher(),
             new FakeTimeProvider(resubmitAt),
             NullLogger<ResubmitWithInfoHandler>.Instance);
 
@@ -147,7 +147,7 @@ public sealed class ResubmitAndRenewalTests : IAsyncLifetime
         await using (var db = NewContext())
         {
             var reqInfo = new DecideRequestInfoHandler(
-                db, new EligibilityCacheInvalidator(), new RecordingAuditPublisher(),
+                db, new EligibilityCacheInvalidator(TimeProvider.System), new RecordingAuditPublisher(),
                 new NullVerificationDomainEventPublisher(),
                 new FakeTimeProvider(new DateTimeOffset(2026, 5, 5, 14, 0, 0, TimeSpan.Zero)),
                 NullLogger<DecideRequestInfoHandler>.Instance);
@@ -159,7 +159,7 @@ public sealed class ResubmitAndRenewalTests : IAsyncLifetime
         // Customer tries to resubmit without attaching new documents.
         await using var db2 = NewContext();
         var handler = new ResubmitWithInfoHandler(
-            db2, new EligibilityCacheInvalidator(), new RecordingAuditPublisher(),
+            db2, new EligibilityCacheInvalidator(TimeProvider.System), new RecordingAuditPublisher(),
             new FakeTimeProvider(new DateTimeOffset(2026, 5, 6, 9, 0, 0, TimeSpan.Zero)),
             NullLogger<ResubmitWithInfoHandler>.Instance);
         var result = await handler.HandleAsync(
@@ -180,7 +180,7 @@ public sealed class ResubmitAndRenewalTests : IAsyncLifetime
 
         await using var db = NewContext();
         var handler = new ResubmitWithInfoHandler(
-            db, new EligibilityCacheInvalidator(), new RecordingAuditPublisher(),
+            db, new EligibilityCacheInvalidator(TimeProvider.System), new RecordingAuditPublisher(),
             new FakeTimeProvider(new DateTimeOffset(2026, 5, 6, 9, 0, 0, TimeSpan.Zero)),
             NullLogger<ResubmitWithInfoHandler>.Instance);
         var result = await handler.HandleAsync(
@@ -200,7 +200,7 @@ public sealed class ResubmitAndRenewalTests : IAsyncLifetime
 
         await using var db = NewContext();
         var handler = new ResubmitWithInfoHandler(
-            db, new EligibilityCacheInvalidator(), new RecordingAuditPublisher(),
+            db, new EligibilityCacheInvalidator(TimeProvider.System), new RecordingAuditPublisher(),
             new FakeTimeProvider(DateTimeOffset.UtcNow),
             NullLogger<ResubmitWithInfoHandler>.Instance);
         var result = await handler.HandleAsync(
@@ -224,7 +224,7 @@ public sealed class ResubmitAndRenewalTests : IAsyncLifetime
         var snapshot = new DateTimeOffset(2026, 9, 1, 9, 0, 0, TimeSpan.Zero);
         await using var db = NewContext();
         var handler = new RequestRenewalHandler(
-            db, new EligibilityCacheInvalidator(), new RecordingAuditPublisher(),
+            db, new EligibilityCacheInvalidator(TimeProvider.System), new RecordingAuditPublisher(),
             new FakeTimeProvider(snapshot),
             NullLogger<RequestRenewalHandler>.Instance);
 
@@ -246,7 +246,7 @@ public sealed class ResubmitAndRenewalTests : IAsyncLifetime
         var snapshot = new DateTimeOffset(2027, 4, 15, 9, 0, 0, TimeSpan.Zero);
         await using var db = NewContext();
         var handler = new RequestRenewalHandler(
-            db, new EligibilityCacheInvalidator(), new RecordingAuditPublisher(),
+            db, new EligibilityCacheInvalidator(TimeProvider.System), new RecordingAuditPublisher(),
             new FakeTimeProvider(snapshot),
             NullLogger<RequestRenewalHandler>.Instance);
 
@@ -276,7 +276,7 @@ public sealed class ResubmitAndRenewalTests : IAsyncLifetime
         var snapshot = new DateTimeOffset(2027, 4, 15, 9, 0, 0, TimeSpan.Zero);
         await using var db = NewContext();
         var handler = new RequestRenewalHandler(
-            db, new EligibilityCacheInvalidator(), new RecordingAuditPublisher(),
+            db, new EligibilityCacheInvalidator(TimeProvider.System), new RecordingAuditPublisher(),
             new FakeTimeProvider(snapshot),
             NullLogger<RequestRenewalHandler>.Instance);
 
@@ -302,7 +302,7 @@ public sealed class ResubmitAndRenewalTests : IAsyncLifetime
         await using (var db = NewContext())
         {
             var handler = new RequestRenewalHandler(
-                db, new EligibilityCacheInvalidator(), new RecordingAuditPublisher(),
+                db, new EligibilityCacheInvalidator(TimeProvider.System), new RecordingAuditPublisher(),
                 new FakeTimeProvider(snapshot),
                 NullLogger<RequestRenewalHandler>.Instance);
             var first = await handler.HandleAsync(
@@ -313,7 +313,7 @@ public sealed class ResubmitAndRenewalTests : IAsyncLifetime
         await using (var db = NewContext())
         {
             var handler = new RequestRenewalHandler(
-                db, new EligibilityCacheInvalidator(), new RecordingAuditPublisher(),
+                db, new EligibilityCacheInvalidator(TimeProvider.System), new RecordingAuditPublisher(),
                 new FakeTimeProvider(snapshot.AddDays(1)),
                 NullLogger<RequestRenewalHandler>.Instance);
             var second = await handler.HandleAsync(
@@ -331,7 +331,7 @@ public sealed class ResubmitAndRenewalTests : IAsyncLifetime
 
         await using var db = NewContext();
         var handler = new RequestRenewalHandler(
-            db, new EligibilityCacheInvalidator(), new RecordingAuditPublisher(),
+            db, new EligibilityCacheInvalidator(TimeProvider.System), new RecordingAuditPublisher(),
             new FakeTimeProvider(DateTimeOffset.UtcNow),
             NullLogger<RequestRenewalHandler>.Instance);
         var result = await handler.HandleAsync(
@@ -354,7 +354,7 @@ public sealed class ResubmitAndRenewalTests : IAsyncLifetime
 
         await using var db = NewContext();
         var submit = new SubmitVerificationHandler(
-            db, new EligibilityCacheInvalidator(), new RecordingAuditPublisher(),
+            db, new EligibilityCacheInvalidator(TimeProvider.System), new RecordingAuditPublisher(),
             clock, NullLogger<SubmitVerificationHandler>.Instance);
         var result = await submit.HandleAsync(customerId, "ksa",
             new SubmitVerificationRequest(
@@ -372,7 +372,7 @@ public sealed class ResubmitAndRenewalTests : IAsyncLifetime
     {
         await using var db = NewContext();
         var approve = new DecideApproveHandler(
-            db, new EligibilityCacheInvalidator(),
+            db, new EligibilityCacheInvalidator(TimeProvider.System),
             new RecordingAuditPublisher(),
             new NullVerificationDomainEventPublisher(),
             new FakeTimeProvider(new DateTimeOffset(2026, 5, 1, 9, 0, 0, TimeSpan.Zero)),

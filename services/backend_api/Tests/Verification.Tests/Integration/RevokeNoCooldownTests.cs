@@ -98,7 +98,7 @@ public sealed class RevokeNoCooldownTests : IAsyncLifetime
     {
         await using var db = NewContext();
         var submit = new SubmitVerificationHandler(
-            db, new EligibilityCacheInvalidator(), new RecordingAuditPublisher(),
+            db, new EligibilityCacheInvalidator(TimeProvider.System), new RecordingAuditPublisher(),
             new FakeTimeProvider(snapshot),
             NullLogger<SubmitVerificationHandler>.Instance);
         return await submit.HandleAsync(customerId, "ksa",
@@ -112,7 +112,7 @@ public sealed class RevokeNoCooldownTests : IAsyncLifetime
         await using (var db = NewContext())
         {
             var submit = new SubmitVerificationHandler(
-                db, new EligibilityCacheInvalidator(), new RecordingAuditPublisher(),
+                db, new EligibilityCacheInvalidator(TimeProvider.System), new RecordingAuditPublisher(),
                 new FakeTimeProvider(new DateTimeOffset(2026, 4, 1, 8, 0, 0, TimeSpan.Zero)),
                 NullLogger<SubmitVerificationHandler>.Instance);
             var result = await submit.HandleAsync(customerId, "ksa",
@@ -124,7 +124,7 @@ public sealed class RevokeNoCooldownTests : IAsyncLifetime
         await using (var db = NewContext())
         {
             var approve = new DecideApproveHandler(
-                db, new EligibilityCacheInvalidator(), new RecordingAuditPublisher(),
+                db, new EligibilityCacheInvalidator(TimeProvider.System), new RecordingAuditPublisher(),
                 new NullVerificationDomainEventPublisher(),
                 new FakeTimeProvider(new DateTimeOffset(2026, 4, 1, 9, 0, 0, TimeSpan.Zero)),
                 NullLogger<DecideApproveHandler>.Instance);
@@ -136,7 +136,7 @@ public sealed class RevokeNoCooldownTests : IAsyncLifetime
         await using (var db = NewContext())
         {
             var revoke = new DecideRevokeHandler(
-                db, new EligibilityCacheInvalidator(), new RecordingAuditPublisher(),
+                db, new EligibilityCacheInvalidator(TimeProvider.System), new RecordingAuditPublisher(),
                 new NullVerificationDomainEventPublisher(),
                 new FakeTimeProvider(new DateTimeOffset(2026, 5, 1, 9, 0, 0, TimeSpan.Zero)),
                 NullLogger<DecideRevokeHandler>.Instance);
@@ -153,7 +153,7 @@ public sealed class RevokeNoCooldownTests : IAsyncLifetime
         await using (var db = NewContext())
         {
             var submit = new SubmitVerificationHandler(
-                db, new EligibilityCacheInvalidator(), new RecordingAuditPublisher(),
+                db, new EligibilityCacheInvalidator(TimeProvider.System), new RecordingAuditPublisher(),
                 new FakeTimeProvider(new DateTimeOffset(2026, 5, 1, 8, 0, 0, TimeSpan.Zero)),
                 NullLogger<SubmitVerificationHandler>.Instance);
             var result = await submit.HandleAsync(customerId, "ksa",
@@ -165,7 +165,7 @@ public sealed class RevokeNoCooldownTests : IAsyncLifetime
         await using (var db = NewContext())
         {
             var reject = new DecideRejectHandler(
-                db, new EligibilityCacheInvalidator(), new RecordingAuditPublisher(),
+                db, new EligibilityCacheInvalidator(TimeProvider.System), new RecordingAuditPublisher(),
                 new NullVerificationDomainEventPublisher(),
                 new FakeTimeProvider(new DateTimeOffset(2026, 5, 1, 9, 0, 0, TimeSpan.Zero)),
                 NullLogger<DecideRejectHandler>.Instance);

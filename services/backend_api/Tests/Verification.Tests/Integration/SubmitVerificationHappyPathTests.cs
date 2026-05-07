@@ -80,7 +80,7 @@ public sealed class SubmitVerificationHappyPathTests : IAsyncLifetime
         _auditPublisher = new RecordingAuditPublisher();
         return new SubmitVerificationHandler(
             db: db,
-            eligibilityInvalidator: new EligibilityCacheInvalidator(),
+            eligibilityInvalidator: new EligibilityCacheInvalidator(TimeProvider.System),
             auditPublisher: _auditPublisher,
             clock: clock,
             logger: NullLogger<SubmitVerificationHandler>.Instance);
@@ -175,7 +175,7 @@ public sealed class SubmitVerificationHappyPathTests : IAsyncLifetime
         await using (var dbApprove = NewContext())
         {
             var approve = new BackendApi.Modules.Verification.Admin.DecideApprove.DecideApproveHandler(
-                dbApprove, new BackendApi.Modules.Verification.Eligibility.EligibilityCacheInvalidator(),
+                dbApprove, new BackendApi.Modules.Verification.Eligibility.EligibilityCacheInvalidator(TimeProvider.System),
                 new RecordingAuditPublisher(), new NullVerificationDomainEventPublisher(), clock,
                 NullLogger<BackendApi.Modules.Verification.Admin.DecideApprove.DecideApproveHandler>.Instance);
             var approveResult = await approve.HandleAsync(
@@ -248,7 +248,7 @@ public sealed class SubmitVerificationHappyPathTests : IAsyncLifetime
         await using (var dbApprove = NewContext())
         {
             var approve = new BackendApi.Modules.Verification.Admin.DecideApprove.DecideApproveHandler(
-                dbApprove, new BackendApi.Modules.Verification.Eligibility.EligibilityCacheInvalidator(),
+                dbApprove, new BackendApi.Modules.Verification.Eligibility.EligibilityCacheInvalidator(TimeProvider.System),
                 new RecordingAuditPublisher(), new NullVerificationDomainEventPublisher(), clock,
                 NullLogger<BackendApi.Modules.Verification.Admin.DecideApprove.DecideApproveHandler>.Instance);
             await approve.HandleAsync(customerAVerificationId, Guid.NewGuid(),

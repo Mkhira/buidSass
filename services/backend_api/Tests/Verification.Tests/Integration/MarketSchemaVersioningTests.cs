@@ -95,7 +95,7 @@ public sealed class MarketSchemaVersioningTests : IAsyncLifetime
         var customerB = Guid.NewGuid();
         await using var db = NewContext();
         var submit = new SubmitVerificationHandler(
-            db, new EligibilityCacheInvalidator(), new RecordingAuditPublisher(),
+            db, new EligibilityCacheInvalidator(TimeProvider.System), new RecordingAuditPublisher(),
             new FakeTimeProvider(publishAt.AddDays(1)),
             NullLogger<SubmitVerificationHandler>.Instance);
         var result = await submit.HandleAsync(customerB, "ksa",
@@ -117,7 +117,7 @@ public sealed class MarketSchemaVersioningTests : IAsyncLifetime
         var customerId = Guid.NewGuid();
         await using var db = NewContext();
         var submit = new SubmitVerificationHandler(
-            db, new EligibilityCacheInvalidator(), new RecordingAuditPublisher(),
+            db, new EligibilityCacheInvalidator(TimeProvider.System), new RecordingAuditPublisher(),
             new FakeTimeProvider(publishAt.AddDays(1)),
             NullLogger<SubmitVerificationHandler>.Instance);
         var result = await submit.HandleAsync(customerId, "ksa",
@@ -176,7 +176,7 @@ public sealed class MarketSchemaVersioningTests : IAsyncLifetime
     {
         await using var db = NewContext();
         var submit = new SubmitVerificationHandler(
-            db, new EligibilityCacheInvalidator(), new RecordingAuditPublisher(),
+            db, new EligibilityCacheInvalidator(TimeProvider.System), new RecordingAuditPublisher(),
             new FakeTimeProvider(new DateTimeOffset(2026, 5, 1, 8, 0, 0, TimeSpan.Zero)),
             NullLogger<SubmitVerificationHandler>.Instance);
         var result = await submit.HandleAsync(customerId, "ksa",

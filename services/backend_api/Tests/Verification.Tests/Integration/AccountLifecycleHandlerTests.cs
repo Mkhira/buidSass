@@ -191,7 +191,7 @@ public sealed class AccountLifecycleHandlerTests : IAsyncLifetime
         // (CR R1 Minor — connection-pool leak under parallel test runs).
         _trackedContexts.Add(db);
         return new AccountLifecycleHandler(
-            db, new EligibilityCacheInvalidator(),
+            db, new EligibilityCacheInvalidator(TimeProvider.System),
             new RecordingAuditPublisher(),
             new NullVerificationDomainEventPublisher(),
             new FakeTimeProvider(snapshot),
@@ -202,7 +202,7 @@ public sealed class AccountLifecycleHandlerTests : IAsyncLifetime
     {
         await using var db = NewContext();
         var submit = new SubmitVerificationHandler(
-            db, new EligibilityCacheInvalidator(), new RecordingAuditPublisher(),
+            db, new EligibilityCacheInvalidator(TimeProvider.System), new RecordingAuditPublisher(),
             new FakeTimeProvider(new DateTimeOffset(2026, 5, 1, 8, 0, 0, TimeSpan.Zero)),
             NullLogger<SubmitVerificationHandler>.Instance);
         var regulator = marketCode == "ksa" ? "SCFHS-1234567" : "EMS/12345/678";
@@ -217,7 +217,7 @@ public sealed class AccountLifecycleHandlerTests : IAsyncLifetime
     {
         await using var db = NewContext();
         var approve = new DecideApproveHandler(
-            db, new EligibilityCacheInvalidator(), new RecordingAuditPublisher(),
+            db, new EligibilityCacheInvalidator(TimeProvider.System), new RecordingAuditPublisher(),
             new NullVerificationDomainEventPublisher(),
                 new FakeTimeProvider(new DateTimeOffset(2026, 5, 1, 9, 0, 0, TimeSpan.Zero)),
             NullLogger<DecideApproveHandler>.Instance);

@@ -73,7 +73,7 @@ public sealed class AdminRequestInfoHandlerTests : IAsyncLifetime
 
         await using var db = NewContext();
         var handler = new DecideRequestInfoHandler(
-            db, new EligibilityCacheInvalidator(), new RecordingAuditPublisher(), new NullVerificationDomainEventPublisher(), clock,
+            db, new EligibilityCacheInvalidator(TimeProvider.System), new RecordingAuditPublisher(), new NullVerificationDomainEventPublisher(), clock,
             NullLogger<DecideRequestInfoHandler>.Instance);
 
         var result = await handler.HandleAsync(
@@ -121,7 +121,7 @@ public sealed class AdminRequestInfoHandlerTests : IAsyncLifetime
         await using (var db = NewContext())
         {
             var h = new DecideRequestInfoHandler(
-                db, new EligibilityCacheInvalidator(), new RecordingAuditPublisher(),
+                db, new EligibilityCacheInvalidator(TimeProvider.System), new RecordingAuditPublisher(),
                 new NullVerificationDomainEventPublisher(),
                 new FakeTimeProvider(new DateTimeOffset(2026, 5, 1, 14, 0, 0, TimeSpan.Zero)),
                 NullLogger<DecideRequestInfoHandler>.Instance);
@@ -168,7 +168,7 @@ public sealed class AdminRequestInfoHandlerTests : IAsyncLifetime
         await using (var db = NewContext())
         {
             var rejectHandler = new BackendApi.Modules.Verification.Admin.DecideReject.DecideRejectHandler(
-                db, new EligibilityCacheInvalidator(),
+                db, new EligibilityCacheInvalidator(TimeProvider.System),
                 new RecordingAuditPublisher(),
                 new NullVerificationDomainEventPublisher(),
                 new FakeTimeProvider(new DateTimeOffset(2026, 5, 1, 9, 0, 0, TimeSpan.Zero)),
@@ -183,7 +183,7 @@ public sealed class AdminRequestInfoHandlerTests : IAsyncLifetime
         await using (var db = NewContext())
         {
             var h = new DecideRequestInfoHandler(
-                db, new EligibilityCacheInvalidator(), new RecordingAuditPublisher(),
+                db, new EligibilityCacheInvalidator(TimeProvider.System), new RecordingAuditPublisher(),
                 new NullVerificationDomainEventPublisher(),
                 new FakeTimeProvider(new DateTimeOffset(2026, 5, 1, 14, 0, 0, TimeSpan.Zero)),
                 NullLogger<DecideRequestInfoHandler>.Instance);
@@ -203,7 +203,7 @@ public sealed class AdminRequestInfoHandlerTests : IAsyncLifetime
 
         await using var db = NewContext();
         var submit = new SubmitVerificationHandler(
-            db, new EligibilityCacheInvalidator(), new RecordingAuditPublisher(),
+            db, new EligibilityCacheInvalidator(TimeProvider.System), new RecordingAuditPublisher(),
             clock, NullLogger<SubmitVerificationHandler>.Instance);
         var result = await submit.HandleAsync(customerId, "ksa",
             new SubmitVerificationRequest(

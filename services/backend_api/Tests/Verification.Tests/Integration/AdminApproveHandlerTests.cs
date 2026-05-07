@@ -157,7 +157,7 @@ public sealed class AdminApproveHandlerTests : IAsyncLifetime
         {
             var clock = new FakeTimeProvider(new DateTimeOffset(2026, 11, 1, 9, 0, 0, TimeSpan.Zero));
             var submit = new SubmitVerificationHandler(
-                db, new EligibilityCacheInvalidator(), new RecordingAuditPublisher(),
+                db, new EligibilityCacheInvalidator(TimeProvider.System), new RecordingAuditPublisher(),
                 clock, NullLogger<SubmitVerificationHandler>.Instance);
 
             var renewal = await submit.HandleAsync(customerId, "ksa",
@@ -307,7 +307,7 @@ public sealed class AdminApproveHandlerTests : IAsyncLifetime
 
         await using var db = NewContext();
         var submit = new SubmitVerificationHandler(
-            db, new EligibilityCacheInvalidator(), new RecordingAuditPublisher(),
+            db, new EligibilityCacheInvalidator(TimeProvider.System), new RecordingAuditPublisher(),
             clock, NullLogger<SubmitVerificationHandler>.Instance);
 
         var result = await submit.HandleAsync(customerId, "ksa",
@@ -328,7 +328,7 @@ public sealed class AdminApproveHandlerTests : IAsyncLifetime
         var audit = new RecordingAuditPublisher();
         var handler = new DecideApproveHandler(
             db: db,
-            eligibilityInvalidator: new EligibilityCacheInvalidator(),
+            eligibilityInvalidator: new EligibilityCacheInvalidator(TimeProvider.System),
             auditPublisher: audit,
             domainPublisher: new NullVerificationDomainEventPublisher(),
             clock: clock,

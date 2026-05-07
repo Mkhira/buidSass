@@ -191,7 +191,7 @@ public sealed class AdminQueueAndDetailHandlerTests : IAsyncLifetime
 
         await using var db = NewContext();
         var submit = new SubmitVerificationHandler(
-            db, new EligibilityCacheInvalidator(),
+            db, new EligibilityCacheInvalidator(TimeProvider.System),
             new NoOpAuditPublisher(), clock,
             NullLogger<SubmitVerificationHandler>.Instance);
 

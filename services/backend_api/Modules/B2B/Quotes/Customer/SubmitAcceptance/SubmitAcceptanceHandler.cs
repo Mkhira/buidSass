@@ -368,15 +368,25 @@ public sealed class SubmitAcceptanceHandler
             }
         }
 
-        // ---------- 11. Mutate + persist (after successful conversion) ----------
+        // ---------- 11. Commit-time expiry re-check ----------
+        // Conversion may take significant time; capture a fresh timestamp and
+        // re-validate expiry before mutating state so a quote that expired
+        // mid-conversion is not accepted.
+        var commitNowUtc = _time.GetUtcNow();
+        if (tracked.ExpiresAt.HasValue && tracked.ExpiresAt.Value <= commitNowUtc)
+        {
+            return SubmitAcceptanceResult.Expired();
+        }
+
+        // ---------- 12. Mutate + persist (after successful conversion) ----------
         var priorStateToken = tracked.State;
         tracked.State = targetState.ToToken();
 
         if (targetState == QuoteState.Accepted)
         {
-            tracked.DecidedAt = nowUtc;
+            tracked.DecidedAt = commitNowUtc;
             tracked.DecidedBy = customerId;
-            tracked.TerminalAt = nowUtc;
+            tracked.TerminalAt = commitNowUtc;
             tracked.TerminalReason = "accepted";
         }
 
@@ -420,7 +430,7 @@ public sealed class SubmitAcceptanceHandler
             ActorId = customerId,
             ReasonJson = null,
             MetadataJson = JsonSerializer.Serialize(transitionMetadata),
-            OccurredAt = nowUtc,
+            OccurredAt = commitNowUtc,
         };
         _db.QuoteStateTransitions.Add(transition);
 

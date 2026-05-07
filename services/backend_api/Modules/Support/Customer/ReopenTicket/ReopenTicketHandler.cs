@@ -69,28 +69,34 @@ public sealed class ReopenTicketHandler
                 schema.AttachmentCumulativeMaxMb,
                 schema.AllowedMimeTypes);
 
-        if (!policy.ReopenEnabled)
-        {
-            return Failure(TicketReasonCode.ReopenDisabledForMarket,
-                "Reopen is disabled for this market.");
-        }
-        if (ticket.ReopenCount >= policy.MaxReopenCount)
-        {
-            return Failure(TicketReasonCode.ReopenCountExceeded,
-                "Reopen count exceeded for this ticket.");
-        }
-        if (ticket.ResolvedAtUtc is null)
-        {
-            return Failure(TicketReasonCode.ReopenWindowClosed,
-                "Resolved timestamp missing; cannot validate reopen window.");
-        }
-
+        // T102: window + cap math extracted to ReopenWindowMath primitive
+        // so it can be unit-tested table-driven against research §R-09.
         var nowUtc = _clock.GetUtcNow();
-        var windowEnd = ticket.ResolvedAtUtc.Value.AddDays(policy.ReopenWindowDays);
-        if (nowUtc > windowEnd)
+        var eligibility = ReopenWindowMath.EvaluateEligibility(
+            nowUtc: nowUtc,
+            resolvedAtUtc: ticket.ResolvedAtUtc,
+            reopenCount: ticket.ReopenCount,
+            reopenWindowDays: policy.ReopenWindowDays,
+            maxReopenCount: policy.MaxReopenCount,
+            reopenEnabled: policy.ReopenEnabled);
+
+        if (eligibility != ReopenWindowMath.ReopenEligibility.Eligible)
         {
-            return Failure(TicketReasonCode.ReopenWindowClosed,
-                "Reopen window has elapsed.");
+            var reasonCode = ReopenWindowMath.ToReasonCode(eligibility)
+                ?? TicketReasonCode.InvalidTransition;
+            var detail = eligibility switch
+            {
+                ReopenWindowMath.ReopenEligibility.DisabledForMarket =>
+                    "Reopen is disabled for this market.",
+                ReopenWindowMath.ReopenEligibility.ResolvedAtMissing =>
+                    "Resolved timestamp missing; cannot validate reopen window.",
+                ReopenWindowMath.ReopenEligibility.WindowClosed =>
+                    "Reopen window has elapsed.",
+                ReopenWindowMath.ReopenEligibility.CountExceeded =>
+                    "Reopen count exceeded for this ticket.",
+                _ => "Reopen rejected.",
+            };
+            return Failure(reasonCode, detail);
         }
 
         var fromState = TicketState.Resolved;

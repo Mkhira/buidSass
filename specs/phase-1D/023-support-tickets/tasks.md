@@ -253,7 +253,7 @@ description: "Task list for Spec 023 — Support Tickets (Phase 1D · Milestone 
 ### Tests for User Story 6
 
 - [~] T101 [P] [US6] Create `tests/Support.Tests/Contract/ReopenTicketContractTests.cs` asserting US6 Acceptance Scenarios 1–5 (success path; closed-terminal reject; window-closed reject; market-disabled reject; count-exceeded reject) <!-- DEFERRED: Contract/ folder empty -->
-- [~] T102 [P] [US6] Create `tests/Support.Tests/Unit/ReopenWindowMathTests.cs` per research.md §R-09 — exhaustive table-driven tests against the window + cap math <!-- DEFERRED: window/cap math currently embedded in handler; extraction to a pure math primitive + tests planned in a follow-up -->
+- [x] T102 [P] [US6] Create `tests/Support.Tests/Unit/ReopenWindowMathTests.cs` per research.md §R-09 — exhaustive table-driven tests against the window + cap math <!-- DONE in PR phase-1D/023-fix-deferred-and-bugs: extracted Modules/Support/Primitives/ReopenWindowMath.cs (pure functions); ReopenTicketHandler now delegates to EvaluateEligibility(); 16-row table-driven unit suite covers eligible/window-edge/window-closed/cap/disabled/resolved-at-missing + verdict→reason-code mapping -->
 - [~] T103 [P] [US6] Create `tests/Support.Tests/Integration/ReopenSlaResetTests.cs` asserting reopen recomputes both `first_response_due_utc` AND `resolution_due_utc`; clears `breach_acknowledged_at_*`; allows re-breach detection on a new SLA failure <!-- DEFERRED: covered by handler logic; integration test will be added when SLA worker test suite is wired (US4) -->
 
 ### Implementation for User Story 6

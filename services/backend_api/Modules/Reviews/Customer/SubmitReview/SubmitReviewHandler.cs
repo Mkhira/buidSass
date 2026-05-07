@@ -59,8 +59,19 @@ public sealed class SubmitReviewHandler
         var policy = await ResolvePolicyAsync(marketCode, ct);
         var nowUtc = _time.GetUtcNow();
 
+        // Market-scoped per ADR-010: an active review for the same
+        // (customer, product) in another market must NOT block a submission
+        // in this market. The legacy unique partial index
+        // UX_reviews_customer_product_active is `(CustomerId, ProductId)`
+        // (not market-scoped); tightening that index is a separate schema
+        // change. The DbUpdateException race-fallback below still surfaces
+        // EligibilityAlreadyReviewed if the cross-market collision races to
+        // INSERT — which is a safe (over-restrictive) failure mode.
         var existing = await _db.Reviews
-            .Where(r => r.CustomerId == customerId && r.ProductId == body.ProductId && r.State != Primitives.ReviewState.Deleted)
+            .Where(r => r.CustomerId == customerId
+                && r.ProductId == body.ProductId
+                && r.MarketCode == marketCode
+                && r.State != Primitives.ReviewState.Deleted)
             .Select(r => new { r.Id })
             .FirstOrDefaultAsync(ct);
         if (existing is not null)

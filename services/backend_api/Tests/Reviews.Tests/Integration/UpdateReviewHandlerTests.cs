@@ -56,7 +56,7 @@ public sealed class UpdateReviewHandlerTests : IAsyncLifetime
 
         var handler = NewUpdateHandler(out _);
         var result = await handler.HandleAsync(
-            customerId, reviewId, ifMatchRowVersion: null,
+            customerId, "SA", reviewId, ifMatchRowVersion: null,
             new UpdateReviewRequest(Rating: 4, Headline: "Edited", Body: null, Locale: null, MediaUrls: null),
             CancellationToken.None);
 
@@ -79,7 +79,7 @@ public sealed class UpdateReviewHandlerTests : IAsyncLifetime
 
         var handler = NewUpdateHandler(clock);
         var result = await handler.HandleAsync(
-            customerId, reviewId, null,
+            customerId, "SA", reviewId, null,
             new UpdateReviewRequest(Rating: 3, null, null, null, null),
             CancellationToken.None);
 
@@ -96,7 +96,7 @@ public sealed class UpdateReviewHandlerTests : IAsyncLifetime
 
         var handler = NewUpdateHandler(out _);
         var result = await handler.HandleAsync(
-            imposter, reviewId, null,
+            imposter, "SA", reviewId, null,
             new UpdateReviewRequest(Rating: 1, null, null, null, null),
             CancellationToken.None);
 
@@ -112,7 +112,7 @@ public sealed class UpdateReviewHandlerTests : IAsyncLifetime
         var handler = NewUpdateHandler(out _);
 
         var result = await handler.HandleAsync(
-            customerId, reviewId, null,
+            customerId, "SA", reviewId, null,
             // "spam" is in the SA seed wordlist.
             new UpdateReviewRequest(null, null, "Edited body now contains spam content.", null, null),
             CancellationToken.None);
@@ -152,7 +152,7 @@ public sealed class UpdateReviewHandlerTests : IAsyncLifetime
 
         var handler = NewUpdateHandler(out _);
         var result = await handler.HandleAsync(
-            customerId, reviewId, null,
+            customerId, "SA", reviewId, null,
             new UpdateReviewRequest(null, "Cleaned up", null, null, null),
             CancellationToken.None);
 
@@ -174,7 +174,7 @@ public sealed class UpdateReviewHandlerTests : IAsyncLifetime
 
         var handler = NewUpdateHandler(out _);
         var result = await handler.HandleAsync(
-            customerId, reviewId, ifMatchRowVersion: 99999u, // wrong xmin
+            customerId, "SA", reviewId, ifMatchRowVersion: 99999u, // wrong xmin
             new UpdateReviewRequest(3, null, null, null, null),
             CancellationToken.None);
 

@@ -44,12 +44,18 @@ public sealed class UpdateReviewHandler
 
     public async Task<UpdateReviewResult> HandleAsync(
         Guid customerId,
+        string marketCode,
         Guid reviewId,
         uint? ifMatchRowVersion,
         UpdateReviewRequest body,
         CancellationToken ct)
     {
-        var review = await _db.Reviews.FirstOrDefaultAsync(r => r.Id == reviewId, ct);
+        // ADR-010: every tenant-owned read MUST include market partitioning. Filtering only
+        // by Id + CustomerId would let a customer authenticated in one market PATCH a review
+        // in another market they happen to own. Return 404 (not 403) for cross-market hits
+        // so cross-market existence is never revealed.
+        var review = await _db.Reviews
+            .FirstOrDefaultAsync(r => r.Id == reviewId && r.MarketCode == marketCode, ct);
         if (review is null)
         {
             return UpdateReviewResult.Reject(404, ReviewReasonCode.EditNotAuthor, "Review not found.");

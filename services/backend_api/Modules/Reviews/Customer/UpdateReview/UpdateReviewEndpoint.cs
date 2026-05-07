@@ -35,6 +35,8 @@ public static class UpdateReviewEndpoint
                 "Request body is required.");
         }
 
+        var marketCode = ReviewsResponseFactory.ResolveMarketCode(context);
+
         uint? ifMatch = null;
         if (context.Request.Headers.TryGetValue("If-Match", out var ifMatchHeader)
             && uint.TryParse(ifMatchHeader.ToString().Trim('"'), out var parsed))
@@ -42,7 +44,7 @@ public static class UpdateReviewEndpoint
             ifMatch = parsed;
         }
 
-        var result = await handler.HandleAsync(customerId.Value, id, ifMatch, body, ct);
+        var result = await handler.HandleAsync(customerId.Value, marketCode, id, ifMatch, body, ct);
         if (!result.IsSuccess)
         {
             return ReviewsResponseFactory.Problem(context, result.Status, result.ReasonCode!, "Edit rejected.", result.Detail);

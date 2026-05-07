@@ -242,7 +242,7 @@ public sealed class EligibilityQueryMatrixTests : IAsyncLifetime
         var clock = new FakeTimeProvider(new DateTimeOffset(2026, 5, 1, 8, 0, 0, TimeSpan.Zero));
         await using var db = NewContext();
         var submit = new SubmitVerificationHandler(
-            db, new EligibilityCacheInvalidator(), new RecordingAuditPublisher(),
+            db, new EligibilityCacheInvalidator(TimeProvider.System), new RecordingAuditPublisher(),
             clock, NullLogger<SubmitVerificationHandler>.Instance);
         var regulator = marketCode == "ksa" ? "SCFHS-1234567" : "EMS-1234567";
         var result = await submit.HandleAsync(customerId, marketCode,
@@ -260,7 +260,7 @@ public sealed class EligibilityQueryMatrixTests : IAsyncLifetime
     {
         await using var db = NewContext();
         var approve = new DecideApproveHandler(
-            db, new EligibilityCacheInvalidator(), new RecordingAuditPublisher(),
+            db, new EligibilityCacheInvalidator(TimeProvider.System), new RecordingAuditPublisher(),
             new NullVerificationDomainEventPublisher(),
                 new FakeTimeProvider(new DateTimeOffset(2026, 6, 1, 9, 0, 0, TimeSpan.Zero)),
             NullLogger<DecideApproveHandler>.Instance);
@@ -274,7 +274,7 @@ public sealed class EligibilityQueryMatrixTests : IAsyncLifetime
     {
         await using var db = NewContext();
         var reject = new DecideRejectHandler(
-            db, new EligibilityCacheInvalidator(), new RecordingAuditPublisher(),
+            db, new EligibilityCacheInvalidator(TimeProvider.System), new RecordingAuditPublisher(),
             new NullVerificationDomainEventPublisher(),
                 new FakeTimeProvider(new DateTimeOffset(2026, 6, 1, 9, 0, 0, TimeSpan.Zero)),
             NullLogger<DecideRejectHandler>.Instance);
@@ -288,7 +288,7 @@ public sealed class EligibilityQueryMatrixTests : IAsyncLifetime
     {
         await using var db = NewContext();
         var revoke = new DecideRevokeHandler(
-            db, new EligibilityCacheInvalidator(), new RecordingAuditPublisher(),
+            db, new EligibilityCacheInvalidator(TimeProvider.System), new RecordingAuditPublisher(),
             new NullVerificationDomainEventPublisher(),
                 new FakeTimeProvider(new DateTimeOffset(2026, 6, 15, 9, 0, 0, TimeSpan.Zero)),
             NullLogger<DecideRevokeHandler>.Instance);
@@ -302,7 +302,7 @@ public sealed class EligibilityQueryMatrixTests : IAsyncLifetime
     {
         await using var db = NewContext();
         var info = new DecideRequestInfoHandler(
-            db, new EligibilityCacheInvalidator(), new RecordingAuditPublisher(),
+            db, new EligibilityCacheInvalidator(TimeProvider.System), new RecordingAuditPublisher(),
             new NullVerificationDomainEventPublisher(),
                 new FakeTimeProvider(new DateTimeOffset(2026, 5, 5, 9, 0, 0, TimeSpan.Zero)),
             NullLogger<DecideRequestInfoHandler>.Instance);

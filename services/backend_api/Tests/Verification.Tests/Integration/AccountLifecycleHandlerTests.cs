@@ -85,8 +85,9 @@ public sealed class AccountLifecycleHandlerTests : IAsyncLifetime
 
         await using var db = NewContext();
         var approved = await db.Verifications.AsNoTracking().SingleAsync(v => v.Id == verificationId);
-        approved.State.Should().Be(VerificationState.Superseded,
-            "active approval is superseded on lock");
+        approved.State.Should().Be(VerificationState.Void,
+            "active approval is voided on lock per M3 — Superseded reserved for renewal-approval supersession");
+        approved.VoidReason.Should().Be("account_inactive");
         var pending = await db.Verifications.AsNoTracking().SingleAsync(v => v.Id == pendingId);
         pending.State.Should().Be(VerificationState.Void,
             "in-flight submission is voided on lock");
@@ -145,7 +146,9 @@ public sealed class AccountLifecycleHandlerTests : IAsyncLifetime
 
         await using var db = NewContext();
         var ksa = await db.Verifications.AsNoTracking().SingleAsync(v => v.Id == ksaId);
-        ksa.State.Should().Be(VerificationState.Superseded);
+        ksa.State.Should().Be(VerificationState.Void,
+            "active approval is voided on market-change per M3 — Superseded reserved for renewal-approval supersession");
+        ksa.VoidReason.Should().Be("customer_market_changed");
         var eg = await db.Verifications.AsNoTracking().SingleAsync(v => v.Id == egId);
         eg.State.Should().Be(VerificationState.Submitted,
             "EG row must be untouched — market-changed scope is FROM-market only");
@@ -174,9 +177,9 @@ public sealed class AccountLifecycleHandlerTests : IAsyncLifetime
 
         await using var db = NewContext();
         var transitions = await db.StateTransitions.AsNoTracking()
-            .Where(t => t.VerificationId == verificationId && t.NewState == "superseded")
+            .Where(t => t.VerificationId == verificationId && t.NewState == "void")
             .CountAsync();
-        transitions.Should().Be(1, "exactly one supersession ledger row, even after redelivery");
+        transitions.Should().Be(1, "exactly one void ledger row, even after redelivery (M3: lifecycle voids approvals)");
     }
 
     // ────────────────────────── helpers ──────────────────────────
@@ -191,7 +194,7 @@ public sealed class AccountLifecycleHandlerTests : IAsyncLifetime
         // (CR R1 Minor — connection-pool leak under parallel test runs).
         _trackedContexts.Add(db);
         return new AccountLifecycleHandler(
-            db, new EligibilityCacheInvalidator(),
+            db, new EligibilityCacheInvalidator(TimeProvider.System),
             new RecordingAuditPublisher(),
             new NullVerificationDomainEventPublisher(),
             new FakeTimeProvider(snapshot),
@@ -202,7 +205,7 @@ public sealed class AccountLifecycleHandlerTests : IAsyncLifetime
     {
         await using var db = NewContext();
         var submit = new SubmitVerificationHandler(
-            db, new EligibilityCacheInvalidator(), new RecordingAuditPublisher(),
+            db, new EligibilityCacheInvalidator(TimeProvider.System), new RecordingAuditPublisher(),
             new FakeTimeProvider(new DateTimeOffset(2026, 5, 1, 8, 0, 0, TimeSpan.Zero)),
             NullLogger<SubmitVerificationHandler>.Instance);
         var regulator = marketCode == "ksa" ? "SCFHS-1234567" : "EMS/12345/678";
@@ -217,7 +220,7 @@ public sealed class AccountLifecycleHandlerTests : IAsyncLifetime
     {
         await using var db = NewContext();
         var approve = new DecideApproveHandler(
-            db, new EligibilityCacheInvalidator(), new RecordingAuditPublisher(),
+            db, new EligibilityCacheInvalidator(TimeProvider.System), new RecordingAuditPublisher(),
             new NullVerificationDomainEventPublisher(),
                 new FakeTimeProvider(new DateTimeOffset(2026, 5, 1, 9, 0, 0, TimeSpan.Zero)),
             NullLogger<DecideApproveHandler>.Instance);

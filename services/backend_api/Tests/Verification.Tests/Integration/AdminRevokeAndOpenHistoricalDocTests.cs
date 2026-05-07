@@ -84,7 +84,7 @@ public sealed class AdminRevokeAndOpenHistoricalDocTests : IAsyncLifetime
         await using (var db = NewContext())
         {
             var approve = new DecideApproveHandler(
-                db, new EligibilityCacheInvalidator(),
+                db, new EligibilityCacheInvalidator(TimeProvider.System),
                 new RecordingAuditPublisher(), new NullVerificationDomainEventPublisher(), clock,
                 NullLogger<DecideApproveHandler>.Instance);
             await approve.HandleAsync(verificationId, reviewerId,
@@ -98,7 +98,7 @@ public sealed class AdminRevokeAndOpenHistoricalDocTests : IAsyncLifetime
         {
             var audit = new RecordingAuditPublisher();
             var revoke = new DecideRevokeHandler(
-                db, new EligibilityCacheInvalidator(), audit,
+                db, new EligibilityCacheInvalidator(TimeProvider.System), audit,
                 new NullVerificationDomainEventPublisher(),
                 new FakeTimeProvider(revokeAt),
                 NullLogger<DecideRevokeHandler>.Instance);
@@ -144,7 +144,7 @@ public sealed class AdminRevokeAndOpenHistoricalDocTests : IAsyncLifetime
 
         await using var db = NewContext();
         var revoke = new DecideRevokeHandler(
-            db, new EligibilityCacheInvalidator(), new RecordingAuditPublisher(),
+            db, new EligibilityCacheInvalidator(TimeProvider.System), new RecordingAuditPublisher(),
             new NullVerificationDomainEventPublisher(),
                 new FakeTimeProvider(new DateTimeOffset(2026, 5, 1, 9, 0, 0, TimeSpan.Zero)),
             NullLogger<DecideRevokeHandler>.Instance);
@@ -167,7 +167,7 @@ public sealed class AdminRevokeAndOpenHistoricalDocTests : IAsyncLifetime
         var (handler, _) = NewOpenHandler(audit, isAdminPath: true);
 
         await using var db = NewContext();
-        var bound = new OpenHistoricalDocumentHandler(db, FakeStorage.Instance, NewPiiRecorder(audit, isAdminPath: true));
+        var bound = new OpenHistoricalDocumentHandler(db, FakeStorage.Instance, NewPiiRecorder(audit, isAdminPath: true), TimeProvider.System);
         var result = await bound.HandleAsync(
             verificationId, documentId,
             new HashSet<string> { "ksa" },
@@ -195,7 +195,7 @@ public sealed class AdminRevokeAndOpenHistoricalDocTests : IAsyncLifetime
         await using (var db = NewContext())
         {
             var approve = new DecideApproveHandler(
-                db, new EligibilityCacheInvalidator(),
+                db, new EligibilityCacheInvalidator(TimeProvider.System),
                 new RecordingAuditPublisher(),
                 new NullVerificationDomainEventPublisher(),
                 new FakeTimeProvider(new DateTimeOffset(2026, 5, 1, 9, 0, 0, TimeSpan.Zero)),
@@ -208,7 +208,7 @@ public sealed class AdminRevokeAndOpenHistoricalDocTests : IAsyncLifetime
         await using (var db = NewContext())
         {
             var revoke = new DecideRevokeHandler(
-                db, new EligibilityCacheInvalidator(),
+                db, new EligibilityCacheInvalidator(TimeProvider.System),
                 new RecordingAuditPublisher(),
                 new NullVerificationDomainEventPublisher(),
                 new FakeTimeProvider(new DateTimeOffset(2026, 6, 1, 9, 0, 0, TimeSpan.Zero)),
@@ -222,7 +222,8 @@ public sealed class AdminRevokeAndOpenHistoricalDocTests : IAsyncLifetime
         await using var db2 = NewContext();
         var open = new OpenHistoricalDocumentHandler(
             db2, FakeStorage.Instance,
-            NewPiiRecorder(audit, isAdminPath: true));
+            NewPiiRecorder(audit, isAdminPath: true),
+            TimeProvider.System);
 
         var result = await open.HandleAsync(
             verificationId, documentId,
@@ -254,7 +255,8 @@ public sealed class AdminRevokeAndOpenHistoricalDocTests : IAsyncLifetime
         await using var db = NewContext();
         var open = new OpenHistoricalDocumentHandler(
             db, FakeStorage.Instance,
-            NewPiiRecorder(audit, isAdminPath: true));
+            NewPiiRecorder(audit, isAdminPath: true),
+            TimeProvider.System);
 
         var result = await open.HandleAsync(
             verificationId, documentId,
@@ -277,7 +279,8 @@ public sealed class AdminRevokeAndOpenHistoricalDocTests : IAsyncLifetime
         await using var db = NewContext();
         var open = new OpenHistoricalDocumentHandler(
             db, FakeStorage.Instance,
-            NewPiiRecorder(new RecordingAuditPublisher(), isAdminPath: true));
+            NewPiiRecorder(new RecordingAuditPublisher(), isAdminPath: true),
+            TimeProvider.System);
 
         var result = await open.HandleAsync(
             verificationId, documentId,
@@ -320,7 +323,7 @@ public sealed class AdminRevokeAndOpenHistoricalDocTests : IAsyncLifetime
 
         await using var db = NewContext();
         var submit = new SubmitVerificationHandler(
-            db, new EligibilityCacheInvalidator(), new RecordingAuditPublisher(),
+            db, new EligibilityCacheInvalidator(TimeProvider.System), new RecordingAuditPublisher(),
             clock, NullLogger<SubmitVerificationHandler>.Instance);
         var result = await submit.HandleAsync(customerId, market,
             new SubmitVerificationRequest(
@@ -341,7 +344,7 @@ public sealed class AdminRevokeAndOpenHistoricalDocTests : IAsyncLifetime
         var clock = new FakeTimeProvider(new DateTimeOffset(2026, 5, 1, 9, 0, 0, TimeSpan.Zero));
         var db = NewContext();
         var revoke = new DecideRevokeHandler(
-            db, new EligibilityCacheInvalidator(), audit, new NullVerificationDomainEventPublisher(), clock,
+            db, new EligibilityCacheInvalidator(TimeProvider.System), audit, new NullVerificationDomainEventPublisher(), clock,
             NullLogger<DecideRevokeHandler>.Instance);
         return (revoke, audit);
     }

@@ -33,7 +33,7 @@ namespace BackendApi.Modules.Verification.Eligibility;
 /// eligibility rows are completely separate — rebuilding one MUST NOT touch
 /// the other.
 /// </remarks>
-public sealed class EligibilityCacheInvalidator
+public sealed class EligibilityCacheInvalidator(TimeProvider clock)
 {
     public async Task RebuildAsync(
         Guid customerId,
@@ -81,7 +81,7 @@ public sealed class EligibilityCacheInvalidator
         // market — fall through to nuanced reason-code resolution.
         var activeApproval = pendingApprovedInMemory ?? committedApproved;
 
-        var nowUtc = DateTimeOffset.UtcNow;
+        var nowUtc = clock.GetUtcNow();
 
         string eligibilityClass;
         DateTimeOffset? expiresAt;

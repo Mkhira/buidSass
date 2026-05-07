@@ -160,6 +160,7 @@ public sealed class ReminderWorkerTests : IAsyncLifetime
         var services = new ServiceCollection();
         services.AddDbContext<VerificationDbContext>(o => o.UseNpgsql(ConnectionString),
             ServiceLifetime.Scoped);
+        services.AddSingleton<TimeProvider>(TimeProvider.System);
         services.AddScoped<EligibilityCacheInvalidator>();
         services.AddSingleton<IAuditEventPublisher>(audit);
         services.AddSingleton<IVerificationDomainEventPublisher>(domain);
@@ -177,7 +178,7 @@ public sealed class ReminderWorkerTests : IAsyncLifetime
         await using (var db = NewContext())
         {
             var submit = new SubmitVerificationHandler(
-                db, new EligibilityCacheInvalidator(), new ExpiryWorkerTests.RecordingAuditPublisher(),
+                db, new EligibilityCacheInvalidator(TimeProvider.System), new ExpiryWorkerTests.RecordingAuditPublisher(),
                 new FakeTimeProvider(new DateTimeOffset(2026, 5, 1, 8, 0, 0, TimeSpan.Zero)),
                 NullLogger<SubmitVerificationHandler>.Instance);
             var result = await submit.HandleAsync(customerId, "ksa",
@@ -190,7 +191,7 @@ public sealed class ReminderWorkerTests : IAsyncLifetime
         await using (var db = NewContext())
         {
             var approve = new DecideApproveHandler(
-                db, new EligibilityCacheInvalidator(), new ExpiryWorkerTests.RecordingAuditPublisher(),
+                db, new EligibilityCacheInvalidator(TimeProvider.System), new ExpiryWorkerTests.RecordingAuditPublisher(),
                 new NullVerificationDomainEventPublisher(),
                 new FakeTimeProvider(new DateTimeOffset(2026, 5, 1, 9, 0, 0, TimeSpan.Zero)),
                 NullLogger<DecideApproveHandler>.Instance);

@@ -137,7 +137,7 @@ public sealed class AdminRejectHandlerTests : IAsyncLifetime
         {
             var clock = new FakeTimeProvider(new DateTimeOffset(2026, 5, 1, 9, 0, 0, TimeSpan.Zero));
             var approveHandler = new DecideApproveHandler(
-                db, new EligibilityCacheInvalidator(),
+                db, new EligibilityCacheInvalidator(TimeProvider.System),
                 new RecordingAuditPublisher(), new NullVerificationDomainEventPublisher(), clock,
                 NullLogger<DecideApproveHandler>.Instance);
             await approveHandler.HandleAsync(priorId, reviewerId,
@@ -151,7 +151,7 @@ public sealed class AdminRejectHandlerTests : IAsyncLifetime
         {
             var clock = new FakeTimeProvider(new DateTimeOffset(2026, 11, 1, 9, 0, 0, TimeSpan.Zero));
             var submit = new SubmitVerificationHandler(
-                db, new EligibilityCacheInvalidator(), new RecordingAuditPublisher(),
+                db, new EligibilityCacheInvalidator(TimeProvider.System), new RecordingAuditPublisher(),
                 clock, NullLogger<SubmitVerificationHandler>.Instance);
             var renewal = await submit.HandleAsync(customerId, "ksa",
                 new SubmitVerificationRequest(
@@ -191,7 +191,7 @@ public sealed class AdminRejectHandlerTests : IAsyncLifetime
 
         await using var db = NewContext();
         var submit = new SubmitVerificationHandler(
-            db, new EligibilityCacheInvalidator(), new RecordingAuditPublisher(),
+            db, new EligibilityCacheInvalidator(TimeProvider.System), new RecordingAuditPublisher(),
             clock, NullLogger<SubmitVerificationHandler>.Instance);
 
         var result = await submit.HandleAsync(customerId, "ksa",
@@ -211,7 +211,7 @@ public sealed class AdminRejectHandlerTests : IAsyncLifetime
     {
         var audit = new RecordingAuditPublisher();
         var handler = new DecideRejectHandler(
-            db, new EligibilityCacheInvalidator(), audit, new NullVerificationDomainEventPublisher(), clock,
+            db, new EligibilityCacheInvalidator(TimeProvider.System), audit, new NullVerificationDomainEventPublisher(), clock,
             NullLogger<DecideRejectHandler>.Instance);
         return (handler, audit);
     }

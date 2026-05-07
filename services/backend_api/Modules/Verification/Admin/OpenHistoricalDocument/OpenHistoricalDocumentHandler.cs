@@ -22,7 +22,8 @@ namespace BackendApi.Modules.Verification.Admin.OpenHistoricalDocument;
 public sealed class OpenHistoricalDocumentHandler(
     VerificationDbContext db,
     IStorageService storage,
-    PiiAccessRecorder piiRecorder)
+    PiiAccessRecorder piiRecorder,
+    TimeProvider clock)
 {
     /// <summary>Default signed-URL TTL — 5 minutes. Stays well below the JWT life.</summary>
     private static readonly TimeSpan SignedUrlTtl = TimeSpan.FromMinutes(5);
@@ -70,7 +71,7 @@ public sealed class OpenHistoricalDocumentHandler(
 
         // Mint signed URL.
         var signedUrl = await storage.GetSignedUrlAsync(doc.StorageKey!, SignedUrlTtl, ct);
-        var expiresAt = DateTimeOffset.UtcNow.Add(SignedUrlTtl);
+        var expiresAt = clock.GetUtcNow().Add(SignedUrlTtl);
 
         // PII audit.
         var isTerminal = verificationMarket.State.IsTerminal();

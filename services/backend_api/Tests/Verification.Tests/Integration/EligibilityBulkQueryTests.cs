@@ -164,7 +164,7 @@ public sealed class EligibilityBulkQueryTests : IAsyncLifetime
         await using (var db = NewContext())
         {
             var submit = new SubmitVerificationHandler(
-                db, new EligibilityCacheInvalidator(), new RecordingAuditPublisher(),
+                db, new EligibilityCacheInvalidator(TimeProvider.System), new RecordingAuditPublisher(),
                 clock, NullLogger<SubmitVerificationHandler>.Instance);
             var regulator = marketCode == "ksa" ? "SCFHS-1234567" : "EMS-1234567";
             var result = await submit.HandleAsync(customerId, marketCode,
@@ -176,7 +176,7 @@ public sealed class EligibilityBulkQueryTests : IAsyncLifetime
         await using (var db = NewContext())
         {
             var approve = new DecideApproveHandler(
-                db, new EligibilityCacheInvalidator(), new RecordingAuditPublisher(),
+                db, new EligibilityCacheInvalidator(TimeProvider.System), new RecordingAuditPublisher(),
                 new NullVerificationDomainEventPublisher(),
                 new FakeTimeProvider(new DateTimeOffset(2026, 5, 1, 9, 0, 0, TimeSpan.Zero)),
                 NullLogger<DecideApproveHandler>.Instance);

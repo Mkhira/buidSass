@@ -181,6 +181,7 @@ public sealed class ExpiryWorkerTests : IAsyncLifetime
         var services = new ServiceCollection();
         services.AddDbContext<VerificationDbContext>(o => o.UseNpgsql(ConnectionString),
             ServiceLifetime.Scoped);
+        services.AddSingleton<TimeProvider>(TimeProvider.System);
         services.AddScoped<EligibilityCacheInvalidator>();
         services.AddSingleton<IAuditEventPublisher>(audit);
         services.AddSingleton<IVerificationDomainEventPublisher>(domain);
@@ -198,7 +199,7 @@ public sealed class ExpiryWorkerTests : IAsyncLifetime
         await using (var db = NewContext())
         {
             var submit = new SubmitVerificationHandler(
-                db, new EligibilityCacheInvalidator(), new RecordingAuditPublisher(),
+                db, new EligibilityCacheInvalidator(TimeProvider.System), new RecordingAuditPublisher(),
                 new FakeTimeProvider(new DateTimeOffset(2026, 5, 1, 8, 0, 0, TimeSpan.Zero)),
                 NullLogger<SubmitVerificationHandler>.Instance);
             var result = await submit.HandleAsync(customerId, "ksa",
@@ -211,7 +212,7 @@ public sealed class ExpiryWorkerTests : IAsyncLifetime
         await using (var db = NewContext())
         {
             var approve = new DecideApproveHandler(
-                db, new EligibilityCacheInvalidator(), new RecordingAuditPublisher(),
+                db, new EligibilityCacheInvalidator(TimeProvider.System), new RecordingAuditPublisher(),
                 new NullVerificationDomainEventPublisher(),
                 new FakeTimeProvider(new DateTimeOffset(2026, 5, 1, 9, 0, 0, TimeSpan.Zero)),
                 NullLogger<DecideApproveHandler>.Instance);

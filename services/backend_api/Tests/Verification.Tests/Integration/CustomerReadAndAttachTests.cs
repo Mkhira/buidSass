@@ -104,7 +104,7 @@ public sealed class CustomerReadAndAttachTests : IAsyncLifetime
         await using (var db = NewContext())
         {
             var approve = new DecideApproveHandler(
-                db, new EligibilityCacheInvalidator(),
+                db, new EligibilityCacheInvalidator(TimeProvider.System),
                 new RecordingAuditPublisher(),
                 new NullVerificationDomainEventPublisher(),
                 new FakeTimeProvider(new DateTimeOffset(2026, 5, 1, 9, 0, 0, TimeSpan.Zero)),
@@ -140,7 +140,7 @@ public sealed class CustomerReadAndAttachTests : IAsyncLifetime
         await using (var db = NewContext())
         {
             var approve = new DecideApproveHandler(
-                db, new EligibilityCacheInvalidator(),
+                db, new EligibilityCacheInvalidator(TimeProvider.System),
                 new RecordingAuditPublisher(),
                 new NullVerificationDomainEventPublisher(),
                 new FakeTimeProvider(new DateTimeOffset(2026, 5, 1, 9, 0, 0, TimeSpan.Zero)),
@@ -155,7 +155,7 @@ public sealed class CustomerReadAndAttachTests : IAsyncLifetime
         {
             var clock = new FakeTimeProvider(new DateTimeOffset(2026, 11, 1, 9, 0, 0, TimeSpan.Zero));
             var submit = new SubmitVerificationHandler(
-                db, new EligibilityCacheInvalidator(), new RecordingAuditPublisher(),
+                db, new EligibilityCacheInvalidator(TimeProvider.System), new RecordingAuditPublisher(),
                 clock, NullLogger<SubmitVerificationHandler>.Instance);
             var renewal = await submit.HandleAsync(customerId, "ksa",
                 new SubmitVerificationRequest(
@@ -391,7 +391,7 @@ public sealed class CustomerReadAndAttachTests : IAsyncLifetime
         var clock = new FakeTimeProvider(submittedAt);
         await using var db = NewContext();
         var submit = new SubmitVerificationHandler(
-            db, new EligibilityCacheInvalidator(), new RecordingAuditPublisher(),
+            db, new EligibilityCacheInvalidator(TimeProvider.System), new RecordingAuditPublisher(),
             clock, NullLogger<SubmitVerificationHandler>.Instance);
         var result = await submit.HandleAsync(customerId, "ksa",
             new SubmitVerificationRequest(
@@ -408,7 +408,7 @@ public sealed class CustomerReadAndAttachTests : IAsyncLifetime
     {
         await using var db = NewContext();
         var approve = new DecideApproveHandler(
-            db, new EligibilityCacheInvalidator(),
+            db, new EligibilityCacheInvalidator(TimeProvider.System),
             new RecordingAuditPublisher(),
             new NullVerificationDomainEventPublisher(),
             new FakeTimeProvider(new DateTimeOffset(2026, 6, 1, 9, 0, 0, TimeSpan.Zero)),

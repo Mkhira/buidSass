@@ -141,13 +141,13 @@ public sealed class VerificationReminderWorker(
             var firedSet = fired.ToHashSet();
 
             // A reminder window W "has passed its reminder time" when
-            // (expires_at - now) <= W days — i.e., we're inside the window.
-            // R5: of all windows whose reminder time has passed, fire only the
-            // closest unfired (smallest W is closest to expiry); the rest are
-            // recorded as skipped with an audit note for ops triage.
-            var daysUntilExpiry = (c.ExpiresAt!.Value - nowUtc).TotalDays;
+            // (expires_at - W days) <= now — i.e., we are at-or-past the
+            // moment the window opens. Comparing on AddDays(-w) directly
+            // (instead of via TotalDays) keeps the boundary semantics tight
+            // and avoids floating-point drift that would let larger windows
+            // mis-skip when only a smaller window should fire (M4 fix).
             var unfiredEligible = windows
-                .Where(w => w >= daysUntilExpiry && !firedSet.Contains(w))
+                .Where(w => c.ExpiresAt!.Value.AddDays(-w) <= nowUtc && !firedSet.Contains(w))
                 .OrderBy(w => w)
                 .ToList();
 

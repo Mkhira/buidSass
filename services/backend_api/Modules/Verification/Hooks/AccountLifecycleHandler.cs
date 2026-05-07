@@ -121,9 +121,14 @@ public sealed class AccountLifecycleHandler(
                     break;
 
                 case VerificationState.Approved:
-                    row.State = VerificationState.Superseded;
+                    // Reserve Superseded for renewal-approval supersession only (FR-027 / M3).
+                    // Lifecycle-driven invalidation (account locked / deleted / market changed)
+                    // voids the row instead — the customer has no replacement approval to
+                    // point Superseded at.
+                    row.State = VerificationState.Void;
+                    row.VoidReason = voidReason;
                     row.UpdatedAt = nowUtc;
-                    db.StateTransitions.Add(BuildTransition(row.Id, row.MarketCode, priorState, VerificationState.Superseded, supersedeReason, nowUtc));
+                    db.StateTransitions.Add(BuildTransition(row.Id, row.MarketCode, priorState, VerificationState.Void, voidReason, nowUtc));
                     break;
 
                     // default: already terminal — fall through to the document

@@ -117,6 +117,31 @@ public sealed class ListVerificationQueueHandler(VerificationDbContext db, TimeP
             })
             .ToListAsync(ct);
 
+        // M1 — info-requested pause: compute age from the most recent transition
+        // OUT of info-requested (if any) so customer-pause time doesn't carry
+        // forward into the reviewer-responsibility age. Simpler than subtracting
+        // bounded info-requested intervals; equivalent for SLA-signal purposes
+        // because we want the reviewer-side age clock since the latest re-engage.
+        var rowIds = verificationRows.Select(r => r.Id).ToList();
+        var lastReengageMap = new Dictionary<Guid, DateTimeOffset>();
+        if (rowIds.Count > 0)
+        {
+            var infoOutTransitions = await db.StateTransitions
+                .AsNoTracking()
+                .Where(t => rowIds.Contains(t.VerificationId)
+                         && t.PriorState == "info-requested")
+                .Select(t => new { t.VerificationId, t.OccurredAt })
+                .ToListAsync(ct);
+            foreach (var t in infoOutTransitions)
+            {
+                if (!lastReengageMap.TryGetValue(t.VerificationId, out var existing)
+                    || t.OccurredAt > existing)
+                {
+                    lastReengageMap[t.VerificationId] = t.OccurredAt;
+                }
+            }
+        }
+
         // Look up the schemas referenced by the visible rows so we can compute SLA per row.
         var schemaKeys = verificationRows
             .Select(r => new { r.MarketCode, r.SchemaVersion })
@@ -147,8 +172,14 @@ public sealed class ListVerificationQueueHandler(VerificationDbContext db, TimeP
                 ? p
                 : new VerificationSchemaPolicy(SlaWarningBusinessDays: 1, SlaDecisionBusinessDays: 2, Holidays: Array.Empty<DateOnly>());
 
+            // Reviewer-responsibility age starts from the latest transition
+            // out of info-requested when the row has been bounced back; otherwise
+            // from submission. This excludes customer-pause time (FR-039 / M1).
+            var ageStart = lastReengageMap.TryGetValue(row.Id, out var reengagedAt)
+                ? reengagedAt
+                : row.SubmittedAt;
             var ageBusinessDays = BusinessDayCalculator.BusinessDaysBetween(
-                from: row.SubmittedAt,
+                from: ageStart,
                 to: nowUtc,
                 weekendDays: null,
                 holidays: policy.Holidays);

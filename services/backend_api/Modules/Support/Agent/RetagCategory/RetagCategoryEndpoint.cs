@@ -1,4 +1,5 @@
 using BackendApi.Modules.Support.Authorization;
+using BackendApi.Modules.Support.Customer;
 using BackendApi.Modules.Support.Primitives;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -42,18 +43,22 @@ public static class RetagCategoryEndpoint
                 TicketReasonCode.InvalidTransition, "category is required.");
         }
 
-        var actorRole = AdminSupportResponseFactory.HasSuperAdmin(context)
+        var isSuperAdmin = AdminSupportResponseFactory.HasSuperAdmin(context);
+        var actorRole = isSuperAdmin
             ? SupportPermissions.SuperAdmin
             : (AdminSupportResponseFactory.HasLeadPermission(context)
                 ? SupportPermissions.SupportLead
                 : SupportPermissions.SupportAgent);
+        var marketCode = SupportResponseFactory.ResolveMarketCode(context);
 
         var result = await handler.HandleAsync(new RetagCategoryCommand(
             TicketId: ticketId,
             ActorId: actorId.Value,
             ActorRole: actorRole,
             NewCategory: body.Category,
-            Justification: body.Justification), ct);
+            Justification: body.Justification,
+            MarketCode: marketCode,
+            IsSuperAdmin: isSuperAdmin), ct);
 
         if (!result.Success)
         {

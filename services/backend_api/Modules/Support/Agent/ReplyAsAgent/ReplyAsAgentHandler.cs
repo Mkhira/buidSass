@@ -51,14 +51,14 @@ public sealed class ReplyAsAgentHandler
             return Failure(TicketReasonCode.MessageBodyTooLong, "Body exceeds 8000 characters.");
         }
 
-        // FR-014a — only assigned agent OR lead/super_admin may reply.
-        // Pre-flight reject when the caller already knows neither condition holds.
-        if (!cmd.ActorIsAssigned && !cmd.ActorIsLeadOrSuperAdmin)
-        {
-            return Failure(TicketReasonCode.ActionRequiresAssignment,
-                "Customer-visible replies require ticket assignment or lead intervention.");
-        }
-
+        // CodeRabbit Loop-1 (outside-diff): the prior preflight reject (using
+        // the endpoint-resolved cmd.ActorIsAssigned) was a stale TOCTOU read
+        // that could *falsely deny* a now-validly-assigned actor when a lead
+        // had reassigned the ticket between endpoint and handler. The
+        // post-load revalidation below uses the freshly-loaded ticket row and
+        // is the single source of truth for FR-014a — the preflight is
+        // redundant once that exists, so we remove it here to close the
+        // false-negative TOCTOU window.
         var ticket = await _db.Tickets.FirstOrDefaultAsync(t => t.Id == cmd.TicketId, ct);
         if (ticket is null)
         {

@@ -17,8 +17,17 @@ public sealed class ListTicketsByCustomerHandler
     public async Task<ListTicketsByCustomerResult> HandleAsync(
         ListTicketsByCustomerQuery q, CancellationToken ct)
     {
+        // CodeRabbit Loop-1: enforce ADR-010 partition. Agents/leads see only
+        // their market's tickets; super-admin gets the cross-market view to
+        // support investigations spanning markets. The same-market filter is
+        // applied as the very first predicate so the index on
+        // (market_code, customer_id) is utilised.
         var query = _db.Tickets.AsNoTracking()
             .Where(t => t.CustomerId == q.CustomerId);
+        if (!q.IsSuperAdmin)
+        {
+            query = query.Where(t => t.MarketCode == q.MarketCode);
+        }
 
         if (!string.IsNullOrWhiteSpace(q.StateFilter))
         {

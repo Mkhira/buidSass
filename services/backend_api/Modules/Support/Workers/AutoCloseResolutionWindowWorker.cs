@@ -85,16 +85,22 @@ public sealed class AutoCloseResolutionWindowWorker(
         // across all enabled schemas (auto_close_after_resolved_days > 0)
         // so the query returns only tickets that *might* be eligible in any
         // market. Per-ticket re-validation against its own market policy
-        // still happens inside the foreach below. If no schema enables
-        // auto-close, we fall back to a conservative 3-day floor so the
-        // worker never loads the full Resolved set.
-        const int conservativeFloorDays = 3;
+        // still happens inside the foreach below.
+        //
+        // CodeRabbit Loop-1: keep the SQL floor at 1 day (the smallest valid
+        // policy window). Schema-missing markets fall back to
+        // `SupportMarketPolicy.DefaultFor(...)` whose default could in theory
+        // be as low as 1 day; a higher floor would silently delay closure
+        // for those tickets. We never load the full Resolved set because
+        // `ResolvedAtUtc != null` + the 1-day cutoff still excludes
+        // just-resolved tickets.
+        const int conservativeFloorDays = 1;
         var enabledWindows = schemas.Values
             .Select(s => s.AutoCloseAfterResolvedDays)
             .Where(d => d > 0)
             .ToArray();
         var minAutoCloseDays = enabledWindows.Length > 0
-            ? enabledWindows.Min()
+            ? Math.Min(enabledWindows.Min(), conservativeFloorDays)
             : conservativeFloorDays;
         var maxResolvedAtUtc = nowUtc.AddDays(-minAutoCloseDays);
 

@@ -1,3 +1,4 @@
+using BackendApi.Modules.Support.Customer;
 using BackendApi.Modules.Support.Primitives;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -31,11 +32,29 @@ public static class ListTicketsByCustomerEndpoint
                 "support.agent permission required.");
         }
 
+        // CodeRabbit Loop-1: validate pagination bounds before dispatching.
+        // Negative skip / non-positive take / oversized take are rejected at
+        // the edge so the handler can assume sane inputs and the database
+        // never sees a request to materialise an unbounded read.
+        var normalizedSkip = skip ?? 0;
+        var normalizedTake = take ?? 50;
+        if (normalizedSkip < 0 || normalizedTake <= 0 || normalizedTake > 100)
+        {
+            return AdminSupportResponseFactory.Problem(context, 400,
+                TicketReasonCode.InvalidTransition,
+                "skip must be >= 0 and take must be between 1 and 100.");
+        }
+
+        var isSuperAdmin = AdminSupportResponseFactory.HasSuperAdmin(context);
+        var marketCode = SupportResponseFactory.ResolveMarketCode(context);
+
         var result = await handler.HandleAsync(new ListTicketsByCustomerQuery(
             CustomerId: customerId,
-            Skip: skip ?? 0,
-            Take: take ?? 50,
-            StateFilter: state), ct);
+            Skip: normalizedSkip,
+            Take: normalizedTake,
+            StateFilter: state,
+            MarketCode: marketCode,
+            IsSuperAdmin: isSuperAdmin), ct);
 
         return Results.Ok(new
         {

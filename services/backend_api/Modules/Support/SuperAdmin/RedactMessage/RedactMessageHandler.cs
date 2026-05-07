@@ -117,6 +117,11 @@ public sealed class RedactMessageHandler
         // closure of the request loop.
         SupportTicket? requestTicketTracked = null;
         TicketState requestPriorState = default;
+        // CodeRabbit Loop-1: gate the auto-resolve event-publish on a
+        // dedicated flag so we never emit `TicketStateChanged` /
+        // `TicketResolved` when the request ticket was already
+        // resolved/closed/waiting-for-customer (no real transition occurred).
+        var requestTicketAutoResolved = false;
         if (cmd.OriginatingRedactionRequestTicketId is not null)
         {
             requestTicketTracked = await _db.Tickets
@@ -161,6 +166,7 @@ public sealed class RedactMessageHandler
                         requestTicketTracked.State = TicketStateNames.Resolved;
                         requestTicketTracked.ResolvedAtUtc = nowUtc;
                         requestTicketTracked.UpdatedAtUtc = nowUtc;
+                        requestTicketAutoResolved = true;
 
                         var trimmedReason = cmd.ReasonNote.Trim();
                         _db.Messages.Add(new TicketMessage
@@ -180,6 +186,14 @@ public sealed class RedactMessageHandler
                     {
                         requestTicketTracked = null;
                     }
+                }
+                else
+                {
+                    // The request ticket existed and was non-terminal but did
+                    // not reach InProgress (e.g. it was already
+                    // waiting_customer). No real transition happened, so the
+                    // downstream publish-block must skip the resolve events.
+                    requestTicketTracked = null;
                 }
             }
             else
@@ -211,9 +225,13 @@ public sealed class RedactMessageHandler
             SuperAdminActorId: cmd.SuperAdminActorId,
             OccurredAtUtc: nowUtc), ct);
 
-        if (requestTicketTracked is not null)
+        if (requestTicketAutoResolved && requestTicketTracked is not null)
         {
             // Auto-resolve closure events for the redaction-request ticket.
+            // Gated by `requestTicketAutoResolved`: when the request ticket was
+            // already terminal or in `waiting_customer`, no transition fired
+            // and these events MUST NOT be emitted (they would announce a
+            // resolution that didn't happen).
             await _publisher.Publish(new TicketStateChanged(
                 TicketId: requestTicketTracked.Id,
                 FromState: TicketStateNames.ToWire(requestPriorState),

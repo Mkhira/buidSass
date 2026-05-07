@@ -391,7 +391,7 @@ All reason codes are namespaced `support.ticket.*` and resolve to ICU keys in `s
 
 See `data-model.md §6` for the canonical list. Each event is published on the in-process MediatR bus after the corresponding successful state-change transaction commits. Spec 025 subscribes once at its V1 PR; until then, events emit but have no subscriber (the bus is no-op-friendly).
 
-The original 16 events were defined at module foundation; `TicketSlaOverridden` was added in the Phase-10 SLA-override slice (T086) so leads emit a dedicated signal instead of misusing `TicketStateChanged` for a non-transition. **Total: 17 events.**
+The original 16 events were defined at module foundation; `TicketSlaOverridden` was added in the Phase-1D SLA-override slice (T086) so leads emit a dedicated signal instead of misusing `TicketStateChanged` for a non-transition. **Total: 17 events.**
 
 ### §9.1 · Event payload schemas
 
@@ -443,7 +443,7 @@ A future OpenAPI extension (`x-domain-events`) on the support-ticket endpoints w
 
 ### Published by 023
 
-The 16 `SupportTicketDomainEvents` records.
+The 17 `SupportTicketDomainEvents` records.
 
 ---
 

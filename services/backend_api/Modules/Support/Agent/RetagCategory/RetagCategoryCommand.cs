@@ -14,7 +14,9 @@ public sealed record RetagCategoryCommand(
     Guid ActorId,
     string ActorRole,
     string NewCategory,
-    string? Justification);
+    string? Justification,
+    string MarketCode,
+    bool IsSuperAdmin);
 
 public sealed record RetagCategoryResult(
     bool Success,

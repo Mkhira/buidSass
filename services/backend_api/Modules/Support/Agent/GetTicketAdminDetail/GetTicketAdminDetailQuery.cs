@@ -16,7 +16,9 @@ namespace BackendApi.Modules.Support.Agent.GetTicketAdminDetail;
 public sealed record GetTicketAdminDetailQuery(
     Guid TicketId,
     Guid ActorId,
-    bool IsLeadOrSuperAdmin);
+    bool IsLeadOrSuperAdmin,
+    string MarketCode,
+    bool IsSuperAdmin);
 
 public sealed record AdminTicketMessageDto(
     Guid Id,

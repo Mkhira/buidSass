@@ -10,7 +10,9 @@ public sealed record ListTicketsByCustomerQuery(
     Guid CustomerId,
     int Skip,
     int Take,
-    string? StateFilter);
+    string? StateFilter,
+    string MarketCode,
+    bool IsSuperAdmin);
 
 public sealed record AdminCustomerTicketListItem(
     Guid Id,

@@ -1,3 +1,4 @@
+using BackendApi.Modules.Support.Customer;
 using BackendApi.Modules.Support.Primitives;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -37,14 +38,18 @@ public static class GetTicketAdminDetailEndpoint
                 TicketReasonCode.QueueForbidden, "Authentication required.");
         }
 
+        var isSuperAdmin = AdminSupportResponseFactory.HasSuperAdmin(context);
         var isLeadOrSuperAdmin =
             AdminSupportResponseFactory.HasLeadPermission(context)
-            || AdminSupportResponseFactory.HasSuperAdmin(context);
+            || isSuperAdmin;
+        var marketCode = SupportResponseFactory.ResolveMarketCode(context);
 
         var result = await handler.HandleAsync(new GetTicketAdminDetailQuery(
             TicketId: ticketId,
             ActorId: actorId.Value,
-            IsLeadOrSuperAdmin: isLeadOrSuperAdmin), ct);
+            IsLeadOrSuperAdmin: isLeadOrSuperAdmin,
+            MarketCode: marketCode,
+            IsSuperAdmin: isSuperAdmin), ct);
 
         if (!result.Success)
         {

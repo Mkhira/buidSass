@@ -42,7 +42,18 @@ public sealed class RetagCategoryHandler
                 $"Unknown ticket category '{cmd.NewCategory}'.");
         }
 
-        var ticket = await _db.Tickets.FirstOrDefaultAsync(t => t.Id == cmd.TicketId, ct);
+        // CodeRabbit Loop-1: persist the canonical wire form rather than the
+        // raw request string. This keeps idempotency robust even if `FromWire`
+        // ever accepts aliases/casing variants.
+        var canonicalNewCategory = TicketCategoryNames.ToWire(parsedCategory);
+
+        // CodeRabbit Loop-1: scope the ticket mutation by market_code per
+        // ADR-010. Super-admin retains the cross-market write path for
+        // operational repair; agents/leads cannot touch foreign-market rows.
+        var ticket = cmd.IsSuperAdmin
+            ? await _db.Tickets.FirstOrDefaultAsync(t => t.Id == cmd.TicketId, ct)
+            : await _db.Tickets.FirstOrDefaultAsync(t => t.Id == cmd.TicketId
+                && t.MarketCode == cmd.MarketCode, ct);
         if (ticket is null)
         {
             return Failure(TicketReasonCode.LinkedEntityNotFound, "Ticket not found.");
@@ -53,7 +64,7 @@ public sealed class RetagCategoryHandler
                 "Cannot retag a closed ticket.");
         }
 
-        if (string.Equals(ticket.Category, cmd.NewCategory, StringComparison.Ordinal))
+        if (string.Equals(ticket.Category, canonicalNewCategory, StringComparison.Ordinal))
         {
             // Idempotent no-op.
             return new RetagCategoryResult(
@@ -68,18 +79,18 @@ public sealed class RetagCategoryHandler
         if (!TicketCategoryNames.IsConsistentWithLinkedKind(parsedCategory, ticket.LinkedEntityKind))
         {
             return Failure(TicketReasonCode.LinkedEntityKindInconsistent,
-                $"Category '{cmd.NewCategory}' is not consistent with linked-entity-kind "
+                $"Category '{canonicalNewCategory}' is not consistent with linked-entity-kind "
                 + $"'{ticket.LinkedEntityKind ?? "(none)"}' per FR-007.");
         }
 
         var nowUtc = _clock.GetUtcNow();
         var priorCategory = ticket.Category;
-        ticket.Category = cmd.NewCategory;
+        ticket.Category = canonicalNewCategory;
         ticket.UpdatedAtUtc = nowUtc;
 
         var auditBody = string.IsNullOrWhiteSpace(cmd.Justification)
-            ? $"Category retagged: {priorCategory} → {cmd.NewCategory}"
-            : $"Category retagged: {priorCategory} → {cmd.NewCategory}; justification: {cmd.Justification.Trim()}";
+            ? $"Category retagged: {priorCategory} → {canonicalNewCategory}"
+            : $"Category retagged: {priorCategory} → {canonicalNewCategory}; justification: {cmd.Justification.Trim()}";
 
         _db.Messages.Add(new TicketMessage
         {
@@ -106,7 +117,7 @@ public sealed class RetagCategoryHandler
         return new RetagCategoryResult(
             Success: true,
             PriorCategory: priorCategory,
-            NewCategory: cmd.NewCategory,
+            NewCategory: canonicalNewCategory,
             ReasonCode: null,
             Detail: null);
     }

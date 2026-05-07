@@ -67,8 +67,18 @@ public sealed class GetTicketAdminDetailHandler
     public async Task<GetTicketAdminDetailResult> HandleAsync(
         GetTicketAdminDetailQuery q, CancellationToken ct)
     {
-        var ticket = await _db.Tickets.AsNoTracking()
-            .FirstOrDefaultAsync(t => t.Id == q.TicketId, ct);
+        // CodeRabbit Loop-1: scope the root ticket read by the caller's
+        // market_code per ADR-010. Super-admins may bypass the partition
+        // (cross-market investigation requires it); agents/leads must remain
+        // confined to their market. A foreign-market read is reported as
+        // `LinkedEntityNotFound` rather than 403 to avoid leaking the
+        // existence of cross-market tickets.
+        var ticket = q.IsSuperAdmin
+            ? await _db.Tickets.AsNoTracking()
+                .FirstOrDefaultAsync(t => t.Id == q.TicketId, ct)
+            : await _db.Tickets.AsNoTracking()
+                .FirstOrDefaultAsync(t => t.Id == q.TicketId
+                    && t.MarketCode == q.MarketCode, ct);
         if (ticket is null)
         {
             return new GetTicketAdminDetailResult(
@@ -182,15 +192,18 @@ public sealed class GetTicketAdminDetailHandler
             }
         }
 
-        // B2B secondary line — surface the company id (UI-side resolves a
-        // human-readable company name; no V1 contract provides it).
+        // B2B secondary line — surface the company id verbatim. The admin UI
+        // owns label formatting (e.g. "Company: <id>"); returning a raw
+        // identifier keeps this DTO purely data-shaped per Principle 28
+        // and lets the client localize the label. No V1 contract provides a
+        // human-readable company-name lookup; that lands when 020 ships its
+        // company-display read.
         var companyId = await _companyQuery.ResolveCompanyIdAsync(customerId, ct);
-        var companyLine = companyId is not null ? $"Company: {companyId}" : null;
 
         return new AdminTicketCustomerDisplay(
             CustomerId: customerId,
             DisplayName: displayName,
-            CompanyName: companyLine);
+            CompanyName: companyId?.ToString());
     }
 
     private async Task<AdminTicketLinkedEntityPreview?> ResolveLinkedEntityPreviewAsync(

@@ -52,6 +52,7 @@ public sealed class ReplyAsAgentHandler
         }
 
         // FR-014a — only assigned agent OR lead/super_admin may reply.
+        // Pre-flight reject when the caller already knows neither condition holds.
         if (!cmd.ActorIsAssigned && !cmd.ActorIsLeadOrSuperAdmin)
         {
             return Failure(TicketReasonCode.ActionRequiresAssignment,
@@ -68,10 +69,23 @@ public sealed class ReplyAsAgentHandler
             return Failure(TicketReasonCode.ClosedTerminal, "Ticket is closed.");
         }
 
+        // C1 (TOCTOU close): re-validate FR-014a against the freshly-loaded
+        // ticket row. The endpoint resolves ActorIsAssigned in a separate query
+        // before invoking the handler; between that read and our load here, a
+        // lead reassignment could have flipped AssignedAgentId. We trust only
+        // the just-loaded row, allowing the action when the actor is currently
+        // the assigned agent OR explicitly lead/super_admin.
+        var actorCurrentlyAssigned = ticket.AssignedAgentId == cmd.ActorId;
+        if (!actorCurrentlyAssigned && !cmd.ActorIsLeadOrSuperAdmin)
+        {
+            return Failure(TicketReasonCode.ActionRequiresAssignment,
+                "Customer-visible replies require ticket assignment or lead intervention.");
+        }
+
         var fromState = TicketStateNames.FromWire(ticket.State);
         var nowUtc = _clock.GetUtcNow();
         var messageId = Guid.NewGuid();
-        var leadIntervention = cmd.ActorIsLeadOrSuperAdmin && !cmd.ActorIsAssigned;
+        var leadIntervention = cmd.ActorIsLeadOrSuperAdmin && !actorCurrentlyAssigned;
 
         _db.Messages.Add(new TicketMessage
         {

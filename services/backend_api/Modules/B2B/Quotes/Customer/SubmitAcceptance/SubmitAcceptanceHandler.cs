@@ -115,7 +115,8 @@ public sealed class SubmitAcceptanceHandler
         string callerMarketCode,
         Guid idempotencyKey,
         SubmitAcceptanceRequest body,
-        CancellationToken ct)
+        CancellationToken ct,
+        string callerLocaleHint = "en")
     {
         // ---------- 1. Visibility gate ----------
         var visibleCompanyIds = await CustomerQuoteVisibility
@@ -508,7 +509,7 @@ public sealed class SubmitAcceptanceHandler
                     CustomerId: tracked.CustomerId,
                     CompanyId: tracked.CompanyId,
                     MarketCode: tracked.MarketCode,
-                    LocaleHint: "en"), ct);
+                    LocaleHint: callerLocaleHint), ct);
             }
         }
         catch (Exception ex) when (ex is not OperationCanceledException)

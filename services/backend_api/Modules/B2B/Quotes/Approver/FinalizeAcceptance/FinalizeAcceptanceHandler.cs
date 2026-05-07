@@ -51,7 +51,8 @@ public sealed class FinalizeAcceptanceHandler
         Guid approverId,
         Guid idempotencyKey,
         bool taxPreviewDriftAcknowledged,
-        CancellationToken ct)
+        CancellationToken ct,
+        string callerLocaleHint = "en")
     {
         var quote = await _db.Quotes.FirstOrDefaultAsync(q => q.Id == quoteId, ct);
         if (quote is null) return FinalizeResult.NotFound();
@@ -191,7 +192,7 @@ public sealed class FinalizeAcceptanceHandler
                 CustomerId: quote.CustomerId,
                 CompanyId: quote.CompanyId,
                 MarketCode: quote.MarketCode,
-                LocaleHint: "en"), ct);
+                LocaleHint: callerLocaleHint), ct);
         }
         catch (OperationCanceledException) { throw; }
         catch (Exception ex)
@@ -258,9 +259,10 @@ public static class FinalizeAcceptanceEndpoint
                 "Idempotency-Key header is required.");
         }
 
+        var localeHint = B2BResponseFactory.ResolveLocaleHint(context);
         var result = await handler.HandleAsync(
             id, customerId.Value, idemKey,
-            body?.TaxPreviewDriftAcknowledged ?? false, ct);
+            body?.TaxPreviewDriftAcknowledged ?? false, ct, localeHint);
 
         if (result.IsSuccess)
         {

@@ -26,7 +26,13 @@ public sealed class ReviewModerationDecisionConfiguration : IEntityTypeConfigura
         var stateConv = new ValueConverter<ReviewState, string>(
             v => ToWire(v),
             s => FromWire(s));
-        builder.Property(x => x.FromState).HasConversion(stateConv).HasColumnType("text").IsRequired();
+        // FromState is nullable: the initial submission row carries no prior state.
+        // (M3 — previously stamped Visible as a sentinel which falsely read as
+        // Visible→PendingModeration in the audit log.)
+        var nullableStateConv = new ValueConverter<ReviewState?, string?>(
+            v => v.HasValue ? ToWire(v.Value) : null,
+            s => s == null ? (ReviewState?)null : FromWire(s));
+        builder.Property(x => x.FromState).HasConversion(nullableStateConv).HasColumnType("text").IsRequired(false);
         builder.Property(x => x.ToState).HasConversion(stateConv).HasColumnType("text").IsRequired();
 
         builder.Property(x => x.TriggeredBy).HasColumnType("text").IsRequired();

@@ -68,10 +68,10 @@ public sealed class ProfanityFilterCoverageMatrixTests : IAsyncLifetime
     [InlineData("a fake review submitted later",    true)]   // multi-word match mid-sentence
     [InlineData("",                                 false)]
     [InlineData("clean text",                       false)]
-    public void Case_insensitive_EN_matching_works(string text, bool shouldTrip)
+    public async Task Case_insensitive_EN_matching_works(string text, bool shouldTrip)
     {
         var filter = NewFilter();
-        var result = filter.Evaluate("SA", text);
+        var result = await filter.EvaluateAsync("SA", text);
         result.Tripped.Should().Be(shouldTrip);
     }
 
@@ -82,10 +82,10 @@ public sealed class ProfanityFilterCoverageMatrixTests : IAsyncLifetime
     [InlineData("هذا المنتج آحتيال")]                  // hamza-alef variant (آ)
     [InlineData("هذا المنتج احــــتيال")]               // tatweel between letters
     [InlineData("هذا المنتج احْتِيَالٌ")]                  // diacritics on letters
-    public void Arabic_normalization_corner_cases_all_match_canonical_term(string text)
+    public async Task Arabic_normalization_corner_cases_all_match_canonical_term(string text)
     {
         var filter = NewFilter();
-        var result = filter.Evaluate("SA", text);
+        var result = await filter.EvaluateAsync("SA", text);
         result.Tripped.Should().BeTrue($"normalization must collapse '{text}' to the seeded canonical term");
     }
 
@@ -110,37 +110,37 @@ public sealed class ProfanityFilterCoverageMatrixTests : IAsyncLifetime
         }
 
         var filter = NewFilter();
-        var sa = filter.Evaluate("SA", $"this contains {egOnlyTerm}");
-        var eg = filter.Evaluate("EG", $"this contains {egOnlyTerm}");
+        var sa = await filter.EvaluateAsync("SA", $"this contains {egOnlyTerm}");
+        var eg = await filter.EvaluateAsync("EG", $"this contains {egOnlyTerm}");
         sa.Tripped.Should().BeFalse($"'{egOnlyTerm}' is seeded only on EG");
         eg.Tripped.Should().BeTrue();
     }
 
     [Fact]
-    public void Multiple_matched_terms_are_all_returned_distinct()
+    public async Task Multiple_matched_terms_are_all_returned_distinct()
     {
         var filter = NewFilter();
-        var result = filter.Evaluate("SA", "FRAUD and SCAM and fake review combined");
+        var result = await filter.EvaluateAsync("SA", "FRAUD and SCAM and fake review combined");
         result.Tripped.Should().BeTrue();
         result.MatchedTerms.Should().Contain(new[] { "fraud", "scam", "fake review" });
         result.MatchedTerms.Distinct().Should().HaveSameCount(result.MatchedTerms);
     }
 
     [Fact]
-    public void Empty_market_or_text_returns_clean()
+    public async Task Empty_market_or_text_returns_clean()
     {
         var filter = NewFilter();
-        filter.Evaluate("", "anything").Tripped.Should().BeFalse();
-        filter.Evaluate("SA").Tripped.Should().BeFalse();
-        filter.Evaluate("SA", null!).Tripped.Should().BeFalse();
+        (await filter.EvaluateAsync("", "anything")).Tripped.Should().BeFalse();
+        (await filter.EvaluateAsync("SA")).Tripped.Should().BeFalse();
+        (await filter.EvaluateAsync("SA", (string?)null!)).Tripped.Should().BeFalse();
     }
 
     [Fact]
-    public void Multiple_text_inputs_are_scanned_independently()
+    public async Task Multiple_text_inputs_are_scanned_independently()
     {
         var filter = NewFilter();
         // Headline clean, body trips — same as how SubmitReviewHandler invokes it.
-        var result = filter.Evaluate("SA", "great product", "this is fraud");
+        var result = await filter.EvaluateAsync("SA", "great product", "this is fraud");
         result.Tripped.Should().BeTrue();
         result.MatchedTerms.Should().Contain("fraud");
     }

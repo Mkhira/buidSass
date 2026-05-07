@@ -85,7 +85,7 @@ public sealed class AuditCoverageTests : IAsyncLifetime
             var aggregate = new RatingAggregateRecomputer(editDb, clock);
             var update = new UpdateReviewHandler(editDb, profanity, aggregate, clock);
             var editResult = await update.HandleAsync(
-                customerId, visibleId, ifMatchRowVersion: null,
+                customerId, "SA", visibleId, ifMatchRowVersion: null,
                 new UpdateReviewRequest(Rating: 4, null, null, null, null),
                 CancellationToken.None);
             editResult.IsSuccess.Should().BeTrue();

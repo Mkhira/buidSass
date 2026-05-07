@@ -16,7 +16,12 @@ public sealed class ReviewModerationDecision
     /// <summary>One of <c>customer</c>, <c>reviews.moderator</c>, <c>super_admin</c>, <c>system</c>.</summary>
     public string ActorRole { get; set; } = string.Empty;
 
-    public ReviewState FromState { get; set; }
+    /// <summary>
+    /// Prior state of the review at the time of this transition. <c>null</c>
+    /// for the initial submission row (no prior state) — every other audit
+    /// row MUST set this. (M3 — see PR #73.)
+    /// </summary>
+    public ReviewState? FromState { get; set; }
     public ReviewState ToState { get; set; }
 
     public string TriggeredBy { get; set; } = string.Empty;

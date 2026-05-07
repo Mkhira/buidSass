@@ -56,7 +56,7 @@ public sealed class UpdateReviewHandlerTests : IAsyncLifetime
 
         var handler = NewUpdateHandler(out _);
         var result = await handler.HandleAsync(
-            customerId, reviewId, ifMatchRowVersion: null,
+            customerId, "SA", reviewId, ifMatchRowVersion: null,
             new UpdateReviewRequest(Rating: 4, Headline: "Edited", Body: null, Locale: null, MediaUrls: null),
             CancellationToken.None);
 
@@ -79,7 +79,7 @@ public sealed class UpdateReviewHandlerTests : IAsyncLifetime
 
         var handler = NewUpdateHandler(clock);
         var result = await handler.HandleAsync(
-            customerId, reviewId, null,
+            customerId, "SA", reviewId, null,
             new UpdateReviewRequest(Rating: 3, null, null, null, null),
             CancellationToken.None);
 
@@ -96,7 +96,7 @@ public sealed class UpdateReviewHandlerTests : IAsyncLifetime
 
         var handler = NewUpdateHandler(out _);
         var result = await handler.HandleAsync(
-            imposter, reviewId, null,
+            imposter, "SA", reviewId, null,
             new UpdateReviewRequest(Rating: 1, null, null, null, null),
             CancellationToken.None);
 
@@ -112,7 +112,7 @@ public sealed class UpdateReviewHandlerTests : IAsyncLifetime
         var handler = NewUpdateHandler(out _);
 
         var result = await handler.HandleAsync(
-            customerId, reviewId, null,
+            customerId, "SA", reviewId, null,
             // "spam" is in the SA seed wordlist.
             new UpdateReviewRequest(null, null, "Edited body now contains spam content.", null, null),
             CancellationToken.None);
@@ -152,7 +152,7 @@ public sealed class UpdateReviewHandlerTests : IAsyncLifetime
 
         var handler = NewUpdateHandler(out _);
         var result = await handler.HandleAsync(
-            customerId, reviewId, null,
+            customerId, "SA", reviewId, null,
             new UpdateReviewRequest(null, "Cleaned up", null, null, null),
             CancellationToken.None);
 
@@ -168,13 +168,49 @@ public sealed class UpdateReviewHandlerTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task Edit_cross_market_returns_not_found_and_does_not_mutate_row()
+    {
+        // M2 regression — UpdateReviewHandler must filter by MarketCode so a
+        // customer authenticated in one market cannot PATCH a review they
+        // authored in another market. 404 (not 403) so existence is hidden.
+        var (customerId, reviewId, _, _) = await SubmitVisibleReviewAsync();
+
+        await using var beforeCtx = NewContext();
+        var before = await beforeCtx.Reviews.AsNoTracking()
+            .Where(r => r.Id == reviewId)
+            .Select(r => new { r.State, r.Rating, r.Headline, r.EditCount, r.Xmin })
+            .FirstAsync();
+
+        var handler = NewUpdateHandler(out _);
+        var result = await handler.HandleAsync(
+            customerId, "EG", reviewId, ifMatchRowVersion: null,
+            new UpdateReviewRequest(Rating: 1, Headline: "should-not-apply", Body: null, Locale: null, MediaUrls: null),
+            CancellationToken.None);
+
+        result.IsSuccess.Should().BeFalse();
+        result.Status.Should().Be(404);
+
+        await using var afterCtx = NewContext();
+        var after = await afterCtx.Reviews.AsNoTracking()
+            .Where(r => r.Id == reviewId)
+            .Select(r => new { r.State, r.Rating, r.Headline, r.EditCount, r.Xmin })
+            .FirstAsync();
+
+        after.State.Should().Be(before.State);
+        after.Rating.Should().Be(before.Rating);
+        after.Headline.Should().Be(before.Headline);
+        after.EditCount.Should().Be(before.EditCount);
+        after.Xmin.Should().Be(before.Xmin);
+    }
+
+    [Fact]
     public async Task Stale_if_match_returns_version_conflict()
     {
         var (customerId, reviewId, _, _) = await SubmitVisibleReviewAsync();
 
         var handler = NewUpdateHandler(out _);
         var result = await handler.HandleAsync(
-            customerId, reviewId, ifMatchRowVersion: 99999u, // wrong xmin
+            customerId, "SA", reviewId, ifMatchRowVersion: 99999u, // wrong xmin
             new UpdateReviewRequest(3, null, null, null, null),
             CancellationToken.None);
 

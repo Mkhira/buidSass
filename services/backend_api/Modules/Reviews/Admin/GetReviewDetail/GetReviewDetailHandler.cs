@@ -25,7 +25,8 @@ public sealed class GetReviewDetailHandler
             .OrderByDescending(d => d.CreatedAtUtc)
             .Select(d => new AuditHistoryItem(
                 d.Id, d.ActorId, d.ActorRole,
-                ToWire(d.FromState), ToWire(d.ToState),
+                d.FromState.HasValue ? ToWire(d.FromState.Value) : null,
+                ToWire(d.ToState),
                 d.TriggeredBy, d.ReasonNote, d.AdminNote, d.CreatedAtUtc))
             .ToListAsync(ct);
 
@@ -125,7 +126,7 @@ public sealed record AuditHistoryItem(
     Guid Id,
     Guid ActorId,
     string ActorRole,
-    string FromState,
+    string? FromState,
     string ToState,
     string TriggeredBy,
     string? ReasonNote,

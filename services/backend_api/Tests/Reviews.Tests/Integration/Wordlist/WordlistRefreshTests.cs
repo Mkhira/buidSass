@@ -40,7 +40,7 @@ public sealed class WordlistRefreshTests
         var filter = new ProfanityFilter(BuildScopeFactory(), normalizer, TimeSpan.FromMinutes(5));
 
         // Warm the cache for SA, then verify the term is NOT yet in the wordlist.
-        var beforeUpsert = filter.Evaluate("SA",
+        var beforeUpsert = await filter.EvaluateAsync("SA",
             $"this body contains the {newTerm} substring");
         beforeUpsert.Tripped.Should().BeFalse("term not yet in the wordlist");
 

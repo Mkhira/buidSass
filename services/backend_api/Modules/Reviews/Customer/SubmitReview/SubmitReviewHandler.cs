@@ -59,8 +59,17 @@ public sealed class SubmitReviewHandler
         var policy = await ResolvePolicyAsync(marketCode, ct);
         var nowUtc = _time.GetUtcNow();
 
+        // Market-scoped per ADR-010: an active review for the same
+        // (customer, product) in another market must NOT block a submission
+        // in this market. Mirrors the partial unique index
+        // UX_reviews_customer_product_active which was tightened in
+        // migration 20260507092458_TightenActiveReviewUniqueIndexOnMarket
+        // to `(CustomerId, ProductId, MarketCode)`.
         var existing = await _db.Reviews
-            .Where(r => r.CustomerId == customerId && r.ProductId == body.ProductId && r.State != Primitives.ReviewState.Deleted)
+            .Where(r => r.CustomerId == customerId
+                && r.ProductId == body.ProductId
+                && r.MarketCode == marketCode
+                && r.State != Primitives.ReviewState.Deleted)
             .Select(r => new { r.Id })
             .FirstOrDefaultAsync(ct);
         if (existing is not null)
@@ -92,7 +101,7 @@ public sealed class SubmitReviewHandler
         }
 
         var hasMedia = body.MediaUrls is { Count: > 0 };
-        var profanityResult = _profanity.Evaluate(marketCode, body.Headline, body.Body);
+        var profanityResult = await _profanity.EvaluateAsync(marketCode, new[] { body.Headline, body.Body }, ct);
         var holdForModeration = profanityResult.Tripped || hasMedia;
 
         var initialState = holdForModeration ? Primitives.ReviewState.PendingModeration : Primitives.ReviewState.Visible;
@@ -127,7 +136,11 @@ public sealed class SubmitReviewHandler
             ReviewId = review.Id,
             ActorId = customerId,
             ActorRole = "customer",
-            FromState = Primitives.ReviewState.Visible, // submission has no prior state; using Visible as the conventional sentinel
+            // Submission has no prior state — leave FromState null rather than
+            // stamping Visible (M3): a Visible sentinel falsely read as
+            // Visible→PendingModeration in the audit log when the submission
+            // landed in moderation hold.
+            FromState = null,
             ToState = initialState,
             TriggeredBy = ReviewTriggerKind.CustomerSubmission,
             CreatedAtUtc = nowUtc,

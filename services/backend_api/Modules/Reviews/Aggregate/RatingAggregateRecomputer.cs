@@ -30,11 +30,14 @@ public sealed class RatingAggregateRecomputer
 
     public async Task RecomputeAsync(Guid productId, string marketCode, CancellationToken ct)
     {
-        // Materialize stats from the source-of-truth reviews. Driver supports
-        // parameterized raw SQL via FormattableString; index
-        // IX_reviews_product_market_state covers the WHERE clause.
-        var nowUtc = _time.GetUtcNow();
-        const string sql = @"
+        // Materialize stats from the source-of-truth reviews using the
+        // FormattableString-based ExecuteSqlAsync overload (EF Core 8+) so
+        // parameter binding is type-safe and consistent with the rest of the
+        // module (C1). Index IX_reviews_product_market_state covers the WHERE
+        // clause.
+        var nowUtc = _time.GetUtcNow().UtcDateTime;
+        await _db.Database.ExecuteSqlAsync(
+            $@"
 INSERT INTO reviews.product_rating_aggregates (
     ""ProductId"", ""MarketCode"",
     ""AvgRating"", ""ReviewCount"",
@@ -42,8 +45,8 @@ INSERT INTO reviews.product_rating_aggregates (
     ""LastUpdatedUtc""
 )
 SELECT
-    {0}::uuid,
-    {1}::text,
+    {productId}::uuid,
+    {marketCode}::text,
     CASE WHEN COUNT(*) = 0 THEN NULL ELSE ROUND(AVG(""Rating""::numeric), 2) END,
     COUNT(*)::int,
     COUNT(*) FILTER (WHERE ""Rating"" = 1)::int,
@@ -51,10 +54,10 @@ SELECT
     COUNT(*) FILTER (WHERE ""Rating"" = 3)::int,
     COUNT(*) FILTER (WHERE ""Rating"" = 4)::int,
     COUNT(*) FILTER (WHERE ""Rating"" = 5)::int,
-    {2}::timestamptz
+    {nowUtc}::timestamptz
 FROM reviews.reviews
-WHERE ""ProductId"" = {0}::uuid
-  AND ""MarketCode"" = {1}::text
+WHERE ""ProductId"" = {productId}::uuid
+  AND ""MarketCode"" = {marketCode}::text
   AND ""State"" IN ('visible','flagged')
 ON CONFLICT (""ProductId"", ""MarketCode"") DO UPDATE
 SET ""AvgRating""       = EXCLUDED.""AvgRating"",
@@ -64,11 +67,7 @@ SET ""AvgRating""       = EXCLUDED.""AvgRating"",
     ""Distribution3""   = EXCLUDED.""Distribution3"",
     ""Distribution4""   = EXCLUDED.""Distribution4"",
     ""Distribution5""   = EXCLUDED.""Distribution5"",
-    ""LastUpdatedUtc""  = EXCLUDED.""LastUpdatedUtc"";";
-
-        await _db.Database.ExecuteSqlRawAsync(
-            sql,
-            new object[] { productId, marketCode, nowUtc.UtcDateTime },
+    ""LastUpdatedUtc""  = EXCLUDED.""LastUpdatedUtc"";",
             ct);
     }
 }

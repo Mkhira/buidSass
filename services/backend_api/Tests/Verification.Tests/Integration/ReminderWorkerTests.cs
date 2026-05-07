@@ -160,6 +160,7 @@ public sealed class ReminderWorkerTests : IAsyncLifetime
         var services = new ServiceCollection();
         services.AddDbContext<VerificationDbContext>(o => o.UseNpgsql(ConnectionString),
             ServiceLifetime.Scoped);
+        services.AddSingleton<TimeProvider>(TimeProvider.System);
         services.AddScoped<EligibilityCacheInvalidator>();
         services.AddSingleton<IAuditEventPublisher>(audit);
         services.AddSingleton<IVerificationDomainEventPublisher>(domain);

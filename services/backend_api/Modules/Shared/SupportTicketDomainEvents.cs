@@ -89,14 +89,39 @@ public sealed record TicketAttachmentRedacted(
     Guid RequestingActorId,
     DateTimeOffset OccurredAtUtc) : INotification;
 
+/// <summary>
+/// Spec 023 FR-011a — emitted on super-admin message-body redaction. Carries
+/// both the requesting customer (whose redaction-request ticket triggered
+/// this) AND the super-admin actor who actually performed the wipe, so the
+/// audit-log consumer can record full actor accountability per Principle 25.
+/// </summary>
 public sealed record TicketMessageRedacted(
     Guid TicketId,
     Guid MessageId,
     Guid RequestingCustomerId,
+    Guid SuperAdminActorId,
     DateTimeOffset OccurredAtUtc) : INotification;
 
 public sealed record TicketAgentAvailabilityChanged(
     Guid AgentId,
     string MarketCode,
     bool IsOnCall,
+    DateTimeOffset OccurredAtUtc) : INotification;
+
+/// <summary>
+/// Spec 023 FR-026 — emitted when a lead overrides the per-ticket SLA targets.
+/// Carries actor + justification + old/new targets so spec 025 (notifications)
+/// and the audit-log consumer can record the change without repurposing the
+/// <see cref="TicketStateChanged"/> catch-all event for a non-transition.
+/// </summary>
+public sealed record TicketSlaOverridden(
+    Guid TicketId,
+    Guid LeadActorId,
+    int PriorFirstResponseTargetMinutes,
+    int PriorResolutionTargetMinutes,
+    int NewFirstResponseTargetMinutes,
+    int NewResolutionTargetMinutes,
+    DateTimeOffset NewFirstResponseDueUtc,
+    DateTimeOffset NewResolutionDueUtc,
+    string JustificationNote,
     DateTimeOffset OccurredAtUtc) : INotification;

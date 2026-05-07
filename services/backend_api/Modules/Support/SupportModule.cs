@@ -50,6 +50,8 @@ public static partial class SupportModule
         }, lifetime: ServiceLifetime.Singleton);
 
         services.AddScoped<ISeeder, SupportReferenceDataSeeder>();
+        // Dev/staging-only synthetic dataset (US7); SeedGuard short-circuits Production.
+        services.AddScoped<ISeeder, SupportV1DevSeeder>();
 
         // MediatR — idempotent across modules; appends our assembly's handlers.
         services.AddMediatR(cfg => cfg.RegisterServicesFromAssemblyContaining<TicketOpened>());
@@ -73,6 +75,11 @@ public static partial class SupportModule
         // Per-phase slice registrations.
         AddUs1Slices(services);
         AddUs2Slices(services);
+        AddUs4Slices(services);
+        AddPolicyAdminSlices(services);
+        AddPhase10Slices(services);
+        AddSupportWorkers(services, configuration);
+        AddSupportLifecycleSubscribers(services);
 
         services.TryAddSingleton(TimeProvider.System);
         return services;
@@ -85,11 +92,24 @@ public static partial class SupportModule
 
         var admin = endpoints.MapGroup("/api/admin/support-tickets");
         MapUs2AgentEndpoints(admin);
+        MapUs4LeadEndpoints(admin);
+        MapPhase10Endpoints(admin);
+
+        var policyAdmin = endpoints.MapGroup("/api/admin/support-policies");
+        MapPolicyAdminEndpoints(policyAdmin);
         return endpoints;
     }
 
     static partial void AddUs1Slices(IServiceCollection services);
     static partial void AddUs2Slices(IServiceCollection services);
+    static partial void AddUs4Slices(IServiceCollection services);
+    static partial void AddPolicyAdminSlices(IServiceCollection services);
+    static partial void AddPhase10Slices(IServiceCollection services);
+    static partial void AddSupportWorkers(IServiceCollection services, IConfiguration configuration);
+    static partial void AddSupportLifecycleSubscribers(IServiceCollection services);
     static partial void MapUs1CustomerEndpoints(IEndpointRouteBuilder customer);
     static partial void MapUs2AgentEndpoints(IEndpointRouteBuilder admin);
+    static partial void MapUs4LeadEndpoints(IEndpointRouteBuilder admin);
+    static partial void MapPhase10Endpoints(IEndpointRouteBuilder admin);
+    static partial void MapPolicyAdminEndpoints(IEndpointRouteBuilder policyAdmin);
 }

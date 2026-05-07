@@ -1,6 +1,7 @@
 using BackendApi.Modules.Support.Customer.ConvertToReturnRequest;
 using BackendApi.Modules.Support.Customer.GetMyTicket;
 using BackendApi.Modules.Support.Customer.ListMyTickets;
+using BackendApi.Modules.Support.Customer.OpenRedactionRequestTicket;
 using BackendApi.Modules.Support.Customer.OpenTicket;
 using BackendApi.Modules.Support.Customer.ReopenTicket;
 using BackendApi.Modules.Support.Customer.ReplyAsCustomer;
@@ -9,7 +10,7 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace BackendApi.Modules.Support;
 
-/// <summary>Customer surface partial — US1 / US3 / US6 slices.</summary>
+/// <summary>Customer surface partial — US1 / US3 / US6 + Phase 10 customer slices.</summary>
 public static partial class SupportModule
 {
     static partial void AddUs1Slices(IServiceCollection services)
@@ -30,5 +31,7 @@ public static partial class SupportModule
         customer.MapReplyAsCustomerEndpoint();
         customer.MapConvertToReturnRequestEndpoint();
         customer.MapReopenTicketEndpoint();
+        // Phase 10 T129 — customer-initiated redaction-request flow (FR-011a).
+        customer.MapOpenRedactionRequestTicketEndpoint();
     }
 }

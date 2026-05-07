@@ -332,7 +332,8 @@ public sealed class PublishQuoteVersionHandler
     private static QuoteVersionPdfData BuildPdfData(
         Quote quote, QuoteVersion version, DateTimeOffset publishedAt, DateTimeOffset? expiresAt)
     {
-        var (lines, subtotal, totalDiscount, totalTaxPreview, grandTotal, currency) = ExtractPdfLines(version.LineItemsJson);
+        var (lines, subtotal, totalDiscount, totalTaxPreview, grandTotal, currency) =
+            ExtractPdfLines(version.LineItemsJson, quote.MarketCode);
         var (termsEn, termsAr) = ExtractTerms(version.TermsTextJson);
         // CodeRabbit Round 1: company/customer NAME resolution requires reading
         // outside spec 021 (Identity / B2B.Companies cross-module read). For the
@@ -364,11 +365,16 @@ public sealed class PublishQuoteVersionHandler
     }
 
     private static (List<QuoteVersionPdfLine>, decimal, decimal, decimal, decimal, string)
-        ExtractPdfLines(string lineItemsJson)
+        ExtractPdfLines(string lineItemsJson, string marketCode)
     {
         var lines = new List<QuoteVersionPdfLine>();
         decimal subtotal = 0m, totalDiscount = 0m, totalTaxPreview = 0m;
-        var currency = "SAR";
+        // Per-market default currency. Without this, EG quotes whose first
+        // line-item lacks a `currency` token (e.g. legacy snapshots) render
+        // SAR-denominated PDFs.
+        var currency = string.Equals(marketCode, "eg", StringComparison.OrdinalIgnoreCase)
+            ? "EGP"
+            : "SAR";
         try
         {
             using var doc = JsonDocument.Parse(lineItemsJson);

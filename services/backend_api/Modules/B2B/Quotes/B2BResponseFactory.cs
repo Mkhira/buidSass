@@ -74,6 +74,45 @@ public static class B2BResponseFactory
     }
 
     /// <summary>
+    /// Resolves the caller's preferred locale hint for outbound notifications.
+    /// Order of precedence:
+    /// <list type="number">
+    ///   <item>The first <c>ar</c>/<c>en</c> language tag in <c>Accept-Language</c>.</item>
+    ///   <item>The <c>locale</c>/<c>preferred_locale</c> JWT claim if present.</item>
+    ///   <item>Hard fallback <c>en</c> (Principle 4 — the spec subscriber will
+    ///         re-resolve per recipient when the hint is unreliable).</item>
+    /// </list>
+    /// Used by quote/notification handlers in place of hardcoded <c>"en"</c> so
+    /// EG/Arabic-first users receive Arabic templates by default. Spec 025 may
+    /// still override per recipient based on the customer record.
+    /// </summary>
+    public static string ResolveLocaleHint(HttpContext context)
+    {
+        if (context.Request.Headers.TryGetValue("Accept-Language", out var headerValues))
+        {
+            foreach (var raw in headerValues)
+            {
+                if (string.IsNullOrWhiteSpace(raw)) continue;
+                foreach (var token in raw.Split(','))
+                {
+                    var tag = token.Split(';')[0].Trim().ToLowerInvariant();
+                    if (tag.StartsWith("ar", StringComparison.Ordinal)) return "ar";
+                    if (tag.StartsWith("en", StringComparison.Ordinal)) return "en";
+                }
+            }
+        }
+        var claim = context.User.FindFirst("locale")?.Value
+            ?? context.User.FindFirst("preferred_locale")?.Value;
+        if (!string.IsNullOrWhiteSpace(claim))
+        {
+            var t = claim.Trim().ToLowerInvariant();
+            if (t.StartsWith("ar", StringComparison.Ordinal)) return "ar";
+            if (t.StartsWith("en", StringComparison.Ordinal)) return "en";
+        }
+        return "en";
+    }
+
+    /// <summary>
     /// Coerces a market-code string into the canonical lowercase form used by
     /// the b2b schema. Empty / whitespace claims default to <c>"ksa"</c> (platform
     /// default for un-migrated identities). Unknown explicit codes return

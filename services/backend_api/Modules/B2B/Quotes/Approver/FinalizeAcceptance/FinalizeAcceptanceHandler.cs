@@ -51,7 +51,8 @@ public sealed class FinalizeAcceptanceHandler
         Guid approverId,
         Guid idempotencyKey,
         bool taxPreviewDriftAcknowledged,
-        CancellationToken ct)
+        CancellationToken ct,
+        string callerLocaleHint = "en")
     {
         var quote = await _db.Quotes.FirstOrDefaultAsync(q => q.Id == quoteId, ct);
         if (quote is null) return FinalizeResult.NotFound();
@@ -95,11 +96,42 @@ public sealed class FinalizeAcceptanceHandler
             return FinalizeResult.InvalidState();
         }
 
+        // Re-validate state + expiry inside the finalize transaction (after the
+        // converter call has potentially taken non-trivial wall-clock time).
+        // Without this re-check, the QuoteExpiryWorker could mark the quote
+        // `expired` between the initial expiry check above and the SaveChanges
+        // commit below, resulting in a converted order against an
+        // already-expired quote. The xmin token on `quote` is the EF concurrency
+        // gate; the explicit re-reads here turn races into deterministic
+        // 409 Expired / InvalidState responses.
+        //
+        // CodeRabbit Loop 1 (Major): capture commitNowUtc AFTER ReloadAsync so a
+        // slow reload cannot cause us to compare ExpiresAt against a stale
+        // timestamp captured before the reload (would let an expired quote slip
+        // through). Use this fresh post-reload instant for both the expiry check
+        // and the terminal/decision timestamps below.
+        await _db.Entry(quote).ReloadAsync(ct);
+        var commitNowUtc = _time.GetUtcNow();
+        if (!QuoteStateExtensions.TryParseToken(quote.State, out var rechecked)
+            || rechecked != QuoteState.PendingApprover)
+        {
+            if (rechecked == QuoteState.Accepted || rechecked == QuoteState.Rejected
+                || rechecked == QuoteState.Expired || rechecked == QuoteState.Withdrawn)
+            {
+                return FinalizeResult.AlreadyDecided();
+            }
+            return FinalizeResult.InvalidState();
+        }
+        if (quote.ExpiresAt.HasValue && quote.ExpiresAt.Value <= commitNowUtc)
+        {
+            return FinalizeResult.Expired();
+        }
+
         var priorState = quote.State;
         quote.State = QuoteState.Accepted.ToToken();
-        quote.DecidedAt = nowUtc;
+        quote.DecidedAt = commitNowUtc;
         quote.DecidedBy = approverId;
-        quote.TerminalAt = nowUtc;
+        quote.TerminalAt = commitNowUtc;
         quote.TerminalReason = "accepted";
 
         var transition = new QuoteStateTransition
@@ -118,7 +150,7 @@ public sealed class FinalizeAcceptanceHandler
                 order_id = conversion.OrderId,
                 was_idempotent_replay = conversion.WasIdempotentReplay,
             }),
-            OccurredAt = nowUtc,
+            OccurredAt = commitNowUtc,
         };
         _db.QuoteStateTransitions.Add(transition);
 
@@ -166,7 +198,7 @@ public sealed class FinalizeAcceptanceHandler
                 CustomerId: quote.CustomerId,
                 CompanyId: quote.CompanyId,
                 MarketCode: quote.MarketCode,
-                LocaleHint: "en"), ct);
+                LocaleHint: callerLocaleHint), ct);
         }
         catch (OperationCanceledException) { throw; }
         catch (Exception ex)
@@ -233,9 +265,10 @@ public static class FinalizeAcceptanceEndpoint
                 "Idempotency-Key header is required.");
         }
 
+        var localeHint = B2BResponseFactory.ResolveLocaleHint(context);
         var result = await handler.HandleAsync(
             id, customerId.Value, idemKey,
-            body?.TaxPreviewDriftAcknowledged ?? false, ct);
+            body?.TaxPreviewDriftAcknowledged ?? false, ct, localeHint);
 
         if (result.IsSuccess)
         {

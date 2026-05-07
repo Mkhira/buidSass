@@ -115,7 +115,8 @@ public sealed class SubmitAcceptanceHandler
         string callerMarketCode,
         Guid idempotencyKey,
         SubmitAcceptanceRequest body,
-        CancellationToken ct)
+        CancellationToken ct,
+        string callerLocaleHint = "en")
     {
         // ---------- 1. Visibility gate ----------
         var visibleCompanyIds = await CustomerQuoteVisibility
@@ -189,7 +190,34 @@ public sealed class SubmitAcceptanceHandler
             return SubmitAcceptanceResult.MarketMismatch();
         }
 
-        // ---------- 7. Eligibility gate (FR-036) ----------
+        // ---------- 7. Company-suspended gate ----------
+        // Spec.md §Edge Case "operator publishes a quote, then the customer's
+        // company is suspended" — buyer MUST be unable to accept. This MUST run
+        // before the eligibility gate so a suspended company sees
+        // `quote.company_suspended` regardless of restricted-SKU eligibility
+        // state (the eligibility surface would otherwise mask the underlying
+        // suspension reason). Existing accepted quotes are unaffected (orders
+        // already exist).
+        Company? company = null;
+        if (tracked.CompanyId is { } companyId)
+        {
+            company = await _db.Companies
+                .AsNoTracking()
+                .FirstOrDefaultAsync(c => c.Id == companyId, ct);
+            if (company is null)
+            {
+                // Defensive: a quote with a non-null CompanyId but no Company row
+                // shouldn't exist (FK enforcement). Treat as not-found.
+                return SubmitAcceptanceResult.NotFound();
+            }
+
+            if (string.Equals(company.State, "suspended", StringComparison.OrdinalIgnoreCase))
+            {
+                return SubmitAcceptanceResult.CompanySuspended();
+            }
+        }
+
+        // ---------- 8. Eligibility gate (FR-036) ----------
         // For every restricted SKU on the most recent QuoteVersion, the buyer-of-
         // record (Quote.CustomerId — the customer who will receive the order) must
         // be Eligible (or Unrestricted) per spec 020. Ineligible → 422.
@@ -205,29 +233,7 @@ public sealed class SubmitAcceptanceHandler
             return SubmitAcceptanceResult.EligibilityRequired();
         }
 
-        // ---------- 8. Company gates + PO collision branch ----------
-        Company? company = null;
-        if (tracked.CompanyId is { } companyId)
-        {
-            company = await _db.Companies
-                .AsNoTracking()
-                .FirstOrDefaultAsync(c => c.Id == companyId, ct);
-            if (company is null)
-            {
-                // Defensive: a quote with a non-null CompanyId but no Company row
-                // shouldn't exist (FK enforcement). Treat as not-found.
-                return SubmitAcceptanceResult.NotFound();
-            }
-
-            // Spec.md §Edge Case "operator publishes a quote, then the customer's
-            // company is suspended" — buyer MUST be unable to accept. Reason-code
-            // mapping table maps `quote.company_suspended` → §2.7. Existing accepted
-            // quotes are unaffected (orders already exist).
-            if (string.Equals(company.State, "suspended", StringComparison.OrdinalIgnoreCase))
-            {
-                return SubmitAcceptanceResult.CompanySuspended();
-            }
-        }
+        // ---------- 8a. PO collision branch ----------
 
         // The PO under evaluation: prefer the body override; fall back to the quote's
         // existing PO_number (set at request time).
@@ -306,22 +312,81 @@ public sealed class SubmitAcceptanceHandler
             return SubmitAcceptanceResult.InvalidStateForAction();
         }
 
-        // ---------- 10. Mutate + persist ----------
-        var priorStateToken = tracked.State;
-        tracked.State = targetState.ToToken();
-
-        // For the direct-accept path we pre-stamp DecidedAt + TerminalAt now so the
-        // Quote row reflects the terminal state at write time. The conversion call
-        // is best-effort post-commit (or in the same call, depending on stub
-        // behavior) — the stub records the call synchronously and returns an order
-        // id we plumb into the audit metadata + the response.
+        // ---------- 10. Conversion FIRST (atomicity per FR-032 / FR-035) ----------
+        // The reference implementation (FinalizeAcceptanceHandler) calls the
+        // converter BEFORE persisting the state transition so a converter failure
+        // leaves the quote in its prior state. The previous order (state-write
+        // first, conversion second) violated FR-032 ("exactly one order MUST be
+        // created within the same transaction") and FR-035 ("quote MUST stay in
+        // its prior state on failure"). On converter failure we return
+        // ConversionFailed (mapped to invalid_state_for_action) WITHOUT
+        // committing any quote state change.
         Guid? convertedOrderId = null;
         bool convertedReplay = false;
         if (targetState == QuoteState.Accepted)
         {
-            tracked.DecidedAt = nowUtc;
+            try
+            {
+                var conversion = await _orderFromQuoteHandler.CreateAsync(
+                    new QuoteConversionRequest(
+                        QuoteId: tracked.Id,
+                        CustomerId: tracked.CustomerId,
+                        CompanyId: tracked.CompanyId,
+                        CompanyBranchId: tracked.BranchId,
+                        MarketCode: tracked.MarketCode,
+                        PoNumber: effectivePo,
+                        // T077 (US2) — hard-pin individual quotes to invoice_billing=false
+                        // regardless of any future schema or refactor that might flip a
+                        // company-eligibility flag on this column. Individual quotes are
+                        // always retail-billed (FR-027 / spec.md US2 independent test).
+                        InvoiceBilling: tracked.CompanyId is null ? false : tracked.InvoiceBilling,
+                        TermsDays: null, // populated from QuoteVersion.TermsDays once the cycle wires the version snapshot pull-through; stub-tolerant.
+                        Lines: Array.Empty<QuoteConversionLine>(), // line snapshot is on QuoteVersion; T100 hydrates the real list.
+                        Subtotal: 0m,
+                        TotalDiscount: 0m,
+                        GrandTotal: 0m,
+                        IdempotencyKey: idempotencyKey),
+                    ct);
+                convertedOrderId = conversion.OrderId;
+                convertedReplay = conversion.WasIdempotentReplay;
+            }
+            catch (OperationCanceledException)
+            {
+                throw;
+            }
+            catch (Exception ex)
+            {
+                // Conversion failed BEFORE any state mutation committed — the
+                // quote stays in its prior (`revised`) state per FR-035. Surface
+                // invalid_state_for_action so the client can retry.
+                _logger.LogError(ex,
+                    "Quote-to-order conversion failed during submit-acceptance "
+                    + "(quote_id={QuoteId}, idempotency_key={IdempotencyKey}). "
+                    + "Quote remains in prior state; client may retry.",
+                    tracked.Id, idempotencyKey);
+                return SubmitAcceptanceResult.InvalidStateForAction();
+            }
+        }
+
+        // ---------- 11. Commit-time expiry re-check ----------
+        // Conversion may take significant time; capture a fresh timestamp and
+        // re-validate expiry before mutating state so a quote that expired
+        // mid-conversion is not accepted.
+        var commitNowUtc = _time.GetUtcNow();
+        if (tracked.ExpiresAt.HasValue && tracked.ExpiresAt.Value <= commitNowUtc)
+        {
+            return SubmitAcceptanceResult.Expired();
+        }
+
+        // ---------- 12. Mutate + persist (after successful conversion) ----------
+        var priorStateToken = tracked.State;
+        tracked.State = targetState.ToToken();
+
+        if (targetState == QuoteState.Accepted)
+        {
+            tracked.DecidedAt = commitNowUtc;
             tracked.DecidedBy = customerId;
-            tracked.TerminalAt = nowUtc;
+            tracked.TerminalAt = commitNowUtc;
             tracked.TerminalReason = "accepted";
         }
 
@@ -348,6 +413,11 @@ public sealed class SubmitAcceptanceHandler
             tracked.PoNumber = effectivePo;
             transitionMetadata["po_number_override"] = effectivePo;
         }
+        if (convertedOrderId is { } orderIdForMeta)
+        {
+            transitionMetadata["order_id"] = orderIdForMeta;
+            transitionMetadata["was_idempotent_replay"] = convertedReplay;
+        }
 
         var transition = new QuoteStateTransition
         {
@@ -360,7 +430,7 @@ public sealed class SubmitAcceptanceHandler
             ActorId = customerId,
             ReasonJson = null,
             MetadataJson = JsonSerializer.Serialize(transitionMetadata),
-            OccurredAt = nowUtc,
+            OccurredAt = commitNowUtc,
         };
         _db.QuoteStateTransitions.Add(transition);
 
@@ -373,57 +443,10 @@ public sealed class SubmitAcceptanceHandler
             // xmin guard tripped — another writer mutated the quote since our
             // tracked-fetch (most likely a concurrent finalize from an approver
             // race per SC-009). Surface invalid_state_for_action so the client
-            // re-reads the current state.
+            // re-reads the current state. NOTE: the conversion handler's
+            // idempotency contract guarantees a replay returns the same order id
+            // without duplicate side effects, so the order created above is safe.
             return SubmitAcceptanceResult.InvalidStateForAction();
-        }
-
-        // ---------- 11. Conversion (only on direct-accept) ----------
-        // T070's task description authorizes the QuoteToOrderConverter as a STUB
-        // here ("stub initially; T100 wires the real `QuoteToOrderConverter` from
-        // US6"). Production wiring binds spec 011's IOrderFromQuoteHandler in
-        // Modules/Shared/. The stub returns a fresh order id deterministically
-        // and reports replay status; we plumb both into the response + audit.
-        if (targetState == QuoteState.Accepted)
-        {
-            try
-            {
-                var conversion = await _orderFromQuoteHandler.CreateAsync(
-                    new QuoteConversionRequest(
-                        QuoteId: tracked.Id,
-                        CustomerId: tracked.CustomerId,
-                        CompanyId: tracked.CompanyId,
-                        CompanyBranchId: tracked.BranchId,
-                        MarketCode: tracked.MarketCode,
-                        PoNumber: tracked.PoNumber,
-                        // T077 (US2) — hard-pin individual quotes to invoice_billing=false
-                        // regardless of any future schema or refactor that might flip a
-                        // company-eligibility flag on this column. Individual quotes are
-                        // always retail-billed (FR-027 / spec.md US2 independent test).
-                        InvoiceBilling: tracked.CompanyId is null ? false : tracked.InvoiceBilling,
-                        TermsDays: null, // populated from QuoteVersion.TermsDays once the cycle wires the version snapshot pull-through; stub-tolerant.
-                        Lines: Array.Empty<QuoteConversionLine>(), // line snapshot is on QuoteVersion; T100 hydrates the real list.
-                        Subtotal: 0m,
-                        TotalDiscount: 0m,
-                        GrandTotal: 0m,
-                        IdempotencyKey: idempotencyKey),
-                    ct);
-                convertedOrderId = conversion.OrderId;
-                convertedReplay = conversion.WasIdempotentReplay;
-            }
-            catch (Exception ex) when (ex is not OperationCanceledException)
-            {
-                // Conversion failed AFTER the state transition committed. The
-                // proper resolution is the outbox pattern (Phase 1.5); until
-                // then we log loudly so ops can replay the conversion. The quote
-                // is already accepted, which matches the contract intent — the
-                // client sees a successful acceptance; the order materializes
-                // out-of-band on retry.
-                _logger.LogError(ex,
-                    "Quote-to-order conversion failed AFTER acceptance committed "
-                    + "(quote_id={QuoteId}, idempotency_key={IdempotencyKey}). "
-                    + "Replay required via outbox / manual ops.",
-                    tracked.Id, idempotencyKey);
-            }
         }
 
         // ---------- 12. Audit + domain event (post-commit, isolated) ----------
@@ -501,7 +524,7 @@ public sealed class SubmitAcceptanceHandler
                     CustomerId: tracked.CustomerId,
                     CompanyId: tracked.CompanyId,
                     MarketCode: tracked.MarketCode,
-                    LocaleHint: "en"), ct);
+                    LocaleHint: callerLocaleHint), ct);
             }
         }
         catch (Exception ex) when (ex is not OperationCanceledException)

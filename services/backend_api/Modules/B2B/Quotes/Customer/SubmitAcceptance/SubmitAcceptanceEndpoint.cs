@@ -106,7 +106,9 @@ public static class SubmitAcceptanceEndpoint
             }, statusCode: 400, contentType: "application/problem+json");
         }
 
-        var result = await handler.HandleAsync(id, customerId.Value, marketCode, idempotencyKey, body, ct);
+        var localeHint = B2BResponseFactory.ResolveLocaleHint(context);
+        var result = await handler.HandleAsync(
+            id, customerId.Value, marketCode, idempotencyKey, body, ct, localeHint);
 
         if (result.IsSuccess)
         {

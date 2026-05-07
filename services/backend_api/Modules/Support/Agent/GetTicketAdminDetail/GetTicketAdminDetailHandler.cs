@@ -182,9 +182,11 @@ public sealed class GetTicketAdminDetailHandler
                 var firstName = info.FirstName?.Trim() ?? string.Empty;
                 var lastName = info.LastName?.Trim() ?? string.Empty;
                 var initial = lastName.Length > 0 ? lastName[..1] + "." : string.Empty;
+                // CodeRabbit Loop-2: trim the composed name so an empty
+                // first_name doesn't surface as " S." in admin reads.
                 displayName = string.IsNullOrEmpty(initial)
                     ? firstName
-                    : $"{firstName} {initial}";
+                    : $"{firstName} {initial}".Trim();
                 if (string.IsNullOrWhiteSpace(displayName))
                 {
                     displayName = "(unknown customer)";

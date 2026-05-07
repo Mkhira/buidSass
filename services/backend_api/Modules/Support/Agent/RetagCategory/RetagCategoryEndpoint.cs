@@ -1,5 +1,4 @@
 using BackendApi.Modules.Support.Authorization;
-using BackendApi.Modules.Support.Customer;
 using BackendApi.Modules.Support.Primitives;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -25,17 +24,19 @@ public static class RetagCategoryEndpoint
         [FromServices] RetagCategoryHandler handler,
         CancellationToken ct)
     {
-        if (!AdminSupportResponseFactory.HasAgentLevelAccess(context))
-        {
-            return AdminSupportResponseFactory.Problem(context, 403,
-                TicketReasonCode.QueueForbidden,
-                "support.agent permission required.");
-        }
+        // CodeRabbit Loop-2: authn (401) before authz (403) so an
+        // unauthenticated caller sees the correct status.
         var actorId = AdminSupportResponseFactory.ResolveActorId(context);
         if (actorId is null)
         {
             return AdminSupportResponseFactory.Problem(context, 401,
                 TicketReasonCode.QueueForbidden, "Authentication required.");
+        }
+        if (!AdminSupportResponseFactory.HasAgentLevelAccess(context))
+        {
+            return AdminSupportResponseFactory.Problem(context, 403,
+                TicketReasonCode.QueueForbidden,
+                "support.agent permission required.");
         }
         if (body is null || string.IsNullOrWhiteSpace(body.Category))
         {
@@ -49,7 +50,7 @@ public static class RetagCategoryEndpoint
             : (AdminSupportResponseFactory.HasLeadPermission(context)
                 ? SupportPermissions.SupportLead
                 : SupportPermissions.SupportAgent);
-        var marketCode = SupportResponseFactory.ResolveMarketCode(context);
+        var marketCode = AdminSupportResponseFactory.ResolveMarketCode(context);
 
         var result = await handler.HandleAsync(new RetagCategoryCommand(
             TicketId: ticketId,

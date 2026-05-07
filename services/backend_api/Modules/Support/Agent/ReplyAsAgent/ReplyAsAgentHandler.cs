@@ -10,7 +10,6 @@ namespace BackendApi.Modules.Support.Agent.ReplyAsAgent;
 public sealed record ReplyAsAgentCommand(
     Guid TicketId,
     Guid ActorId,
-    bool ActorIsAssigned,
     bool ActorIsLeadOrSuperAdmin,
     string ActorRole,
     string Body,
@@ -70,11 +69,10 @@ public sealed class ReplyAsAgentHandler
         }
 
         // C1 (TOCTOU close): re-validate FR-014a against the freshly-loaded
-        // ticket row. The endpoint resolves ActorIsAssigned in a separate query
-        // before invoking the handler; between that read and our load here, a
-        // lead reassignment could have flipped AssignedAgentId. We trust only
-        // the just-loaded row, allowing the action when the actor is currently
-        // the assigned agent OR explicitly lead/super_admin.
+        // ticket row. This is now the single source of truth for assignment
+        // (the endpoint pre-load + the `ActorIsAssigned` command field were
+        // removed in CodeRabbit Loop-2). We allow the action when the actor
+        // is currently the assigned agent OR explicitly lead/super_admin.
         var actorCurrentlyAssigned = ticket.AssignedAgentId == cmd.ActorId;
         if (!actorCurrentlyAssigned && !cmd.ActorIsLeadOrSuperAdmin)
         {

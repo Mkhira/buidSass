@@ -1,4 +1,3 @@
-using BackendApi.Modules.Support.Customer;
 using BackendApi.Modules.Support.Primitives;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -46,7 +45,7 @@ public static class ListTicketsByCustomerEndpoint
         }
 
         var isSuperAdmin = AdminSupportResponseFactory.HasSuperAdmin(context);
-        var marketCode = SupportResponseFactory.ResolveMarketCode(context);
+        var marketCode = AdminSupportResponseFactory.ResolveMarketCode(context);
 
         var result = await handler.HandleAsync(new ListTicketsByCustomerQuery(
             CustomerId: customerId,

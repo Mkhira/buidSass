@@ -1,10 +1,8 @@
 using BackendApi.Modules.Support.Authorization;
-using BackendApi.Modules.Support.Persistence;
 using BackendApi.Modules.Support.Primitives;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Routing;
-using Microsoft.EntityFrameworkCore;
 
 namespace BackendApi.Modules.Support.Agent.ReplyAsAgent;
 
@@ -24,27 +22,29 @@ public static class ReplyAsAgentEndpoint
         [FromBody] ReplyRequest? body,
         HttpContext context,
         [FromServices] ReplyAsAgentHandler handler,
-        [FromServices] SupportDbContext db,
         CancellationToken ct)
     {
-        if (!AdminSupportResponseFactory.HasAgentLevelAccess(context))
-        {
-            return AdminSupportResponseFactory.Problem(context, 403,
-                TicketReasonCode.QueueForbidden, "support.agent permission required.");
-        }
+        // CodeRabbit Loop-2: authn (401) before authz (403).
         var actorId = AdminSupportResponseFactory.ResolveActorId(context);
         if (actorId is null)
         {
             return AdminSupportResponseFactory.Problem(context, 401,
                 TicketReasonCode.QueueForbidden, "Authentication required.");
         }
+        if (!AdminSupportResponseFactory.HasAgentLevelAccess(context))
+        {
+            return AdminSupportResponseFactory.Problem(context, 403,
+                TicketReasonCode.QueueForbidden, "support.agent permission required.");
+        }
 
-        var assigned = await db.Tickets.AsNoTracking()
-            .Where(t => t.Id == ticketId)
-            .Select(t => t.AssignedAgentId)
-            .FirstOrDefaultAsync(ct);
-
-        var actorIsAssigned = assigned == actorId.Value;
+        // CodeRabbit Loop-2: ActorIsAssigned was previously resolved here via
+        // a pre-load `db.Tickets.Select(t => t.AssignedAgentId)` lookup. After
+        // closing the FR-014a TOCTOU window, the handler revalidates
+        // assignment from the freshly-loaded ticket row, so the pre-load is
+        // dead code and has been removed along with the field on
+        // ReplyAsAgentCommand. The handler is now the single source of truth
+        // for assignment — see the post-load check guarded by
+        // `ticket.AssignedAgentId == cmd.ActorId`.
         var actorIsLeadOrSuperAdmin = AdminSupportResponseFactory.HasLeadPermission(context)
             || AdminSupportResponseFactory.HasSuperAdmin(context);
 
@@ -55,7 +55,6 @@ public static class ReplyAsAgentEndpoint
         var result = await handler.HandleAsync(new ReplyAsAgentCommand(
             TicketId: ticketId,
             ActorId: actorId.Value,
-            ActorIsAssigned: actorIsAssigned,
             ActorIsLeadOrSuperAdmin: actorIsLeadOrSuperAdmin,
             ActorRole: actorRole,
             Body: body?.Body ?? string.Empty,

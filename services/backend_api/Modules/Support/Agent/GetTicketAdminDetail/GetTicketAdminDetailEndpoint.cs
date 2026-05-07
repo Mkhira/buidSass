@@ -1,4 +1,3 @@
-using BackendApi.Modules.Support.Customer;
 using BackendApi.Modules.Support.Primitives;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -25,24 +24,25 @@ public static class GetTicketAdminDetailEndpoint
         [FromServices] GetTicketAdminDetailHandler handler,
         CancellationToken ct)
     {
-        if (!AdminSupportResponseFactory.HasAgentLevelAccess(context))
-        {
-            return AdminSupportResponseFactory.Problem(context, 403,
-                TicketReasonCode.QueueForbidden,
-                "support.agent permission required.");
-        }
+        // CodeRabbit Loop-2: authn (401) before authz (403).
         var actorId = AdminSupportResponseFactory.ResolveActorId(context);
         if (actorId is null)
         {
             return AdminSupportResponseFactory.Problem(context, 401,
                 TicketReasonCode.QueueForbidden, "Authentication required.");
         }
+        if (!AdminSupportResponseFactory.HasAgentLevelAccess(context))
+        {
+            return AdminSupportResponseFactory.Problem(context, 403,
+                TicketReasonCode.QueueForbidden,
+                "support.agent permission required.");
+        }
 
         var isSuperAdmin = AdminSupportResponseFactory.HasSuperAdmin(context);
         var isLeadOrSuperAdmin =
             AdminSupportResponseFactory.HasLeadPermission(context)
             || isSuperAdmin;
-        var marketCode = SupportResponseFactory.ResolveMarketCode(context);
+        var marketCode = AdminSupportResponseFactory.ResolveMarketCode(context);
 
         var result = await handler.HandleAsync(new GetTicketAdminDetailQuery(
             TicketId: ticketId,

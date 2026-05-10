@@ -228,8 +228,15 @@ public static class CommercialPreviewProfileEndpoints
 
     private static object SnapshotForAudit(PreviewProfile p) => new
     {
-        p.Id, p.Name, p.MarketCode, p.Locale, p.AccountKind, p.TierId,
-        p.VerificationState, p.Visibility, p.CreatedBy,
+        p.Id,
+        p.Name,
+        p.MarketCode,
+        p.Locale,
+        p.AccountKind,
+        p.TierId,
+        p.VerificationState,
+        p.Visibility,
+        p.CreatedBy,
     };
 
     // -------------------- POST /{id}/promote-to-shared --------------------

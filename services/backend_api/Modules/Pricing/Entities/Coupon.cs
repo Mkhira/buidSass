@@ -32,6 +32,20 @@ public sealed class Coupon
     public bool AppliesToBroken { get; set; }
     public DateTimeOffset? AppliesToBrokenAtUtc { get; set; }
 
+    // ---------- bilingual operator labels (spec 007-b US1) ----------
+    // Required at create-time per contract §2.1 / acceptance scenario 4
+    // (`coupon.label.required_bilingual`). Stored as separate columns rather
+    // than a JSONB blob to keep PG indexing and admin filtering trivial.
+    public string LabelAr { get; set; } = string.Empty;
+    public string LabelEn { get; set; } = string.Empty;
+    public string? DescriptionAr { get; set; }
+    public string? DescriptionEn { get; set; }
+
+    // ---------- author actor (spec 007-b US5 high-impact gate) ----------
+    // Tracked from create-time so the approval flow can assert the
+    // self-approval guard (R12 layer 1) without joining audit history.
+    public Guid AuthorActorId { get; set; }
+
     /// <summary>
     /// Optimistic-concurrency token mapped to PostgreSQL <c>xmin</c>.
     /// EF Core treats this as <c>IsRowVersion()</c> — value populated on read; do not set manually.

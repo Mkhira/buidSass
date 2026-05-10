@@ -86,6 +86,15 @@ public sealed class CouponConfiguration : IEntityTypeConfiguration<Coupon>
         builder.Property(x => x.DisplayInBanners).HasDefaultValue(false).IsRequired();
         builder.Property(x => x.AppliesToBroken).HasDefaultValue(false).IsRequired();
         builder.Property(x => x.AppliesToBrokenAtUtc);
+        // spec 007-b US1: bilingual labels (Principle 4). Stored separately so
+        // the (LabelAr, LabelEn) pair can carry NOT NULL constraints once the
+        // backfill migration completes; defaulted to empty string at the EF
+        // layer so existing rows from 007-a survive the additive migration.
+        builder.Property(x => x.LabelAr).HasColumnType("text").HasDefaultValue(string.Empty).IsRequired();
+        builder.Property(x => x.LabelEn).HasColumnType("text").HasDefaultValue(string.Empty).IsRequired();
+        builder.Property(x => x.DescriptionAr).HasColumnType("text");
+        builder.Property(x => x.DescriptionEn).HasColumnType("text");
+        builder.Property(x => x.AuthorActorId).HasDefaultValue(Guid.Empty).IsRequired();
         builder.Property(x => x.XminRowVersion)
             .HasColumnName("xmin")
             .HasColumnType("xid")

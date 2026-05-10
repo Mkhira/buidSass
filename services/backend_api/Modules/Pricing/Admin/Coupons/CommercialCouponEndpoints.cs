@@ -687,6 +687,13 @@ public static class CommercialCouponEndpoints
             Code = clonedCode.ToUpperInvariant(),
             Kind = source.Kind,
             Value = source.Value,
+            // CodeRabbit PR #78 round 2 Major: copy the new amount_off and
+            // stacking columns so a cloned draft preserves the source's
+            // economic intent. Without these, an amount_off clone would
+            // start with AmountOffMinor=null (broken) and stacking would
+            // reset to the entity-default true.
+            AmountOffMinor = source.AmountOffMinor,
+            StacksWithPromotions = source.StacksWithPromotions,
             CapMinor = source.CapMinor,
             PerCustomerLimit = source.PerCustomerLimit,
             OverallLimit = source.OverallLimit,

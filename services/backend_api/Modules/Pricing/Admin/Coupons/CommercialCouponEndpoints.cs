@@ -83,17 +83,37 @@ public static class CommercialCouponEndpoints
         var nowUtc = time.GetUtcNow();
         var code = request.Code.Trim().ToUpperInvariant();
 
+        var kind = MapTypeToKind(request.Type);
+        var normalisedMarkets = NormaliseMarkets(request.Markets);
+        // CodeRabbit PR #78 round 1 Major: validate after normalisation so
+        // inputs like ["", " "] don't slip past the upstream length>0 guard.
+        if (normalisedMarkets.Length == 0)
+        {
+            return AdminCommercialResponseFactory.Problem(context, 400,
+                CommercialReasonCode.CouponMarketsRequired,
+                "At least one non-blank market is required.");
+        }
         var entity = new Coupon
         {
             Id = Guid.NewGuid(),
             Code = code,
-            Kind = MapTypeToKind(request.Type),
-            Value = request.Value ?? 0,
+            Kind = kind,
+            // CodeRabbit PR #78 round 1 Major: persist the right value column
+            // for the coupon's kind. The 007-a engine expects `Value` in basis
+            // points (10000 = 100%) — see Modules/Pricing/Primitives/Layers/
+            // CouponLayer.cs. Wire shape uses whole percent (1..100) per
+            // contract §2.1, so multiply by 100 on persist. Amount-off uses
+            // the new `AmountOffMinor` bigint column directly.
+            Value = kind == "percent" ? (request.Value ?? 0) * 100 : 0,
+            AmountOffMinor = kind == "amount" ? request.AmountOffMinor : null,
             CapMinor = request.CapMinor,
             PerCustomerLimit = request.PerCustomerLimit,
             OverallLimit = request.OverallLimit,
             ExcludesRestricted = request.ExcludesRestricted,
-            MarketCodes = NormaliseMarkets(request.Markets),
+            // CodeRabbit PR #78 round 1 Major: persist StacksWithPromotions so
+            // the API round-trips authored stackability.
+            StacksWithPromotions = request.StacksWithPromotions,
+            MarketCodes = normalisedMarkets,
             ValidFrom = request.ValidFrom,
             ValidTo = request.ValidTo,
             DisplayInBanners = request.DisplayInBanners,
@@ -118,7 +138,11 @@ public static class CommercialCouponEndpoints
 
         db.Coupons.Add(entity);
 
-        await audit.AppendAsync(
+        // Stage the local commercial-audit row but defer the platform
+        // audit_log_entries publish until AFTER SaveChangesAsync succeeds —
+        // otherwise a unique-violation rollback leaves the two channels out
+        // of sync (CodeRabbit PR #78 round 1 Major).
+        var publishAudit = audit.StageLocal(
             "coupon", entity.Id, "coupon.created",
             actorId, ActorRole,
             before: null,
@@ -126,7 +150,7 @@ public static class CommercialCouponEndpoints
             diff: null,
             reasonNote: null,
             correlationId: null,
-            nowUtc, ct);
+            nowUtc);
 
         try
         {
@@ -139,6 +163,7 @@ public static class CommercialCouponEndpoints
                 "Coupon code already exists.",
                 $"Code '{code}' is already taken (case-insensitive).");
         }
+        await publishAudit(ct);
 
         return Results.Created(
             $"/v1/admin/commercial/coupons/{entity.Id:N}",
@@ -205,11 +230,20 @@ public static class CommercialCouponEndpoints
             }
         }
 
-        if (request.Markets is not null && request.Markets.Length == 0)
+        // CodeRabbit PR #78 round 1 Major: validate after normalisation. The
+        // pre-normalisation length>0 check passes for ["", " "] but the
+        // collapsed array is empty, and no markets means the threshold gate
+        // can be silently skipped.
+        string[]? normalisedMarketsForUpdate = null;
+        if (request.Markets is not null)
         {
-            return AdminCommercialResponseFactory.Problem(context, 400,
-                CommercialReasonCode.CouponMarketsRequired,
-                "At least one market is required.");
+            normalisedMarketsForUpdate = NormaliseMarkets(request.Markets);
+            if (normalisedMarketsForUpdate.Length == 0)
+            {
+                return AdminCommercialResponseFactory.Problem(context, 400,
+                    CommercialReasonCode.CouponMarketsRequired,
+                    "At least one non-blank market is required.");
+            }
         }
 
         if (request.Label is not null
@@ -234,18 +268,62 @@ public static class CommercialCouponEndpoints
                 "Usage limits must be either null (no limit) or > 0; zero is not allowed.");
         }
 
+        // CodeRabbit PR #78 round 1 Major: PATCH must enforce the same
+        // type/value invariants as CREATE so a draft can't be patched into
+        // an invalid commercial state (e.g., percent=101, unknown type that
+        // silently maps to "percent", amount_off <= 0).
+        string? patchedKind = null;
+        if (request.Type is not null)
+        {
+            if (request.Type != "percent_off" && request.Type != "amount_off")
+            {
+                return AdminCommercialResponseFactory.Problem(context, 400,
+                    CommercialReasonCode.CouponValueOutOfRange,
+                    "Type must be 'percent_off' or 'amount_off'.");
+            }
+            patchedKind = MapTypeToKind(request.Type);
+        }
+        var effectiveKind = patchedKind ?? entity.Kind;
+        if (request.Value is { } vbsps)
+        {
+            if (effectiveKind == "percent" && (vbsps <= 0 || vbsps > 100))
+            {
+                return AdminCommercialResponseFactory.Problem(context, 400,
+                    CommercialReasonCode.CouponValueOutOfRange,
+                    "Percent_off requires value in (0, 100].");
+            }
+        }
+        if (request.AmountOffMinor is { } amt && amt <= 0)
+        {
+            return AdminCommercialResponseFactory.Problem(context, 400,
+                CommercialReasonCode.CouponValueOutOfRange,
+                "amount_off_minor must be > 0.");
+        }
+
         var actorId = AdminCommercialResponseFactory.ResolveActorAccountId(context);
         var nowUtc = time.GetUtcNow();
         var before = SnapshotForAudit(entity);
 
-        if (request.Type is not null) entity.Kind = MapTypeToKind(request.Type);
-        if (request.Value is not null) entity.Value = request.Value.Value;
-        if (request.AmountOffMinor is not null) entity.Value = (int)Math.Min(int.MaxValue, request.AmountOffMinor.Value);
+        if (patchedKind is not null) entity.Kind = patchedKind;
+        // CodeRabbit PR #78 round 1 Major: route the patched value into the
+        // right column based on the effective kind, instead of overwriting
+        // legacy `Value` for both percent and amount kinds. Persist percent in
+        // basis points (×100) to match the 007-a engine's expected unit
+        // (CouponLayer.cs Apply divides by 10_000m).
+        if (request.Value is not null && effectiveKind == "percent")
+        {
+            entity.Value = request.Value.Value * 100;
+        }
+        if (request.AmountOffMinor is not null && effectiveKind == "amount")
+        {
+            entity.AmountOffMinor = request.AmountOffMinor;
+        }
         if (request.CapMinor is not null) entity.CapMinor = request.CapMinor;
         if (request.PerCustomerLimit is not null) entity.PerCustomerLimit = request.PerCustomerLimit;
         if (request.OverallLimit is not null) entity.OverallLimit = request.OverallLimit;
         if (request.ExcludesRestricted is not null) entity.ExcludesRestricted = request.ExcludesRestricted.Value;
-        if (request.Markets is not null) entity.MarketCodes = NormaliseMarkets(request.Markets);
+        if (request.StacksWithPromotions is not null) entity.StacksWithPromotions = request.StacksWithPromotions.Value;
+        if (normalisedMarketsForUpdate is not null) entity.MarketCodes = normalisedMarketsForUpdate;
         if (request.ValidFrom is not null) entity.ValidFrom = request.ValidFrom;
         if (request.ValidTo is not null) entity.ValidTo = request.ValidTo;
         if (request.DisplayInBanners is not null) entity.DisplayInBanners = request.DisplayInBanners.Value;
@@ -262,11 +340,11 @@ public static class CommercialCouponEndpoints
         entity.UpdatedAt = nowUtc;
 
         var after = SnapshotForAudit(entity);
-        await audit.AppendAsync(
+        var publishAudit = audit.StageLocal(
             "coupon", entity.Id, "coupon.updated",
             actorId, ActorRole,
             before, after, ComputeDiff(before, after),
-            reasonNote: null, correlationId: null, nowUtc, ct);
+            reasonNote: null, correlationId: null, nowUtc);
 
         try
         {
@@ -278,6 +356,7 @@ public static class CommercialCouponEndpoints
                 CommercialReasonCode.CommercialRowVersionConflict,
                 "Coupon was changed by another actor.");
         }
+        await publishAudit(ct);
 
         return Results.Ok(ToResponse(entity, null));
     }
@@ -372,14 +451,15 @@ public static class CommercialCouponEndpoints
         entity.UpdatedAt = nowUtc;
         var after = new { state = entity.State.ToString().ToLowerInvariant() };
 
-        await audit.AppendAsync(
+        var publishAudit = audit.StageLocal(
             "coupon", entity.Id, "coupon.lifecycle_transitioned",
             actorId, ActorRole,
             before, after,
             diff: new { state_change = new { from = before.state, to = after.state } },
-            reasonNote: null, correlationId: null, nowUtc, ct);
+            reasonNote: null, correlationId: null, nowUtc);
 
         await db.SaveChangesAsync(ct);
+        await publishAudit(ct);
 
         if (newState == LifecycleState.Active)
         {
@@ -455,14 +535,15 @@ public static class CommercialCouponEndpoints
         var threshold = await ResolveThresholdAsync(db, entity.MarketCodes, ct);
         var graceSeconds = threshold?.CouponInFlightGraceSeconds ?? 1800;
 
-        await audit.AppendAsync(
+        var publishAudit = audit.StageLocal(
             "coupon", entity.Id, "coupon.lifecycle_transitioned",
             actorId, ActorRole,
             before, after,
             diff: new { state_change = new { from = before.state, to = after.state } },
-            reasonNote: note, correlationId: null, nowUtc, ct);
+            reasonNote: note, correlationId: null, nowUtc);
 
         await db.SaveChangesAsync(ct);
+        await publishAudit(ct);
 
         await events.Publish(new CouponDeactivated(
             entity.Id, nowUtc, actorId, note, graceSeconds), ct);
@@ -554,14 +635,15 @@ public static class CommercialCouponEndpoints
         entity.UpdatedAt = nowUtc;
         var after = new { state = entity.State.ToString().ToLowerInvariant() };
 
-        await audit.AppendAsync(
+        var publishAudit = audit.StageLocal(
             "coupon", entity.Id, "coupon.lifecycle_transitioned",
             actorId, ActorRole,
             before, after,
             diff: new { state_change = new { from = before.state, to = after.state } },
-            reasonNote: note, correlationId: null, nowUtc, ct);
+            reasonNote: note, correlationId: null, nowUtc);
 
         await db.SaveChangesAsync(ct);
+        await publishAudit(ct);
 
         await events.Publish(new CouponReactivated(entity.Id, nowUtc, actorId), ct);
 
@@ -628,15 +710,16 @@ public static class CommercialCouponEndpoints
         };
 
         db.Coupons.Add(clone);
-        await audit.AppendAsync(
+        var publishAudit = audit.StageLocal(
             "coupon", clone.Id, "coupon.created",
             actorId, ActorRole,
             before: null,
             after: SnapshotForAudit(clone),
             diff: new { cloned_from = source.Id },
-            reasonNote: null, correlationId: null, nowUtc, ct);
+            reasonNote: null, correlationId: null, nowUtc);
 
         await db.SaveChangesAsync(ct);
+        await publishAudit(ct);
         return Results.Created(
             $"/v1/admin/commercial/coupons/{clone.Id:N}",
             ToResponse(clone, null));
@@ -888,12 +971,18 @@ public static class CommercialCouponEndpoints
                 rows[0].MarketCode, GateEnabled: false, null, null, null,
                 rows[0].CouponInFlightGraceSeconds, rows[0].PromotionInFlightGraceSeconds);
         }
+        // CodeRabbit PR #78 round 1 Major: preserve nulls instead of
+        // collapsing them to 0 with DefaultIfEmpty().Min(), which would turn
+        // "no threshold configured" into the strictest possible threshold and
+        // force approval unexpectedly. Use Min over nullable sequences so an
+        // all-unset criterion yields null (the gate then abstains for that
+        // criterion).
         return new CommercialThresholdPolicy(
             string.Join(",", enabled.Select(r => r.MarketCode)),
             GateEnabled: true,
-            ThresholdPercentOff: enabled.Where(r => r.ThresholdPercentOff is not null).Select(r => r.ThresholdPercentOff!.Value).DefaultIfEmpty().Min(),
-            ThresholdAmountOffMinor: enabled.Where(r => r.ThresholdAmountOffMinor is not null).Select(r => r.ThresholdAmountOffMinor!.Value).DefaultIfEmpty().Min(),
-            ThresholdDurationDays: enabled.Where(r => r.ThresholdDurationDays is not null).Select(r => r.ThresholdDurationDays!.Value).DefaultIfEmpty().Min(),
+            ThresholdPercentOff: enabled.Min(r => r.ThresholdPercentOff),
+            ThresholdAmountOffMinor: enabled.Min(r => r.ThresholdAmountOffMinor),
+            ThresholdDurationDays: enabled.Min(r => r.ThresholdDurationDays),
             CouponInFlightGraceSeconds: enabled.Min(r => r.CouponInFlightGraceSeconds),
             PromotionInFlightGraceSeconds: enabled.Min(r => r.PromotionInFlightGraceSeconds));
     }
@@ -910,9 +999,21 @@ public static class CommercialCouponEndpoints
         _ => null,
     };
 
+    /// <summary>
+    /// Map the persisted Coupon to the gate's candidate shape.
+    ///
+    /// Persisted <see cref="Coupon.Value"/> for percent kind is in basis
+    /// points (10000 = 100%) per the 007-a engine contract; the threshold
+    /// surface (<see cref="CommercialThresholdPolicy.ThresholdPercentOff"/>)
+    /// is whole percentage points in <c>numeric(5,2)</c> (e.g. 30.00). We
+    /// divide by 100 here so the candidate and threshold compare in the same
+    /// unit. CodeRabbit PR #78 round 1 Major flagged the previous division
+    /// by 100m as wrong; the correction is to keep the divide BUT match the
+    /// percent unit, not skip it.
+    /// </summary>
     private static HighImpactCandidate ToHighImpactCandidate(Coupon c) => new(
         PercentOff: c.Kind == "percent" ? c.Value / 100m : null,
-        AmountOffMinor: c.Kind == "amount" ? c.Value : null,
+        AmountOffMinor: c.Kind == "amount" ? c.AmountOffMinor : null,
         CapMinor: c.CapMinor,
         PerCustomerLimit: c.PerCustomerLimit,
         OverallLimit: c.OverallLimit,
@@ -928,10 +1029,12 @@ public static class CommercialCouponEndpoints
         c.Code,
         c.Kind,
         c.Value,
+        c.AmountOffMinor,
         c.CapMinor,
         c.PerCustomerLimit,
         c.OverallLimit,
         c.ExcludesRestricted,
+        c.StacksWithPromotions,
         markets = c.MarketCodes,
         c.ValidFrom,
         c.ValidTo,
@@ -957,11 +1060,18 @@ public static class CommercialCouponEndpoints
             Code: c.Code,
             State: c.State.ToString().ToLowerInvariant(),
             Type: MapKindToType(c.Kind),
-            Value: c.Kind == "percent" ? c.Value : null,
+            // Persisted Value is bps for percent kind; expose it as whole
+            // percent (1..100) on the wire to match contract §2.1.
+            Value: c.Kind == "percent" ? c.Value / 100 : null,
+            // CodeRabbit PR #78 round 1 Major: round-trip the authored
+            // amount_off and stackability so consumers can read what they
+            // wrote (otherwise the API silently drops them).
+            AmountOffMinor: c.Kind == "amount" ? c.AmountOffMinor : null,
             CapMinor: c.CapMinor,
             PerCustomerLimit: c.PerCustomerLimit,
             OverallLimit: c.OverallLimit,
             ExcludesRestricted: c.ExcludesRestricted,
+            StacksWithPromotions: c.StacksWithPromotions,
             Markets: c.MarketCodes,
             ValidFrom: c.ValidFrom,
             ValidTo: c.ValidTo,

@@ -12,7 +12,7 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace BackendApi.Modules.Pricing.Persistence.Migrations
 {
     [DbContext(typeof(PricingDbContext))]
-    [Migration("20260510104003_Pricing_007b_AddCouponLabels")]
+    [Migration("20260510113115_Pricing_007b_AddCouponLabels")]
     partial class Pricing_007b_AddCouponLabels
     {
         /// <inheritdoc />
@@ -399,6 +399,9 @@ namespace BackendApi.Modules.Pricing.Persistence.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
+                    b.Property<long?>("AmountOffMinor")
+                        .HasColumnType("bigint");
+
                     b.Property<bool>("AppliesToBroken")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("boolean")
@@ -408,9 +411,7 @@ namespace BackendApi.Modules.Pricing.Persistence.Migrations
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<Guid>("AuthorActorId")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid")
-                        .HasDefaultValue(new Guid("00000000-0000-0000-0000-000000000000"));
+                        .HasColumnType("uuid");
 
                     b.Property<long?>("CapMinor")
                         .HasColumnType("bigint");
@@ -448,15 +449,11 @@ namespace BackendApi.Modules.Pricing.Persistence.Migrations
 
                     b.Property<string>("LabelAr")
                         .IsRequired()
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("text")
-                        .HasDefaultValue("");
+                        .HasColumnType("text");
 
                     b.Property<string>("LabelEn")
                         .IsRequired()
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("text")
-                        .HasDefaultValue("");
+                        .HasColumnType("text");
 
                     b.PrimitiveCollection<string[]>("MarketCodes")
                         .IsRequired()
@@ -470,6 +467,11 @@ namespace BackendApi.Modules.Pricing.Persistence.Migrations
 
                     b.Property<int?>("PerCustomerLimit")
                         .HasColumnType("integer");
+
+                    b.Property<bool>("StacksWithPromotions")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(true);
 
                     b.Property<int>("State")
                         .ValueGeneratedOnAdd()

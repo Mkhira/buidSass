@@ -117,18 +117,26 @@ public static class CommercialPreviewEndpoints
                 withoutOutcome.ReasonCode!, withoutOutcome.Detail!);
         }
 
-        // Second call: WITH the in-flight rule. For an unsaved draft body we
-        // persist a transient `__PV_`-prefixed coupon row keyed on a random
-        // GUID code so concurrent operators don't collide on the same code.
-        // For a saved rule (rule_id set), we reuse the existing code as-is.
-        string? engineCouponCode = null;
+        // Second call: WITH the in-flight rule. We always persist a transient
+        // `__PV_`-prefixed coupon row (cloned from the saved rule, or built
+        // from the unsaved draft body) so the engine resolves the rule even
+        // when the saved row is draft / scheduled / deactivated. CodeRabbit
+        // PR #78 round 1 Major:
+        // - PrepareInFlightCouponAsync now returns a 400 PreparedRule.Failure
+        //   for an unknown rule_id instead of throwing (would be a 500).
+        // - Saved rules are cloned into a transient active row (not just
+        //   reusing the saved code), so the preview can't silently match the
+        //   baseline when the source coupon is inactive.
         Guid? transientCouponId = null;
         try
         {
-            (engineCouponCode, transientCouponId) = await PrepareInFlightCouponAsync(
-                pricing, request.InFlightRule, profile.MarketCode, time.GetUtcNow(), actorId, ct);
+            var prepared = await PrepareInFlightCouponAsync(
+                context, pricing, request.InFlightRule, profile.MarketCode,
+                time.GetUtcNow(), actorId, ct);
+            if (prepared.Failure is not null) return prepared.Failure;
+            transientCouponId = prepared.TransientId;
 
-            var withCtx = BuildContext(profile, cart, marketLower, engineCouponCode, time.GetUtcNow());
+            var withCtx = BuildContext(profile, cart, marketLower, prepared.EngineCouponCode, time.GetUtcNow());
             var withOutcome = await calculator.CalculateAsync(withCtx, ct);
             if (!withOutcome.IsSuccess)
             {
@@ -155,21 +163,26 @@ public static class CommercialPreviewEndpoints
         {
             if (transientCouponId is { } cid)
             {
-                // Best-effort cleanup. If the host crashes between the row insert
-                // and this DELETE, the integrity-scan worker (T148, polish phase)
-                // reaps `__PV_`-prefixed rows on its next pass.
+                // CodeRabbit PR #78 round 1 Major: log cleanup failures so
+                // orphaned `__PV_` rows can be triaged quickly. The integrity-
+                // scan worker (T148, Polish phase) sweeps any rows that survive.
                 try
                 {
                     await pricing.Coupons.Where(c => c.Id == cid).ExecuteDeleteAsync(CancellationToken.None);
                 }
-                catch
+                catch (Exception ex)
                 {
-                    // Swallow — the transient row is harmless and the scrub job
-                    // will pick it up; do not surface cleanup errors to the caller.
+                    var logger = context.RequestServices.GetRequiredService<ILogger<PreviewCleanupLogScope>>();
+                    logger.LogWarning(ex,
+                        "pricing.preview.transient_cleanup_failed coupon_id={CouponId} code_prefix={Prefix} actor_id={ActorId}",
+                        cid, PreviewCodePrefix, actorId);
                 }
             }
         }
     }
+
+    /// <summary>Marker type so ILogger\&lt;T\&gt; resolution gives this scope a stable category.</summary>
+    private sealed class PreviewCleanupLogScope { }
 
     // -------------------- helpers --------------------
 
@@ -272,7 +285,19 @@ public static class CommercialPreviewEndpoints
 
     private static readonly Guid actorIdSyntheticForPreview = new("00000000-0000-0000-0000-00000000beef");
 
-    private static async Task<(string EngineCouponCode, Guid? TransientId)> PrepareInFlightCouponAsync(
+    /// <summary>
+    /// Returns the result of preparing the in-flight rule for the engine call.
+    /// CodeRabbit PR #78 round 1 Major: a missing saved coupon must surface as
+    /// a client error (Problem 400), not a 500. The result type carries the
+    /// failure path explicitly so the caller can short-circuit.
+    /// </summary>
+    private sealed record PreparedRule(
+        string? EngineCouponCode,
+        Guid? TransientId,
+        IResult? Failure);
+
+    private static async Task<PreparedRule> PrepareInFlightCouponAsync(
+        HttpContext context,
         PricingDbContext pricing,
         PreviewInFlightRule inFlight,
         string marketCodeUpper,
@@ -282,22 +307,26 @@ public static class CommercialPreviewEndpoints
     {
         if (inFlight.RuleId is { } savedId)
         {
-            // Saved rule path: re-use the existing code so the engine reads
-            // the persisted body via its normal coupon-resolution query.
+            // Saved rule path. CodeRabbit PR #78 round 1 Major: an inactive /
+            // draft saved coupon is invisible to the engine's IsActive=true
+            // filter, so the second calculation would silently match the
+            // baseline and the operator would see an empty delta. Clone the
+            // persisted body into a transient `__PV_`-prefixed row with
+            // IsActive=true + ValidFrom/ValidTo around now, then DELETE it in
+            // the caller's finally block.
             var saved = await pricing.Coupons.AsNoTracking()
                 .FirstOrDefaultAsync(c => c.Id == savedId, ct);
             if (saved is null)
             {
-                throw new PreviewSkuMissingException("(coupon)");
+                return new PreparedRule(
+                    null, null,
+                    AdminCommercialResponseFactory.Problem(context, 400,
+                        "preview.rule.invalid_body",
+                        $"Unknown rule_id {savedId:N}."));
             }
-            // Briefly flip the saved coupon to active so the engine resolves
-            // it even from draft state (preview-only). Persisted state is
-            // restored by caller's finally cleanup.
-            // For simplicity we don't actually flip — the engine reads
-            // IsActive=true regardless of state; saved rules that are
-            // already inactive trigger a warning and the operator must
-            // schedule first. That matches the spec contract §7.1 errors.
-            return (saved.Code, null);
+            var (clonedCode, clonedId) = await CreateTransientFromSavedAsync(
+                pricing, saved, nowUtc, actorId, ct);
+            return new PreparedRule(clonedCode, clonedId, null);
         }
 
         var body = inFlight.Coupon
@@ -306,20 +335,26 @@ public static class CommercialPreviewEndpoints
         // Synthesize a transient code that won't collide with operator codes.
         // Hardcoded NOT to use the operator-supplied code so a real ramping
         // coupon with the same code isn't shadowed during the preview window.
-        var transientCode = (PreviewCodePrefix + Guid.NewGuid().ToString("N").Substring(0, 16))
-            .ToUpperInvariant();
+        var transientCode = NewTransientCode();
         var marketLower = MarketToCartCode(marketCodeUpper);
 
+        // CodeRabbit PR #78 round 1 Major: align the transient with the
+        // PreviewInFlightCouponBody contract:
+        // - request.Value is whole percent (1..100); the 007-a engine expects
+        //   bps. Multiply by 100 here.
+        // - request.AmountOffMinor is bigint minor units; persist into the
+        //   new AmountOffMinor column without int.MaxValue clamping.
+        var kind = body.Type == "amount_off" ? "amount" : "percent";
         var transient = new Coupon
         {
             Id = Guid.NewGuid(),
             Code = transientCode,
-            Kind = body.Type switch { "percent_off" => "percent", "amount_off" => "amount", _ => "percent" },
-            Value = body.Type == "percent_off"
-                ? (body.Value ?? 0) * 100   // engine expects bps; UI value is 1..100
-                : (int)Math.Min(int.MaxValue, body.AmountOffMinor ?? 0),
+            Kind = kind,
+            Value = kind == "percent" ? (body.Value ?? 0) * 100 : 0,
+            AmountOffMinor = kind == "amount" ? body.AmountOffMinor : null,
             CapMinor = body.CapMinor,
             ExcludesRestricted = body.ExcludesRestricted,
+            StacksWithPromotions = true,
             MarketCodes = new[] { marketLower },
             ValidFrom = nowUtc.AddMinutes(-1),
             ValidTo = nowUtc.AddDays(1),
@@ -335,14 +370,61 @@ public static class CommercialPreviewEndpoints
         };
         pricing.Coupons.Add(transient);
         await pricing.SaveChangesAsync(ct);
+        return new PreparedRule(transientCode, transient.Id, null);
+    }
+
+    private static async Task<(string code, Guid id)> CreateTransientFromSavedAsync(
+        PricingDbContext pricing, Coupon saved, DateTimeOffset nowUtc, Guid actorId, CancellationToken ct)
+    {
+        // Clone the persisted body into a transient active row so the engine
+        // resolves it even when the source is draft / scheduled / deactivated.
+        // The saved row is left untouched.
+        var transientCode = NewTransientCode();
+        var transient = new Coupon
+        {
+            Id = Guid.NewGuid(),
+            Code = transientCode,
+            Kind = saved.Kind,
+            Value = saved.Value,
+            AmountOffMinor = saved.AmountOffMinor,
+            CapMinor = saved.CapMinor,
+            ExcludesRestricted = saved.ExcludesRestricted,
+            StacksWithPromotions = saved.StacksWithPromotions,
+            MarketCodes = saved.MarketCodes,
+            ValidFrom = nowUtc.AddMinutes(-1),
+            ValidTo = saved.ValidTo is { } vt && vt > nowUtc ? vt : nowUtc.AddDays(1),
+            IsActive = true,
+            State = LifecycleState.Active,
+            StateChangedAtUtc = nowUtc,
+            StateChangedByActorId = actorId,
+            AuthorActorId = actorId,
+            LabelAr = saved.LabelAr,
+            LabelEn = saved.LabelEn,
+            DescriptionAr = saved.DescriptionAr,
+            DescriptionEn = saved.DescriptionEn,
+            CreatedAt = nowUtc,
+            UpdatedAt = nowUtc,
+        };
+        pricing.Coupons.Add(transient);
+        await pricing.SaveChangesAsync(ct);
         return (transientCode, transient.Id);
     }
+
+    private static string NewTransientCode() =>
+        (PreviewCodePrefix + Guid.NewGuid().ToString("N").Substring(0, 16))
+            .ToUpperInvariant();
 
     private static PreviewExplanationOutcome BuildOutcome(
         PriceResult result,
         IReadOnlyList<PreviewCartLineResolved> cart)
     {
-        var skuByProduct = cart.ToDictionary(c => c.ProductId, c => c.Sku);
+        // CodeRabbit PR #78 round 1 Major: profile cart_lines may legitimately
+        // contain duplicate SKUs (operator authoring a multi-quantity scenario
+        // line-by-line). ToDictionary throws on duplicates; group by product
+        // and pick the first SKU label so build still succeeds.
+        var skuByProduct = cart
+            .GroupBy(c => c.ProductId)
+            .ToDictionary(g => g.Key, g => g.First().Sku);
         return new PreviewExplanationOutcome(
             ExplanationHash: result.ExplanationHash,
             Lines: result.Lines.Select(l => new PreviewExplanationLine(
@@ -371,7 +453,11 @@ public static class CommercialPreviewEndpoints
         PriceResult withoutRule,
         IReadOnlyList<PreviewCartLineResolved> cart)
     {
-        var skuByProduct = cart.ToDictionary(c => c.ProductId, c => c.Sku);
+        // Same duplicate-SKU tolerance as BuildOutcome (CodeRabbit PR #78
+        // round 1 Major).
+        var skuByProduct = cart
+            .GroupBy(c => c.ProductId)
+            .ToDictionary(g => g.Key, g => g.First().Sku);
         var withMap = withRule.Lines.ToDictionary(l => l.ProductId);
         var withoutMap = withoutRule.Lines.ToDictionary(l => l.ProductId);
         var deltas = new List<PreviewLineDelta>();

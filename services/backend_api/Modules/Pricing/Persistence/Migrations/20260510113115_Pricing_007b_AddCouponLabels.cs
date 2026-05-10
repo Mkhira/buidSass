@@ -11,6 +11,13 @@ namespace BackendApi.Modules.Pricing.Persistence.Migrations
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
+            migrationBuilder.AddColumn<long>(
+                name: "AmountOffMinor",
+                schema: "pricing",
+                table: "coupons",
+                type: "bigint",
+                nullable: true);
+
             migrationBuilder.AddColumn<Guid>(
                 name: "AuthorActorId",
                 schema: "pricing",
@@ -48,11 +55,24 @@ namespace BackendApi.Modules.Pricing.Persistence.Migrations
                 type: "text",
                 nullable: false,
                 defaultValue: "");
+
+            migrationBuilder.AddColumn<bool>(
+                name: "StacksWithPromotions",
+                schema: "pricing",
+                table: "coupons",
+                type: "boolean",
+                nullable: false,
+                defaultValue: true);
         }
 
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
+            migrationBuilder.DropColumn(
+                name: "AmountOffMinor",
+                schema: "pricing",
+                table: "coupons");
+
             migrationBuilder.DropColumn(
                 name: "AuthorActorId",
                 schema: "pricing",
@@ -75,6 +95,11 @@ namespace BackendApi.Modules.Pricing.Persistence.Migrations
 
             migrationBuilder.DropColumn(
                 name: "LabelEn",
+                schema: "pricing",
+                table: "coupons");
+
+            migrationBuilder.DropColumn(
+                name: "StacksWithPromotions",
                 schema: "pricing",
                 table: "coupons");
         }

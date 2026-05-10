@@ -56,6 +56,7 @@ public static class CommercialPreviewProfileEndpoints
         HttpContext context,
         PricingDbContext db,
         CommercialAuditWriter audit,
+        BackendApi.Modules.AuditLog.IAuditEventPublisher platformAudit,
         CommercialActorPermissions perms,
         TimeProvider time,
         CancellationToken ct)
@@ -132,13 +133,15 @@ public static class CommercialPreviewProfileEndpoints
         var cartJson = JsonSerializer.Serialize(request.CartLines.Select(l =>
             new { sku = l.Sku.Trim(), qty = l.Qty, restricted = l.Restricted }));
 
-        PreviewProfile entity;
+        PreviewProfile? entity;
         bool isInsert;
+        object? auditBefore = null;
         if (request.Id is { } existingId)
         {
-            entity = await db.PreviewProfiles.FirstOrDefaultAsync(p => p.Id == existingId, ct)
-                ?? throw new InvalidOperationException();
-
+            // Don't throw on a missing id — return a clean 404 so callers
+            // distinguish "unknown profile" from "server bug" (CodeRabbit
+            // PR #78 round 1 Major).
+            entity = await db.PreviewProfiles.FirstOrDefaultAsync(p => p.Id == existingId, ct);
             if (entity is null)
             {
                 return AdminCommercialResponseFactory.Problem(context, 404,
@@ -151,6 +154,7 @@ public static class CommercialPreviewProfileEndpoints
                     CommercialReasonCode.PreviewProfileNotVisibleToActor,
                     "Cannot edit a profile owned by another actor.");
             }
+            auditBefore = SnapshotForAudit(entity);
             entity.Name = request.Name.Trim();
             entity.MarketCode = market;
             entity.Locale = locale;
@@ -182,11 +186,51 @@ public static class CommercialPreviewProfileEndpoints
             isInsert = true;
         }
 
+        // CodeRabbit PR #78 round 1 Major: every admin-managed mutation must
+        // produce an audit trail. The local pricing.commercial_audit_events
+        // table's chk_cae_kind constraint only allows the single
+        // 'preview_profile.visibility_changed' kind for this entity (per
+        // data-model §5), so create/update/delete actions on preview profiles
+        // route through the platform audit_log_entries channel directly. Once
+        // a future migration relaxes chk_cae_kind for preview_profile.* kinds,
+        // these rows can also stage to commercial_audit_events for the
+        // audit-summary panel.
+        var actorRole = await ResolveActorRoleAsync(context, perms, ct);
+        var auditAfter = SnapshotForAudit(entity);
+
         await db.SaveChangesAsync(ct);
+        await platformAudit.PublishAsync(new BackendApi.Modules.AuditLog.AuditEvent(
+            ActorId: actorId,
+            ActorRole: actorRole,
+            Action: isInsert ? "preview_profile.created" : "preview_profile.updated",
+            EntityType: "PreviewProfile",
+            EntityId: entity.Id,
+            BeforeState: auditBefore,
+            AfterState: auditAfter,
+            Reason: null), ct);
         return isInsert
             ? Results.Created($"/v1/admin/commercial/preview-profiles/{entity.Id:N}", ToResponse(entity))
             : Results.Ok(ToResponse(entity));
     }
+
+    /// <summary>
+    /// Returns the most-specific role the caller holds for audit-row
+    /// attribution (CodeRabbit PR #78 round 1 Major: don't hardcode
+    /// "commercial.approver" when super_admin is also allowed).
+    /// </summary>
+    private static async Task<string> ResolveActorRoleAsync(
+        HttpContext context, CommercialActorPermissions perms, CancellationToken ct)
+    {
+        if (await perms.HasSuperAdminAsync(context, ct)) return "super_admin";
+        if (await perms.HasApproverOrSuperAdminAsync(context, ct)) return CommercialPermissions.Approver;
+        return CommercialPermissions.Operator;
+    }
+
+    private static object SnapshotForAudit(PreviewProfile p) => new
+    {
+        p.Id, p.Name, p.MarketCode, p.Locale, p.AccountKind, p.TierId,
+        p.VerificationState, p.Visibility, p.CreatedBy,
+    };
 
     // -------------------- POST /{id}/promote-to-shared --------------------
 
@@ -233,13 +277,18 @@ public static class CommercialPreviewProfileEndpoints
         entity.UpdatedAt = nowUtc;
         var after = new { visibility = entity.Visibility };
 
-        await audit.AppendAsync(
+        // CodeRabbit PR #78 round 1 Major: route accepts both
+        // commercial.approver and super_admin — record the actual caller role
+        // so the audit channel can attribute the action accurately.
+        var actorRole = await ResolveActorRoleAsync(context, perms, ct);
+        var publishAudit = audit.StageLocal(
             "preview_profile", entity.Id, "preview_profile.visibility_changed",
-            actorId, "commercial.approver",
+            actorId, actorRole,
             before, after, diff: new { before, after },
-            reasonNote: request.ReasonNote.Trim(), correlationId: null, nowUtc, ct);
+            reasonNote: request.ReasonNote.Trim(), correlationId: null, nowUtc);
 
         await db.SaveChangesAsync(ct);
+        await publishAudit(ct);
         return Results.Ok(ToResponse(entity));
     }
 
@@ -304,7 +353,9 @@ public static class CommercialPreviewProfileEndpoints
         Guid id,
         HttpContext context,
         PricingDbContext db,
+        BackendApi.Modules.AuditLog.IAuditEventPublisher platformAudit,
         CommercialActorPermissions perms,
+        TimeProvider time,
         CancellationToken ct)
     {
         var entity = await db.PreviewProfiles.FirstOrDefaultAsync(p => p.Id == id, ct);
@@ -320,8 +371,24 @@ public static class CommercialPreviewProfileEndpoints
                 "Cannot delete a profile owned by another actor (or shared profile).");
         }
 
+        // CodeRabbit PR #78 round 1 Major: hard-delete still produces an
+        // audit row in the platform channel (the row goes away, but the
+        // action is auditable). chk_cae_kind doesn't accept a deleted kind
+        // for preview_profile yet, so route through the cross-cutting
+        // audit_log_entries channel directly.
+        var actorRole = await ResolveActorRoleAsync(context, perms, ct);
+        var beforeSnapshot = SnapshotForAudit(entity);
         db.PreviewProfiles.Remove(entity);
         await db.SaveChangesAsync(ct);
+        await platformAudit.PublishAsync(new BackendApi.Modules.AuditLog.AuditEvent(
+            ActorId: actorId,
+            ActorRole: actorRole,
+            Action: "preview_profile.deleted",
+            EntityType: "PreviewProfile",
+            EntityId: entity.Id,
+            BeforeState: beforeSnapshot,
+            AfterState: null,
+            Reason: null), ct);
         return Results.NoContent();
     }
 

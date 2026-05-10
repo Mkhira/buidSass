@@ -77,7 +77,10 @@ public sealed class PreviewP95Tests(PricingTestFactory factory)
         var couponResp = await client.PostAsJsonAsync("/v1/admin/commercial/coupons", createReq);
         couponResp.EnsureSuccessStatusCode();
         var coupon = (await couponResp.Content.ReadFromJsonAsync<CommercialCouponResponse>())!;
-        await client.PostAsync($"/v1/admin/commercial/coupons/{coupon.Id:N}/schedule", null);
+        // CodeRabbit PR #78 round 1 Minor: assert schedule succeeded so a
+        // setup failure can't hide behind opaque per-call timings.
+        var scheduleResp = await client.PostAsync($"/v1/admin/commercial/coupons/{coupon.Id:N}/schedule", null);
+        scheduleResp.EnsureSuccessStatusCode();
 
         // Profile referencing all 20 SKUs
         var profileResp = await client.PutAsJsonAsync(
@@ -122,7 +125,10 @@ public sealed class PreviewP95Tests(PricingTestFactory factory)
         samples.Sort();
         var p95Index = (int)Math.Ceiling(samples.Count * 0.95) - 1;
         var p95 = samples[Math.Clamp(p95Index, 0, samples.Count - 1)];
-        p95.Should().BeLessThan(CiP95BudgetMs,
-            $"preview p95 {p95}ms must stay under the CI headroom budget; samples={string.Join(',', samples)}");
+        // CodeRabbit PR #78 round 1 Minor: documented contract is "≤
+        // CiP95BudgetMs" (inclusive); use BeLessOrEqualTo so the assertion
+        // matches the comment.
+        p95.Should().BeLessOrEqualTo(CiP95BudgetMs,
+            $"preview p95 {p95}ms must stay within the CI headroom budget; samples={string.Join(',', samples)}");
     }
 }

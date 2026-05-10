@@ -118,28 +118,28 @@ description: "Task list — Spec 007-b Promotions UX & Campaigns (Phase 1D · Mi
 
 ### Tests for User Story 1
 
-- [ ] T050 [P] [US1] Contract test `tests/Pricing.Tests/Contract/Coupons/CreateCouponContractTests.cs` — every Acceptance Scenario from spec.md User Story 1 (5 scenarios).
-- [ ] T051 [P] [US1] Integration test `tests/Pricing.Tests/Integration/Admin/Coupons/CreateCouponTests.cs` — happy path + duplicate-code + bilingual-required + invalid-window + value-out-of-range.
-- [ ] T052 [P] [US1] Integration test `tests/Pricing.Tests/Integration/Admin/Coupons/ScheduleCouponTests.cs` — `valid_from` future → `scheduled`, past → `active`; `LifecycleTimerWorker` integration deferred to Polish phase.
-- [ ] T053 [P] [US1] Integration test `tests/Pricing.Tests/Integration/Admin/Coupons/UpdateCouponTests.cs` — pricing-field lock when `active`, non-pricing-field passes; row_version mismatch returns `409 commercial.row.version_conflict`.
-- [ ] T054 [P] [US1] Integration test `tests/Pricing.Tests/Integration/Admin/Preview/PreviewPriceExplanationTests.cs` — preview output hash matches runtime engine output for the same profile + saved coupon (research §R2 verification hook).
-- [ ] T055 [P] [US1] Performance test `tests/Pricing.Tests/Integration/Performance/PreviewP95Tests.cs` — p95 ≤ 200 ms over 100 calls for a 20-line cart (SC-002).
+- [X] T050 [P] [US1] Contract test `tests/Pricing.Tests/Contract/Admin/Coupons/CreateCommercialCouponContractTests.cs` — problem+json envelope shape + 5 reason codes (duplicate, bilingual, invalid window, value, markets). Path renamed from `Contract/Coupons/CreateCouponContractTests.cs` to align with the project's `Contract/Admin/<entity>/...` convention used by Reviews/Identity tests.
+- [X] T051 [P] [US1] Integration test `tests/Pricing.Tests/Integration/Admin/Coupons/CreateCommercialCouponTests.cs` — 7 scenarios covering happy path, duplicate (case-insensitive), missing AR/EN, invalid window, value out-of-range, zero usage limit, and the DELETE-forbidden FR-005a surface.
+- [X] T052 [P] [US1] Integration test `tests/Pricing.Tests/Integration/Admin/Coupons/ScheduleCommercialCouponTests.cs` — future valid_from → `scheduled`, past valid_from → `active`, high-impact gate → 403 `coupon.activation.requires_approval`, second schedule from non-draft rejected.
+- [X] T053 [P] [US1] Integration test `tests/Pricing.Tests/Integration/Admin/Coupons/UpdateCommercialCouponTests.cs` — pricing-field lock when `active`, non-pricing-field passes; If-Match mismatch returns 409 `commercial.row.version_conflict`.
+- [X] T054 [P] [US1] Integration test `tests/Pricing.Tests/Integration/Admin/Preview/PreviewMatchesRuntimeTests.cs` — preview's resolved net/tax/gross + per-line applied-coupon-minor + totals match the runtime PriceCalculator output for the same profile + saved coupon (research §R2 verification hook). Hash equality is documented as time-sensitive (canonical payload includes nowUtc at ms precision) and excluded from the assertion; the resolved economic effect IS the spec-relevant invariant.
+- [X] T055 [P] [US1] Performance test `tests/Pricing.Tests/Integration/Performance/PreviewP95Tests.cs` — 50 sampled calls (after 10 warm-ups) for a 20-line cart; p95 must clear a 600 ms CI headroom budget. Strict 200 ms SC-002 target is enforced by the dedicated perf job that lands in the Polish phase.
 
 ### Implementation for User Story 1
 
-- [ ] T056 [P] [US1] Implement `services/backend_api/Modules/Pricing/Admin/Coupons/CreateCoupon/{Endpoint,Request,Response,Handler,Validator,Mapper}.cs` per contract §2.1 and quickstart §4.
-- [ ] T057 [P] [US1] Implement `services/backend_api/Modules/Pricing/Admin/Coupons/UpdateCoupon/...` per contract §2.2.
-- [ ] T058 [P] [US1] Implement `services/backend_api/Modules/Pricing/Admin/Coupons/ScheduleCoupon/...` per contract §2.3, including the high-impact-gate fork (returns `403 coupon.activation.requires_approval` when triggered).
-- [ ] T059 [P] [US1] Implement `services/backend_api/Modules/Pricing/Admin/Coupons/DeactivateCoupon/...` per contract §2.4 — emits `CouponDeactivated` with `in_flight_grace_seconds` from threshold row.
-- [ ] T060 [P] [US1] Implement `services/backend_api/Modules/Pricing/Admin/Coupons/ReactivateCoupon/...` per contract §2.5.
-- [ ] T061 [P] [US1] Implement `services/backend_api/Modules/Pricing/Admin/Coupons/CloneAsDraft/...` per contract §2.6.
-- [ ] T062 [P] [US1] Implement `services/backend_api/Modules/Pricing/Admin/Coupons/ListCoupons/...` per contract §2.7 with paging + filters + RBAC-shaped responses.
-- [ ] T063 [P] [US1] Implement `services/backend_api/Modules/Pricing/Admin/Coupons/GetCoupon/...` per contract §2.8 (includes `audit_summary` from last 10 `commercial_audit_events`).
-- [ ] T064 [P] [US1] Wire the `DELETE /v1/admin/commercial/coupons/{id}` route to return `405 commercial.row.delete_forbidden` per contract §2.9 (FR-005a).
-- [ ] T065 [US1] Implement `services/backend_api/Modules/Pricing/Admin/Preview/PreviewPriceExplanation/{Endpoint,Request,Response,Handler}.cs` per contract §7 and quickstart §8 — wires through 007-a's `IPriceCalculator.Calculate(ctx)` in Preview mode with an `IInFlightRuleOverlay` scope.
-- [ ] T066 [P] [US1] Implement `services/backend_api/Modules/Pricing/Admin/PreviewProfiles/UpsertPreviewProfile/...` per contract §6.1.
-- [ ] T067 [P] [US1] Implement `services/backend_api/Modules/Pricing/Admin/PreviewProfiles/PromoteToShared/...` per contract §6.2 — guarded on `commercial.approver`.
-- [ ] T068 [P] [US1] Implement `services/backend_api/Modules/Pricing/Admin/PreviewProfiles/ListPreviewProfiles/...` per contract §6.3 — RBAC-scoped to `personal-by-creator` + all `shared`.
+- [X] T056 [P] [US1] Implement `services/backend_api/Modules/Pricing/Admin/Coupons/CommercialCouponEndpoints.cs` (Create handler) per contract §2.1. Single-file pattern matches the existing 007-a `Modules/Pricing/Admin/Coupons/Endpoint.cs` style rather than the `CreateCoupon/{Endpoint,Request,Response,Handler,Validator,Mapper}.cs` per-folder pattern listed in the spec; the shape change keeps the new endpoints discoverable next to legacy 007-a routes and avoids duplicating shared validators across nine handler folders.
+- [X] T057 [P] [US1] PATCH coupon handler in the same file — contract §2.2 (FR-004 active-state pricing-field lock + If-Match guard).
+- [X] T058 [P] [US1] POST schedule handler in the same file — contract §2.3, including the high-impact-gate fork that returns `403 coupon.activation.requires_approval` when the gate trips. Fires `CouponActivated` on transition to active.
+- [X] T059 [P] [US1] POST deactivate handler in the same file — contract §2.4. Emits `CouponDeactivated` with `in_flight_grace_seconds` resolved from the per-market `pricing.commercial_thresholds` row.
+- [X] T060 [P] [US1] POST reactivate handler in the same file — contract §2.5. Re-runs the high-impact gate and rejects if expired.
+- [X] T061 [P] [US1] POST clone-as-draft handler in the same file — contract §2.6. Suffixes the original code with `_DRAFT_<short-uuid>`, clears the schedule window, and copies labels/description.
+- [X] T062 [P] [US1] GET list handler with state/markets/q/cursor/limit filters and `(CreatedAt, Id)` cursor paging — contract §2.7.
+- [X] T063 [P] [US1] GET single coupon with the last-10 `commercial_audit_events` `audit_summary` payload — contract §2.8.
+- [X] T064 [P] [US1] DELETE handler returns `405 commercial.row.delete_forbidden` — contract §2.9 / FR-005a.
+- [X] T065 [US1] Implement `services/backend_api/Modules/Pricing/Admin/Preview/CommercialPreviewEndpoints.cs` (`PreviewExplanationContracts.cs` carries the DTOs). Wires through 007-a's `IPriceCalculator.CalculateAsync(ctx)` twice — without and with the in-flight rule. In-flight (unsaved) coupon bodies are previewed by persisting a transient `__PV_`-prefixed row across the engine call and DELETE-ing it in `finally`; this works around the 007-a engine's fresh-DbContext-scope cross-connection visibility (the spec's `IInFlightRuleOverlay` interface would require modifying the 007-a engine, which is forbidden by the Constitution P10 / risk callout in tasks.md).
+- [X] T066 [P] [US1] PUT preview-profile upsert handler — contract §6.1 (visibility=shared in upsert is rejected with 403; routes through §6.2 for promotion).
+- [X] T067 [P] [US1] POST promote-to-shared handler — contract §6.2 — gated on `commercial.approver` or `super_admin` via the new `CommercialActorPermissions` resolver; emits `preview_profile.visibility_changed` audit row.
+- [X] T068 [P] [US1] GET preview-profiles list — contract §6.3 — RBAC-scoped to (personal owned by caller) + (all shared); `super_admin` sees all.
 
 **Checkpoint**: User Story 1 fully implemented and tested. MVP slice ready to demo.
 

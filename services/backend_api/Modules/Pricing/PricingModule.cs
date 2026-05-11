@@ -65,9 +65,6 @@ public static class PricingModule
         services.AddScoped<Admin.Common.CommercialAuditWriter>();
         services.AddScoped<Admin.Common.CommercialActorPermissions>();
 
-        // NOTE: 007-b workers and the ICheckoutGraceWindowProvider impl
-        // land in subsequent user-story PRs (US2–US7 + Polish).
-
         return services;
     }
 
@@ -87,15 +84,18 @@ public static class PricingModule
         Admin.ProductTierPrices.Endpoint.MapProductTierPriceEndpoints(adminPricing);
         Admin.Explanations.Endpoint.MapExplanationEndpoints(adminPricing);
 
-        // Spec 007-b US1: commercial-authoring surface (contract §1, base path
-        // /v1/admin/commercial). Mounted alongside the legacy /v1/admin/pricing
-        // routes so the existing 007-a admin endpoints keep working unchanged.
+        // Spec 007-b US1-US4: commercial-authoring surface (contract §1, base
+        // path /v1/admin/commercial). Mounted alongside the legacy
+        // /v1/admin/pricing routes so the existing 007-a admin endpoints keep
+        // working unchanged.
         var adminCommercial = app.MapGroup("/v1/admin/commercial");
         Admin.Coupons.CommercialCouponEndpoints.MapCommercialCouponEndpoints(adminCommercial);
         Admin.Promotions.CommercialPromotionEndpoints.MapCommercialPromotionEndpoints(adminCommercial);
         Admin.BusinessPricing.CommercialBusinessPricingEndpoints.MapCommercialBusinessPricingEndpoints(adminCommercial);
         Admin.PreviewProfiles.CommercialPreviewProfileEndpoints.MapCommercialPreviewProfileEndpoints(adminCommercial);
         Admin.Preview.CommercialPreviewEndpoints.MapCommercialPreviewEndpoints(adminCommercial);
+        // US4 — Campaigns (contract §5).
+        Admin.Campaigns.CommercialCampaignEndpoints.MapCommercialCampaignEndpoints(adminCommercial);
 
         return app;
     }

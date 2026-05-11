@@ -96,6 +96,9 @@ public static class PricingModule
         Admin.Preview.CommercialPreviewEndpoints.MapCommercialPreviewEndpoints(adminCommercial);
         // US4 — Campaigns (contract §5).
         Admin.Campaigns.CommercialCampaignEndpoints.MapCommercialCampaignEndpoints(adminCommercial);
+        // US5 — Approval queue + threshold administration (contract §8, §9).
+        Admin.Approvals.CommercialApprovalEndpoints.MapCommercialApprovalEndpoints(adminCommercial);
+        Admin.Thresholds.CommercialThresholdEndpoints.MapCommercialThresholdEndpoints(adminCommercial);
 
         return app;
     }

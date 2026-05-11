@@ -64,6 +64,11 @@ public sealed class PricingTestFactory : WebApplicationFactory<Program>, IAsyncL
             TRUNCATE TABLE
                 pricing.price_explanations,
                 pricing.coupon_redemptions,
+                pricing.commercial_audit_events,
+                pricing.commercial_approvals,
+                pricing.campaign_links,
+                pricing.campaigns,
+                pricing.preview_profiles,
                 pricing.coupons,
                 pricing.promotions,
                 pricing.product_tier_prices,

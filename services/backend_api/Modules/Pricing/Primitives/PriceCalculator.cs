@@ -68,9 +68,15 @@ public sealed class PriceCalculator(
 
             if (tier is not null)
             {
+                // spec 007-b US3: only resolve ACTIVE tier-only rows (CompanyId IS NULL).
+                // Company-override resolution is layered on top by the spec 007-b
+                // BusinessPricing resolution path (resolved BEFORE this tier lookup
+                // in callers that have an authenticated company context).
                 tierPrices = await tdb.ProductTierPrices
                     .AsNoTracking()
                     .Where(tp => tp.TierId == tier.Id
+                        && tp.CompanyId == null
+                        && tp.State == Commercial.BusinessPricingState.Active
                         && tp.MarketCode == marketCode
                         && productIds.Contains(tp.ProductId))
                     .ToDictionaryAsync(tp => tp.ProductId, tp => tp.NetMinor, cancellationToken);

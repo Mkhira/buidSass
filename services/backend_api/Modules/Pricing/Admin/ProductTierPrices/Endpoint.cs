@@ -3,6 +3,7 @@ using BackendApi.Modules.Identity.Authorization.Filters;
 using BackendApi.Modules.Pricing.Admin.Common;
 using BackendApi.Modules.Pricing.Entities;
 using BackendApi.Modules.Pricing.Persistence;
+using BackendApi.Modules.Pricing.Primitives.Commercial;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.EntityFrameworkCore;
@@ -11,6 +12,13 @@ namespace BackendApi.Modules.Pricing.Admin.ProductTierPrices;
 
 public sealed record UpsertTierPriceRequest(Guid TierId, string MarketCode, long NetMinor);
 
+/// <summary>
+/// Legacy 007-a tier-price upsert/delete surface. Spec 007-b US3 introduced a
+/// surrogate-PK reshape (<c>product_tier_prices.id</c>) and an
+/// active-state filter so the engine resolves only ACTIVE tier rows; this
+/// endpoint preserves the legacy <c>(product, tier, market)</c> upsert shape
+/// by upserting against the new partial unique index.
+/// </summary>
 public static class Endpoint
 {
     public static IEndpointRouteBuilder MapProductTierPriceEndpoints(this IEndpointRouteBuilder builder)
@@ -49,16 +57,25 @@ public static class Endpoint
         }
 
         var existing = await db.ProductTierPrices
-            .SingleOrDefaultAsync(p => p.ProductId == productId && p.TierId == request.TierId && p.MarketCode == market, ct);
+            .SingleOrDefaultAsync(p =>
+                p.ProductId == productId
+                && p.TierId == request.TierId
+                && p.CompanyId == null
+                && p.MarketCode == market
+                && p.State == BusinessPricingState.Active, ct);
         object? before = existing is null ? null : new { existing.NetMinor };
         if (existing is null)
         {
             db.ProductTierPrices.Add(new ProductTierPrice
             {
+                Id = Guid.NewGuid(),
                 ProductId = productId,
                 TierId = request.TierId,
                 MarketCode = market,
                 NetMinor = request.NetMinor,
+                State = BusinessPricingState.Active,
+                StateChangedAtUtc = DateTimeOffset.UtcNow,
+                StateChangedByActorId = AdminCommercialResponseFactory.ResolveActorAccountId(context),
                 CreatedAt = DateTimeOffset.UtcNow,
                 UpdatedAt = DateTimeOffset.UtcNow,
             });
@@ -94,7 +111,11 @@ public static class Endpoint
         }
         var m = marketCode.Trim().ToLowerInvariant();
         var entity = await db.ProductTierPrices
-            .SingleOrDefaultAsync(p => p.ProductId == productId && p.TierId == tierId && p.MarketCode == m, ct);
+            .SingleOrDefaultAsync(p =>
+                p.ProductId == productId
+                && p.TierId == tierId
+                && p.CompanyId == null
+                && p.MarketCode == m, ct);
         if (entity is null)
         {
             return AdminPricingResponseFactory.Problem(context, 404, "pricing.tier_price.not_found", "Not found", "");

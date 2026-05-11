@@ -121,12 +121,17 @@ public static class PricingTestSeedHelper
     public static async Task UpsertTierPriceAsync(IServiceProvider services, Guid productId, Guid tierId, string marketCode, long netMinor, CancellationToken ct = default)
     {
         var db = services.GetRequiredService<PricingDbContext>();
+        // Spec 007-b US3 reshape: surrogate Id PK + ACTIVE-only partial unique
+        // index. Tests use this helper to seed engine-visible tier rows.
         db.ProductTierPrices.Add(new ProductTierPrice
         {
+            Id = Guid.NewGuid(),
             ProductId = productId,
             TierId = tierId,
             MarketCode = marketCode,
             NetMinor = netMinor,
+            State = BackendApi.Modules.Pricing.Primitives.Commercial.BusinessPricingState.Active,
+            StateChangedAtUtc = DateTimeOffset.UtcNow,
             CreatedAt = DateTimeOffset.UtcNow,
             UpdatedAt = DateTimeOffset.UtcNow,
         });

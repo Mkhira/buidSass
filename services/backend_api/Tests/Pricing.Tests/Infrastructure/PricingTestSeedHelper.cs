@@ -132,6 +132,10 @@ public static class PricingTestSeedHelper
             NetMinor = netMinor,
             State = BackendApi.Modules.Pricing.Primitives.Commercial.BusinessPricingState.Active,
             StateChangedAtUtc = DateTimeOffset.UtcNow,
+            // CodeRabbit PR #80 round 1 Minor: explicit test-actor id so the
+            // NOT NULL constraint on state_changed_by_actor_id is satisfied
+            // when the production migration tightens this column.
+            StateChangedByActorId = Guid.Empty,
             CreatedAt = DateTimeOffset.UtcNow,
             UpdatedAt = DateTimeOffset.UtcNow,
         });

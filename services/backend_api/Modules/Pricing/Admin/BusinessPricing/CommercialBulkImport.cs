@@ -61,9 +61,17 @@ public static class CommercialBulkImport
             var form = await context.Request.ReadFormAsync(ct);
             file = form.Files["file"];
         }
-        catch
+        catch (Exception ex) when (
+            ex is InvalidDataException                            // malformed multipart boundary
+            or InvalidOperationException                          // wrong content type / form not allowed
+            or System.IO.IOException                              // upstream stream truncated
+            or Microsoft.AspNetCore.Http.BadHttpRequestException) // body-size / line-length limits
         {
-            // fall through to the null-check below
+            // CodeRabbit PR #80 round 1 nit: narrow the catch to the
+            // form-parsing failure shapes. Cancellation + other unexpected
+            // errors propagate so they surface in logs and metrics instead of
+            // silently degrading into "empty file".
+            _ = ex;
         }
         if (file is null || file.Length == 0)
         {

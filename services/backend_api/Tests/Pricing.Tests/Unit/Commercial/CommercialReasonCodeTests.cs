@@ -23,8 +23,11 @@ public sealed class CommercialReasonCodeTests
     [Fact]
     public void AllCodes_ContainsExpectedCount()
     {
-        // Per spec 007-b T010 / contract §11 the owned-code surface is 49 codes.
-        CommercialReasonCode.AllCodes.Count.Should().Be(49);
+        // Per spec 007-b T010 / contract §11 the owned-code surface is 49
+        // codes at launch. PR #80 round 1 added `BusinessPricingValidationError`
+        // (50 total) to disambiguate validation failures from row-conflict
+        // (duplicate) errors per CodeRabbit feedback.
+        CommercialReasonCode.AllCodes.Count.Should().Be(50);
     }
 
     [Fact]

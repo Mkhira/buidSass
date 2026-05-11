@@ -467,7 +467,11 @@ public static class CommercialBusinessPricingEndpoints
         PricingDbContext db,
         CancellationToken ct)
     {
-        var entity = await db.ProductTierPrices.AsNoTracking().FirstOrDefaultAsync(p => p.Id == id, ct);
+        // CodeRabbit PR #80 round 1 Critical: must NOT use AsNoTracking() — the
+        // entity is passed to db.Remove() below, which requires the change
+        // tracker to know about the row. AsNoTracking + Remove throws at
+        // SaveChangesAsync.
+        var entity = await db.ProductTierPrices.FirstOrDefaultAsync(p => p.Id == id, ct);
         if (entity is null) return Results.NotFound();
 
         // FR-005a: hard-delete forbidden when the row has been observed by the
@@ -490,9 +494,15 @@ public static class CommercialBusinessPricingEndpoints
 
     // -------------------- helpers --------------------
 
+    /// <summary>
+    /// 400-validation helper. CodeRabbit PR #80 round 1 Minor: uses the
+    /// dedicated <see cref="CommercialReasonCode.BusinessPricingValidationError"/>
+    /// code instead of <c>BusinessPricingRowConflict</c> (which is reserved for
+    /// duplicate / uniqueness violations).
+    /// </summary>
     private static IResult BadRequest(HttpContext context, string detail) =>
         AdminCommercialResponseFactory.Problem(context, 400,
-            CommercialReasonCode.BusinessPricingRowConflict, detail);
+            CommercialReasonCode.BusinessPricingValidationError, detail);
 
     internal static bool IsUniqueViolation(DbUpdateException ex) =>
         ex.InnerException is PostgresException { SqlState: PostgresErrorCodes.UniqueViolation };

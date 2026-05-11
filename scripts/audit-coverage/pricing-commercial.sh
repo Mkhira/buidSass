@@ -14,7 +14,10 @@
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-TEST_PROJ="${REPO_ROOT}/services/backend_api/tests/Pricing.Tests/Pricing.Tests.csproj"
+# Path casing matches the canonical on-disk layout (`Tests/` with capital T) so
+# this script works on case-sensitive Linux CI filesystems. macOS' case-insensitive
+# default hides this — CodeRabbit caught it on PR #81.
+TEST_PROJ="${REPO_ROOT}/services/backend_api/Tests/Pricing.Tests/Pricing.Tests.csproj"
 
 if [[ ! -f "$TEST_PROJ" ]]; then
   echo "ERROR: Pricing.Tests.csproj not found at $TEST_PROJ"
@@ -30,11 +33,18 @@ echo
 # bulk-import, approval-record, threshold-change) — each test asserts the
 # commercial_audit_events row was written. A pass means every reachable
 # audit-event-kind from data-model §5 fires.
-if ! dotnet test "$TEST_PROJ" \
+#
+# Run dotnet test directly and capture its own exit code. Wrapping the call in
+# `if ! ...; then status=$?` would record the NEGATED command's status (0) and
+# silently exit successful on test failure (CodeRabbit PR #81 round 1 Major).
+set +e
+dotnet test "$TEST_PROJ" \
   --nologo \
   --filter 'FullyQualifiedName~Integration.Admin' \
-  -- RunConfiguration.TreatNoTestsAsError=true; then
-  status=$?
+  -- RunConfiguration.TreatNoTestsAsError=true
+status=$?
+set -e
+if [[ $status -ne 0 ]]; then
   echo
   echo "FAIL: audit coverage gap detected — see test output above."
   exit "$status"

@@ -121,7 +121,12 @@ public static class CommercialCampaignEndpoints
             {
                 Id = Guid.NewGuid(),
                 CampaignId = campaignId,
-                Kind = request.CampaignLink.Kind,
+                // CodeRabbit PR #81 round 1 Major: persist the normalised kind
+                // so downstream equality checks in the watcher + lookups match
+                // (ValidateCampaignLinkAsync already trims/lowercases for
+                // validation — without this, " Promotion " would pass and then
+                // never match "promotion" in CampaignLinkBrokenWatcher).
+                Kind = NormaliseLinkKind(request.CampaignLink.Kind),
                 TargetId = request.CampaignLink.TargetId,
                 LinkBrokenAtUtc = null,
                 CreatedAt = nowUtc,
@@ -289,7 +294,9 @@ public static class CommercialCampaignEndpoints
             {
                 Id = Guid.NewGuid(),
                 CampaignId = entity.Id,
-                Kind = request.CampaignLink.Kind,
+                // CodeRabbit PR #81 round 1 Major: persist normalised kind
+                // (see CreateAsync for the rationale).
+                Kind = NormaliseLinkKind(request.CampaignLink.Kind),
                 TargetId = request.CampaignLink.TargetId,
                 LinkBrokenAtUtc = null,
                 CreatedAt = nowUtc,
@@ -365,6 +372,20 @@ public static class CommercialCampaignEndpoints
             return AdminCommercialResponseFactory.Problem(context, 400,
                 "campaign.schedule.invalid_window",
                 "valid_to must be strictly after valid_from.");
+        }
+
+        // CodeRabbit PR #81 round 1 Major: revalidate the current link target
+        // before transitioning. If the linked coupon/promotion became expired
+        // or its display flag changed between authoring and scheduling, the
+        // campaign would otherwise leave Draft pointing at an invalid target.
+        var currentLink = await db.CampaignLinks.AsNoTracking()
+            .FirstOrDefaultAsync(l => l.CampaignId == entity.Id && l.LinkBrokenAtUtc == null, ct);
+        if (currentLink is not null && currentLink.Kind != "landing_only" && currentLink.TargetId is not null)
+        {
+            var linkRevalidation = await ValidateCampaignLinkAsync(
+                new CampaignLinkRequest(currentLink.Kind, currentLink.TargetId),
+                db, context, ct);
+            if (linkRevalidation is not null) return linkRevalidation;
         }
 
         var nowUtc = time.GetUtcNow();
@@ -592,8 +613,13 @@ public static class CommercialCampaignEndpoints
         var marketLower = marketCode.Trim().ToLowerInvariant();
         var pageSize = limit is null or < 1 ? DefaultPageSize : Math.Min(limit.Value, LookupPageCap);
 
+        // CodeRabbit PR #81 round 1 Major: exclude campaigns whose link has
+        // been auto-marked broken (FR-019 — CampaignLinkBrokenWatcher sets
+        // Campaign.LinkBroken=true when the linked rule deactivates/expires).
+        // CMS' banner picker must not surface those.
         IQueryable<Campaign> query = db.Campaigns.AsNoTracking()
-            .Where(c => (c.State == LifecycleState.Scheduled || c.State == LifecycleState.Active) &&
+            .Where(c => !c.LinkBroken &&
+                        (c.State == LifecycleState.Scheduled || c.State == LifecycleState.Active) &&
                         c.Markets.Any(m => m == marketLower));
 
         if (!string.IsNullOrWhiteSpace(q))
@@ -788,6 +814,16 @@ public static class CommercialCampaignEndpoints
 
         return null;
     }
+
+    /// <summary>
+    /// Mirrors the trim+lowercase normalisation done inside
+    /// <see cref="ValidateCampaignLinkAsync"/>. Used by Create/Update so the
+    /// persisted Kind always matches the validator's view of the world and the
+    /// equality checks performed by <c>CampaignLinkBrokenWatcher</c> +
+    /// banner-link lookups (CodeRabbit PR #81 round 1 Major).
+    /// </summary>
+    private static string NormaliseLinkKind(string raw) =>
+        (raw ?? string.Empty).Trim().ToLowerInvariant();
 
     private static string[] NormaliseMarkets(string[] raw) =>
         raw.Where(m => !string.IsNullOrWhiteSpace(m))

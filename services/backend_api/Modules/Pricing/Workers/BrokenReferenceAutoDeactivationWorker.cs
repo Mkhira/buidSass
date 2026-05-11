@@ -117,11 +117,15 @@ public sealed class BrokenReferenceAutoDeactivationWorker(
                 reasonNote: AutoDeactivationReasonNote, correlationId: null, nowUtc);
 
             await db.SaveChangesAsync(ct);
-            await publish(ct);
+            // Post-commit publishes are best-effort — log + continue rather
+            // than throw, so one bad subscriber cannot strand the worker for
+            // the next tick (CodeRabbit PR #81 round 1 Major).
+            await SafePublishAsync(publish, ct, "coupon.audit", c.Id);
 
             var grace = ResolveCouponGraceSeconds(c.MarketCodes, thresholdByMarket);
-            await events.Publish(new CouponDeactivated(
-                c.Id, nowUtc, SystemActorId, AutoDeactivationReasonNote, grace), ct);
+            await SafePublishAsync(token => events.Publish(new CouponDeactivated(
+                c.Id, nowUtc, SystemActorId, AutoDeactivationReasonNote, grace), token),
+                ct, "coupon.deactivated", c.Id);
         }
 
         // --- Promotions ---
@@ -152,11 +156,12 @@ public sealed class BrokenReferenceAutoDeactivationWorker(
                 reasonNote: AutoDeactivationReasonNote, correlationId: null, nowUtc);
 
             await db.SaveChangesAsync(ct);
-            await publish(ct);
+            await SafePublishAsync(publish, ct, "promotion.audit", p.Id);
 
             var grace = ResolvePromotionGraceSeconds(p.MarketCodes, thresholdByMarket);
-            await events.Publish(new PromotionDeactivated(
-                p.Id, nowUtc, SystemActorId, AutoDeactivationReasonNote, grace), ct);
+            await SafePublishAsync(token => events.Publish(new PromotionDeactivated(
+                p.Id, nowUtc, SystemActorId, AutoDeactivationReasonNote, grace), token),
+                ct, "promotion.deactivated", p.Id);
         }
 
         // --- Business pricing rows (company-link broken ≥ 7 days) ---
@@ -185,7 +190,7 @@ public sealed class BrokenReferenceAutoDeactivationWorker(
                 reasonNote: AutoDeactivationReasonNote, correlationId: null, nowUtc);
 
             await db.SaveChangesAsync(ct);
-            await publish(ct);
+            await SafePublishAsync(publish, ct, "business_pricing.audit", r.Id);
         }
 
         if (coupons.Count + promos.Count + tierRows.Count > 0)
@@ -193,6 +198,21 @@ public sealed class BrokenReferenceAutoDeactivationWorker(
             logger.LogInformation(
                 "pricing.broken-ref-auto-deactivation.tick coupons={C} promotions={P} business_pricing={B}",
                 coupons.Count, promos.Count, tierRows.Count);
+        }
+    }
+
+    private async Task SafePublishAsync(
+        Func<CancellationToken, Task> publish, CancellationToken ct, string channel, Guid entityId)
+    {
+        try
+        {
+            await publish(ct);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            logger.LogError(ex,
+                "pricing.broken-ref-auto-deactivation.publish-failed channel={Channel} entity={EntityId}",
+                channel, entityId);
         }
     }
 

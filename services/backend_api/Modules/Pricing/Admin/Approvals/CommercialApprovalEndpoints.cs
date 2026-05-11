@@ -390,8 +390,11 @@ public static class CommercialApprovalEndpoints
         }
 
         // Audit-only — no DB row created; rejection is a journal note.
+        // CodeRabbit PR #81 round 1 Nit: reuse the already-normalised `kind`
+        // variable from above; `kind` is one of {coupon, promotion} by the
+        // time we reach this point.
         await audit.AppendAndCommitAsync(
-            request.TargetEntityKind!.Trim().ToLowerInvariant() == "coupon" ? "coupon" : "promotion",
+            kind!,
             request.TargetEntityId,
             "commercial.approval_recorded",
             callerId, CommercialPermissions.Approver,

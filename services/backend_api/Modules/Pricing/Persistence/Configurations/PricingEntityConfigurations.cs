@@ -86,6 +86,24 @@ public sealed class CouponConfiguration : IEntityTypeConfiguration<Coupon>
         builder.Property(x => x.DisplayInBanners).HasDefaultValue(false).IsRequired();
         builder.Property(x => x.AppliesToBroken).HasDefaultValue(false).IsRequired();
         builder.Property(x => x.AppliesToBrokenAtUtc);
+        // spec 007-b US1: bilingual labels (Principle 4). Stored separately so
+        // the (LabelAr, LabelEn) pair can carry NOT NULL constraints once the
+        // backfill migration completes; defaulted to empty string at the EF
+        // layer so existing rows from 007-a survive the additive migration.
+        // CodeRabbit PR #78 round 1 Major: drop the empty-string sentinel
+        // defaults — every row authored through this PR's create path supplies
+        // both labels, and a future migration will add CHECK constraints once
+        // any pre-007-b rows are backfilled. Keep IsRequired so the column
+        // remains NOT NULL at the DB layer; the additive migration uses an
+        // empty-string default ONLY at the column level (for the backfill of
+        // pre-existing rows that pre-date 007-b), not in the EF model.
+        builder.Property(x => x.LabelAr).HasColumnType("text").IsRequired();
+        builder.Property(x => x.LabelEn).HasColumnType("text").IsRequired();
+        builder.Property(x => x.DescriptionAr).HasColumnType("text");
+        builder.Property(x => x.DescriptionEn).HasColumnType("text");
+        builder.Property(x => x.AmountOffMinor);
+        builder.Property(x => x.StacksWithPromotions).HasDefaultValue(true).IsRequired();
+        builder.Property(x => x.AuthorActorId).IsRequired();
         builder.Property(x => x.XminRowVersion)
             .HasColumnName("xmin")
             .HasColumnType("xid")

@@ -54,10 +54,19 @@ public static class PricingModule
         // for the seeded values (research §R8) and idempotency contract.
         services.AddScoped<ISeeder, PricingThresholdsSeeder>();
 
-        // NOTE: 007-b commercial-authoring MediatR handlers, workers, and the
-        // ICheckoutGraceWindowProvider implementation register here as their
-        // user-story slices land (US1–US7 + Polish). DI will resolve at runtime;
-        // the foundation PR keeps registrations limited to what already compiles.
+        // Spec 007-b US1: commercial-authoring shared services. Per-request
+        // (scoped):
+        //   - CommercialAuditWriter captures the request's PricingDbContext
+        //     change-tracker for atomic dual-writes
+        //     (commercial_audit_events + the platform audit_log_entries channel).
+        //   - CommercialActorPermissions wraps the IdentityDbContext read for
+        //     chord-style RBAC checks (super_admin / commercial.approver) that
+        //     the route-level [RequirePermission(...)] gate cannot express.
+        services.AddScoped<Admin.Common.CommercialAuditWriter>();
+        services.AddScoped<Admin.Common.CommercialActorPermissions>();
+
+        // NOTE: 007-b workers and the ICheckoutGraceWindowProvider impl
+        // land in subsequent user-story PRs (US2–US7 + Polish).
 
         return services;
     }
@@ -77,6 +86,14 @@ public static class PricingModule
         Admin.B2BTiers.Endpoint.MapB2BTierEndpoints(adminPricing);
         Admin.ProductTierPrices.Endpoint.MapProductTierPriceEndpoints(adminPricing);
         Admin.Explanations.Endpoint.MapExplanationEndpoints(adminPricing);
+
+        // Spec 007-b US1: commercial-authoring surface (contract §1, base path
+        // /v1/admin/commercial). Mounted alongside the legacy /v1/admin/pricing
+        // routes so the existing 007-a admin endpoints keep working unchanged.
+        var adminCommercial = app.MapGroup("/v1/admin/commercial");
+        Admin.Coupons.CommercialCouponEndpoints.MapCommercialCouponEndpoints(adminCommercial);
+        Admin.PreviewProfiles.CommercialPreviewProfileEndpoints.MapCommercialPreviewProfileEndpoints(adminCommercial);
+        Admin.Preview.CommercialPreviewEndpoints.MapCommercialPreviewEndpoints(adminCommercial);
 
         return app;
     }

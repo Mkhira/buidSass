@@ -69,6 +69,24 @@ public static class PricingModule
         services.AddScoped<Admin.Common.CommercialAuditWriter>();
         services.AddScoped<Admin.Common.CommercialActorPermissions>();
 
+        // Spec 007-b Polish — cross-module subscribers + workers + the
+        // ICheckoutGraceWindowProvider impl. Subscribers wire on the
+        // Modules/Shared/ contracts so spec 005 (catalog) + spec 021 (b2b)
+        // can publish without taking a Pricing dependency. Workers tick
+        // on TimeProvider so tests can advance via FakeTimeProvider.
+        services.AddScoped<Modules.Shared.ICatalogSkuArchivedSubscriber, Subscribers.CatalogSkuArchivedHandler>();
+        services.AddScoped<Modules.Shared.IB2BCompanySuspendedSubscriber, Subscribers.B2BCompanySuspendedHandler>();
+        // CampaignLinkBrokenWatcher is registered for MediatR's INotificationHandler
+        // discovery (AddMediatR scans the BackendApi assembly); the explicit
+        // AddScoped registration is harmless and keeps the wiring discoverable.
+        services.AddScoped<Subscribers.CampaignLinkBrokenWatcher>();
+
+        services.AddScoped<Modules.Shared.ICheckoutGraceWindowProvider, Internal.CheckoutGraceWindowProvider>();
+
+        services.AddHostedService<Workers.LifecycleTimerWorker>();
+        services.AddHostedService<Workers.BrokenReferenceAutoDeactivationWorker>();
+        services.AddHostedService<Workers.CommercialIntegrityScanWorker>();
+
         return services;
     }
 
@@ -103,6 +121,8 @@ public static class PricingModule
         // US5 — Approval queue + threshold administration (contract §8, §9).
         Admin.Approvals.CommercialApprovalEndpoints.MapCommercialApprovalEndpoints(adminCommercial);
         Admin.Thresholds.CommercialThresholdEndpoints.MapCommercialThresholdEndpoints(adminCommercial);
+        // Polish — admin pickers consumed by spec 015 (contract §10).
+        Admin.Lookups.CommercialLookupEndpoints.MapCommercialLookupEndpoints(adminCommercial);
 
         return app;
     }

@@ -5,8 +5,10 @@ namespace BackendApi.Modules.Pricing.Primitives.Commercial;
 /// All codes are stable strings used in API responses, ICU keys, and audit rows.
 /// </summary>
 /// <remarks>
-/// Total owned codes (T010): 49. Engine-emitted cross-reference codes
-/// (e.g. <c>pricing.coupon.expired</c>) are owned by spec 007-a.
+/// Total owned codes: 50 (49 launched in PR #78 per T010 / contract §11;
+/// <c>BusinessPricingValidationError</c> added in PR #80 round 1).
+/// Engine-emitted cross-reference codes (e.g. <c>pricing.coupon.expired</c>)
+/// are owned by spec 007-a.
 /// </remarks>
 public static class CommercialReasonCode
 {

@@ -53,6 +53,10 @@ public static class PricingModule
         // bare-DB bootstraps). See Modules/Pricing/Seeding/PricingThresholdsSeeder.cs
         // for the seeded values (research §R8) and idempotency contract.
         services.AddScoped<ISeeder, PricingThresholdsSeeder>();
+        // Spec 007-b US6: dev/staging-only synthetic dataset spanning every
+        // lifecycle state for Coupons + Promotions + Campaigns. Env-gated
+        // inside the seeder itself (no-op in Production).
+        services.AddScoped<ISeeder, PromotionsV1DevSeeder>();
 
         // Spec 007-b US1: commercial-authoring shared services. Per-request
         // (scoped):

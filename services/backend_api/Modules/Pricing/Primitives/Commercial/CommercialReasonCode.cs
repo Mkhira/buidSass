@@ -5,8 +5,10 @@ namespace BackendApi.Modules.Pricing.Primitives.Commercial;
 /// All codes are stable strings used in API responses, ICU keys, and audit rows.
 /// </summary>
 /// <remarks>
-/// Total owned codes (T010): 49. Engine-emitted cross-reference codes
-/// (e.g. <c>pricing.coupon.expired</c>) are owned by spec 007-a.
+/// Total owned codes: 50 (49 launched in PR #78 per T010 / contract §11;
+/// <c>BusinessPricingValidationError</c> added in PR #80 round 1).
+/// Engine-emitted cross-reference codes (e.g. <c>pricing.coupon.expired</c>)
+/// are owned by spec 007-a.
 /// </remarks>
 public static class CommercialReasonCode
 {
@@ -39,6 +41,13 @@ public static class CommercialReasonCode
     public const string BusinessPricingCsvRowInvalid = "business_pricing.csv.row_invalid";
     public const string BusinessPricingPreviewTokenExpired = "business_pricing.preview_token.expired";
     public const string BusinessPricingPreviewSnapshotChanged = "business_pricing.preview_snapshot.changed";
+    /// <summary>
+    /// Validation failure on a Business Pricing row write (missing required
+    /// field, out-of-range value, etc.). Distinct from
+    /// <see cref="BusinessPricingRowConflict"/> which signals a duplicate /
+    /// uniqueness violation. CodeRabbit PR #80 round 1.
+    /// </summary>
+    public const string BusinessPricingValidationError = "business_pricing.validation_error";
 
     // ---------- Campaigns ----------
     public const string CampaignNameRequiredBilingual = "campaign.name.required_bilingual";
@@ -75,7 +84,7 @@ public static class CommercialReasonCode
     public const string CommercialTextTooLong = "commercial.text.too_long";
     public const string CommercialRateLimitExceeded = "commercial.rate_limit_exceeded";
 
-    /// <summary>All 49 owned codes for ICU-key coverage tests (T046).</summary>
+    /// <summary>All owned codes for ICU-key coverage tests (T046). 49 launched in PR #78; +1 (`BusinessPricingValidationError`) added in PR #80 round 1.</summary>
     public static readonly IReadOnlyList<string> AllCodes =
     [
         CouponCodeDuplicate,
@@ -102,6 +111,7 @@ public static class CommercialReasonCode
         BusinessPricingCsvRowInvalid,
         BusinessPricingPreviewTokenExpired,
         BusinessPricingPreviewSnapshotChanged,
+        BusinessPricingValidationError,
         CampaignNameRequiredBilingual,
         CampaignLinkTargetExpired,
         CampaignLinkCouponNotDisplayable,

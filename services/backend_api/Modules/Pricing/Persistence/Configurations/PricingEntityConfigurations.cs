@@ -180,13 +180,18 @@ public sealed class ProductTierPriceConfiguration : IEntityTypeConfiguration<Pro
     public void Configure(EntityTypeBuilder<ProductTierPrice> builder)
     {
         builder.ToTable("product_tier_prices", "pricing");
-        builder.HasKey(x => new { x.ProductId, x.TierId, x.MarketCode });
+        // spec 007-b US3: surrogate PK on `Id`. Legacy 007-a engine query
+        // (tier_id + market_code + product_id) is preserved via a unique
+        // partial index below so the cart-pricing hot path keeps its
+        // covering index.
+        builder.HasKey(x => x.Id);
+        builder.Property(x => x.Id).IsRequired();
+        builder.Property(x => x.ProductId).IsRequired();
+        builder.Property(x => x.TierId);  // now nullable — company-override rows have null tier_id
         builder.Property(x => x.MarketCode).HasColumnType("citext").IsRequired();
         builder.Property(x => x.NetMinor).IsRequired();
 
-        // spec 007-b additive columns. Full XOR/surrogate-PK reshape
-        // is a Phase 5 (US3) follow-up; columns are introduced now so the
-        // domain surface and indexes are present.
+        // spec 007-b columns (data-model §2.3).
         builder.Property(x => x.CompanyId);
         builder.Property(x => x.CopiedFromTierId);
         builder.Property(x => x.State)
@@ -205,11 +210,38 @@ public sealed class ProductTierPriceConfiguration : IEntityTypeConfiguration<Pro
             .HasColumnType("xid")
             .ValueGeneratedOnAddOrUpdate()
             .IsRowVersion();
+
+        // Engine-hot-path covering index: preserves the 007-a (tier_id, market, product_id)
+        // lookup shape after the PK move. Filtered to TierId IS NOT NULL so company-override
+        // rows (TierId null) don't contend for slots on the index.
+        builder.HasIndex(x => new { x.TierId, x.MarketCode, x.ProductId })
+            .HasDatabaseName("UX_product_tier_prices_tier_market_product")
+            .IsUnique()
+            .HasFilter("\"TierId\" IS NOT NULL AND \"CompanyId\" IS NULL AND \"State\" = 0");
+
+        // Company-override uniqueness: one active override per (company, sku/product, market).
+        builder.HasIndex(x => new { x.CompanyId, x.MarketCode, x.ProductId })
+            .HasDatabaseName("UX_product_tier_prices_company_market_product")
+            .IsUnique()
+            .HasFilter("\"CompanyId\" IS NOT NULL AND \"State\" = 0");
+
         builder.HasIndex(x => x.CompanyId).HasDatabaseName("IX_product_tier_prices_company_id");
         builder.HasIndex(x => x.VendorId).HasDatabaseName("IX_product_tier_prices_vendor_id");
         builder.HasIndex(x => x.CompanyLinkBroken)
             .HasDatabaseName("IX_product_tier_prices_company_link_broken")
             .HasFilter("\"CompanyLinkBroken\" = TRUE");
+
+        builder.ToTable(t =>
+        {
+            // chk_tier_xor_company — three valid shapes:
+            //   1) tier_id set, company_id null         (classic tier row)
+            //   2) tier_id null, company_id set         (company-only override)
+            //   3) both set with copied_from_tier_id    (audit-pointed override)
+            t.HasCheckConstraint("chk_tier_xor_company",
+                "(\"TierId\" IS NOT NULL AND \"CompanyId\" IS NULL) " +
+                "OR (\"TierId\" IS NULL AND \"CompanyId\" IS NOT NULL) " +
+                "OR (\"TierId\" IS NOT NULL AND \"CompanyId\" IS NOT NULL AND \"CopiedFromTierId\" IS NOT NULL)");
+        });
     }
 }
 

@@ -93,6 +93,7 @@ public static class PricingModule
         var adminCommercial = app.MapGroup("/v1/admin/commercial");
         Admin.Coupons.CommercialCouponEndpoints.MapCommercialCouponEndpoints(adminCommercial);
         Admin.Promotions.CommercialPromotionEndpoints.MapCommercialPromotionEndpoints(adminCommercial);
+        Admin.BusinessPricing.CommercialBusinessPricingEndpoints.MapCommercialBusinessPricingEndpoints(adminCommercial);
         Admin.PreviewProfiles.CommercialPreviewProfileEndpoints.MapCommercialPreviewProfileEndpoints(adminCommercial);
         Admin.Preview.CommercialPreviewEndpoints.MapCommercialPreviewEndpoints(adminCommercial);
 

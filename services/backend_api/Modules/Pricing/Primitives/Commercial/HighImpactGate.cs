@@ -32,8 +32,12 @@ public static class HighImpactGate
             }
         }
 
-        // Criterion 3: both usage limits unset.
-        if (candidate.PerCustomerLimit is null && candidate.OverallLimit is null)
+        // Criterion 3: both usage limits unset (coupons only). Promotions
+        // do not author usage limits, so they pass UsageLimitsApplicable=false
+        // and this criterion short-circuits to a no-trip for them.
+        if (candidate.UsageLimitsApplicable
+            && candidate.PerCustomerLimit is null
+            && candidate.OverallLimit is null)
         {
             return true;
         }

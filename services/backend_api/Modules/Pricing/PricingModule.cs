@@ -92,6 +92,7 @@ public static class PricingModule
         // routes so the existing 007-a admin endpoints keep working unchanged.
         var adminCommercial = app.MapGroup("/v1/admin/commercial");
         Admin.Coupons.CommercialCouponEndpoints.MapCommercialCouponEndpoints(adminCommercial);
+        Admin.Promotions.CommercialPromotionEndpoints.MapCommercialPromotionEndpoints(adminCommercial);
         Admin.PreviewProfiles.CommercialPreviewProfileEndpoints.MapCommercialPreviewProfileEndpoints(adminCommercial);
         Admin.Preview.CommercialPreviewEndpoints.MapCommercialPreviewEndpoints(adminCommercial);
 

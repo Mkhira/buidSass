@@ -58,6 +58,23 @@ public sealed class PromotionConfiguration : IEntityTypeConfiguration<Promotion>
         builder.HasIndex(x => x.AppliesToBroken)
             .HasDatabaseName("IX_promotions_applies_to_broken")
             .HasFilter("\"AppliesToBroken\" = TRUE");
+
+        // spec 007-b US2: bilingual labels (parallel to coupons US1).
+        // NOT NULL at DB layer; backfilled to empty string for pre-007-b rows
+        // in the migration. Every commercial-authored row supplies both labels.
+        builder.Property(x => x.LabelAr).HasColumnType("text").IsRequired();
+        builder.Property(x => x.LabelEn).HasColumnType("text").IsRequired();
+        builder.Property(x => x.DescriptionAr).HasColumnType("text");
+        builder.Property(x => x.DescriptionEn).HasColumnType("text");
+
+        // spec 007-b US2: pricing values authored alongside ConfigJson.
+        builder.Property(x => x.PercentOff);
+        builder.Property(x => x.AmountOffMinor);
+        builder.Property(x => x.RewardSku);
+        builder.Property(x => x.BundleSku);
+        builder.Property(x => x.StacksWithCoupons).HasDefaultValue(true).IsRequired();
+        builder.Property(x => x.StacksWithOtherPromotions).HasDefaultValue(true).IsRequired();
+        builder.Property(x => x.AuthorActorId).IsRequired();
     }
 }
 

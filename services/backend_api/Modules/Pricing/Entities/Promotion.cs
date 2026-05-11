@@ -30,6 +30,35 @@ public sealed class Promotion
     public bool AppliesToBroken { get; set; }
     public DateTimeOffset? AppliesToBrokenAtUtc { get; set; }
 
+    // ---------- spec 007-b US2: bilingual labels (Principle 4) ----------
+    // Required at create-time per contract §3 mirror of §2.1. Stored as
+    // separate columns (matching Coupon US1 pattern) so PG indexing + admin
+    // filtering stays trivial.
+    public string LabelAr { get; set; } = string.Empty;
+    public string LabelEn { get; set; } = string.Empty;
+    public string? DescriptionAr { get; set; }
+    public string? DescriptionEn { get; set; }
+
+    // ---------- spec 007-b US2: pricing-field columns ----------
+    // The 007-a engine reads pricing values from ConfigJson; commercial
+    // authoring (007-b) persists the authored values into typed columns AND
+    // builds the ConfigJson on save so the engine layer remains unchanged.
+    // PercentOff is whole percent (1..100) for the wire shape; engine
+    // continues to read percentBps from ConfigJson.
+    public int? PercentOff { get; set; }
+    public long? AmountOffMinor { get; set; }
+    public Guid? RewardSku { get; set; }       // BOGO reward
+    public Guid? BundleSku { get; set; }       // bundle target
+
+    // ---------- spec 007-b US2: stacking flags (contract §3) ----------
+    // Default true — single-coupon, single-promotion stacking is the
+    // common case. Engine treats `false` as a suppression signal.
+    public bool StacksWithCoupons { get; set; } = true;
+    public bool StacksWithOtherPromotions { get; set; } = true;
+
+    // ---------- spec 007-b US2: author actor (US5 high-impact gate) ----------
+    public Guid AuthorActorId { get; set; }
+
     /// <summary>
     /// Optimistic-concurrency token mapped to PostgreSQL <c>xmin</c>.
     /// </summary>

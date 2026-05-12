@@ -46,9 +46,15 @@ public sealed class PromotionsV1SeederGuardTests(PricingTestFactory factory)
 
         await using var scope = factory.Services.CreateAsyncScope();
         var db = scope.ServiceProvider.GetRequiredService<PricingDbContext>();
-        var rows = await db.Coupons.CountAsync();
-        rows.Should().Be(0,
-            $"the dev seeder must short-circuit for environment '{env}'");
+        var coupons = await db.Coupons.CountAsync();
+        var promotions = await db.Promotions.CountAsync();
+        var campaigns = await db.Campaigns.CountAsync();
+        coupons.Should().Be(0,
+            $"the dev seeder must short-circuit Coupons for environment '{env}'");
+        promotions.Should().Be(0,
+            $"the dev seeder must short-circuit Promotions for environment '{env}'");
+        campaigns.Should().Be(0,
+            $"the dev seeder must short-circuit Campaigns for environment '{env}'");
     }
 
     private async Task RunSeederAsync(string environmentName)

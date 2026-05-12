@@ -78,8 +78,11 @@ public sealed class InFlightGracePayloadTests(PricingTestFactory factory)
         createResp.StatusCode.Should().Be(HttpStatusCode.Created);
         var coupon = (await createResp.Content.ReadFromJsonAsync<CommercialCouponResponse>())!;
 
-        await client.PostAsJsonAsync(
+        var scheduleResp = await client.PostAsJsonAsync(
             $"/v1/admin/commercial/coupons/{coupon.Id:D}/schedule", new { });
+        scheduleResp.IsSuccessStatusCode.Should().BeTrue(
+            "the schedule step is the precondition for the deactivation that publishes the event");
+
         var deactResp = await client.PostAsJsonAsync(
             $"/v1/admin/commercial/coupons/{coupon.Id:D}/deactivate",
             new { ReasonNote = "verify in-flight grace payload" });

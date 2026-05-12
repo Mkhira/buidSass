@@ -69,19 +69,22 @@ public sealed class CommercialDomainEventsPublishedTests(PricingTestFactory fact
         createResp.EnsureSuccessStatusCode();
         var coupon = (await createResp.Content.ReadFromJsonAsync<CommercialCouponResponse>())!;
 
-        await client.PostAsJsonAsync(
+        var scheduleResp = await client.PostAsJsonAsync(
             $"/v1/admin/commercial/coupons/{coupon.Id:D}/schedule", new { });
+        scheduleResp.EnsureSuccessStatusCode();
         DomainEventCapture.ActivatedCount.Should().Be(1, "schedule into Active publishes CouponActivated");
 
-        await client.PostAsJsonAsync(
+        var deactResp = await client.PostAsJsonAsync(
             $"/v1/admin/commercial/coupons/{coupon.Id:D}/deactivate",
             new { ReasonNote = "events suite — pause for reactivation step" });
+        deactResp.EnsureSuccessStatusCode();
         DomainEventCapture.DeactivatedCount.Should().Be(1,
             "deactivation must publish exactly one CouponDeactivated notification");
 
-        await client.PostAsJsonAsync(
+        var reactResp = await client.PostAsJsonAsync(
             $"/v1/admin/commercial/coupons/{coupon.Id:D}/reactivate",
             new { ReasonNote = "events suite — re-enable after pause" });
+        reactResp.EnsureSuccessStatusCode();
         DomainEventCapture.ReactivatedCount.Should().Be(1,
             "reactivation must publish exactly one CouponReactivated notification");
     }

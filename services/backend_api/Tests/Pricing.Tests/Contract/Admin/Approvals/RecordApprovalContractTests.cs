@@ -122,7 +122,10 @@ public sealed class RecordApprovalContractTests(PricingTestFactory factory)
                 DisplayInBanners: false,
                 Label: new("اختبار العقد", "Contract test"),
                 Description: null));
+        couponResp.StatusCode.Should().Be(HttpStatusCode.Created,
+            "the coupon must be created before exercising the approval flow");
         var coupon = (await couponResp.Content.ReadFromJsonAsync<CommercialCouponResponse>())!;
+        coupon.Should().NotBeNull();
 
         // Different account holds the approver permission.
         var (approverToken, _) = await PricingAdminAuthHelper.IssueAdminTokenAsync(

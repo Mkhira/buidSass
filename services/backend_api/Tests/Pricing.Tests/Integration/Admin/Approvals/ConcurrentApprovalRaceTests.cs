@@ -4,6 +4,7 @@ using BackendApi.Modules.Pricing.Admin.Approvals;
 using BackendApi.Modules.Pricing.Admin.Coupons;
 using BackendApi.Modules.Pricing.Authorization;
 using BackendApi.Modules.Pricing.Persistence;
+using BackendApi.Modules.Pricing.Primitives.Commercial;
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
@@ -77,6 +78,16 @@ public sealed class ConcurrentApprovalRaceTests(PricingTestFactory factory)
         statuses.Should().Contain(HttpStatusCode.OK, "one approval must succeed");
         statuses.Should().Contain(c => c == HttpStatusCode.Conflict || c == HttpStatusCode.BadRequest,
             "the loser must be refused with 409 (unique-violation) or 400 (no-longer-pending)");
+
+        // CodeRabbit PR #82 round 1: assert the loser carries a specific
+        // reason code so an unrelated 400 (e.g. a malformed body) cannot
+        // accidentally make the test pass.
+        var loser = responses.Single(r => r.StatusCode != HttpStatusCode.OK);
+        var loserBody = await loser.Content.ReadAsStringAsync();
+        loserBody.Should().Match(s =>
+            s.Contains(CommercialReasonCode.CommercialApprovalAlreadyRecorded) ||
+            s.Contains(CommercialReasonCode.CommercialApprovalNotPending),
+            "loser must carry the unique-violation or no-longer-pending reason code");
 
         // Assert at most one approval row exists for the coupon.
         await using var scope = factory.Services.CreateAsyncScope();

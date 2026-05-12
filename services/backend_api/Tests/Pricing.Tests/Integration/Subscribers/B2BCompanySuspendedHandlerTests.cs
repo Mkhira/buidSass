@@ -61,15 +61,39 @@ public sealed class B2BCompanySuspendedHandlerTests(PricingTestFactory factory)
     public async Task Handle_IsNoOp_WhenNoReferencingRows()
     {
         await factory.ResetDatabaseAsync();
-        var handler = factory.Services.GetRequiredService<IB2BCompanySuspendedSubscriber>();
 
-        var act = async () => await handler.HandleAsync(
-            new B2BCompanySuspendedEvent(
-                Guid.NewGuid(), DateTimeOffset.UtcNow,
-                CommercialPermissions.SystemActorId, "no rows reference this"),
-            CancellationToken.None);
+        // Seed a row owned by a DIFFERENT company. The handler must not
+        // mutate it when the event targets some other company id.
+        var unrelatedCompanyId = Guid.NewGuid();
+        var unrelatedRowId = Guid.NewGuid();
+        await using (var scope = factory.Services.CreateAsyncScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<PricingDbContext>();
+            db.ProductTierPrices.Add(BuildCompanyOverride(unrelatedRowId, unrelatedCompanyId, "sa"));
+            await db.SaveChangesAsync();
+        }
 
-        await act.Should().NotThrowAsync();
+        await using (var scope = factory.Services.CreateAsyncScope())
+        {
+            var handler = scope.ServiceProvider.GetRequiredService<IB2BCompanySuspendedSubscriber>();
+            var act = async () => await handler.HandleAsync(
+                new B2BCompanySuspendedEvent(
+                    Guid.NewGuid(), DateTimeOffset.UtcNow,
+                    CommercialPermissions.SystemActorId, "targets a different company"),
+                CancellationToken.None);
+            await act.Should().NotThrowAsync();
+        }
+
+        // Confirm the unrelated row stayed pristine — no field mutated.
+        await using (var scope = factory.Services.CreateAsyncScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<PricingDbContext>();
+            var row = await db.ProductTierPrices.AsNoTracking()
+                .SingleAsync(r => r.Id == unrelatedRowId);
+            row.CompanyLinkBroken.Should().BeFalse(
+                "rows owned by an unrelated company must NOT be flipped by the handler");
+            row.CompanyLinkBrokenAtUtc.Should().BeNull();
+        }
     }
 
     [Fact]

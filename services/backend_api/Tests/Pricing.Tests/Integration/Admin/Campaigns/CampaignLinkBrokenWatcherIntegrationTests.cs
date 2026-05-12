@@ -34,7 +34,11 @@ public sealed class CampaignLinkBrokenWatcherIntegrationTests(PricingTestFactory
             "/v1/admin/commercial/coupons",
             new CreateCommercialCouponRequest(
                 Code: $"WATCH-{Guid.NewGuid().ToString("N")[..8]}",
-                Markets: new[] { "ksa" },
+                // Use the same market code as the campaign below so watcher
+                // behaviour is exercised in a single market (CodeRabbit PR #82
+                // round 1 nitpick). "ksa" is just a synonym for "sa" so the
+                // coupon-create-time normalisation produces matching values.
+                Markets: new[] { "sa" },
                 Type: "percent_off",
                 Value: 5,                     // below 30% threshold — gate stays off
                 AmountOffMinor: null,

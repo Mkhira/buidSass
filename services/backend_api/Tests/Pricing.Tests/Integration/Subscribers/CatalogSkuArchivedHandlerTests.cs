@@ -115,12 +115,17 @@ public sealed class CatalogSkuArchivedHandlerTests(PricingTestFactory factory)
             await db.SaveChangesAsync();
         }
 
-        var handler = factory.Services.GetRequiredService<ICatalogSkuArchivedSubscriber>();
-        var act = async () => await handler.HandleAsync(
-            new CatalogSkuArchivedEvent(
-                skuId, "SKU-X", DateTimeOffset.UtcNow, CommercialPermissions.SystemActorId),
-            CancellationToken.None);
-        await act.Should().NotThrowAsync("redelivery against already-flagged rows must be a no-op");
+        // CodeRabbit PR #82 round 1: resolve from a scope to match the
+        // lifetime pattern used by the other tests in this file.
+        await using (var scopeAct = factory.Services.CreateAsyncScope())
+        {
+            var handler = scopeAct.ServiceProvider.GetRequiredService<ICatalogSkuArchivedSubscriber>();
+            var act = async () => await handler.HandleAsync(
+                new CatalogSkuArchivedEvent(
+                    skuId, "SKU-X", DateTimeOffset.UtcNow, CommercialPermissions.SystemActorId),
+                CancellationToken.None);
+            await act.Should().NotThrowAsync("redelivery against already-flagged rows must be a no-op");
+        }
 
         await using var scope2 = factory.Services.CreateAsyncScope();
         var db2 = scope2.ServiceProvider.GetRequiredService<PricingDbContext>();

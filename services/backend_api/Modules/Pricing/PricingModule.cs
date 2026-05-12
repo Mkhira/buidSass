@@ -53,6 +53,10 @@ public static class PricingModule
         // bare-DB bootstraps). See Modules/Pricing/Seeding/PricingThresholdsSeeder.cs
         // for the seeded values (research §R8) and idempotency contract.
         services.AddScoped<ISeeder, PricingThresholdsSeeder>();
+        // Spec 007-b US6: dev/staging-only synthetic dataset spanning every
+        // lifecycle state for Coupons + Promotions + Campaigns. Env-gated
+        // inside the seeder itself (no-op in Production).
+        services.AddScoped<ISeeder, PromotionsV1DevSeeder>();
 
         // Spec 007-b US1: commercial-authoring shared services. Per-request
         // (scoped):
@@ -65,8 +69,23 @@ public static class PricingModule
         services.AddScoped<Admin.Common.CommercialAuditWriter>();
         services.AddScoped<Admin.Common.CommercialActorPermissions>();
 
-        // NOTE: 007-b workers and the ICheckoutGraceWindowProvider impl
-        // land in subsequent user-story PRs (US2–US7 + Polish).
+        // Spec 007-b Polish — cross-module subscribers + workers + the
+        // ICheckoutGraceWindowProvider impl. Subscribers wire on the
+        // Modules/Shared/ contracts so spec 005 (catalog) + spec 021 (b2b)
+        // can publish without taking a Pricing dependency. Workers tick
+        // on TimeProvider so tests can advance via FakeTimeProvider.
+        services.AddScoped<Modules.Shared.ICatalogSkuArchivedSubscriber, Subscribers.CatalogSkuArchivedHandler>();
+        services.AddScoped<Modules.Shared.IB2BCompanySuspendedSubscriber, Subscribers.B2BCompanySuspendedHandler>();
+        // CampaignLinkBrokenWatcher is registered for MediatR's INotificationHandler
+        // discovery (AddMediatR scans the BackendApi assembly); the explicit
+        // AddScoped registration is harmless and keeps the wiring discoverable.
+        services.AddScoped<Subscribers.CampaignLinkBrokenWatcher>();
+
+        services.AddScoped<Modules.Shared.ICheckoutGraceWindowProvider, Internal.CheckoutGraceWindowProvider>();
+
+        services.AddHostedService<Workers.LifecycleTimerWorker>();
+        services.AddHostedService<Workers.BrokenReferenceAutoDeactivationWorker>();
+        services.AddHostedService<Workers.CommercialIntegrityScanWorker>();
 
         return services;
     }
@@ -87,15 +106,23 @@ public static class PricingModule
         Admin.ProductTierPrices.Endpoint.MapProductTierPriceEndpoints(adminPricing);
         Admin.Explanations.Endpoint.MapExplanationEndpoints(adminPricing);
 
-        // Spec 007-b US1: commercial-authoring surface (contract §1, base path
-        // /v1/admin/commercial). Mounted alongside the legacy /v1/admin/pricing
-        // routes so the existing 007-a admin endpoints keep working unchanged.
+        // Spec 007-b US1-US4: commercial-authoring surface (contract §1, base
+        // path /v1/admin/commercial). Mounted alongside the legacy
+        // /v1/admin/pricing routes so the existing 007-a admin endpoints keep
+        // working unchanged.
         var adminCommercial = app.MapGroup("/v1/admin/commercial");
         Admin.Coupons.CommercialCouponEndpoints.MapCommercialCouponEndpoints(adminCommercial);
         Admin.Promotions.CommercialPromotionEndpoints.MapCommercialPromotionEndpoints(adminCommercial);
         Admin.BusinessPricing.CommercialBusinessPricingEndpoints.MapCommercialBusinessPricingEndpoints(adminCommercial);
         Admin.PreviewProfiles.CommercialPreviewProfileEndpoints.MapCommercialPreviewProfileEndpoints(adminCommercial);
         Admin.Preview.CommercialPreviewEndpoints.MapCommercialPreviewEndpoints(adminCommercial);
+        // US4 — Campaigns (contract §5).
+        Admin.Campaigns.CommercialCampaignEndpoints.MapCommercialCampaignEndpoints(adminCommercial);
+        // US5 — Approval queue + threshold administration (contract §8, §9).
+        Admin.Approvals.CommercialApprovalEndpoints.MapCommercialApprovalEndpoints(adminCommercial);
+        Admin.Thresholds.CommercialThresholdEndpoints.MapCommercialThresholdEndpoints(adminCommercial);
+        // Polish — admin pickers consumed by spec 015 (contract §10).
+        Admin.Lookups.CommercialLookupEndpoints.MapCommercialLookupEndpoints(adminCommercial);
 
         return app;
     }

@@ -7,6 +7,13 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <!-- Expose `internal` worker tick methods (e.g. LifecycleTimerWorker.TickAsync)
+         to the Pricing.Tests assembly so workers can be unit-tested without
+         starting the BackgroundService loop (spec 007-b T137/T138/T149). -->
+    <InternalsVisibleTo Include="Pricing.Tests" />
+  </ItemGroup>
+
+  <ItemGroup>
     <Compile Remove="Tests\**" />
     <EmbeddedResource Remove="Tests\**" />
     <None Remove="Tests\**" />

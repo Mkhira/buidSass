@@ -189,8 +189,15 @@ public static class CommercialThresholdEndpoints
         var beforeJson = JsonSerializer.Serialize(before);
         var afterJson = JsonSerializer.Serialize(after);
 
+        // Thresholds are keyed by market_code (string), not a Guid PK. Derive a
+        // deterministic synthetic Guid for the audit-row entity_id so the
+        // shared AuditEventPublisher (Modules/AuditLog) — which rejects
+        // Guid.Empty — accepts the row. The Guid is stable per market so
+        // downstream audit-trail queries can group threshold-change history
+        // by entity_id == DeriveThresholdEntityId(market_code).
+        var thresholdAuditEntityId = DeriveThresholdEntityId(row.MarketCode);
         var publishAudit = audit.StageLocal(
-            "commercial_threshold", Guid.Empty, "commercial.threshold_changed",
+            "commercial_threshold", thresholdAuditEntityId, "commercial.threshold_changed",
             actorId, "super_admin",
             before, after, diff: new { before, after },
             reasonNote: null, correlationId: null, nowUtc);
@@ -214,6 +221,24 @@ public static class CommercialThresholdEndpoints
     }
 
     // -------------------- helpers --------------------
+
+    /// <summary>
+    /// Derive a deterministic synthetic Guid from the threshold's market code
+    /// for audit-row entity_id. Threshold rows do not have a Guid PK
+    /// (market_code IS the natural key), but
+    /// <see cref="BackendApi.Modules.AuditLog.AuditEventPublisher"/> rejects
+    /// <see cref="Guid.Empty"/>. The Guid is stable per market, so all
+    /// threshold-change audit rows for the same market share an entity_id.
+    /// </summary>
+    private static Guid DeriveThresholdEntityId(string marketCode)
+    {
+        var bytes = System.Security.Cryptography.SHA256.HashData(
+            System.Text.Encoding.UTF8.GetBytes("pricing.commercial_threshold:" + marketCode.ToUpperInvariant()));
+        // Take the first 16 bytes as a Guid (UUID-v4 shape is unnecessary
+        // here — uniqueness + determinism is the contract).
+        var span = bytes.AsSpan(0, 16).ToArray();
+        return new Guid(span);
+    }
 
     private static string? NormaliseMarketCode(string raw) => raw?.Trim().ToUpperInvariant() switch
     {

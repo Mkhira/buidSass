@@ -39,14 +39,20 @@ public sealed class CreateReDeliveryHandler(
             State = ShipmentStates.Pending,
             ShipToAddressRedactedJson = parent.ShipToAddressRedactedJson,
             ParentShipmentId = parent.Id,
-            Attempts = 0,
+            LabelCreationAttempts = 0,
+            DeliveryAttempts = 0,
+            WeightKgSnapshot = parent.WeightKgSnapshot,
+            DeclaredValueAmountSnapshot = parent.DeclaredValueAmountSnapshot,
             CreatedAt = nowUtc,
             UpdatedAt = nowUtc,
         };
 
         // Soft-conflict with the partial unique index on order_id: we mark
         // the parent as re_delivered_pending FIRST so its (order_id) slot is
-        // freed for the new active row.
+        // freed for the new active row. Both writes execute inside a single
+        // transaction so an exception between the two never leaves an
+        // orphaned re_delivered_pending parent without a child shipment.
+        await using var tx = await db.Database.BeginTransactionAsync(ct);
         await shipments.TransitionAsync(
             shipment: parent,
             newState: ShipmentStates.ReDeliveredPending,
@@ -57,6 +63,7 @@ public sealed class CreateReDeliveryHandler(
 
         db.Shipments.Add(newShipment);
         await db.SaveChangesAsync(ct);
+        await tx.CommitAsync(ct);
 
         await audit.PublishAsync(new AuditEvent(
             ActorId: cmd.ActorId,

@@ -35,6 +35,17 @@ public static class SmsaWebhookMapper
         var root = doc.RootElement;
         var trackingId = root.TryGetProperty("awb_number", out var t) ? t.GetString() ?? "" : "";
         var eventKind = root.TryGetProperty("event_kind", out var k) ? k.GetString() ?? "" : "";
+        // Reject malformed payloads upstream — the WebhookHandler returns 400
+        // malformed_payload rather than persisting a webhook row with empty
+        // identifiers (which would break idempotency tracking).
+        if (string.IsNullOrWhiteSpace(trackingId))
+        {
+            throw new InvalidOperationException("SMSA webhook missing awb_number.");
+        }
+        if (string.IsNullOrWhiteSpace(eventKind))
+        {
+            throw new InvalidOperationException("SMSA webhook missing event_kind.");
+        }
         var occurredAt = root.TryGetProperty("occurred_at", out var o) && o.TryGetDateTimeOffset(out var dt)
             ? dt
             : receivedAt;

@@ -14,8 +14,10 @@ public sealed class ShipmentConfiguration : IEntityTypeConfiguration<Shipment>
                 "\"MarketCode\" IN ('SA','EG')");
             t.HasCheckConstraint("CK_shipments_state",
                 @"""State"" IN ('pending','label_purchased','handed_to_carrier','in_transit','out_for_delivery','delivered','delivery_attempted','return_to_sender_initiated','returned_to_sender','delivery_disputed','re_delivered_pending','closed_with_refund','failed_to_create_label','pending_label_provider_failure','dead_letter_label','label_voided')");
-            t.HasCheckConstraint("CK_shipments_attempts_nonneg",
-                "\"Attempts\" >= 0");
+            t.HasCheckConstraint("CK_shipments_label_creation_attempts_nonneg",
+                "\"LabelCreationAttempts\" >= 0");
+            t.HasCheckConstraint("CK_shipments_delivery_attempts_nonneg",
+                "\"DeliveryAttempts\" >= 0");
         });
 
         builder.HasKey(x => x.Id);
@@ -31,7 +33,10 @@ public sealed class ShipmentConfiguration : IEntityTypeConfiguration<Shipment>
         builder.Property(x => x.State).HasColumnType("text").IsRequired();
         builder.Property(x => x.ShipToAddressRedactedJson).HasColumnType("jsonb").IsRequired();
         builder.Property(x => x.ParentShipmentId);
-        builder.Property(x => x.Attempts).IsRequired();
+        builder.Property(x => x.LabelCreationAttempts).IsRequired();
+        builder.Property(x => x.DeliveryAttempts).IsRequired();
+        builder.Property(x => x.WeightKgSnapshot).HasColumnType("numeric(6,3)").IsRequired();
+        builder.Property(x => x.DeclaredValueAmountSnapshot).HasColumnType("numeric(12,2)").IsRequired();
         builder.Property(x => x.EtaMin);
         builder.Property(x => x.EtaMax);
         builder.Property(x => x.LabelPurchasedAt);

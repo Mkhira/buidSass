@@ -17,9 +17,13 @@ public sealed class ShippingMethodVersionConfiguration
                 "\"VersionNo\" >= 1");
             t.HasCheckConstraint("CK_method_versions_eta",
                 "\"EtaMinHours\" >= 0 AND \"EtaMaxHours\" >= \"EtaMinHours\"");
-            // V-1 publish gate (DB-level partial check): if published, reviewer must differ from author.
+            // V-1 publish gate (DB-level): once a version has published, ReviewerId
+            // MUST be set AND distinct from AuthorId. The earlier
+            // (PublishedAt IS NULL OR ReviewerId IS NULL OR ReviewerId <> AuthorId)
+            // form let a published row with ReviewerId NULL slip through — that
+            // would break AC-15.
             t.HasCheckConstraint("CK_method_versions_reviewer_not_author",
-                "\"PublishedAt\" IS NULL OR \"ReviewerId\" IS NULL OR \"ReviewerId\" <> \"AuthorId\"");
+                "\"PublishedAt\" IS NULL OR (\"ReviewerId\" IS NOT NULL AND \"ReviewerId\" <> \"AuthorId\")");
         });
 
         builder.HasKey(x => x.Id);

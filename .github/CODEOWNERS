@@ -30,6 +30,9 @@
 # Owned by the shipping team. Until a co-maintainer onboards, @Mkhira acts as
 # the @shipping-team alias for review purposes.
 /services/backend_api/Modules/Shipping/             @Mkhira
-/apps/admin_web/app/shipping/                       @Mkhira
+# Next.js route-group parentheses are part of the on-disk path; the previous
+# /apps/admin_web/app/shipping/ entry did not match the real
+# /apps/admin_web/app/(admin)/shipping/ tree.
+/apps/admin_web/app/(admin)/shipping/               @Mkhira
 /scripts/shipping/                                  @Mkhira
 /scripts/ci/check-shipping-no-pii.sh                @Mkhira

@@ -13,8 +13,10 @@ public sealed class ShippingMarketSchemaConfiguration
         {
             t.HasCheckConstraint("CK_market_schemas_market",
                 "\"MarketCode\" IN ('SA','EG')");
-            t.HasCheckConstraint("CK_market_schemas_currency",
-                "\"DefaultCurrency\" IN ('SAR','EGP')");
+            // SA → SAR, EG → EGP. Without this row-level pairing, a misconfig
+            // could attach EGP to the SA market and quote in the wrong currency.
+            t.HasCheckConstraint("CK_market_schemas_currency_matches_market",
+                "(\"MarketCode\" = 'SA' AND \"DefaultCurrency\" = 'SAR') OR (\"MarketCode\" = 'EG' AND \"DefaultCurrency\" = 'EGP')");
             t.HasCheckConstraint("CK_market_schemas_eta_days",
                 "\"DefaultEtaDaysMin\" > 0 AND \"DefaultEtaDaysMax\" >= \"DefaultEtaDaysMin\"");
             t.HasCheckConstraint("CK_market_schemas_sla_hours",

@@ -36,7 +36,7 @@ public sealed class ApproveMethodHandler(
         // AC-15 — reviewer must differ from author.
         if (cmd.ReviewerId == version.AuthorId)
         {
-            throw new InvalidOperationException("Reviewer must differ from author (V-1).");
+            throw new ShippingPublishGateException("Reviewer must differ from author (V-1).");
         }
 
         var method = await db.ShippingMethods
@@ -46,7 +46,7 @@ public sealed class ApproveMethodHandler(
         // AC-14 — V-1 publish gate: AR + EN names required (Principle 4).
         if (string.IsNullOrWhiteSpace(method.NameAr) || string.IsNullOrWhiteSpace(method.NameEn))
         {
-            throw new InvalidOperationException("Both AR and EN names are required (V-1 / Principle 4).");
+            throw new ShippingPublishGateException("Both AR and EN names are required (V-1 / Principle 4).");
         }
 
         MethodVersionStateMachine.EnsureTransition(version.State, MethodVersionStates.Published);

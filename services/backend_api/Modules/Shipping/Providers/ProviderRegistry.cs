@@ -12,7 +12,21 @@ public sealed class ProviderRegistry
 
     public ProviderRegistry(IEnumerable<IShippingProvider> providers)
     {
-        _byId = providers.ToDictionary(p => p.ProviderId, StringComparer.Ordinal);
+        _byId = new Dictionary<string, IShippingProvider>(StringComparer.Ordinal);
+        foreach (var p in providers)
+        {
+            if (_byId.TryGetValue(p.ProviderId, out var conflict))
+            {
+                // Defensive — DI registration order should make collisions impossible,
+                // but a typo in two impls' ProviderId would silently overwrite one
+                // under a plain ToDictionary. Surface it at startup with the
+                // colliding types so the operator can resolve.
+                throw new InvalidOperationException(
+                    $"Duplicate IShippingProvider id '{p.ProviderId}' between "
+                    + $"{conflict.GetType().FullName} and {p.GetType().FullName}.");
+            }
+            _byId[p.ProviderId] = p;
+        }
     }
 
     public IShippingProvider Resolve(string providerId)

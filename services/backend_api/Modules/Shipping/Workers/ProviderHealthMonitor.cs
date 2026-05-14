@@ -95,10 +95,23 @@ public sealed class ProviderHealthMonitor(
             {
                 var oldPrimary = routing.PrimaryProviderId;
                 var oldBackup = routing.BackupProviderId!;
-                routing.PrimaryProviderId = oldBackup;
-                routing.BackupProviderId = oldPrimary;
-                routing.UpdatedAt = nowUtc;
-                await db.SaveChangesAsync(ct);
+                // Compare-and-swap via ExecuteUpdateAsync — only flips when the
+                // current primary still matches the value we read. Avoids
+                // double-flipping if a second worker observed the same threshold
+                // simultaneously (multi-instance safety). Returns 0 when another
+                // actor (manual failover, prior auto-failover loop) already
+                // swapped the routing; in that case we skip emit + audit.
+                var swapped = await db.ProviderRoutings
+                    .Where(r => r.MarketCode == routing.MarketCode
+                             && r.MethodId == routing.MethodId
+                             && r.PrimaryProviderId == oldPrimary
+                             && r.BackupProviderId == oldBackup)
+                    .ExecuteUpdateAsync(s => s
+                        .SetProperty(r => r.PrimaryProviderId, oldBackup)
+                        .SetProperty(r => r.BackupProviderId, oldPrimary)
+                        .SetProperty(r => r.UpdatedAt, nowUtc), ct);
+                if (swapped == 0) continue;
+
                 await audit.PublishAsync(new AuditEvent(
                     ActorId: Services.SystemActor.WorkerSystemActorId,
                     ActorRole: "system",

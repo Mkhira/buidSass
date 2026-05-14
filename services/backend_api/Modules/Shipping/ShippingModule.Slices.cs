@@ -177,8 +177,10 @@ public static partial class ShippingModule
                 await mediator.Send(new ApproveMethodCommand(id, body.ActorId), ct);
                 return Results.NoContent();
             }
-            catch (InvalidOperationException ex) when (ex.Message.Contains("V-1"))
+            catch (ShippingPublishGateException ex)
             {
+                // Typed exception → no need to parse `ex.Message` to detect the
+                // V-1 publish-gate failure.
                 return Results.BadRequest(new { error = "publish_gate_failed", detail = ex.Message });
             }
         })
@@ -189,8 +191,15 @@ public static partial class ShippingModule
             Guid id, [FromBody] RejectBody body,
             [FromServices] IMediator mediator, CancellationToken ct) =>
         {
-            await mediator.Send(new RejectMethodCommand(id, body.ActorId, body.Reason ?? "rejected"), ct);
-            return Results.NoContent();
+            try
+            {
+                await mediator.Send(new RejectMethodCommand(id, body.ActorId, body.Reason ?? "rejected"), ct);
+                return Results.NoContent();
+            }
+            catch (ShippingPublishGateException ex)
+            {
+                return Results.BadRequest(new { error = "publish_gate_failed", detail = ex.Message });
+            }
         })
         .WithName("shipping_admin_reject_method")
         .WithTags("shipping-admin");

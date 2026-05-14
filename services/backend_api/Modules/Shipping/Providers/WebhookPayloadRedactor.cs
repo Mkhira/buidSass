@@ -26,8 +26,13 @@ public static class WebhookPayloadRedactor
             "customer_phone",
         };
 
+    // Match generously: `name`, `full_name`, `recipientName`, `customerName`,
+    // and `_name` variants all redact. BR-15 — any plausible PII surface.
+    // Matching is case-insensitive substring containment, so `name` covers
+    // `name`, `recipient_name`, `fullName`, `nameSuffix`, etc.
     private static readonly string[] FuzzyRedactSubstrings =
-        new[] { "phone", "email", "address", "national_id", "passport", "_name" };
+        new[] { "phone", "email", "address", "national_id", "nationalid",
+                "passport", "name" };
 
     public static string Redact(JsonElement element)
     {

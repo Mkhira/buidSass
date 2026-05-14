@@ -98,7 +98,10 @@ public sealed class OrderLifecycleSubscriber(
             ProviderId = providerId,
             State = ShipmentStates.Pending,
             ShipToAddressRedactedJson = JsonSerializer.Serialize(redactedShipTo),
-            Attempts = 0,
+            LabelCreationAttempts = 0,
+            DeliveryAttempts = 0,
+            WeightKgSnapshot = @event.WeightKg,
+            DeclaredValueAmountSnapshot = @event.CurrencyAmount,
             CreatedAt = nowUtc,
             UpdatedAt = nowUtc,
         };

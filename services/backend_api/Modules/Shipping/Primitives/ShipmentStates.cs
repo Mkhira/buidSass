@@ -75,8 +75,13 @@ public static class ShipmentStates
     public static int PrecedenceOf(string state) =>
         Precedence.TryGetValue(state, out var p) ? p : -1;
 
+    // DeadLetterLabel is NOT terminal — the state machine permits
+    // dead_letter_label → label_purchased once an operator resolves the
+    // failure. Treating it as terminal here was wrong: callers like the
+    // VoidLabel handler used to refuse to operate on dead-letter rows
+    // even though the state graph permits a manual escape.
     public static bool IsTerminal(string state) =>
-        state is Delivered or ReturnedToSender or ClosedWithRefund or DeadLetterLabel or LabelVoided;
+        state is Delivered or ReturnedToSender or ClosedWithRefund or LabelVoided;
 
     public static bool IsActive(string state) =>
         state is Pending or LabelPurchased or HandedToCarrier

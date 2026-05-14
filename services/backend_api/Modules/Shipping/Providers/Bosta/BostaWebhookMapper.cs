@@ -23,6 +23,14 @@ public static class BostaWebhookMapper
         var root = doc.RootElement;
         var trackingId = root.TryGetProperty("tracking_number", out var t) ? t.GetString() ?? "" : "";
         var eventKind = root.TryGetProperty("state", out var k) ? k.GetString() ?? "" : "";
+        if (string.IsNullOrWhiteSpace(trackingId))
+        {
+            throw new InvalidOperationException("Bosta webhook missing tracking_number.");
+        }
+        if (string.IsNullOrWhiteSpace(eventKind))
+        {
+            throw new InvalidOperationException("Bosta webhook missing state.");
+        }
         var occurredAt = root.TryGetProperty("timestamp", out var o) && o.TryGetDateTimeOffset(out var dt)
             ? dt
             : receivedAt;

@@ -23,6 +23,14 @@ public static class AramexWebhookMapper
         var root = doc.RootElement;
         var trackingId = root.TryGetProperty("waybill_number", out var t) ? t.GetString() ?? "" : "";
         var eventKind = root.TryGetProperty("event", out var k) ? k.GetString() ?? "" : "";
+        if (string.IsNullOrWhiteSpace(trackingId))
+        {
+            throw new InvalidOperationException("Aramex webhook missing waybill_number.");
+        }
+        if (string.IsNullOrWhiteSpace(eventKind))
+        {
+            throw new InvalidOperationException("Aramex webhook missing event.");
+        }
         var occurredAt = root.TryGetProperty("event_time", out var o) && o.TryGetDateTimeOffset(out var dt)
             ? dt
             : receivedAt;

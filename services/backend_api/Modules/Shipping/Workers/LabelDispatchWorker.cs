@@ -72,9 +72,9 @@ public sealed class LabelDispatchWorker(
 
         foreach (var shipment in pending)
         {
-            if (shipment.Attempts >= MaxAttempts)
+            if (shipment.LabelCreationAttempts >= MaxAttempts)
             {
-                await EnterDeadLetterAsync(db, shipments, audit, shipment, ct);
+                await EnterDeadLetterAsync(db, audit, shipment, ct);
                 continue;
             }
 
@@ -85,22 +85,14 @@ public sealed class LabelDispatchWorker(
                 continue;
             }
 
-            var attemptNo = shipment.Attempts + 1;
+            var attemptNo = shipment.LabelCreationAttempts + 1;
             var delay = TimeSpan.FromSeconds(AttemptDelaysSeconds[Math.Min(attemptNo - 1, AttemptDelaysSeconds.Length - 1)]);
             await Task.Delay(delay, ct);
 
-            shipment.Attempts = attemptNo;
+            shipment.LabelCreationAttempts = attemptNo;
             await db.SaveChangesAsync(ct);
 
-            var dispatch = new CreateShipmentDispatch(
-                ShipmentId: shipment.Id,
-                MarketCode: shipment.MarketCode,
-                MethodKey: shipment.MethodVersionId.ToString(),
-                RecipientNameRedacted: "REDACTED",  // sourced from shipment.ShipToAddressRedactedJson in prod
-                RecipientPhoneMaskedLast4: "****",
-                ShipTo: new AddressMinimized("", null, "", null, shipment.MarketCode),
-                WeightKg: 0m, CurrencyCode: ShippingConstants.Currencies.For(shipment.MarketCode), DeclaredValueAmount: 0m);
-
+            var dispatch = ShipmentDispatchFactory.FromShipment(shipment);
             var result = await provider.CreateShipmentAsync(dispatch, ct);
             if (result.Success && !string.IsNullOrEmpty(result.ProviderTrackingId))
             {
@@ -119,27 +111,46 @@ public sealed class LabelDispatchWorker(
                     shipment, ShipmentStates.PendingLabelProviderFailure,
                     actorId: SystemActor.WorkerSystemActorId, actorRole: "system",
                     reason: $"retry_exhausted:{result.FailureCode ?? "unknown"}", ct);
-                await EnterDeadLetterAsync(db, shipments, audit, shipment, ct);
+                await EnterDeadLetterAsync(db, audit, shipment, ct);
             }
         }
     }
 
+    /// <summary>
+    /// Idempotently moves the shipment into <c>dead_letter_labels</c>.
+    /// Uses an upsert pattern so a second concurrent worker call (or a
+    /// post-failover repeat) does not violate the PK. Audit event is
+    /// only emitted on first-time entry to avoid duplicate alerts.
+    /// </summary>
     private static async Task EnterDeadLetterAsync(
-        ShippingDbContext db, ShipmentService _, IAuditEventPublisher audit,
+        ShippingDbContext db, IAuditEventPublisher audit,
         Shipment shipment, CancellationToken ct)
     {
         var existing = await db.DeadLetterLabels
             .FirstOrDefaultAsync(d => d.ShipmentId == shipment.Id, ct);
-        if (existing is null)
+        if (existing is not null)
         {
-            db.DeadLetterLabels.Add(new DeadLetterLabel
-            {
-                ShipmentId = shipment.Id,
-                LastErrorMessageRedacted = shipment.FailedReason,
-                LastErrorCode = "retry_exhausted",
-                EnteredAt = DateTimeOffset.UtcNow,
-            });
+            // Refresh the last-error fields; treat as already-alerted.
+            existing.LastErrorMessageRedacted = shipment.FailedReason;
+            existing.LastErrorCode = "retry_exhausted";
             await db.SaveChangesAsync(ct);
+            return;
+        }
+        db.DeadLetterLabels.Add(new DeadLetterLabel
+        {
+            ShipmentId = shipment.Id,
+            LastErrorMessageRedacted = shipment.FailedReason,
+            LastErrorCode = "retry_exhausted",
+            EnteredAt = DateTimeOffset.UtcNow,
+        });
+        try
+        {
+            await db.SaveChangesAsync(ct);
+        }
+        catch (DbUpdateException)
+        {
+            // Race lost — another worker inserted the row first. Treat as success.
+            return;
         }
         await audit.PublishAsync(new AuditEvent(
             ActorId: SystemActor.WorkerSystemActorId,

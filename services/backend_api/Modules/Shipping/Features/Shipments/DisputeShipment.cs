@@ -30,6 +30,13 @@ public sealed class DisputeShipmentHandler(
         {
             throw new InvalidOperationException("Only delivered shipments can be disputed.");
         }
+        // DB CHECK enforces this enum too — validate up front so callers see
+        // a useful 400 instead of a constraint-violation 500.
+        if (cmd.ReportedBy is not ("customer" or "support_agent"))
+        {
+            throw new ArgumentException(
+                "ReportedBy must be 'customer' or 'support_agent'.", nameof(cmd));
+        }
         var dispute = new ShipmentDispute
         {
             Id = Guid.NewGuid(),

@@ -18,6 +18,10 @@ public sealed class ProviderRoutingConfiguration : IEntityTypeConfiguration<Prov
                 "\"FailoverThresholdPct\" BETWEEN 10 AND 90");
             t.HasCheckConstraint("CK_provider_routing_window_minutes",
                 "\"FailoverWindowMinutes\" BETWEEN 1 AND 60");
+            // Auto-failover requires a backup provider; without one, BR-11's
+            // "no auto-cascade unless explicit" guarantee cannot hold.
+            t.HasCheckConstraint("CK_provider_routing_auto_requires_backup",
+                "NOT \"AutoFailoverEnabled\" OR \"BackupProviderId\" IS NOT NULL");
         });
         builder.HasKey(x => new { x.MarketCode, x.MethodId });
         builder.Property(x => x.MarketCode).HasColumnType("text").IsRequired();

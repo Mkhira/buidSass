@@ -82,21 +82,14 @@ public sealed class ReattemptQueuedLabelsWorker(
             if (!string.Equals(shipment.ProviderId, routing.PrimaryProviderId, StringComparison.Ordinal))
             {
                 shipment.ProviderId = routing.PrimaryProviderId;
-                shipment.Attempts = 0;
+                shipment.LabelCreationAttempts = 0;
                 await db.SaveChangesAsync(ct);
             }
 
-            var dispatch = new CreateShipmentDispatch(
-                ShipmentId: shipment.Id,
-                MarketCode: shipment.MarketCode,
-                MethodKey: methodId.Value.ToString(),
-                RecipientNameRedacted: "REDACTED",
-                RecipientPhoneMaskedLast4: "****",
-                ShipTo: new AddressMinimized("", null, "", null, shipment.MarketCode),
-                WeightKg: 0m,
-                CurrencyCode: ShippingConstants.Currencies.For(shipment.MarketCode),
-                DeclaredValueAmount: 0m);
-
+            // Real shipment data (recipient, address, weight, declared value)
+            // is sourced from the persisted Shipment via ShipmentDispatchFactory,
+            // not fabricated. Provider APIs reject placeholder payloads.
+            var dispatch = ShipmentDispatchFactory.FromShipment(shipment);
             var result = await provider.CreateShipmentAsync(dispatch, ct);
             if (result.Success && !string.IsNullOrEmpty(result.ProviderTrackingId))
             {

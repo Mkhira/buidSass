@@ -28,7 +28,32 @@ public sealed class Shipment
     /// <summary>FK to the original shipment when this row is a re-delivery (per US5).</summary>
     public Guid? ParentShipmentId { get; set; }
 
-    public int Attempts { get; set; }
+    /// <summary>
+    /// Aggregate package weight (kg) snapshotted at shipment creation from the
+    /// originating <c>OrderConfirmedEvent</c>. Required by the retry workers
+    /// so reattempt payloads carry real data, not placeholders.
+    /// </summary>
+    public decimal WeightKgSnapshot { get; set; }
+
+    /// <summary>
+    /// Order's declared value snapshot in the shipment's market currency.
+    /// Provider APIs require this for customs / declared-value handling.
+    /// </summary>
+    public decimal DeclaredValueAmountSnapshot { get; set; }
+
+    /// <summary>
+    /// Label-creation retry count consumed by <see cref="StateMachines.ShipmentStateMachine"/>
+    /// and the dispatch workers (BR-5 — 3-attempt budget).
+    /// </summary>
+    public int LabelCreationAttempts { get; set; }
+
+    /// <summary>
+    /// Carrier-side delivery-attempt count, incremented on every
+    /// <c>delivery_attempted</c> webhook (Edge Case "3 attempts → return_to_sender").
+    /// Kept distinct from <see cref="LabelCreationAttempts"/> so a stuck-at-label
+    /// shipment never collides with the delivery counter.
+    /// </summary>
+    public int DeliveryAttempts { get; set; }
     public DateTimeOffset? EtaMin { get; set; }
     public DateTimeOffset? EtaMax { get; set; }
     public DateTimeOffset? LabelPurchasedAt { get; set; }

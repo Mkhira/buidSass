@@ -64,7 +64,7 @@ public sealed class ShipmentService(
                 shipment.DeliveredAt = nowUtc;
                 break;
             case ShipmentStates.DeliveryAttempted:
-                shipment.Attempts += 1;
+                shipment.DeliveryAttempts += 1;
                 break;
         }
 

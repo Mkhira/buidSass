@@ -21,7 +21,7 @@
 #
 # Usage:
 #   bash scripts/shipping/populate-kv-slots.sh \
-#     --env staging \
+#     --env stg \
 #     --vault kv-dental-stg \
 #     --smsa-key-file /secure/path/smsa.key \
 #     --aramex-ksa-key-file /secure/path/aramex-ksa.key \
@@ -38,7 +38,10 @@
 
 set -euo pipefail
 
-REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+# This script lives at scripts/shipping/populate-kv-slots.sh, so REPO_ROOT is
+# two levels up from $BASH_SOURCE — anything shallower resolves AUDIT_EMIT to
+# scripts/scripts/azure/audit-emit.sh which does not exist.
+REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 AUDIT_EMIT="${REPO_ROOT}/scripts/azure/audit-emit.sh"
 
 env_short=""
@@ -150,6 +153,15 @@ for entry in "${slots[@]}"; do
     vault_written+=1
   else
     echo "  - (skip-vault-write) would write ${ondisk}"
+  fi
+
+  # Coupling: audit-emit follows successful vault writes. Skipping the vault
+  # write also skips the audit emission so we never write a "placeholder
+  # replaced" row for a secret that was not actually overwritten — this
+  # matters for AC-3 traceability (one audit row per real KV transition).
+  if [[ $skip_vault_write -eq 1 ]]; then
+    echo "  - (skip-vault-write) skipping audit-emit for ${ondisk} (no real KV transition)"
+    continue
   fi
 
   if [[ $skip_audit_emit -eq 0 ]]; then

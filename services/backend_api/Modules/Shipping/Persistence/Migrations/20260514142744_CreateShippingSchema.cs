@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using Microsoft.EntityFrameworkCore.Migrations;
 
 #nullable disable
@@ -75,7 +75,7 @@ namespace BackendApi.Modules.Shipping.Persistence.Migrations
                 constraints: table =>
                 {
                     table.PrimaryKey("PK_market_schemas", x => x.MarketCode);
-                    table.CheckConstraint("CK_market_schemas_currency", "\"DefaultCurrency\" IN ('SAR','EGP')");
+                    table.CheckConstraint("CK_market_schemas_currency_matches_market", "(\"MarketCode\" = 'SA' AND \"DefaultCurrency\" = 'SAR') OR (\"MarketCode\" = 'EG' AND \"DefaultCurrency\" = 'EGP')");
                     table.CheckConstraint("CK_market_schemas_eta_days", "\"DefaultEtaDaysMin\" > 0 AND \"DefaultEtaDaysMax\" >= \"DefaultEtaDaysMin\"");
                     table.CheckConstraint("CK_market_schemas_market", "\"MarketCode\" IN ('SA','EG')");
                     table.CheckConstraint("CK_market_schemas_sla_hours", "\"SlaBreachThresholdHours\" > 0");
@@ -98,6 +98,7 @@ namespace BackendApi.Modules.Shipping.Persistence.Migrations
                 constraints: table =>
                 {
                     table.PrimaryKey("PK_provider_routing", x => new { x.MarketCode, x.MethodId });
+                    table.CheckConstraint("CK_provider_routing_auto_requires_backup", "NOT \"AutoFailoverEnabled\" OR \"BackupProviderId\" IS NOT NULL");
                     table.CheckConstraint("CK_provider_routing_market", "\"MarketCode\" IN ('SA','EG')");
                     table.CheckConstraint("CK_provider_routing_primary_neq_backup", "\"BackupProviderId\" IS NULL OR \"BackupProviderId\" <> \"PrimaryProviderId\"");
                     table.CheckConstraint("CK_provider_routing_threshold_pct", "\"FailoverThresholdPct\" BETWEEN 10 AND 90");
@@ -159,7 +160,10 @@ namespace BackendApi.Modules.Shipping.Persistence.Migrations
                     State = table.Column<string>(type: "text", nullable: false),
                     ShipToAddressRedactedJson = table.Column<string>(type: "jsonb", nullable: false),
                     ParentShipmentId = table.Column<Guid>(type: "uuid", nullable: true),
-                    Attempts = table.Column<int>(type: "integer", nullable: false),
+                    WeightKgSnapshot = table.Column<decimal>(type: "numeric(6,3)", nullable: false),
+                    DeclaredValueAmountSnapshot = table.Column<decimal>(type: "numeric(12,2)", nullable: false),
+                    LabelCreationAttempts = table.Column<int>(type: "integer", nullable: false),
+                    DeliveryAttempts = table.Column<int>(type: "integer", nullable: false),
                     EtaMin = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: true),
                     EtaMax = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: true),
                     LabelPurchasedAt = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: true),
@@ -175,7 +179,8 @@ namespace BackendApi.Modules.Shipping.Persistence.Migrations
                 constraints: table =>
                 {
                     table.PrimaryKey("PK_shipments", x => x.Id);
-                    table.CheckConstraint("CK_shipments_attempts_nonneg", "\"Attempts\" >= 0");
+                    table.CheckConstraint("CK_shipments_delivery_attempts_nonneg", "\"DeliveryAttempts\" >= 0");
+                    table.CheckConstraint("CK_shipments_label_creation_attempts_nonneg", "\"LabelCreationAttempts\" >= 0");
                     table.CheckConstraint("CK_shipments_market_code", "\"MarketCode\" IN ('SA','EG')");
                     table.CheckConstraint("CK_shipments_state", "\"State\" IN ('pending','label_purchased','handed_to_carrier','in_transit','out_for_delivery','delivered','delivery_attempted','return_to_sender_initiated','returned_to_sender','delivery_disputed','re_delivered_pending','closed_with_refund','failed_to_create_label','pending_label_provider_failure','dead_letter_label','label_voided')");
                 });
@@ -205,7 +210,7 @@ namespace BackendApi.Modules.Shipping.Persistence.Migrations
                 {
                     table.PrimaryKey("PK_shipping_method_versions", x => x.Id);
                     table.CheckConstraint("CK_method_versions_eta", "\"EtaMinHours\" >= 0 AND \"EtaMaxHours\" >= \"EtaMinHours\"");
-                    table.CheckConstraint("CK_method_versions_reviewer_not_author", "\"PublishedAt\" IS NULL OR \"ReviewerId\" IS NULL OR \"ReviewerId\" <> \"AuthorId\"");
+                    table.CheckConstraint("CK_method_versions_reviewer_not_author", "\"PublishedAt\" IS NULL OR (\"ReviewerId\" IS NOT NULL AND \"ReviewerId\" <> \"AuthorId\")");
                     table.CheckConstraint("CK_method_versions_state", "\"State\" IN ('draft','in_review','published','archived')");
                     table.CheckConstraint("CK_method_versions_version_no", "\"VersionNo\" >= 1");
                 });

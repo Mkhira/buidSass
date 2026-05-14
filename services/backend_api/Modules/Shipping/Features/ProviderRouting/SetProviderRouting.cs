@@ -32,6 +32,18 @@ public sealed class SetProviderRoutingHandler(ShippingDbContext db, TimeProvider
         {
             throw new ArgumentException("FailoverThresholdPct must be in [10,90] (V-5).");
         }
+        // Mirror the DB-level CHECK so we fail fast with a useful message
+        // instead of bubbling a constraint violation.
+        if (cmd.FailoverWindowMinutes is < 1 or > 60)
+        {
+            throw new ArgumentException("FailoverWindowMinutes must be in [1,60].");
+        }
+        // BR-11 — auto-failover REQUIRES a backup provider (DB also enforces this).
+        if (cmd.AutoFailoverEnabled && string.IsNullOrWhiteSpace(cmd.BackupProviderId))
+        {
+            throw new ArgumentException(
+                "AutoFailoverEnabled=true requires a BackupProviderId (BR-11).");
+        }
         if (!ShippingConstants.Providers.SupportsMarket(cmd.PrimaryProviderId, cmd.MarketCode))
         {
             throw new ArgumentException("Primary provider does not support this market.");
@@ -40,6 +52,23 @@ public sealed class SetProviderRoutingHandler(ShippingDbContext db, TimeProvider
             && !ShippingConstants.Providers.SupportsMarket(cmd.BackupProviderId, cmd.MarketCode))
         {
             throw new ArgumentException("Backup provider does not support this market.");
+        }
+
+        // Verify the method actually exists for this market — without this,
+        // typos in MethodId silently create an orphan routing row.
+        var methodOwningMarket = await db.ShippingMethods
+            .Where(m => m.Id == cmd.MethodId && m.DeletedAt == null)
+            .Select(m => (string?)m.MarketCode)
+            .FirstOrDefaultAsync(ct);
+        if (methodOwningMarket is null)
+        {
+            throw new InvalidOperationException(
+                $"Shipping method '{cmd.MethodId}' not found.");
+        }
+        if (!string.Equals(methodOwningMarket, cmd.MarketCode, StringComparison.Ordinal))
+        {
+            throw new InvalidOperationException(
+                $"Shipping method '{cmd.MethodId}' belongs to market '{methodOwningMarket}', not '{cmd.MarketCode}'.");
         }
 
         var existing = await db.ProviderRoutings

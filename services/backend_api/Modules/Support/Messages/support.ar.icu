@@ -1,0 +1,77 @@
+{
+  "_meta": {
+    "spec": "023-support-tickets",
+    "locale": "ar",
+    "owner": "spec-023-conductor",
+    "notes": "Draft Arabic strings pending native-speaker editorial review per Principle 4 + AR_EDITORIAL_REVIEW.md. These ship marked `editorial_status: draft-pending-review`; the consumer-PR gate enforced by tasks.md T143/T144 BLOCKS any spec 014 / 015 PR that surfaces these strings to a production-bound user-facing surface until a reviewer initials + dates every row in AR_EDITORIAL_REVIEW.md.",
+    "editorial_status": "draft-pending-review"
+  },
+
+  "support.ticket.opened": "تم فتح التذكرة.",
+
+  "support.ticket.linked_entity_not_owned": "هذا العنصر غير مرتبط بحسابك.",
+  "support.ticket.linked_entity_kind_inconsistent": "نوع العنصر المرتبط لا يتطابق مع المعرّف المُرسَل.",
+  "support.ticket.linked_entity_not_found": "تعذّر العثور على العنصر المرتبط.",
+  "support.ticket.market_code_unresolvable": "تعذّر تحديد السوق لهذه التذكرة؛ قد يكون العنصر المرتبط غير متاح حاليًا.",
+
+  "support.ticket.closed_terminal": "هذه التذكرة مغلقة ولا يمكن تعديلها.",
+  "support.ticket.invalid_transition": "هذا الإجراء غير متاح في الحالة الراهنة للتذكرة.",
+  "support.ticket.resolved_requires_agent_reply": "يلزم رد من ممثل الدعم قبل تمييز التذكرة كمحلولة.",
+  "support.ticket.action_requires_assignment": "هذا الإجراء متاح للممثل المُعيَّن على التذكرة فقط.",
+
+  "support.ticket.assignment_conflict": "تم استلام التذكرة من ممثل آخر بالفعل.",
+  "support.ticket.version_conflict": "تم تحديث هذه التذكرة من جهة أخرى. يرجى تحديث الصفحة وإعادة المحاولة.",
+
+  "support.ticket.queue_forbidden": "لا تملك الصلاحية لعرض هذه القائمة.",
+  "support.ticket.customer_forbidden": "لا يحق لك تنفيذ هذا الإجراء على هذه التذكرة.",
+
+  "support.ticket.subject_too_long": "عنوان التذكرة طويل جدًا.",
+  "support.ticket.body_too_long": "نص الرسالة طويل جدًا.",
+  "support.ticket.subject_required": "عنوان التذكرة مطلوب.",
+  "support.ticket.body_required": "نص الرسالة مطلوب.",
+  "support.ticket.category_required": "التصنيف مطلوب.",
+  "support.ticket.category_invalid": "التصنيف المُحدَّد غير معروف.",
+  "support.ticket.priority_invalid": "الأولوية المُحدَّدة غير معروفة.",
+  "support.ticket.priority_not_customer_selectable": "لا يمكن للعملاء اختيار هذه الأولوية.",
+  "support.ticket.locale_invalid": "اللغة غير مدعومة.",
+  "support.ticket.market_invalid": "السوق غير مدعوم.",
+  "support.ticket.message_body_required": "نص الرسالة مطلوب.",
+  "support.ticket.message_body_too_long": "نص الرسالة طويل جدًا.",
+
+  "support.ticket.attachment_size_exceeded": "أحد المرفقات يتجاوز الحد الأقصى لحجم الملف.",
+  "support.ticket.attachment_cumulative_exceeded": "تتجاوز المرفقات الحد الأقصى لإجمالي الحجم لكل تذكرة.",
+  "support.ticket.attachment_mime_not_allowed": "نوع الملف المُرفق غير مسموح.",
+  "support.ticket.attachment_count_exceeded": "تجاوزتَ الحد الأقصى لعدد المرفقات لهذه التذكرة.",
+
+  "support.ticket.internal_note_forbidden": "الملاحظات الداخلية غير ظاهرة للعملاء.",
+  "support.ticket.message_kind_immutable": "لا يمكن تغيير نوع الرسالة بعد إنشائها.",
+
+  "support.ticket.conversion_category_not_eligible": "تصنيف هذه التذكرة لا يسمح بتحويلها إلى طلب إرجاع.",
+  "support.ticket.conversion_already_converted": "تم تحويل هذه التذكرة إلى طلب إرجاع مسبقًا.",
+  "support.ticket.conversion_forbidden": "لا يحق لك تحويل هذه التذكرة إلى طلب إرجاع.",
+  "support.ticket.return_creation_contract_failed": "تعذّر إنشاء طلب الإرجاع. يرجى المحاولة لاحقًا.",
+  "support.ticket.idempotency_key_required": "ترويسة Idempotency-Key مطلوبة لهذا الإجراء.",
+
+  "support.ticket.reopen_window_closed": "انتهت نافذة إعادة فتح هذه التذكرة.",
+  "support.ticket.reopen_count_exceeded": "بلغت هذه التذكرة الحد الأقصى لعدد مرات إعادة الفتح.",
+  "support.ticket.reopen_disabled_for_market": "إعادة الفتح غير متاحة للتذاكر في هذا السوق.",
+
+  "support.ticket.reassign_justification_required": "يجب توضيح السبب عند إعادة إسناد التذكرة.",
+  "support.ticket.target_agent_not_in_market": "الممثل المُختار ليس ضمن سوق هذه التذكرة.",
+  "support.ticket.sla_override_justification_required": "يجب توضيح السبب عند تعديل أهداف اتفاقية مستوى الخدمة.",
+  "support.ticket.sla_override_resolution_must_exceed_first_response": "هدف الحل يجب أن يكون أكبر من هدف الرد الأول.",
+  "support.ticket.force_close_reason_required": "يجب توضيح السبب لإغلاق التذكرة قسرًا.",
+
+  "support.ticket.creation_rate_exceeded": "عدد كبير من التذاكر المفتوحة في وقت قصير. حاول لاحقًا.",
+  "support.ticket.reply_rate_exceeded": "عدد كبير من الردود في وقت قصير. حاول لاحقًا.",
+  "support.ticket.admin_rate_limit_exceeded": "عدد كبير من إجراءات الإدارة في وقت قصير. حاول لاحقًا.",
+
+  "support.ticket.redaction_super_admin_only": "إخفاء المحتوى يتطلب صلاحية مشرف رئيسي.",
+  "support.ticket.redaction_reason_required": "السبب مطلوب عند إخفاء محتوى التذكرة.",
+  "support.ticket.redaction_request_message_not_in_originating_ticket": "الرسالة المشار إليها ليست جزءًا من التذكرة الأصلية.",
+  "support.ticket.redaction_request_already_redacted": "تم إخفاء هذه الرسالة مسبقًا.",
+  "support.ticket.redaction_message_not_redactable": "لا يمكن إخفاء هذه الرسالة.",
+  "support.ticket.redaction_attachment_already_redacted": "تم إخفاء هذا المرفق مسبقًا.",
+
+  "support.ticket.row.delete_forbidden": "لا يمكن حذف التذاكر."
+}

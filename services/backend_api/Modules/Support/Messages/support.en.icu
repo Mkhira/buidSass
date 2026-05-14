@@ -1,0 +1,76 @@
+{
+  "_meta": {
+    "spec": "023-support-tickets",
+    "locale": "en",
+    "owner": "spec-023-conductor",
+    "notes": "ICU bundle for the Support module. Every TicketReasonCode value MUST have an entry here AND in support.ar.icu (Principle 4 + tasks.md T143/T144). AR file ships marked draft-pending-review; native-speaker editorial sign-off is a hard pre-merge gate for any spec 014 / 015 PR that consumes these strings on a production-bound user-facing surface (T143-T144 Acceptance Criterion)."
+  },
+
+  "support.ticket.opened": "Ticket opened.",
+
+  "support.ticket.linked_entity_not_owned": "This item isn't linked to your account.",
+  "support.ticket.linked_entity_kind_inconsistent": "The linked item type isn't consistent with the supplied id.",
+  "support.ticket.linked_entity_not_found": "The linked item couldn't be found.",
+  "support.ticket.market_code_unresolvable": "Couldn't determine the market for this ticket; the linked item may be unavailable.",
+
+  "support.ticket.closed_terminal": "This ticket is closed and can no longer be modified.",
+  "support.ticket.invalid_transition": "That action isn't allowed in the ticket's current state.",
+  "support.ticket.resolved_requires_agent_reply": "An agent reply is required before this ticket can be resolved.",
+  "support.ticket.action_requires_assignment": "Only the assigned agent can take that action on this ticket.",
+
+  "support.ticket.assignment_conflict": "Another agent has already claimed this ticket.",
+  "support.ticket.version_conflict": "This ticket was updated by someone else. Refresh and try again.",
+
+  "support.ticket.queue_forbidden": "You don't have permission to view this queue.",
+  "support.ticket.customer_forbidden": "You aren't allowed to perform this action on this ticket.",
+
+  "support.ticket.subject_too_long": "Subject is too long.",
+  "support.ticket.body_too_long": "Message body is too long.",
+  "support.ticket.subject_required": "Subject is required.",
+  "support.ticket.body_required": "Message body is required.",
+  "support.ticket.category_required": "Category is required.",
+  "support.ticket.category_invalid": "Category isn't recognized.",
+  "support.ticket.priority_invalid": "Priority isn't recognized.",
+  "support.ticket.priority_not_customer_selectable": "That priority can't be selected by customers.",
+  "support.ticket.locale_invalid": "Locale isn't supported.",
+  "support.ticket.market_invalid": "Market isn't supported.",
+  "support.ticket.message_body_required": "Message body is required.",
+  "support.ticket.message_body_too_long": "Message body is too long.",
+
+  "support.ticket.attachment_size_exceeded": "An attachment exceeds the per-file size limit.",
+  "support.ticket.attachment_cumulative_exceeded": "Attachments exceed the per-ticket size limit.",
+  "support.ticket.attachment_mime_not_allowed": "Attachment file type isn't allowed.",
+  "support.ticket.attachment_count_exceeded": "Too many attachments for this ticket.",
+
+  "support.ticket.internal_note_forbidden": "Internal notes aren't visible to customers.",
+  "support.ticket.message_kind_immutable": "A message kind can't be changed after creation.",
+
+  "support.ticket.conversion_category_not_eligible": "This ticket's category isn't eligible for return conversion.",
+  "support.ticket.conversion_already_converted": "This ticket has already been converted to a return request.",
+  "support.ticket.conversion_forbidden": "You aren't allowed to convert this ticket to a return.",
+  "support.ticket.return_creation_contract_failed": "Couldn't create the return request. Try again later.",
+  "support.ticket.idempotency_key_required": "An Idempotency-Key header is required for this action.",
+
+  "support.ticket.reopen_window_closed": "The reopen window for this ticket has closed.",
+  "support.ticket.reopen_count_exceeded": "This ticket has reached the maximum number of reopens.",
+  "support.ticket.reopen_disabled_for_market": "Reopen isn't available for tickets in this market.",
+
+  "support.ticket.reassign_justification_required": "A justification is required to reassign this ticket.",
+  "support.ticket.target_agent_not_in_market": "The target agent isn't part of this ticket's market.",
+  "support.ticket.sla_override_justification_required": "A justification is required to override SLA targets.",
+  "support.ticket.sla_override_resolution_must_exceed_first_response": "Resolution target must be greater than the first-response target.",
+  "support.ticket.force_close_reason_required": "A reason is required to force-close this ticket.",
+
+  "support.ticket.creation_rate_exceeded": "Too many tickets opened recently. Try again later.",
+  "support.ticket.reply_rate_exceeded": "Too many replies recently. Try again later.",
+  "support.ticket.admin_rate_limit_exceeded": "Too many admin actions recently. Try again later.",
+
+  "support.ticket.redaction_super_admin_only": "Only a super admin may redact ticket content.",
+  "support.ticket.redaction_reason_required": "A reason is required to redact ticket content.",
+  "support.ticket.redaction_request_message_not_in_originating_ticket": "The referenced message isn't part of the originating ticket.",
+  "support.ticket.redaction_request_already_redacted": "This message has already been redacted.",
+  "support.ticket.redaction_message_not_redactable": "This message can't be redacted.",
+  "support.ticket.redaction_attachment_already_redacted": "This attachment has already been redacted.",
+
+  "support.ticket.row.delete_forbidden": "Tickets can't be deleted."
+}

@@ -56,6 +56,7 @@ public static class TicketReasonCode
     public const string ConversionAlreadyConverted = "support.ticket.conversion_already_converted";
     public const string ConversionForbidden = "support.ticket.conversion_forbidden";
     public const string ReturnCreationContractFailed = "support.ticket.return_creation_contract_failed";
+    public const string IdempotencyKeyRequired = "support.ticket.idempotency_key_required";
 
     // -- Reopen
     public const string ReopenWindowClosed = "support.ticket.reopen_window_closed";
@@ -98,6 +99,7 @@ public static class TicketReasonCode
         AttachmentCumulativeExceeded, AttachmentMimeNotAllowed, AttachmentCountExceeded,
         InternalNoteForbidden, MessageKindImmutable, ConversionCategoryNotEligible,
         ConversionAlreadyConverted, ConversionForbidden, ReturnCreationContractFailed,
+        IdempotencyKeyRequired,
         ReopenWindowClosed, ReopenCountExceeded, ReopenDisabledForMarket,
         ReassignJustificationRequired, TargetAgentNotInMarket,
         SlaOverrideJustificationRequired, SlaOverrideResolutionMustExceedFirstResponse,

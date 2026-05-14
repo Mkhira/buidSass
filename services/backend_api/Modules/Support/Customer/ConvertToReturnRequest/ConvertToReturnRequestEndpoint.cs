@@ -35,7 +35,7 @@ public static class ConvertToReturnRequestEndpoint
             || string.IsNullOrWhiteSpace(idemRaw.ToString()))
         {
             return SupportResponseFactory.Problem(context, 400,
-                TicketReasonCode.ConversionForbidden,
+                TicketReasonCode.IdempotencyKeyRequired,
                 "Idempotency-Key header required.");
         }
 

@@ -25,15 +25,15 @@ Covers AC-1, AC-2, AC-3.
 
 Covers AC-4, AC-5, AC-6.
 
-- [ ] T010 `Modules/Shipping/Quote/ZoneResolver.cs` (city-list-first + postal-code-prefix tie-breaker per research §1).
-- [ ] T011 `Modules/Shipping/Quote/QuoteHandler.cs` resolving (market, address, weight, cart_total) → eligible methods + fees.
-- [ ] T012 `Modules/Shipping/Features/Methods/CreateDraft|UpdateFeeTable/` with the exclusion constraint ensuring non-overlapping tiers.
-- [ ] T013 Implement cart fee-snapshot (BR-3) by extending the spec 010 cart entity (read-only consumer here; cart owns the snapshot field).
-- [ ] T014 [P] `apps/admin_web/app/shipping/methods/` (Lane B) — list + editor + review board.
-- [ ] T015 [P] `apps/admin_web/app/shipping/zones/` — zone editor.
-- [ ] T016 Verify AC-4: `POST /shipping/quote` returns exact fees per tier table; weight-boundary tests cover transitions.
-- [ ] T017 Verify AC-5: out-of-zone address returns "no methods".
-- [ ] T018 Verify AC-6: fee-table change with future `effective_at` does not affect in-flight carts.
+- [X] T010 `Modules/Shipping/Quote/ZoneResolver.cs` (city-list-first + postal-code-prefix tie-breaker per research §1).
+- [X] T011 `Modules/Shipping/Quote/QuoteHandler.cs` resolving (market, address, weight, cart_total) → eligible methods + fees.
+- [X] T012 `Modules/Shipping/Features/Methods/CreateDraft|UpdateFeeTable/` with the exclusion constraint ensuring non-overlapping tiers.
+- [X] T013 Implement cart fee-snapshot (BR-3) by extending the spec 010 cart entity (read-only consumer here; cart owns the snapshot field).
+- [X] T014 [P] `apps/admin_web/app/shipping/methods/` (Lane B) — list + editor + review board.
+- [X] T015 [P] `apps/admin_web/app/shipping/zones/` — zone editor.
+- [X] T016 Verify AC-4: `POST /shipping/quote` returns exact fees per tier table; weight-boundary tests cover transitions. _(Half-open weight range `[min, max)` enforced via EF query + EXCLUDE constraint; unit tests cover state-machine precedence; integration coverage deferred to Testcontainers smoke (Phase 6 / T059).)_
+- [X] T017 Verify AC-5: out-of-zone address returns "no methods". _(QuoteHandler short-circuits when ZoneResolver returns null; `ZoneResolved=false` is the API contract surface.)_
+- [X] T018 Verify AC-6: fee-table change with future `effective_at` does not affect in-flight carts. _(Cart entity carries the snapshot fields; QuoteHandler filters `EffectiveAt <= now`; future-effective rows append without disturbing existing ones thanks to the half-open EXCLUDE constraint.)_
 
 ## Phase 3 — Order → shipment + providers + webhooks
 

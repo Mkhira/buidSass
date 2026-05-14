@@ -468,5 +468,48 @@
       "commit": "Commit import",
       "download_report": "Download error report"
     }
+  },
+  "shipping": {
+    "overview": {
+      "title": "Shipping",
+      "description": "Methods, zones, fees, provider routing, shipments, and the exception queue.",
+      "card": {
+        "methods": "Methods",
+        "methods_body": "Author, review, and publish shipping methods with AR + EN names and fee tables per zone.",
+        "zones": "Zones",
+        "zones_body": "Edit market zones by city list and postal-code prefix.",
+        "shipments": "Shipments",
+        "shipments_body": "Filterable list of shipments with state and provider attribution.",
+        "provider_routing": "Provider routing",
+        "provider_routing_body": "Primary and backup providers per market and method. Trigger manual failover.",
+        "exception_queue": "Exception queue",
+        "exception_queue_body": "Dead-letter labels, delivery disputes, and re-delivery requests."
+      }
+    },
+    "methods": {
+      "title": "Shipping methods",
+      "description": "Methods are versioned. Drafts go through review (V-1 publish gate: both AR and EN names required, reviewer must differ from author).",
+      "empty_state": "No methods yet. Use the backend admin API or seeded data to author a draft."
+    },
+    "zones": {
+      "title": "Shipping zones",
+      "description": "Zones bind addresses to fee tables via city list (primary match) and postal-code prefix (tie-breaker).",
+      "empty_state": "No zones yet. Use the backend admin API or seeded data to add the first zone."
+    },
+    "shipments": {
+      "title": "Shipments",
+      "description": "One shipment per order. Tracking, label, and state history are persisted per provider attribution.",
+      "empty_state": "Shipments will appear here as paid orders flow through the order module."
+    },
+    "provider_routing": {
+      "title": "Provider routing",
+      "description": "Manual failover only at v1. Auto-failover is disabled by default per spec 026 clarifications.",
+      "empty_state": "No routing rows yet. Seed data populates SMSA + Aramex (KSA) and Bosta + Aramex (EG)."
+    },
+    "exception_queue": {
+      "title": "Exception queue",
+      "description": "Dead-letter labels and delivery disputes that require operator attention.",
+      "empty_state": "The queue is empty."
+    }
   }
 }

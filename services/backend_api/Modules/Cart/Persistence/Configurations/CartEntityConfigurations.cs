@@ -19,6 +19,11 @@ public sealed class CartConfiguration : IEntityTypeConfiguration<Entities.Cart>
         builder.Property(x => x.CouponCode).HasColumnType("citext");
         builder.Property(x => x.ArchivedReason).HasColumnType("citext");
         builder.Property(x => x.OwnerId).HasColumnType("citext").HasDefaultValue("platform").IsRequired();
+        // Shipping fee snapshot (spec 026 BR-3) — additive, nullable; storage-only.
+        builder.Property(x => x.ShippingMethodVersionIdSnapshot);
+        builder.Property(x => x.ShippingFeeAmountSnapshot).HasColumnType("numeric(10,2)");
+        builder.Property(x => x.ShippingFeeSnapshotAt);
+        builder.Property(x => x.ShippingFeeSnapshotJson).HasColumnType("jsonb");
         builder.Property(x => x.RowVersion).IsRowVersion();
         // One active cart per (account, market) — partial unique index
         builder.HasIndex(x => new { x.AccountId, x.MarketCode })

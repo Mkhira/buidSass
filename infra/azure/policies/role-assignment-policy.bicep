@@ -17,11 +17,10 @@ targetScope = 'subscription'
 @description('Environment short name: stg | prd.')
 param envShortName string
 
-@description('Subscription id where the policy is assigned.')
-param subscriptionId string = subscription().subscriptionId
-
-@description('Resource group containing the KV. Used to scope the policy assignment.')
-param resourceGroupId string
+// Scoping note: the assignment is deployed at subscription scope (matches
+// targetScope above). Cross-scope assignment to a specific RG would require a
+// nested deployment, which adds complexity without security benefit — a
+// subscription-wide rule is strictly stronger than an RG-scoped one for AC-12.
 
 // Built-in role definition ids for the two privileged KV roles.
 var kvSecretsOfficerRoleDefId = 'b86a8fe4-44ce-4948-aee5-eccb2c155cd7'
@@ -75,7 +74,6 @@ resource assignment 'Microsoft.Authorization/policyAssignments@2023-04-01' = {
     displayName: 'E1 — no permanent KV privileged role assignments (${envShortName})'
     policyDefinitionId: definition.id
     enforcementMode: 'Default'
-    scope: resourceGroupId
   }
 }
 

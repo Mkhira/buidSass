@@ -27,8 +27,8 @@ param commonTags object
 @description('Meilisearch container image. Pin major.minor to control upgrade cadence.')
 param meiliImage string = 'getmeili/meilisearch:v1.10'
 
-@description('Storage account name for the Azure File share. Must be globally unique; 3-24 lowercase alnum.')
-param storageAccountName string = 'stmeili${envShortName}ksa${uniqueString(resourceGroup().id)}'
+@description('Storage account name for the Azure File share. Must be globally unique; 3-24 lowercase alnum. Default = stm + env(3) + uniqueString(13) = 19 chars, well under Azure\'s 24-char ceiling.')
+param storageAccountName string = 'stm${envShortName}${uniqueString(resourceGroup().id)}'
 
 @description('Azure File share quota in GB.')
 param fileShareQuotaGB int = 100

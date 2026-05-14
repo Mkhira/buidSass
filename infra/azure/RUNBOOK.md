@@ -348,8 +348,44 @@ Pinned to the on-call team's home dashboard.
 
 ---
 
+## §AC-12 violation triage
+
+Trigger: panel f of the compliance dashboard returns one or more rows (or the
+`e1-kv-privileged-audit-<env>-asg` Azure Policy reports a NonCompliant resource).
+
+Azure Policy cannot distinguish permanent from PIM-activated role assignments at
+evaluation time (`Microsoft.Authorization/roleAssignments/conditionVersion` is the ABAC
+condition syntax version, NOT a PIM eligibility marker — verified against Microsoft
+docs during CodeRabbit Loop 1 on PR #84). The policy therefore audits every Officer/
+Administrator assignment, and triage happens here.
+
+Two-step procedure:
+
+1. **Filter against active PIM grants.** Open the compliance dashboard panel f. The
+   panel left-joins NonCompliant rows against `microsoft.authorization/roleassignmentschedules`
+   (`Provisioned` status). Any row remaining in the output is NOT backed by an active
+   PIM schedule — it is a permanent grant.
+
+2. **Resolve the permanent grant.**
+   - **If the grant is intentional** (e.g. break-glass AAD group): document it in this
+     runbook as an approved exception, file an ADR amendment, and update the policy
+     definition to exempt the principal id.
+   - **If the grant is accidental**: PIM-elevate to Owner / User Access Administrator,
+     run `az role assignment delete --assignee <principal> --role <KV Officer|Administrator>
+     --scope <vault-id>` against the affected vault, and confirm the next policy
+     evaluation drops the row.
+
+PIM-activated rows that briefly appear in panel f during the activation window are
+expected and self-resolve when the PIM lease expires; do not act on them unless they
+persist beyond the configured PIM duration.
+
+**Verified by**: AC-12.
+
+---
+
 ## §Change log
 
 | Date | Author | Section | Change |
 |---|---|---|---|
 | 2026-05-14 | @Mkhira | All | Initial runbook drafted as part of E1 Phase 6 (T063). |
+| 2026-05-14 | @Mkhira | §AC-12 violation triage | Added the two-step PIM-filter procedure after CodeRabbit Loop 1 clarified that `conditionVersion` is ABAC, not PIM. Policy + panel f updated to match. |

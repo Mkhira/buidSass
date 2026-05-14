@@ -25,3 +25,11 @@
 /scripts/ci/                                       @Mkhira
 /services/backend_api/AdminTool/                   @Mkhira
 /services/backend_api/Tests/AdminTool.Tests/       @Mkhira
+
+# Spec 026 — Shipping (Phase 1E · Milestone 8)
+# Owned by the shipping team. Until a co-maintainer onboards, @Mkhira acts as
+# the @shipping-team alias for review purposes.
+/services/backend_api/Modules/Shipping/             @Mkhira
+/apps/admin_web/app/shipping/                       @Mkhira
+/scripts/shipping/                                  @Mkhira
+/scripts/ci/check-shipping-no-pii.sh                @Mkhira

@@ -6,11 +6,11 @@
 
 ## Phase 0 — Setup
 
-- [ ] T001 [P] `Modules/Shipping/ShippingModule.cs` (DI, Hangfire queue config, EF context, `ManyServiceProvidersCreatedWarning` suppression).
-- [ ] T002 [P] CODEOWNERS additions for `Modules/Shipping/**` and `apps/admin_web/app/shipping/**` under `@shipping-team`.
-- [ ] T003 [P] EF entity types under `Modules/Shipping/Domain/` for all 11 tables.
-- [ ] T004 [P] EF configurations under `Modules/Shipping/Persistence/Configurations/`.
-- [ ] T005 Initial migration `Persistence/Migrations/0001_create_shipping_schema.cs` (11 tables + exclusion constraint on fee_tables).
+- [X] T001 [P] `Modules/Shipping/ShippingModule.cs` (DI, Hangfire queue config, EF context, `ManyServiceProvidersCreatedWarning` suppression).
+- [X] T002 [P] CODEOWNERS additions for `Modules/Shipping/**` and `apps/admin_web/app/shipping/**` under `@shipping-team`.
+- [X] T003 [P] EF entity types under `Modules/Shipping/Domain/` for all 11 tables.
+- [X] T004 [P] EF configurations under `Modules/Shipping/Persistence/Configurations/`.
+- [X] T005 Initial migration `Persistence/Migrations/0001_create_shipping_schema.cs` (11 tables + exclusion constraint on fee_tables).
 
 ## Phase 1 — Foundations
 

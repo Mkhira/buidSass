@@ -362,21 +362,30 @@ Administrator assignment, and triage happens here.
 Two-step procedure:
 
 1. **Cross-check each candidate against active PIM schedules.** Panel f lists every
-   `(RoleAssignmentId, PrincipalId, RoleDefinitionId, ViolationTimestamp)` from the
-   policy. Resource Graph does NOT reliably surface
+   `(RoleAssignmentId, PrincipalId, PolicyDefinitionReferenceId, ViolationTimestamp)`
+   from the policy. `PolicyDefinitionReferenceId` identifies which policy rule
+   matched — it is NOT the RBAC `roleDefinitionId`; the actual role-definition id
+   must be derived from the role-assignment resource:
+
+   ```bash
+   # For each candidate row from panel f, first resolve the actual roleDefinitionId:
+   roleDef=$(az role assignment show --ids "<RoleAssignmentId>" \
+              --query "roleDefinitionId" -o tsv)
+
+   # Then query active PIM schedules at the assignment's scope for that principal:
+   scope=$(az role assignment show --ids "<RoleAssignmentId>" --query "scope" -o tsv)
+   az rest \
+     --method get \
+     --uri "https://management.azure.com/$scope/providers/Microsoft.Authorization/roleAssignmentSchedules?api-version=2020-10-01&\$filter=principalId eq '<PrincipalId>'" \
+     --query "value[?properties.roleDefinitionId=='$roleDef' && properties.status=='Provisioned']" \
+     -o table
+   ```
+
+   Resource Graph does NOT reliably surface
    `microsoft.authorization/roleAssignmentSchedules` in `AuthorizationResources`, and
    the ARM schedule endpoint correlates back to a role assignment only by the
    `(scope, principalId, roleDefinitionId)` triple — there is no first-class join
-   key. So the filter happens here, via `az`, one candidate at a time:
-
-   ```bash
-   # For each candidate row from panel f:
-   az rest \
-     --method get \
-     --uri "https://management.azure.com/<scope>/providers/Microsoft.Authorization/roleAssignmentSchedules?api-version=2020-10-01&\$filter=principalId eq '<principalId>'" \
-     --query "value[?properties.roleDefinitionId=='<roleDefinitionId>' && properties.status=='Provisioned']" \
-     -o table
-   ```
+   key, so this lookup is intentionally CLI-driven, one candidate at a time.
 
    If the query returns one or more rows, the candidate IS an active PIM grant —
    ignore it; it will expire on its own.

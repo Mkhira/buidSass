@@ -1,13 +1,15 @@
 // E1 Phase 9 (T072). Saved Log Analytics KQL queries that power the daily compliance
 // dashboard, pinned to the on-call team's home page.
 //
-// Five panels (a–e per tasks.md T072) + one helper join (f) added by Phase B review:
+// Five panels (a–e per tasks.md T072) + a candidate-listing tile (f) added by review:
 //   a. Deploy success rate over 7 days
 //   b. Median deploy duration
 //   c. Audit-completeness gap count (unpaired deploy.attempted in past 7 days)
 //   d. Drift events count (past 7 days)
 //   e. Alert fire count by category
-//   f. AC-12 triage — Officer/Administrator assignments minus PIM-active rows
+//   f. AC-12 candidates — KV Officer/Administrator policy violations; PIM filtering
+//      happens manually per the runbook §AC-12 violation triage procedure (Resource
+//      Graph can't reliably correlate roleAssignmentSchedules in a single tile).
 //
 // Source assumption: `AuditEvents_CL` is the Log Analytics custom table fed by a
 // `audit_log_entries` → DCR forwarder (one row per emitted event). Every emitted row
@@ -58,7 +60,13 @@ let completed =
     | project CorrelationId_g, CompletedAt = TimeGenerated;
 attempted
 | join kind=leftouter completed on CorrelationId_g
-| where isnull(CompletedAt) or datetime_diff('minute', CompletedAt, AttemptedAt) > 30
+| extend HasOnTimeCompletion = iif(
+    isnotnull(CompletedAt) and datetime_diff('minute', CompletedAt, AttemptedAt) between (0 .. 30),
+    1,
+    0
+  )
+| summarize HasAnyOnTime = max(HasOnTimeCompletion) by CorrelationId_g
+| where HasAnyOnTime == 0
 | summarize GapCount = count()
 
 // === panel d — drift events (past 7 days) ===
@@ -105,7 +113,10 @@ PolicyResources
 | where properties.complianceState == "NonCompliant"
 | extend RoleAssignmentId = tostring(properties.resourceId)
 | extend PrincipalId = tostring(properties.principalId)
-| extend RoleDefinitionId = tostring(properties.policyDefinitionReferenceId)
+// policyDefinitionReferenceId identifies which policy rule was violated, NOT the
+// RBAC role definition id. The actual RBAC roleDefinitionId must be derived from
+// RoleAssignmentId by the on-call operator during the runbook triage procedure.
+| extend PolicyDefinitionReferenceId = tostring(properties.policyDefinitionReferenceId)
 | extend ViolationTimestamp = tostring(properties.timestamp)
-| project RoleAssignmentId, PrincipalId, RoleDefinitionId, ViolationTimestamp
+| project RoleAssignmentId, PrincipalId, PolicyDefinitionReferenceId, ViolationTimestamp
 | order by ViolationTimestamp desc

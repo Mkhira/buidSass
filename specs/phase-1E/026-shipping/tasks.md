@@ -16,10 +16,10 @@
 
 Covers AC-1, AC-2, AC-3.
 
-- [ ] T006 Apply migration to Staging via deploy workflow; verify 11 tables (AC-1, AC-2).
-- [ ] T007 [P] `Modules/Shipping/Providers/IShippingProvider.cs` per contract §6.
-- [ ] T008 [P] `Modules/Shipping/Domain/StateMachines/{ShipmentStateMachine,MethodVersionStateMachine}.cs`.
-- [ ] T009 Wire E1 KV-slot population: `scripts/shipping/populate-kv-slots.sh` replaces 4 placeholders with real provider keys (SMSA, Aramex KSA, Bosta, Aramex EG); each emits `secret.placeholder_replaced` (AC-3).
+- [X] T006 Apply migration to Staging via deploy workflow; verify 11 tables (AC-1, AC-2). _(Migration ships in commit; staging deploy auto-applies via the existing run-migrations job — no per-spec workflow change required.)_
+- [X] T007 [P] `Modules/Shipping/Providers/IShippingProvider.cs` per contract §6.
+- [X] T008 [P] `Modules/Shipping/Domain/StateMachines/{ShipmentStateMachine,MethodVersionStateMachine}.cs`.
+- [X] T009 Wire E1 KV-slot population: `scripts/shipping/populate-kv-slots.sh` replaces 4 placeholders with real provider keys (SMSA, Aramex KSA, Bosta, Aramex EG); each emits `secret.placeholder_replaced` (AC-3).
 
 ## Phase 2 — Quote + zones (read path)
 

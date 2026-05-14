@@ -27,6 +27,9 @@ files_scanned=0
 
 is_placeholder() {
   local v="$1"
+  # The `<...>` placeholder pattern already covers `<<...>>` (a stricter case),
+  # so we collapse both into a single arm to avoid shellcheck SC2221/SC2222
+  # (overlapping case patterns).
   case "$v" in
     ""|"null") return 0 ;;
     "__"*"__") return 0 ;;
@@ -35,7 +38,6 @@ is_placeholder() {
     *"tbd-by-"*) return 0 ;;
     *"please-replace"*|*"replace-me"*|*"changeme"*) return 0 ;;
     *"REPLACE_ME"*) return 0 ;;
-    "<<"*">>") return 0 ;;
   esac
   return 1
 }

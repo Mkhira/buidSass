@@ -1,3 +1,4 @@
+using BackendApi.AdminTool.Commands;
 using BackendApi.Configuration;
 using BackendApi.Features.Seeding;
 using BackendApi.Modules.Catalog;
@@ -128,6 +129,14 @@ if (args.Length > 0 && string.Equals(args[0], SeedingCliVerb.Verb, StringCompari
 if (args.Length > 0 && string.Equals(args[0], SeedAdminCliCommand.Verb, StringComparison.Ordinal))
 {
     return await SeedAdminCliCommand.RunAsync(app, args, CancellationToken.None);
+}
+
+// E1 Phase 0 (T007) — `audit-emit` CLI verb writes infrastructure-domain events into
+// `audit_log_entries` via the shared `IAuditEventPublisher`. Called by deploy / rollback /
+// drift workflows through `scripts/azure/audit-emit.sh`.
+if (args.Length > 0 && string.Equals(args[0], AuditEmitCommand.Verb, StringComparison.Ordinal))
+{
+    return await AuditEmitCommand.RunAsync(app, args, CancellationToken.None);
 }
 
 // Forwarded headers must run BEFORE rate-limiting / endpoint pipelines so

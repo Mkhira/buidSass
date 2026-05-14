@@ -11,3 +11,17 @@
 
 # Catchall ownership
 * @Mkhira
+
+# E1 — Infrastructure Integration (Phase 1E)
+# Owned by the platform engineering team. Until a co-maintainer onboards, @Mkhira
+# acts as the @platform-eng-team alias for review purposes.
+/infra/                                            @Mkhira
+/.github/workflows/deploy-staging.yml              @Mkhira
+/.github/workflows/deploy-production.yml           @Mkhira
+/.github/workflows/infra-drift.yml                 @Mkhira
+/.github/workflows/lint-format-infra.yml           @Mkhira
+/.github/workflows/audit-completeness.yml          @Mkhira
+/scripts/azure/                                    @Mkhira
+/scripts/ci/                                       @Mkhira
+/services/backend_api/AdminTool/                   @Mkhira
+/services/backend_api/Tests/AdminTool.Tests/       @Mkhira

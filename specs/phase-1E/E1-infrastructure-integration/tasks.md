@@ -95,7 +95,7 @@ Independent test: a runtime probe from `ca-backend-api-stg` reads `kv-dental-stg
 
 - [ ] T046 Verify acceptance for AC-11: deploy a one-shot debug revision of `ca-backend-api-stg` that runs `az keyvault secret show --vault-name kv-dental-prd --name <any>` using the attached managed identity; assert 403. Then run the same against `kv-dental-stg`; assert 200. Capture both responses in the runbook's exercise log.
 - [ ] T047 Verify acceptance for AC-12: query `az role assignment list --all --query "[?roleDefinitionName=='Key Vault Secrets Officer'||roleDefinitionName=='Key Vault Administrator'] | [?!conditionVersion]"` (PIM eligible assignments report `conditionVersion`; permanent assignments do not). Assert empty list. Document the query and expected output in the runbook.
-- [ ] T048 Add a daily Azure Policy compliance scan (via `infra/azure/modules/role-assignments.bicep` or a separate `infra/azure/policies/` module if the role-assignments module would exceed 200 LOC) that fails compliance if any permanent (non-PIM) `Officer`/`Administrator` role assignment exists on either vault.
+- [X] T048 Add a daily Azure Policy compliance scan (via `infra/azure/modules/role-assignments.bicep` or a separate `infra/azure/policies/` module if the role-assignments module would exceed 200 LOC) that fails compliance if any permanent (non-PIM) `Officer`/`Administrator` role assignment exists on either vault.
 
 **Phase 3 checkpoint**: vaults are mutually isolated; no permanent privileged grants.
 

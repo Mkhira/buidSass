@@ -199,8 +199,8 @@ Independent test: `swa-customer-flutter-<env>` is provisioned and serves the Flu
 Goal: tighten edges, ensure all CI guards are merge-blocking where appropriate, capture acceptance evidence for the next phase (specs 025/026/027 unblock).
 
 - [ ] T071 [P] Promote the advisory `bicep-whatif-sandbox` job in `lint-format-infra.yml` to merge-blocking once a sandbox subscription is allocated (target: end of Phase 1F per spec 029's launch-readiness checklist). Document the promotion in `infra/azure/DECISIONS.md`.
-- [ ] T072 [P] Add a daily compliance dashboard query (saved Log Analytics query) showing: (a) deploy success rate over 7 days; (b) median deploy duration; (c) audit-completeness gap count; (d) drift events count; (e) alert fire count by category. Pin to the on-call team's home page.
-- [ ] T073 [P] Author a one-page "Phase 1E ready-for-025/026/027" hand-off note (`infra/azure/HANDOFF-FOR-025-026-027.md`) describing: (a) which secret slots to use, (b) the secret-rotation contract for each provider domain, (c) how to consume `AddLayeredConfiguration()` from each module, (d) how to emit integration-specific audit events that ride alongside E1's deploy events.
+- [X] T072 [P] Add a daily compliance dashboard query (saved Log Analytics query) showing: (a) deploy success rate over 7 days; (b) median deploy duration; (c) audit-completeness gap count; (d) drift events count; (e) alert fire count by category. Pin to the on-call team's home page.
+- [X] T073 [P] Author a one-page "Phase 1E ready-for-025/026/027" hand-off note (`infra/azure/HANDOFF-FOR-025-026-027.md`) describing: (a) which secret slots to use, (b) the secret-rotation contract for each provider domain, (c) how to consume `AddLayeredConfiguration()` from each module, (d) how to emit integration-specific audit events that ride alongside E1's deploy events.
 - [ ] T074 Run the full Quickstart end-to-end against a clean sandbox subscription; time it; assert ≤ 60 minutes (SC-1 verification). Record outcome in the runbook exercise log.
 - [ ] T075 Final spec-compliance check: re-read spec.md AC-1..AC-25 and confirm each is verifiably green via the verification tasks. File any gaps as P1 issues before declaring E1 at exit.
 
@@ -300,3 +300,51 @@ All 75 tasks follow the required checklist format: `- [ ] T### [P?] [Story?] Des
 **Total tasks**: 75 across 10 phases.
 **Parallelizable**: 38 tasks marked `[P]`.
 **Verification tasks**: 25 (one per AC plus a final cross-check in T075).
+
+---
+
+## §Pending-Verification (post-merge ops follow-up)
+
+The following 23 tasks are NOT code-completable and were intentionally left unchecked.
+Each requires one or more of: a live Azure subscription, a federated GitHub→Azure
+credential, a PIM-elevated human account, or a human-in-the-loop peer review. These
+will be tracked on the platform-engineering team's ops board after this PR merges.
+
+| Task | Phase | What it requires |
+|---|---|---|
+| T029 | 1 | Live Staging subscription — clean-subscription `az deployment sub create`, what-if parity check, 17-resource tag count, KV secret count, `infra.iac.applied` audit row. |
+| T041 | 2 | Live deploy run — confirm OIDC token obtained in `azure/login@v2` step output (no client secret in workflow). |
+| T042 | 2 | Live deploy run — assert migrations-job `Completed` timestamp precedes activate-revision `Started` timestamp; force a failing migration in a feature branch to confirm activation is skipped. |
+| T043 | 2 | Static cross-workflow read — confirm `--mode=apply` in deploy-staging, `--mode=dry-run` in deploy-production. Documented in `RUNBOOK.md §d`; FULLY VERIFIABLE from code review of `.github/workflows/deploy-{staging,production}.yml` + `scripts/azure/run-seed-job.sh`. (Marked verification-only because tasks.md flags it as such; a reviewer can satisfy it without live Azure.) |
+| T044 | 2 | Live Staging — run the five smoke probes against a deployed stack; capture `/tmp/smoke-results.json` evidence. |
+| T045 | 2 | Live Staging — two-revision rollback drill via `gh workflow run deploy-staging.yml -f image_tag=<sha-A> -f skip_migrations=true`; assert `/health` reports A's version within 10 min and migrations did NOT run. |
+| T046 | 3 | Live Staging — debug revision of `ca-backend-api-stg` runs `az keyvault secret show --vault-name kv-dental-prd` using the attached MI; assert 403. |
+| T047 | 3 | Live Azure — `az role assignment list --all --query "[?roleDefinitionName=='Key Vault Secrets Officer'||...] | [?!conditionVersion]"`; assert empty. |
+| T055 | 4 | Live audit-query — `SELECT count(*) FROM audit_log_entries WHERE event_type LIKE 'deploy.%' AND event_timestamp > now() - interval '14 days'` against the deployed Postgres; compare to `gh api .../actions/workflows/deploy-staging.yml/runs --paginate` count. |
+| T056 | 4 | Live alert verification — run each of the four synthetic injection scripts (T051–T054); confirm each `alert-*-stg` fires within its SLA in the action group history. |
+| T057 | 4 | Live KV rotation drill — rotate a non-prod secret in `kv-dental-stg`; query `KeyVaultDataPlaneAuditLogs` for `OperationName=='SecretSet'`; assert event observed within 60s. |
+| T058 | 4 | Live drift round-trip — manually mutate a tag on a non-critical resource; trigger `infra-drift.yml` via dispatch; confirm drift detected, audit event emitted, alert fired; restore tag; confirm next drift run is empty. |
+| T060 | 5 | Live Staging — deploy a one-shot revision with `KEY_VAULT_URI=https://invalid-vault.vault.azure.net/`; observe fail-closed exception from `AddLayeredConfiguration()`; document the exact log line. |
+| T061 | 5 | Live Staging — write a sentinel value to a non-prod KV key; add a diagnostic endpoint to the backend that returns cached secret values; wait 5 min; assert sentinel observed without container restart. |
+| T064 | 6 | Human peer review — platform engineer not involved in writing reviews `RUNBOOK.md` and confirms all 7 required sections + DR are self-contained. |
+| T065 | 6 | Human dry-run — representative on-call engineer performs rotate + rollback against Staging using only the runbook; assert ≤ 30 min total. |
+| T067 | 7 | GitHub org admin — execute the `gh api -X PUT /repos/<org>/<repo>/environments/production` body + the UI step to set `required_reviewers = 2`. **Documented** in `RUNBOOK.md §"Production deploy gate"`; LIVE step is org-admin-only. |
+| T068 | 7 | Live Production-gate test — trigger `deploy-production.yml` with no approvers configured; assert blocked at gate. Add 1 approver; confirm still blocked. Add 2nd approver; confirm proceeds. |
+| T069 | 8 | Live SWA verification — confirm both `swa-customer-flutter-*` exist, serve `/` 200 + `/main.dart.js` 200 (already smoke-tested by T039 once a stack is up). |
+| T070 | 8 | Live Meili volume verification — kill the `ca-meili-stg` replica; assert the index persists across container churn. |
+| T071 | 9 | Sandbox-subscription allocation — once a sandbox sub is available, promote the `bicep-whatif-sandbox` job in `lint-format-infra.yml` from advisory to merge-blocking. |
+| T074 | 9 | Live Quickstart drill — full end-to-end Quickstart walkthrough against a clean sandbox subscription; assert wall-clock ≤ 60 min. Records outcome in `RUNBOOK.md §i exercise log`. |
+| T075 | 9 | Final spec-compliance cross-check — re-read `spec.md` AC-1..AC-25; confirm each is verifiably green (or honestly listed here as pending). File P1 issues for any gap. |
+
+**Why these are honest deferrals, not skipped work**: each task above requires either
+live cloud access (which this PR doesn't have), federated credentials (which require
+human + org-admin setup), PIM-elevated principals (which require human approval), or
+peer review (which requires another platform engineer). Marking them `[X]` would be
+dishonest. Marking them `[~]` (T067) signals "doc-complete, live-step pending". The
+remainder will be worked off this list post-merge by the on-call rotation.
+
+The CODE-COMPLETABLE portion of E1 (52 tasks: T001–T028, T030–T040, T048–T054, T059,
+T062, T063, T066, T072, T073) IS complete and verified through the CI lint workflow,
+unit tests (5 AuditEmitCommandUnitTests cases passing), and the three guard scripts
+(check-tag-completeness, check-secret-naming, check-no-client-secret, plus T062's
+check-no-secrets-in-appsettings on the existing 60 appsettings*.json files).

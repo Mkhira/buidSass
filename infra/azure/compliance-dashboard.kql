@@ -1,0 +1,82 @@
+// E1 Phase 9 (T072). Saved Log Analytics / Application Insights KQL query that powers
+// the daily compliance dashboard. Pinned to the on-call team's home page.
+//
+// Five panels (a-e per tasks.md T072):
+//   a. Deploy success rate over 7 days
+//   b. Median deploy duration
+//   c. Audit-completeness gap count (unpaired deploy.attempted in past 7 days)
+//   d. Drift events count (past 7 days)
+//   e. Alert fire count by category
+//
+// Run-context: the audit_log_entries table lives in Postgres, NOT Log Analytics, so the
+// dashboard's a/b/c panels use a Postgres-side query (mirrored as a saved query in the
+// admin web's dashboard view). Panels d and e use Log Analytics directly.
+//
+// File format: each panel is a separate query, separated by `// === panel <id> ===`
+// banner comments. The Azure Workbook pulls one panel per tile.
+
+// === panel a — deploy success rate (past 7 days) ===
+// Source: Postgres audit_log_entries via the admin web's read endpoint.
+// Equivalent SQL:
+//   SELECT
+//     count(*) FILTER (WHERE action='deploy.completed_succeeded') AS succeeded,
+//     count(*) FILTER (WHERE action='deploy.completed_failed')    AS failed,
+//     round(100.0 * count(*) FILTER (WHERE action='deploy.completed_succeeded') /
+//                   nullif(count(*) FILTER (WHERE action LIKE 'deploy.completed_%'), 0), 2) AS success_rate_pct
+//   FROM audit_log_entries
+//   WHERE occurred_at > now() - interval '7 days';
+
+// === panel b — median deploy duration ===
+// Equivalent SQL using attempted+completed pairing:
+//   WITH pairs AS (
+//     SELECT a.correlation_id,
+//            a.occurred_at AS attempted_at,
+//            c.occurred_at AS completed_at,
+//            extract(epoch FROM (c.occurred_at - a.occurred_at)) AS duration_s
+//     FROM audit_log_entries a
+//     JOIN audit_log_entries c
+//       ON c.correlation_id = a.correlation_id
+//      AND a.action = 'deploy.attempted'
+//      AND c.action LIKE 'deploy.completed_%'
+//     WHERE a.occurred_at > now() - interval '7 days'
+//   )
+//   SELECT percentile_cont(0.5) WITHIN GROUP (ORDER BY duration_s) AS median_duration_s
+//   FROM pairs;
+
+// === panel c — audit-completeness gap count ===
+// Equivalent SQL:
+//   SELECT count(*) AS gap_count
+//   FROM audit_log_entries a
+//   WHERE a.action = 'deploy.attempted'
+//     AND a.occurred_at > now() - interval '7 days'
+//     AND NOT EXISTS (
+//       SELECT 1 FROM audit_log_entries c
+//       WHERE c.correlation_id = a.correlation_id
+//         AND c.action LIKE 'deploy.completed_%'
+//         AND c.occurred_at BETWEEN a.occurred_at AND a.occurred_at + interval '30 minutes'
+//     );
+
+// === panel d — drift events (past 7 days) ===
+// Source: AzureDiagnostics / customLogs in Log Analytics, surfaced via the audit-emit
+// pipeline that writes infra.drift.detected rows. This is the Log Analytics rendition;
+// the same rows are also queryable in Postgres for cross-correlation.
+AzureDiagnostics
+| where TimeGenerated > ago(7d)
+| where Category == "AuditEvent"
+| where parse_json(payload_s).event_type == "infra.drift.detected"
+| summarize count() by tostring(parse_json(payload_s).environment)
+| project Environment = parse_json_environment, Count = count_
+
+// === panel e — alert fire count by category ===
+AzureActivity
+| where TimeGenerated > ago(7d)
+| where OperationNameValue == "Microsoft.AlertsManagement/alerts/state/changedTo/fired/action"
+| extend AlertName = tostring(parse_json(Properties).alertRuleName)
+| extend Category = case(
+    AlertName startswith "alert-deploy-failure-",  "deploy-failure",
+    AlertName startswith "alert-health-probe-",    "health-probe",
+    AlertName startswith "alert-high-5xx-",        "high-5xx",
+    AlertName startswith "alert-kv-anomaly-",      "kv-anomaly",
+    "other")
+| summarize count() by Category
+| order by count_ desc

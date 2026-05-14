@@ -84,21 +84,28 @@ AzureActivity
 | summarize Count = count() by Category
 | order by Count desc
 
-// === panel f — AC-12 triage (KV Officer/Administrator minus active PIM grants) ===
-// Joins Azure Policy compliance state for `e1-kv-privileged-audit-<env>-asg` against
-// active PIM `roleAssignmentSchedules` rows. Anything in the policy violation set
-// that does NOT join to a PIM schedule is a permanent grant — AC-12 actionable.
+// === panel f — AC-12 candidates (KV Officer/Administrator assignments to triage) ===
+// Lists every NonCompliant row from `e1-kv-privileged-audit-<env>-asg`. Each row
+// is a *candidate* permanent grant; the PIM-active filter happens MANUALLY in the
+// runbook §AC-12 violation triage procedure because:
+//   - Azure Resource Graph does not reliably surface
+//     `microsoft.authorization/roleAssignmentSchedules` in the
+//     AuthorizationResources table (per CodeRabbit Loop 2 research on PR #84
+//     citing Microsoft docs).
+//   - The ARM `roleAssignmentSchedules` REST endpoint correlates to
+//     `roleAssignments` only by the (scope, principalId, roleDefinitionId)
+//     triple — there is no first-class join key, so any KQL-side join would
+//     misbehave.
+// On-call therefore runs the `az`-based cross-check documented in the runbook
+// against each row in this panel. False positives (active PIM activations) get
+// filtered there; the residue is the AC-12 actionable set.
 PolicyResources
 | where type == "microsoft.policyinsights/policystates"
 | where properties.policyAssignmentName startswith "e1-kv-privileged-audit-"
 | where properties.complianceState == "NonCompliant"
 | extend RoleAssignmentId = tostring(properties.resourceId)
-| join kind=leftouter (
-    AuthorizationResources
-    | where type == "microsoft.authorization/roleassignmentschedules"
-    | where properties.status == "Provisioned"
-    | extend ScheduleAssignmentId = tostring(properties.roleAssignmentScheduleRequestId)
-    | project ScheduleAssignmentId
-  ) on $left.RoleAssignmentId == $right.ScheduleAssignmentId
-| where isempty(ScheduleAssignmentId) // unmatched = NOT PIM-active = permanent grant
-| project RoleAssignmentId, ViolationTimestamp = tostring(properties.timestamp)
+| extend PrincipalId = tostring(properties.principalId)
+| extend RoleDefinitionId = tostring(properties.policyDefinitionReferenceId)
+| extend ViolationTimestamp = tostring(properties.timestamp)
+| project RoleAssignmentId, PrincipalId, RoleDefinitionId, ViolationTimestamp
+| order by ViolationTimestamp desc

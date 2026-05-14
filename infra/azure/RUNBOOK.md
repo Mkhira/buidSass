@@ -361,10 +361,27 @@ Administrator assignment, and triage happens here.
 
 Two-step procedure:
 
-1. **Filter against active PIM grants.** Open the compliance dashboard panel f. The
-   panel left-joins NonCompliant rows against `microsoft.authorization/roleassignmentschedules`
-   (`Provisioned` status). Any row remaining in the output is NOT backed by an active
-   PIM schedule — it is a permanent grant.
+1. **Cross-check each candidate against active PIM schedules.** Panel f lists every
+   `(RoleAssignmentId, PrincipalId, RoleDefinitionId, ViolationTimestamp)` from the
+   policy. Resource Graph does NOT reliably surface
+   `microsoft.authorization/roleAssignmentSchedules` in `AuthorizationResources`, and
+   the ARM schedule endpoint correlates back to a role assignment only by the
+   `(scope, principalId, roleDefinitionId)` triple — there is no first-class join
+   key. So the filter happens here, via `az`, one candidate at a time:
+
+   ```bash
+   # For each candidate row from panel f:
+   az rest \
+     --method get \
+     --uri "https://management.azure.com/<scope>/providers/Microsoft.Authorization/roleAssignmentSchedules?api-version=2020-10-01&\$filter=principalId eq '<principalId>'" \
+     --query "value[?properties.roleDefinitionId=='<roleDefinitionId>' && properties.status=='Provisioned']" \
+     -o table
+   ```
+
+   If the query returns one or more rows, the candidate IS an active PIM grant —
+   ignore it; it will expire on its own.
+   If the query returns empty, the candidate is a **permanent grant** — proceed to
+   step 2.
 
 2. **Resolve the permanent grant.**
    - **If the grant is intentional** (e.g. break-glass AAD group): document it in this
@@ -375,9 +392,10 @@ Two-step procedure:
      --scope <vault-id>` against the affected vault, and confirm the next policy
      evaluation drops the row.
 
-PIM-activated rows that briefly appear in panel f during the activation window are
-expected and self-resolve when the PIM lease expires; do not act on them unless they
-persist beyond the configured PIM duration.
+PIM-activated rows are expected to appear in panel f during their activation window
+and self-resolve when the PIM lease expires; act on them only if step 1's `az` check
+shows no Provisioned schedule despite the grant persisting beyond the configured PIM
+duration.
 
 **Verified by**: AC-12.
 
@@ -389,3 +407,4 @@ persist beyond the configured PIM duration.
 |---|---|---|---|
 | 2026-05-14 | @Mkhira | All | Initial runbook drafted as part of E1 Phase 6 (T063). |
 | 2026-05-14 | @Mkhira | §AC-12 violation triage | Added the two-step PIM-filter procedure after CodeRabbit Loop 1 clarified that `conditionVersion` is ABAC, not PIM. Policy + panel f updated to match. |
+| 2026-05-14 | @Mkhira | §AC-12 violation triage | CodeRabbit Loop 2: replaced panel f's broken KQL self-join (Resource Graph doesn't surface `roleAssignmentSchedules` reliably, and the ARM correlation key is the `(scope, principalId, roleDefinitionId)` triple — not a single join column). Step 1 is now an `az rest` query against the schedule endpoint, run once per candidate row. |

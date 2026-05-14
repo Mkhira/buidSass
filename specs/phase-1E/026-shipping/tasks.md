@@ -61,10 +61,10 @@ Covers AC-7, AC-8, AC-9, AC-10, AC-11, AC-12, AC-13.
 
 Covers AC-14, AC-15, AC-16.
 
-- [ ] T036 [P] `Features/Methods/SubmitForReview|Approve|Reject|Archive/` with V-1 publish gate.
-- [ ] T037 Verify AC-14: empty AR or EN name rejects publish.
-- [ ] T038 Verify AC-15: reviewer ≠ author enforced at API level.
-- [ ] T039 Verify AC-16: future `effective_at` does not retroactively change in-flight carts.
+- [X] T036 [P] `Features/Methods/SubmitForReview|Approve|Reject|Archive/` with V-1 publish gate.
+- [X] T037 Verify AC-14: empty AR or EN name rejects publish. _(ApproveMethodHandler throws `V-1 / Principle 4`; endpoint returns 400 publish_gate_failed.)_
+- [X] T038 Verify AC-15: reviewer ≠ author enforced at API level. _(ApproveMethodHandler throws if `ReviewerId == AuthorId`; DB CHECK `CK_method_versions_reviewer_not_author` is the belt-and-suspenders backstop.)_
+- [X] T039 Verify AC-16: future `effective_at` does not retroactively change in-flight carts. _(QuoteHandler filters `EffectiveAt <= now`; Cart snapshot fields preserve the quoted fee — see Phase 2 / T013.)_
 
 ## Phase 5 — Disputes, re-delivery, failover
 

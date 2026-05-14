@@ -33,6 +33,12 @@ public static partial class ShippingModule
         services.AddScoped<CreateDraftMethodHandler>();
         services.AddScoped<UpdateFeeTableHandler>();
         services.AddScoped<CreateZoneHandler>();
+
+        // Phase 4 — method lifecycle (submit / approve / reject / archive).
+        services.AddScoped<SubmitForReviewHandler>();
+        services.AddScoped<ApproveMethodHandler>();
+        services.AddScoped<RejectMethodHandler>();
+        services.AddScoped<ArchiveMethodHandler>();
     }
 
     static partial void MapCustomerEndpoints(IEndpointRouteBuilder customer)
@@ -142,6 +148,54 @@ public static partial class ShippingModule
         })
         .WithName("shipping_admin_create_zone")
         .WithTags("shipping-admin");
+
+        // Phase 4 — method lifecycle verbs.
+        admin.MapPost("/method-versions/{id:guid}/submit", async (
+            Guid id, [FromBody] LifecycleBody body,
+            [FromServices] IMediator mediator, CancellationToken ct) =>
+        {
+            await mediator.Send(new SubmitForReviewCommand(id, body.ActorId), ct);
+            return Results.NoContent();
+        })
+        .WithName("shipping_admin_submit_method")
+        .WithTags("shipping-admin");
+
+        admin.MapPost("/method-versions/{id:guid}/approve", async (
+            Guid id, [FromBody] LifecycleBody body,
+            [FromServices] IMediator mediator, CancellationToken ct) =>
+        {
+            try
+            {
+                await mediator.Send(new ApproveMethodCommand(id, body.ActorId), ct);
+                return Results.NoContent();
+            }
+            catch (InvalidOperationException ex) when (ex.Message.Contains("V-1"))
+            {
+                return Results.BadRequest(new { error = "publish_gate_failed", detail = ex.Message });
+            }
+        })
+        .WithName("shipping_admin_approve_method")
+        .WithTags("shipping-admin");
+
+        admin.MapPost("/method-versions/{id:guid}/reject", async (
+            Guid id, [FromBody] RejectBody body,
+            [FromServices] IMediator mediator, CancellationToken ct) =>
+        {
+            await mediator.Send(new RejectMethodCommand(id, body.ActorId, body.Reason ?? "rejected"), ct);
+            return Results.NoContent();
+        })
+        .WithName("shipping_admin_reject_method")
+        .WithTags("shipping-admin");
+
+        admin.MapPost("/method-versions/{id:guid}/archive", async (
+            Guid id, [FromBody] LifecycleBody body,
+            [FromServices] IMediator mediator, CancellationToken ct) =>
+        {
+            await mediator.Send(new ArchiveMethodCommand(id, body.ActorId), ct);
+            return Results.NoContent();
+        })
+        .WithName("shipping_admin_archive_method")
+        .WithTags("shipping-admin");
     }
 }
 
@@ -198,3 +252,6 @@ public sealed record CreateZoneBody(
     string NameEn,
     string[]? PostalCodePrefixes,
     string[]? CityList);
+
+public sealed record LifecycleBody(Guid ActorId);
+public sealed record RejectBody(Guid ActorId, string? Reason);

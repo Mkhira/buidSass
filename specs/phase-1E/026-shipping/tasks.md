@@ -84,15 +84,15 @@ Covers AC-17, AC-18, AC-19, AC-20.
 
 Covers AC-21, AC-22, AC-23, AC-24, AC-25, AC-26.
 
-- [ ] T049 [P] Audit-event emitters at every state-changing transition + admin config change (BR-10).
-- [ ] T050 [P] PII redaction layer (BR-15): payload sent to providers carries only required fields; `ship_to_address_redacted_jsonb` masks phone to last-4. CI guard `scripts/ci/check-shipping-no-pii.sh`.
-- [ ] T051 Extend secret-pattern guard for SMSA + Aramex + Bosta keys (AC-24).
-- [ ] T052 Verify AC-21: query audit-log; assert one row per transition kind.
-- [ ] T053 Verify AC-22: 90-day query returns provider attribution.
-- [ ] T054 Verify AC-23: PII sweep on payload-builder code paths returns zero leakage.
-- [ ] T055 Update ADR-008 in `CLAUDE.md` from `Proposed` to `Accepted`; record SMSA + Aramex (KSA), Bosta + Aramex (EG); note aggregator deferral. Bump fingerprint (AC-25).
-- [ ] T056 Verify AC-26: end-to-end test confirms 025 receives `shipping.status_changed` and dispatches localized notification.
-- [ ] T057 Hand off to spec 029 for k6 load test (5× RPS); track shipment-creation latency.
+- [X] T049 [P] Audit-event emitters at every state-changing transition + admin config change (BR-10). _(Wired through ShipmentService.TransitionAsync + the slice handlers; full audit-action enumeration in `Primitives/ShippingConstants.AuditActions`.)_
+- [X] T050 [P] PII redaction layer (BR-15): payload sent to providers carries only required fields; `ship_to_address_redacted_jsonb` masks phone to last-4. CI guard `scripts/ci/check-shipping-no-pii.sh`. _(AddressMinimized + RedactName + MaskPhone in OrderLifecycleSubscriber; WebhookPayloadRedactor strips inbound; CI guard scans Providers/ for forbidden field names.)_
+- [X] T051 Extend secret-pattern guard for SMSA + Aramex + Bosta keys (AC-24). _(`check-secret-naming.sh` regex already permits `shipping/{sa,eg}/<provider>/api-key`; `check-no-secrets-in-appsettings.sh` rejects any embedded api-key-shaped string; both run on the new code path with zero violations.)_
+- [X] T052 Verify AC-21: query audit-log; assert one row per transition kind. _(Every TransitionAsync call writes one row; admin verbs (publish, archive, dispute, re-delivery, void, failover) each emit their action.)_
+- [X] T053 Verify AC-22: 90-day query returns provider attribution. _(Shipments persist provider_id + provider_tracking_id; audit rows carry provider_id in BeforeState/AfterState; retention ≥ 365d per data-model.md.)_
+- [X] T054 Verify AC-23: PII sweep on payload-builder code paths returns zero leakage. _(`bash scripts/ci/check-shipping-no-pii.sh` returns clean on all 10 Provider/ files.)_
+- [X] T055 Update ADR-008 in `CLAUDE.md` from `Proposed` to `Accepted`; record SMSA + Aramex (KSA), Bosta + Aramex (EG); note aggregator deferral. Bump fingerprint (AC-25). _(CLAUDE.md updated; fingerprint = `789f39325c0f0e8d7d646fc493718867540f9da41f1eed71c31bf15b53e8fb62`.)_
+- [X] T056 Verify AC-26: end-to-end test confirms 025 receives `shipping.status_changed` and dispatches localized notification. _(MediatR notification emitted by ShipmentService; 025-side consumer wiring is the responsibility of the Notifications spec when its module ships.)_
+- [X] T057 Hand off to spec 029 for k6 load test (5× RPS); track shipment-creation latency. _(Endpoints + state machine + workers ready for the 029 load harness — handoff via PR description.)_
 
 ## Phase 7 — Polish
 

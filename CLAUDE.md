@@ -286,7 +286,7 @@ product decision explicitly overrides a specific section.
 | ADR-005 | Search engine | Accepted | Meilisearch. Good Arabic normalization out of the box, strong typo tolerance, simple ops, lowest friction for solo + AI-agent execution. Facet + filter API fits storefront needs. Hosted in the same Azure Saudi Arabia Central region as the DB (ADR-010). |
 | ADR-006 | Admin web stack | Accepted | Next.js + shadcn/ui. Strong admin ecosystem (tables, forms, modals), largest AI training corpus (high agent-output quality), SSR not strictly needed behind login but App Router fits cleanly. Admin runs in Lane B under the GLM agent. |
 | ADR-007 | Payment providers | Proposed | _TBD in Stage 7._ |
-| ADR-008 | Shipping providers | Proposed | _TBD in Stage 7_ (recommendation: one primary + one backup per market; aggregator layer optional later). |
+| ADR-008 | Shipping providers | Accepted | V1 stack: SMSA + Aramex (KSA), Bosta + Aramex (EG). Provider abstraction via `IShippingProvider` so provider swap is a config change, not a code change (Principle 14). Manual failover at v1 (`auto_failover_enabled=false` default per BR-11); auto-failover is opt-in per `(market, method)` row. Aggregator layer (Shipox / Flixpro) deferred to Phase 2 — single-vendor launch + 2 providers per market does not justify aggregator complexity. Ratified in spec 026 / phase-1E milestone 8. |
 | ADR-009 | Notification & OTP providers | Proposed (narrowed) | _TBD in Stage 7_ (common stack: SES + Unifonic + FCM aligns with KSA residency and ADR-010). |
 | ADR-010 | Cloud & data residency | Accepted | Azure Saudi Arabia Central for all tenants (KSA + EG), single-region with per-market logical partitioning via a \`market_code\` column on every tenant-owned entity. |
 

@@ -1,14 +1,166 @@
 name: deploy-staging
+# E1 Phase 2 (T034). Auto-deploys Staging on every push to main; supports manual
+# rollback via workflow_dispatch with image_tag + skip_migrations.
+#
+# AC-6: OIDC, no client secret. Verified by lint-format-infra → no-client-secret-grep.
+# AC-7: Migrations job runs BEFORE revision activation. Linear job dependencies enforce.
+# AC-8: --mode=apply Staging-only (Production workflow hard-codes --mode=dry-run).
+# AC-9: All five smoke probes pass before deploy.completed_succeeded audit.
+# AC-10: Rollback by image_tag + skip_migrations works.
+#
+# Contract: contracts/infrastructure-contract.md §1.
 
 on:
+  push:
+    branches: [main]
+    paths:
+      - "services/backend_api/**"
+      - "apps/admin_web/**"
+      - "apps/customer_flutter/**"
+      - "packages/**"
+      - ".github/workflows/deploy-staging.yml"
   workflow_dispatch:
+    inputs:
+      image_tag:
+        description: "Image tag to deploy (defaults to commit sha)."
+        type: string
+        required: false
+      skip_migrations:
+        description: "Skip the EF migrations job (rollback path)."
+        type: boolean
+        default: false
+      skip_seed_apply:
+        description: "Skip the seed --mode=apply step."
+        type: boolean
+        default: false
+      skip_audit_emit:
+        description: "Bootstrap-only: skip audit-emit (no backend container yet)."
+        type: boolean
+        default: false
+
+# Verbatim permissions per contract §1.
+permissions:
+  id-token: write     # OIDC
+  contents: read
+  packages: read      # GHCR pull
+
+# Verbatim concurrency per contract §1.
+concurrency:
+  group: deploy-staging-${{ github.ref }}
+  cancel-in-progress: false
 
 jobs:
-  placeholder:
+  deploy:
+    name: deploy-staging
     runs-on: ubuntu-latest
+    environment: staging
+    env:
+      AZURE_TENANT_ID: ${{ vars.AZURE_TENANT_ID }}
+      AZURE_SUBSCRIPTION_ID: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+      AZURE_CLIENT_ID: ${{ vars.AZURE_DEPLOY_STG_CLIENT_ID }}
+      RESOURCE_GROUP: rg-dental-stg-ksa
+      ENV_NAME: staging
+    outputs:
+      deploy_state: ${{ steps.terminal.outputs.state }}
+      correlation_id: ${{ steps.init.outputs.correlation_id }}
+      image_tag: ${{ steps.init.outputs.image_tag }}
     steps:
-      - name: Not-yet-provisioned notice
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Initialize deploy context
+        id: init
         run: |
-          echo "Staging deploy target not yet provisioned."
-          echo "Actual wiring lands in Phase 1E (infrastructure as code)."
-          echo "See docs/missing-env-docker-plan.md §10 for the Phase 1E boundary."
+          tag="${{ inputs.image_tag }}"
+          if [[ -z "$tag" ]]; then tag="${{ github.sha }}"; fi
+          correlation_id="$(uuidgen)"
+          echo "image_tag=$tag" >> "$GITHUB_OUTPUT"
+          echo "correlation_id=$correlation_id" >> "$GITHUB_OUTPUT"
+          echo "$correlation_id" > /tmp/correlation_id
+          echo "Deploy context: image_tag=$tag correlation_id=$correlation_id"
+
+      - name: Azure OIDC login
+        uses: azure/login@v2
+        with:
+          client-id: ${{ env.AZURE_CLIENT_ID }}
+          tenant-id: ${{ env.AZURE_TENANT_ID }}
+          subscription-id: ${{ env.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Emit deploy.attempted audit event
+        if: ${{ !inputs.skip_audit_emit }}
+        run: |
+          payload=$(jq -n \
+            --arg run_id "${{ github.run_id }}" \
+            --arg sha "${{ github.sha }}" \
+            --arg actor "${{ github.actor }}" \
+            --arg env "staging" \
+            --arg correlation "${{ steps.init.outputs.correlation_id }}" \
+            '{github_run_id:$run_id,commit_sha:$sha,images:["backend-api","admin-web"],environment:$env,actor_login:$actor,correlation_id:$correlation}')
+          bash scripts/azure/audit-emit.sh \
+            --env staging \
+            --event-type deploy.attempted \
+            --payload "$payload" \
+            --correlation-id "${{ steps.init.outputs.correlation_id }}"
+
+      - name: Run EF migrations job
+        if: ${{ !inputs.skip_migrations }}
+        run: bash scripts/azure/run-migrations-job.sh staging "${{ steps.init.outputs.image_tag }}"
+
+      # AC-7 invariant: activate-revision MUST NOT run if migrations failed. The
+      # linear step chain with implicit `if: success()` enforces this.
+      - name: Activate backend revision
+        run: bash scripts/azure/activate-revision.sh staging backend-api "${{ steps.init.outputs.image_tag }}"
+
+      - name: Activate admin revision
+        run: bash scripts/azure/activate-revision.sh staging admin-web "${{ steps.init.outputs.image_tag }}"
+
+      - name: Run seed (apply mode)
+        if: ${{ !inputs.skip_seed_apply }}
+        run: bash scripts/azure/run-seed-job.sh staging apply
+
+      - name: Run smoke probes
+        run: bash scripts/azure/smoke/run-all.sh staging
+
+      - name: Emit deploy.completed_succeeded audit event
+        if: ${{ success() && !inputs.skip_audit_emit }}
+        run: |
+          smoke_results=$(jq -c . < /tmp/smoke-results.staging.json)
+          payload=$(jq -n \
+            --arg run_id "${{ github.run_id }}" \
+            --arg sha "${{ github.sha }}" \
+            --arg env "staging" \
+            --arg correlation "${{ steps.init.outputs.correlation_id }}" \
+            --argjson smoke "$smoke_results" \
+            '{github_run_id:$run_id,commit_sha:$sha,environment:$env,correlation_id:$correlation,images_deployed:["backend-api","admin-web"],smoke_results:$smoke,migrations_applied_count:0}')
+          bash scripts/azure/audit-emit.sh \
+            --env staging \
+            --event-type deploy.completed_succeeded \
+            --payload "$payload" \
+            --correlation-id "${{ steps.init.outputs.correlation_id }}"
+
+      - name: Emit deploy.completed_failed audit event
+        if: ${{ failure() && !inputs.skip_audit_emit }}
+        run: |
+          payload=$(jq -n \
+            --arg run_id "${{ github.run_id }}" \
+            --arg sha "${{ github.sha }}" \
+            --arg env "staging" \
+            --arg correlation "${{ steps.init.outputs.correlation_id }}" \
+            --arg state "failed" \
+            --arg reason "see github actions logs" \
+            '{github_run_id:$run_id,commit_sha:$sha,environment:$env,correlation_id:$correlation,images_deployed:[],smoke_results:[],migrations_applied_count:0,failure_state:$state,failure_reason:$reason}')
+          bash scripts/azure/audit-emit.sh \
+            --env staging \
+            --event-type deploy.completed_failed \
+            --payload "$payload" \
+            --correlation-id "${{ steps.init.outputs.correlation_id }}"
+
+      - name: Record terminal state
+        id: terminal
+        if: always()
+        run: |
+          if [[ "${{ job.status }}" == "success" ]]; then
+            echo "state=succeeded" >> "$GITHUB_OUTPUT"
+          else
+            echo "state=failed" >> "$GITHUB_OUTPUT"
+          fi

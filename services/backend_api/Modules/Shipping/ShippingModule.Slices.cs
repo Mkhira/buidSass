@@ -39,6 +39,9 @@ public static partial class ShippingModule
         services.AddScoped<ApproveMethodHandler>();
         services.AddScoped<RejectMethodHandler>();
         services.AddScoped<ArchiveMethodHandler>();
+
+        // Phase 5 — shipment actions + routing + workers.
+        AddPhase5(services);
     }
 
     static partial void MapCustomerEndpoints(IEndpointRouteBuilder customer)
@@ -196,6 +199,9 @@ public static partial class ShippingModule
         })
         .WithName("shipping_admin_archive_method")
         .WithTags("shipping-admin");
+
+        // Phase 5 — shipment actions + provider routing.
+        MapPhase5AdminEndpoints(admin);
     }
 }
 

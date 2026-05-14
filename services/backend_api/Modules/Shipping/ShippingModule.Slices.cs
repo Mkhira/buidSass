@@ -1,6 +1,8 @@
+using BackendApi.Features.Seeding;
 using BackendApi.Modules.Shipping.Features.Methods;
 using BackendApi.Modules.Shipping.Features.Zones;
 using BackendApi.Modules.Shipping.Quote;
+using BackendApi.Modules.Shipping.Seeding;
 using MediatR;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
@@ -42,6 +44,9 @@ public static partial class ShippingModule
 
         // Phase 5 — shipment actions + routing + workers.
         AddPhase5(services);
+
+        // Phase 7 — reference-data seeding (idempotent in all environments).
+        services.AddScoped<ISeeder, ShippingV1Seeder>();
     }
 
     static partial void MapCustomerEndpoints(IEndpointRouteBuilder customer)

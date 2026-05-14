@@ -39,6 +39,38 @@ MANDATORY_TAGS = ("environment", "market_codes", "cost_center", "owner")
 ACCEPTED_TAG_REFS = ("commonTags", "tags", "resourceTags")
 INFRA_ROOT = pathlib.Path(__file__).resolve().parents[2] / "infra" / "azure"
 
+# Azure resource types that DO NOT accept a `tags` property at the ARM level. Tagging is
+# inherited from the parent resource (e.g., a database under a Postgres flexible server),
+# OR the resource type has no tags surface in ARM (role assignments, managed-env storages,
+# subnet sub-resources). Documented per the Azure Resource Manager template reference.
+# Updating this set is a deliberate change and requires a code review.
+UNTAGGABLE_RESOURCE_TYPES = frozenset({
+    # Sub-resources of taggable parents — inherit parent tags.
+    "Microsoft.Storage/storageAccounts/fileServices",
+    "Microsoft.Storage/storageAccounts/fileServices/shares",
+    "Microsoft.Storage/storageAccounts/blobServices",
+    "Microsoft.Storage/storageAccounts/blobServices/containers",
+    "Microsoft.DBforPostgreSQL/flexibleServers/databases",
+    "Microsoft.DBforPostgreSQL/flexibleServers/firewallRules",
+    "Microsoft.DBforPostgreSQL/flexibleServers/configurations",
+    "Microsoft.KeyVault/vaults/secrets",
+    "Microsoft.KeyVault/vaults/accessPolicies",
+    "Microsoft.App/managedEnvironments/storages",
+    "Microsoft.App/managedEnvironments/certificates",
+    "Microsoft.Network/virtualNetworks/subnets",
+    "Microsoft.Network/privateEndpoints/privateDnsZoneGroups",
+    "Microsoft.Insights/components/ProactiveDetectionConfigs",
+    # ARM types with no tags surface.
+    "Microsoft.Authorization/roleAssignments",
+    "Microsoft.Authorization/policyAssignments",
+    "Microsoft.Authorization/policyDefinitions",
+})
+
+
+def normalize_type(type_with_version: str) -> str:
+    """Strip the @apiVersion suffix for set membership."""
+    return type_with_version.split("@", 1)[0]
+
 # Match: resource <symbol> 'Microsoft.<rp>/<type>@<api-version>' = {
 RESOURCE_HEADER_RE = re.compile(
     r"^\s*resource\s+(\w+)\s+'(Microsoft\.[\w./-]+@[\w-]+)'\s*=\s*(?:if\s*\([^)]+\)\s*)?\{",
@@ -110,6 +142,8 @@ def main() -> int:
             print(f"check-tag-completeness: cannot read {path}: {exc}", file=sys.stderr)
             return 2
         for symbol, type_str, block in extract_resources(content):
+            if normalize_type(type_str) in UNTAGGABLE_RESOURCE_TYPES:
+                continue  # ARM doesn't accept tags on this type (or tags inherit from parent).
             ok, reason = check_tags(block)
             if not ok:
                 violations.append(

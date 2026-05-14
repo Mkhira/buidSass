@@ -4,8 +4,7 @@
 @description('Environment short name: stg | prd.')
 param envShortName string
 
-@description('Azure region (e.g. saudiarabiacentral). Alerts are global resources but the
-              action group respects a location for diagnostic-log retention.')
+@description('Azure region. Alerts are global resources but the action group respects a location for diagnostic-log retention.')
 param location string = 'global'
 
 @description('Application Insights component id (source for high-5xx + health alerts).')
@@ -20,8 +19,7 @@ param keyVaultId string
 @description('Email distribution list for the platform-eng on-call rotation.')
 param oncallEmail string = 'platform-oncall@example.com'
 
-@description('Microsoft Teams Incoming Webhook URL. Populated post-provisioning via KV — leave
-              blank here to provision the action group with no Teams receiver and patch later.')
+@description('Microsoft Teams Incoming Webhook URL. Populated post-provisioning via KV. Leave blank here to provision the action group with no Teams receiver and patch later.')
 param teamsWebhookUrl string = ''
 
 @description('Four-tag map computed in main.bicep and threaded into every module.')

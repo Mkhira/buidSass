@@ -1,0 +1,196 @@
+name: lint-format-infra
+# E1 Phase 0 (T002 + T006). Cross-cutting lint workflow for the infrastructure surface.
+# Runs on PRs touching infra/**, deploy/drift workflows, and scripts/azure/**.
+# Eight required jobs per plan.md "CI gates" section, plus the no-http-surface guard (T006)
+# and (Phase 5) appsettings-secret guard. The `bicep-whatif-sandbox` job is advisory until
+# T071 promotes it to merge-blocking once a sandbox subscription is allocated.
+
+on:
+  pull_request:
+    paths:
+      - "infra/**"
+      - ".github/workflows/deploy-staging.yml"
+      - ".github/workflows/deploy-production.yml"
+      - ".github/workflows/infra-drift.yml"
+      - ".github/workflows/lint-format-infra.yml"
+      - ".github/workflows/audit-completeness.yml"
+      - "scripts/azure/**"
+      - "scripts/ci/check-tag-completeness.py"
+      - "scripts/ci/check-secret-naming.sh"
+      - "scripts/ci/check-no-client-secret.sh"
+      - "scripts/ci/check-no-secrets-in-appsettings.sh"
+      - "services/backend_api/AdminTool/**"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: lint-format-infra-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  bicep-lint:
+    name: bicep-lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Bicep CLI
+        run: |
+          curl -Lo bicep https://github.com/Azure/bicep/releases/latest/download/bicep-linux-x64
+          chmod +x ./bicep
+          sudo mv ./bicep /usr/local/bin/bicep
+          bicep --version
+      - name: Lint every .bicep file
+        run: |
+          set -euo pipefail
+          shopt -s globstar nullglob
+          fail=0
+          for f in infra/azure/**/*.bicep; do
+            echo "::group::bicep build $f"
+            if ! bicep build "$f" --stdout > /dev/null; then
+              fail=1
+            fi
+            echo "::endgroup::"
+          done
+          exit $fail
+
+  actionlint:
+    name: actionlint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run actionlint
+        uses: raven-actions/actionlint@v2
+        with:
+          files: |
+            .github/workflows/deploy-staging.yml
+            .github/workflows/deploy-production.yml
+            .github/workflows/infra-drift.yml
+            .github/workflows/lint-format-infra.yml
+            .github/workflows/audit-completeness.yml
+
+  shellcheck:
+    name: shellcheck
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run shellcheck
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq shellcheck
+          find scripts/azure scripts/ci -type f -name "*.sh" -print0 \
+            | xargs -0 -r shellcheck --shell=bash --severity=warning
+
+  no-client-secret-grep:
+    name: no-client-secret-grep
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Forbid AZURE_CLIENT_SECRET / client-secret= in workflows / infra / scripts
+        run: bash scripts/ci/check-no-client-secret.sh
+
+  tag-completeness-check:
+    name: tag-completeness-check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Verify every Bicep resource carries the four mandatory tags
+        run: python3 scripts/ci/check-tag-completeness.py
+
+  secret-pattern-guard:
+    name: secret-pattern-guard
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify every secret reference matches the naming taxonomy regex
+        run: bash scripts/ci/check-secret-naming.sh
+
+  no-secrets-in-appsettings:
+    # E1 Phase 5 (T062). Extends the spec-003 secret-pattern guard to also scan
+    # appsettings*.json. Phase 0 wires the job hook; Phase 5 lands the script body.
+    name: no-secrets-in-appsettings
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Scan appsettings*.json for secret-shaped values
+        run: |
+          if [[ -x scripts/ci/check-no-secrets-in-appsettings.sh ]]; then
+            bash scripts/ci/check-no-secrets-in-appsettings.sh
+          else
+            echo "scripts/ci/check-no-secrets-in-appsettings.sh not yet provisioned (Phase 5 lands it)."
+          fi
+
+  fingerprint:
+    name: fingerprint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Compute & display constitution+ADR fingerprint
+        run: |
+          if [[ -x scripts/compute-fingerprint.sh ]]; then
+            scripts/compute-fingerprint.sh
+          else
+            echo "scripts/compute-fingerprint.sh not present; skipping (existing repo guard runs in verify-context-fingerprint.yml)."
+          fi
+
+  bicep-whatif-sandbox:
+    # E1 Phase 0 (T002) — advisory. Phase 9 (T071) promotes this to merge-blocking once
+    # a sandbox subscription is allocated. Until then, we run `bicep build` to surface
+    # template-graph issues without an actual `what-if` against a real subscription.
+    name: bicep-whatif-sandbox (advisory)
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Bicep CLI
+        run: |
+          curl -Lo bicep https://github.com/Azure/bicep/releases/latest/download/bicep-linux-x64
+          chmod +x ./bicep
+          sudo mv ./bicep /usr/local/bin/bicep
+      - name: Build main.bicep (advisory whatif-precursor)
+        run: |
+          if [[ -f infra/azure/main.bicep ]]; then
+            bicep build infra/azure/main.bicep --stdout > /tmp/main.json
+            echo "main.bicep compiles. Live what-if against a sandbox sub will land with T071."
+          else
+            echo "infra/azure/main.bicep not yet present (Phase 1 lands it)."
+          fi
+
+  no-http-surface-guard:
+    # E1 Phase 0 (T006). The audit-emit CLI verb is a process-bound CLI command —
+    # NEVER an HTTP endpoint. This guard fails the build if anyone adds an
+    # [ApiController]/[HttpPost]/[HttpGet]/MapPost/MapGet under the AuditEmit*
+    # surface (per plan.md "Four Guardrails" §"Contract diff").
+    name: infra-no-http-surface-guard
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Forbid HTTP attributes / map calls under AuditEmit*
+        run: |
+          set -euo pipefail
+          target_paths=(services/backend_api/AdminTool services/backend_api/Tests/AdminTool.Tests)
+          pattern='\[(ApiController|HttpGet|HttpPost|HttpPut|HttpDelete|HttpPatch|Route)\]|Map(Get|Post|Put|Delete|Patch)\s*\('
+          violations=0
+          for p in "${target_paths[@]}"; do
+            [[ -d "$p" ]] || continue
+            while IFS= read -r f; do
+              # Match the pattern against AuditEmit* files only.
+              case "$f" in
+                *AuditEmit*) ;;
+                *) continue ;;
+              esac
+              if grep -nE "$pattern" "$f" >/dev/null 2>&1; then
+                grep -nE "$pattern" "$f" | sed "s|^|$f:|" >&2
+                violations=$((violations + 1))
+              fi
+            done < <(find "$p" -type f -name "*.cs")
+          done
+          if [[ $violations -gt 0 ]]; then
+            echo "infra-no-http-surface-guard: AuditEmit* must remain a CLI-only surface." >&2
+            exit 1
+          fi
+          echo "infra-no-http-surface-guard: clean."

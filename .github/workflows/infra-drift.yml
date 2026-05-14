@@ -1,0 +1,152 @@
+name: infra-drift
+# E1 Phase 4 (T050). Nightly Bicep what-if against both environments. Detects manual
+# changes (drift) and emits an `infra.drift.detected` audit event + fires
+# `alert-drift-<env>` if drift is detected. Auto-remediation is FORBIDDEN at v1
+# (clarify-locked decision D-4 in DECISIONS.md).
+#
+# Schedule: 23:00 UTC (~02:00 KSA) so a morning on-call shift can triage findings.
+# Manual override: workflow_dispatch.
+#
+# Contract: contracts/infrastructure-contract.md §3.
+
+on:
+  schedule:
+    - cron: "0 23 * * *"
+  workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: read
+
+concurrency:
+  group: infra-drift-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  drift-stg:
+    name: drift-stg
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    env:
+      AZURE_TENANT_ID: ${{ vars.AZURE_TENANT_ID }}
+      AZURE_SUBSCRIPTION_ID: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+      AZURE_CLIENT_ID: ${{ vars.AZURE_DRIFT_STG_CLIENT_ID }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Azure OIDC login (gha-drift-stg)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ env.AZURE_CLIENT_ID }}
+          tenant-id: ${{ env.AZURE_TENANT_ID }}
+          subscription-id: ${{ env.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Install Bicep
+        run: |
+          curl -Lo bicep https://github.com/Azure/bicep/releases/latest/download/bicep-linux-x64
+          chmod +x ./bicep
+          sudo mv ./bicep /usr/local/bin/bicep
+
+      - name: Run what-if (staging)
+        run: |
+          mkdir -p /tmp/drift
+          az deployment sub what-if \
+            --location saudiarabiacentral \
+            --template-file infra/azure/main.bicep \
+            --parameters infra/azure/parameters/staging.bicepparam \
+            --no-pretty-print > /tmp/drift/whatif-stg.json
+
+      - name: Parse what-if
+        id: parse
+        run: |
+          bash scripts/azure/parse-whatif.sh /tmp/drift/whatif-stg.json /tmp/drift/parsed-stg.json
+          count=$(jq 'length' /tmp/drift/parsed-stg.json)
+          echo "drift_count=$count" >> "$GITHUB_OUTPUT"
+
+      - name: Emit infra.drift.detected audit event
+        if: ${{ steps.parse.outputs.drift_count != '0' }}
+        run: |
+          payload=$(jq -c \
+            --arg env "staging" \
+            --arg expected_sha "$(git rev-parse HEAD:infra/azure)" \
+            --arg actual_sha "drift-observed" \
+            --arg run_id "${{ github.run_id }}" \
+            --arg run_url "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" \
+            --slurpfile parsed /tmp/drift/parsed-stg.json \
+            '{environment:$env,resource_ids:($parsed[0] | map(.resource_id)),expected_sha:$expected_sha,actual_sha:$actual_sha,parsed_changes:$parsed[0],drift_run_id:$run_id,drift_run_url:$run_url}')
+          bash scripts/azure/audit-emit.sh \
+            --env staging \
+            --event-type infra.drift.detected \
+            --payload "$payload"
+
+      - name: Upload drift artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: drift-stg
+          path: /tmp/drift/parsed-stg.json
+          retention-days: 30
+
+  drift-prd:
+    name: drift-prd
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    env:
+      AZURE_TENANT_ID: ${{ vars.AZURE_TENANT_ID }}
+      AZURE_SUBSCRIPTION_ID: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+      AZURE_CLIENT_ID: ${{ vars.AZURE_DRIFT_PRD_CLIENT_ID }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Azure OIDC login (gha-drift-prd)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ env.AZURE_CLIENT_ID }}
+          tenant-id: ${{ env.AZURE_TENANT_ID }}
+          subscription-id: ${{ env.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Install Bicep
+        run: |
+          curl -Lo bicep https://github.com/Azure/bicep/releases/latest/download/bicep-linux-x64
+          chmod +x ./bicep
+          sudo mv ./bicep /usr/local/bin/bicep
+
+      - name: Run what-if (production)
+        run: |
+          mkdir -p /tmp/drift
+          az deployment sub what-if \
+            --location saudiarabiacentral \
+            --template-file infra/azure/main.bicep \
+            --parameters infra/azure/parameters/production.bicepparam \
+            --no-pretty-print > /tmp/drift/whatif-prd.json
+
+      - name: Parse what-if
+        id: parse
+        run: |
+          bash scripts/azure/parse-whatif.sh /tmp/drift/whatif-prd.json /tmp/drift/parsed-prd.json
+          count=$(jq 'length' /tmp/drift/parsed-prd.json)
+          echo "drift_count=$count" >> "$GITHUB_OUTPUT"
+
+      - name: Emit infra.drift.detected audit event
+        if: ${{ steps.parse.outputs.drift_count != '0' }}
+        run: |
+          payload=$(jq -c \
+            --arg env "production" \
+            --arg expected_sha "$(git rev-parse HEAD:infra/azure)" \
+            --arg actual_sha "drift-observed" \
+            --arg run_id "${{ github.run_id }}" \
+            --arg run_url "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" \
+            --slurpfile parsed /tmp/drift/parsed-prd.json \
+            '{environment:$env,resource_ids:($parsed[0] | map(.resource_id)),expected_sha:$expected_sha,actual_sha:$actual_sha,parsed_changes:$parsed[0],drift_run_id:$run_id,drift_run_url:$run_url}')
+          bash scripts/azure/audit-emit.sh \
+            --env production \
+            --event-type infra.drift.detected \
+            --payload "$payload"
+
+      - name: Upload drift artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: drift-prd
+          path: /tmp/drift/parsed-prd.json
+          retention-days: 30

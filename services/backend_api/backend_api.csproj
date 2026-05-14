@@ -11,6 +11,10 @@
          to the Pricing.Tests assembly so workers can be unit-tested without
          starting the BackgroundService loop (spec 007-b T137/T138/T149). -->
     <InternalsVisibleTo Include="Pricing.Tests" />
+    <!-- Expose `internal` AuditEmitCommand surface (ParseArgs / BuildEvent / constants)
+         to the umbrella backend_api.Tests assembly so the audit-emit CLI verb can be
+         unit-tested without spinning up a full host (E1 spec 028 T008). -->
+    <InternalsVisibleTo Include="backend_api.Tests" />
   </ItemGroup>
 
   <ItemGroup>

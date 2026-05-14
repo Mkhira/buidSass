@@ -1,0 +1,73 @@
+name: audit-completeness
+# E1 Phase 4 (T059). Weekly audit-completeness job. Queries audit_log_entries for the
+# past 7 days and asserts every deploy.attempted has a paired deploy.completed_* within
+# 30 minutes (correlation_id-matched). Any gap = P1 incident.
+#
+# Contract: contracts/infrastructure-contract.md §5 invariant 1.
+# Schedule: Monday 06:00 UTC (~ 09:00 KSA Monday morning — on-call team starts week with
+# a clean signal).
+
+on:
+  schedule:
+    - cron: "0 6 * * 1"
+  workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: read
+
+concurrency:
+  group: audit-completeness-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  audit-stg:
+    name: audit-completeness-stg
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    env:
+      AZURE_TENANT_ID: ${{ vars.AZURE_TENANT_ID }}
+      AZURE_SUBSCRIPTION_ID: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+      AZURE_CLIENT_ID: ${{ vars.AZURE_DRIFT_STG_CLIENT_ID }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Azure OIDC login
+        uses: azure/login@v2
+        with:
+          client-id: ${{ env.AZURE_CLIENT_ID }}
+          tenant-id: ${{ env.AZURE_TENANT_ID }}
+          subscription-id: ${{ env.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Query audit_log_entries via psql for unpaired deploy.attempted rows
+        run: |
+          # Fetch the postgres connection string from KV.
+          conn=$(az keyvault secret show \
+            --vault-name kv-dental-stg \
+            --name "db--multi--postgres-flex--connection-string" \
+            --query "value" -o tsv)
+          # Install psql if missing.
+          if ! command -v psql >/dev/null 2>&1; then
+            sudo apt-get update -qq
+            sudo apt-get install -y -qq postgresql-client
+          fi
+          # The query: every deploy.attempted in the past 7 days MUST have a matching
+          # deploy.completed_* (succeeded or failed) within 30 minutes.
+          # action column carries the event type; correlation_id pairs them.
+          unpaired=$(PGPASSWORD="$(echo "$conn" | sed -E 's/.*Password=([^;]+).*/\1/')" \
+            psql "$conn" -t -A -c "
+              SELECT count(*) FROM audit_log_entries a
+              WHERE a.action = 'deploy.attempted'
+                AND a.occurred_at > now() - interval '7 days'
+                AND NOT EXISTS (
+                  SELECT 1 FROM audit_log_entries c
+                  WHERE c.correlation_id = a.correlation_id
+                    AND c.action IN ('deploy.completed_succeeded', 'deploy.completed_failed')
+                    AND c.occurred_at BETWEEN a.occurred_at AND a.occurred_at + interval '30 minutes'
+                );
+            ")
+          echo "Unpaired deploy.attempted count (7-day window, staging): $unpaired"
+          if [[ "$unpaired" -gt 0 ]]; then
+            echo "::error::Audit completeness gap: $unpaired deploy.attempted row(s) without a paired deploy.completed_* in 30 min (correlation_id-matched). This is a P1 incident per AC-13 / contract §5 invariant 1." >&2
+            exit 1
+          fi

@@ -1,0 +1,156 @@
+name: deploy-production
+# E1 Phase 7 (T066). Production deploy workflow. Mirrors deploy-staging.yml in
+# step shape — same OIDC handshake, same migrations-then-activate ordering, same
+# audit-emit pattern, same smoke probe suite — with these contract-§2 overrides:
+#
+#   - on: workflow_dispatch ONLY (NO push trigger)
+#   - environment: production (2-of-N approval gate via GitHub Environments)
+#   - skip_seed_apply is NOT exposed; seed step is hard-coded --mode=dry-run
+#   - concurrency group is deploy-production-... (separate from Staging)
+#   - vars.AZURE_DEPLOY_PRD_CLIENT_ID is the federated principal
+#
+# The identity backing this workflow (id-gha-deploy-prd) MUST NOT have any role
+# assignment on kv-dental-stg or rg-dental-stg-ksa. Verified by T046/T047 +
+# the daily Azure Policy compliance scan from Phase 3.
+#
+# Contract: contracts/infrastructure-contract.md §2.
+
+on:
+  workflow_dispatch:
+    inputs:
+      image_tag:
+        description: "Image tag to deploy (defaults to commit sha)."
+        type: string
+        required: true
+      skip_migrations:
+        description: "Skip the EF migrations job (rollback path)."
+        type: boolean
+        default: false
+      skip_audit_emit:
+        description: "Bootstrap-only: skip audit-emit (no backend container yet)."
+        type: boolean
+        default: false
+
+permissions:
+  id-token: write
+  contents: read
+  packages: read
+
+concurrency:
+  group: deploy-production-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: deploy-production
+    runs-on: ubuntu-latest
+    environment: production   # gated on 2-of-N reviewers + prevent_self_review=true
+    env:
+      AZURE_TENANT_ID: ${{ vars.AZURE_TENANT_ID }}
+      AZURE_SUBSCRIPTION_ID: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+      AZURE_CLIENT_ID: ${{ vars.AZURE_DEPLOY_PRD_CLIENT_ID }}
+      RESOURCE_GROUP: rg-dental-prd-ksa
+      ENV_NAME: production
+    outputs:
+      deploy_state: ${{ steps.terminal.outputs.state }}
+      correlation_id: ${{ steps.init.outputs.correlation_id }}
+      image_tag: ${{ steps.init.outputs.image_tag }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Initialize deploy context
+        id: init
+        run: |
+          tag="${{ inputs.image_tag }}"
+          correlation_id="$(uuidgen)"
+          echo "image_tag=$tag" >> "$GITHUB_OUTPUT"
+          echo "correlation_id=$correlation_id" >> "$GITHUB_OUTPUT"
+          echo "$correlation_id" > /tmp/correlation_id
+          echo "Deploy context: image_tag=$tag correlation_id=$correlation_id env=production"
+
+      - name: Azure OIDC login
+        uses: azure/login@v2
+        with:
+          client-id: ${{ env.AZURE_CLIENT_ID }}
+          tenant-id: ${{ env.AZURE_TENANT_ID }}
+          subscription-id: ${{ env.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Emit deploy.attempted audit event
+        if: ${{ !inputs.skip_audit_emit }}
+        run: |
+          payload=$(jq -n \
+            --arg run_id "${{ github.run_id }}" \
+            --arg sha "${{ github.sha }}" \
+            --arg actor "${{ github.actor }}" \
+            --arg env "production" \
+            --arg correlation "${{ steps.init.outputs.correlation_id }}" \
+            '{github_run_id:$run_id,commit_sha:$sha,images:["backend-api","admin-web"],environment:$env,actor_login:$actor,correlation_id:$correlation}')
+          bash scripts/azure/audit-emit.sh \
+            --env production \
+            --event-type deploy.attempted \
+            --payload "$payload" \
+            --correlation-id "${{ steps.init.outputs.correlation_id }}"
+
+      - name: Run EF migrations job
+        if: ${{ !inputs.skip_migrations }}
+        run: bash scripts/azure/run-migrations-job.sh production "${{ steps.init.outputs.image_tag }}"
+
+      - name: Activate backend revision
+        run: bash scripts/azure/activate-revision.sh production backend-api "${{ steps.init.outputs.image_tag }}"
+
+      - name: Activate admin revision
+        run: bash scripts/azure/activate-revision.sh production admin-web "${{ steps.init.outputs.image_tag }}"
+
+      # Production seed is ALWAYS --mode=dry-run. Not exposed as an input. The seed CLI
+      # in Program.cs also hard-blocks --mode=apply when ASPNETCORE_ENVIRONMENT=Production
+      # (spec 003 §5.2). This step is belt-and-suspenders on top of that guard.
+      - name: Run seed (dry-run mode)
+        run: bash scripts/azure/run-seed-job.sh production dry-run
+
+      - name: Run smoke probes
+        run: bash scripts/azure/smoke/run-all.sh production
+
+      - name: Emit deploy.completed_succeeded audit event
+        if: ${{ success() && !inputs.skip_audit_emit }}
+        run: |
+          smoke_results=$(jq -c . < /tmp/smoke-results.production.json)
+          payload=$(jq -n \
+            --arg run_id "${{ github.run_id }}" \
+            --arg sha "${{ github.sha }}" \
+            --arg env "production" \
+            --arg correlation "${{ steps.init.outputs.correlation_id }}" \
+            --argjson smoke "$smoke_results" \
+            '{github_run_id:$run_id,commit_sha:$sha,environment:$env,correlation_id:$correlation,images_deployed:["backend-api","admin-web"],smoke_results:$smoke,migrations_applied_count:0}')
+          bash scripts/azure/audit-emit.sh \
+            --env production \
+            --event-type deploy.completed_succeeded \
+            --payload "$payload" \
+            --correlation-id "${{ steps.init.outputs.correlation_id }}"
+
+      - name: Emit deploy.completed_failed audit event
+        if: ${{ failure() && !inputs.skip_audit_emit }}
+        run: |
+          payload=$(jq -n \
+            --arg run_id "${{ github.run_id }}" \
+            --arg sha "${{ github.sha }}" \
+            --arg env "production" \
+            --arg correlation "${{ steps.init.outputs.correlation_id }}" \
+            --arg state "failed" \
+            --arg reason "see github actions logs" \
+            '{github_run_id:$run_id,commit_sha:$sha,environment:$env,correlation_id:$correlation,images_deployed:[],smoke_results:[],migrations_applied_count:0,failure_state:$state,failure_reason:$reason}')
+          bash scripts/azure/audit-emit.sh \
+            --env production \
+            --event-type deploy.completed_failed \
+            --payload "$payload" \
+            --correlation-id "${{ steps.init.outputs.correlation_id }}"
+
+      - name: Record terminal state
+        id: terminal
+        if: always()
+        run: |
+          if [[ "${{ job.status }}" == "success" ]]; then
+            echo "state=succeeded" >> "$GITHUB_OUTPUT"
+          else
+            echo "state=failed" >> "$GITHUB_OUTPUT"
+          fi

@@ -108,6 +108,18 @@ public sealed class PaymentDispatchWorker(
                 continue;
             }
 
+            // Fail-fast: advancing state without a ProviderMessageId would
+            // make the payment invisible to PaymentsWebhookHandler and the
+            // daily ReconciliationMatcher (both correlate on this field).
+            if (string.IsNullOrWhiteSpace(result.ProviderMessageId))
+            {
+                logger.LogWarning(
+                    "Provider {Provider} returned success with empty ProviderMessageId for payment {PaymentId}; marking failed",
+                    payment.ProviderId, payment.Id);
+                await transitions.MarkFailedAsync(db, payment, PaymentsConstants.FailedReasons.ProviderUnavailable, ct);
+                continue;
+            }
+
             payment.ProviderMessageId = result.ProviderMessageId;
             if (result.CapturedSynchronously)
             {

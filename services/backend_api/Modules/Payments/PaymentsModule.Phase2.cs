@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using BackendApi.Modules.Payments.Features.CreatePayment;
 using BackendApi.Modules.Payments.Features.GetPaymentMethods;
 using BackendApi.Modules.Payments.Features.GetPayment;
@@ -63,27 +64,47 @@ public static partial class PaymentsModule
         });
 
         // GET /v1/payments/{id}
+        // Customer identity is derived from the authenticated principal (sub
+        // claim or NameIdentifier). Client-supplied customer_id is NEVER
+        // trusted here — accepting it would allow cross-account read access.
         customer.MapGet("/{id:guid}", async (
             Guid id,
-            [FromQuery] Guid customer_id,
+            HttpContext httpContext,
             [FromServices] IMediator mediator,
             CancellationToken ct) =>
         {
-            var result = await mediator.Send(new GetPaymentQuery(id, customer_id), ct);
+            var customerId = ResolveAuthenticatedCustomerId(httpContext);
+            if (customerId is null) return Results.Unauthorized();
+            var result = await mediator.Send(new GetPaymentQuery(id, customerId.Value), ct);
             return result is null ? Results.NotFound() : Results.Ok(result);
         });
 
         // GET /v1/payments/me/history
         customer.MapGet("/me/history", async (
-            [FromQuery] Guid customer_id,
+            HttpContext httpContext,
             [FromQuery] int take,
             [FromServices] IMediator mediator,
             CancellationToken ct) =>
         {
-            var t = take <= 0 ? 50 : take;
-            var result = await mediator.Send(new GetPaymentHistoryQuery(customer_id, t), ct);
+            var customerId = ResolveAuthenticatedCustomerId(httpContext);
+            if (customerId is null) return Results.Unauthorized();
+            const int maxTake = 200;
+            var t = take <= 0 ? 50 : Math.Min(take, maxTake);
+            var result = await mediator.Send(new GetPaymentHistoryQuery(customerId.Value, t), ct);
             return Results.Ok(new { payments = result });
         });
+    }
+
+    /// <summary>
+    /// Resolves the authenticated customer id from the request's principal —
+    /// `sub` claim first, then <see cref="ClaimTypes.NameIdentifier"/> as
+    /// fallback. Matches the lookup pattern used by Reviews + Cart.
+    /// </summary>
+    private static Guid? ResolveAuthenticatedCustomerId(HttpContext httpContext)
+    {
+        var raw = httpContext.User.FindFirst("sub")?.Value
+            ?? httpContext.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        return Guid.TryParse(raw, out var id) ? id : null;
     }
 }
 

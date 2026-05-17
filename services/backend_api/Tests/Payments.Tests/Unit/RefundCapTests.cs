@@ -60,7 +60,7 @@ public sealed class RefundCapTests
         var db = NewDb();
         var providers = new ProviderRegistry(new IPaymentProvider[] { new BackendApi.Modules.Payments.Providers.HyperPay.HyperPayProvider(TimeProvider.System) });
         var transitions = new PaymentTransitionService(new NoopAuditPublisher(), TimeProvider.System);
-        var handler = new RefundHandler(db, providers, transitions, TimeProvider.System);
+        var handler = new RefundHandler(db, providers, transitions, new NoopAuditPublisher(), TimeProvider.System);
         var payment = SeedCapturedPayment(db, 100m);
 
         var result = await handler.Handle(new RefundCommand(payment.Id, 30m, "partial", Guid.NewGuid()), CancellationToken.None);
@@ -75,7 +75,7 @@ public sealed class RefundCapTests
         var db = NewDb();
         var providers = new ProviderRegistry(new IPaymentProvider[] { new BackendApi.Modules.Payments.Providers.HyperPay.HyperPayProvider(TimeProvider.System) });
         var transitions = new PaymentTransitionService(new NoopAuditPublisher(), TimeProvider.System);
-        var handler = new RefundHandler(db, providers, transitions, TimeProvider.System);
+        var handler = new RefundHandler(db, providers, transitions, new NoopAuditPublisher(), TimeProvider.System);
         var payment = SeedCapturedPayment(db, 100m);
 
         var result = await handler.Handle(new RefundCommand(payment.Id, 100m, "full", Guid.NewGuid()), CancellationToken.None);
@@ -90,7 +90,7 @@ public sealed class RefundCapTests
         var db = NewDb();
         var providers = new ProviderRegistry(new IPaymentProvider[] { new BackendApi.Modules.Payments.Providers.HyperPay.HyperPayProvider(TimeProvider.System) });
         var transitions = new PaymentTransitionService(new NoopAuditPublisher(), TimeProvider.System);
-        var handler = new RefundHandler(db, providers, transitions, TimeProvider.System);
+        var handler = new RefundHandler(db, providers, transitions, new NoopAuditPublisher(), TimeProvider.System);
         var payment = SeedCapturedPayment(db, 100m);
 
         await handler.Handle(new RefundCommand(payment.Id, 60m, "first partial", Guid.NewGuid()), CancellationToken.None);
@@ -106,7 +106,7 @@ public sealed class RefundCapTests
         var db = NewDb();
         var providers = new ProviderRegistry(new IPaymentProvider[] { new BackendApi.Modules.Payments.Providers.HyperPay.HyperPayProvider(TimeProvider.System) });
         var transitions = new PaymentTransitionService(new NoopAuditPublisher(), TimeProvider.System);
-        var handler = new RefundHandler(db, providers, transitions, TimeProvider.System);
+        var handler = new RefundHandler(db, providers, transitions, new NoopAuditPublisher(), TimeProvider.System);
         var payment = SeedCapturedPayment(db, 100m);
 
         await handler.Handle(new RefundCommand(payment.Id, 30m, "p1", Guid.NewGuid()), CancellationToken.None);

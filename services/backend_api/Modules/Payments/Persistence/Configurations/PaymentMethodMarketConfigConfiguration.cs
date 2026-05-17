@@ -14,6 +14,10 @@ public sealed class PaymentMethodMarketConfigConfiguration : IEntityTypeConfigur
                 "\"MarketCode\" IN ('sa','eg')");
             t.HasCheckConstraint("CK_payment_methods_cart_total_bounds",
                 "\"MinCartTotal\" IS NULL OR \"MaxCartTotal\" IS NULL OR \"MinCartTotal\" <= \"MaxCartTotal\"");
+            t.HasCheckConstraint("CK_payment_methods_min_cart_nonneg",
+                "\"MinCartTotal\" IS NULL OR \"MinCartTotal\" >= 0");
+            t.HasCheckConstraint("CK_payment_methods_max_cart_nonneg",
+                "\"MaxCartTotal\" IS NULL OR \"MaxCartTotal\" >= 0");
         });
 
         builder.HasKey(x => new { x.MarketCode, x.Method });

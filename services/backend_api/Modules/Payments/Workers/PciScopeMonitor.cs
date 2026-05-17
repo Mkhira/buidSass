@@ -70,7 +70,7 @@ AND column_name ~* '(pan|primary_account_number|card_number|cvv|cvc|track1|track
         db.PciScopeEvents.Add(new PciScopeEvent
         {
             Id = Guid.NewGuid(),
-            EventKind = PaymentsConstants.PciScopeEventKinds.HostedFieldsDomainChanged,
+            EventKind = PaymentsConstants.PciScopeEventKinds.SchemaDriftDetected,
             ChangedBy = Guid.Empty,
             ChangeSummary = $"cardholder-shape column detected: {summary}",
             CreatedAt = clock.GetUtcNow(),

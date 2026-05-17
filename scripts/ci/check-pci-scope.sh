@@ -50,17 +50,28 @@ forbidden=(
   "card_number"
 )
 
-# Words that contain "Pan" / "Cvv" / "Cvc" as substrings but are not
-# cardholder data. Lines matching any of these regexes are exempt.
+# Words that contain forbidden tokens as substrings but are not cardholder
+# data. Lines matching any of these regexes are exempt from the scan. The
+# list must be conservative — every entry here is a documented false-positive
+# carve-out, and the patterns are matched on the WHOLE line so they should be
+# specific enough not to mask a real violation.
 exempt_regexes=(
   "^[[:space:]]*//"
   "^[[:space:]]*\*"
   "^[[:space:]]*/\*"
-  "MarketCodeSpan"
+  "Span<"
+  "ReadOnlySpan"
+  "AsSpan"
+  "\\.Span\\b"
+  "MarkupSpan"
   "SpanCarrier"
+  "MarketCodeSpan"
   "Spanish"
   "namespace BackendApi"
   "Microsoft\\."
+  # `.cvv2` / `.pan` / etc. as Postgres-regex character ranges in CHECK
+  # constraint definitions (e.g., '^[0-9a-fA-F]{64}$') would not match the
+  # forbidden-token list anyway, but document the intent here.
 )
 
 violations=0
@@ -93,7 +104,7 @@ for dir in "${SCAN_DIRS[@]}"; do
         echo "pci-scope violation: ${file}:${line_no}: forbidden token '${token}'" >&2
         echo "  > ${line}" >&2
         violations=$((violations + 1))
-      done < <(grep -n -F "$token" "$file" 2>/dev/null || true)
+      done < <(grep -n -i -F "$token" "$file" 2>/dev/null || true)
     done
   done < <(find "$dir" -type f -name "*.cs" -print0 2>/dev/null)
 done

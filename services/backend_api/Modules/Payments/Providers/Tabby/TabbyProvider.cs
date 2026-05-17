@@ -18,6 +18,8 @@ public sealed class TabbyProvider : PaymentProviderBase
         method == PaymentsConstants.Methods.BnplTabby;
 
     protected override bool CaptureIsSynchronous => false;
+    public override bool SupportsLedgerApi => true;
+    public override bool SupportsWebhookReplay => true;
 
     public override bool ValidateWebhookSignature(
         HttpRequest request, byte[] rawBody, IReadOnlyDictionary<string, string> vaultSecrets)
@@ -36,8 +38,9 @@ public sealed class TabbyProvider : PaymentProviderBase
         var canonical = status switch
         {
             "AUTHORIZED" or "CLOSED" => CanonicalWebhookEventKinds.Captured,
-            "REJECTED" or "EXPIRED" => CanonicalWebhookEventKinds.Failed,
-            _ => CanonicalWebhookEventKinds.Failed,
+            "REJECTED" => CanonicalWebhookEventKinds.Failed,
+            "EXPIRED" => CanonicalWebhookEventKinds.Expired,
+            _ => CanonicalWebhookEventKinds.Unknown,
         };
         decimal? amount = null;
         if (root.TryGetProperty("amount", out var a) && a.TryGetDecimal(out var dec)) amount = dec;

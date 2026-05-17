@@ -18,6 +18,8 @@ public sealed class TamaraProvider : PaymentProviderBase
         method == PaymentsConstants.Methods.BnplTamara;
 
     protected override bool CaptureIsSynchronous => false;
+    public override bool SupportsLedgerApi => true;
+    public override bool SupportsWebhookReplay => true;
 
     public override bool ValidateWebhookSignature(
         HttpRequest request, byte[] rawBody, IReadOnlyDictionary<string, string> vaultSecrets)
@@ -36,9 +38,10 @@ public sealed class TamaraProvider : PaymentProviderBase
         var canonical = status switch
         {
             "approved" or "fully_captured" => CanonicalWebhookEventKinds.Captured,
-            "declined" or "canceled" or "expired" => CanonicalWebhookEventKinds.Failed,
+            "declined" or "canceled" => CanonicalWebhookEventKinds.Failed,
+            "expired" => CanonicalWebhookEventKinds.Expired,
             "refunded" => CanonicalWebhookEventKinds.Refunded,
-            _ => CanonicalWebhookEventKinds.Failed,
+            _ => CanonicalWebhookEventKinds.Unknown,
         };
         decimal? amount = null;
         if (root.TryGetProperty("total_amount", out var a) && a.TryGetDecimal(out var dec)) amount = dec;

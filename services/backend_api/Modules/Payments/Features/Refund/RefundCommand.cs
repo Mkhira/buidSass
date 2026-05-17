@@ -1,3 +1,4 @@
+using BackendApi.Modules.AuditLog;
 using BackendApi.Modules.Payments.Domain;
 using BackendApi.Modules.Payments.Domain.StateMachines;
 using BackendApi.Modules.Payments.Persistence;
@@ -6,6 +7,7 @@ using BackendApi.Modules.Payments.Providers;
 using BackendApi.Modules.Payments.Services;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using Npgsql;
 
 namespace BackendApi.Modules.Payments.Features.Refund;
 
@@ -26,15 +28,17 @@ public sealed class RefundHandler : IRequestHandler<RefundCommand, RefundRespons
     private readonly PaymentsDbContext _db;
     private readonly ProviderRegistry _providers;
     private readonly PaymentTransitionService _transitions;
+    private readonly IAuditEventPublisher _audit;
     private readonly TimeProvider _clock;
 
     public RefundHandler(
         PaymentsDbContext db, ProviderRegistry providers,
-        PaymentTransitionService transitions, TimeProvider clock)
+        PaymentTransitionService transitions, IAuditEventPublisher audit, TimeProvider clock)
     {
         _db = db;
         _providers = providers;
         _transitions = transitions;
+        _audit = audit;
         _clock = clock;
     }
 
@@ -78,7 +82,17 @@ public sealed class RefundHandler : IRequestHandler<RefundCommand, RefundRespons
             UpdatedAt = _clock.GetUtcNow(),
         };
         _db.Refunds.Add(refund);
-        await _db.SaveChangesAsync(ct);
+        try
+        {
+            await _db.SaveChangesAsync(ct);
+        }
+        catch (DbUpdateException ex) when (IsRefundCapTriggerViolation(ex))
+        {
+            // DB trigger `fn_check_refund_sum` raises check_violation on
+            // concurrent over-refund. Translate to the domain exception so the
+            // 422 path is identical regardless of which guard fires.
+            throw new RefundExceedsCapturedAmountException(payment.Amount, existingSum, cmd.Amount);
+        }
 
         // For native methods (COD + bank transfer) there's no provider call;
         // operator-initiated refunds for those flows complete immediately.
@@ -90,6 +104,7 @@ public sealed class RefundHandler : IRequestHandler<RefundCommand, RefundRespons
             refund.UpdatedAt = _clock.GetUtcNow();
             await _db.SaveChangesAsync(ct);
             await _transitions.MarkPartiallyRefundedAsync(_db, payment, newSum, ct);
+            await EmitRefundAuditAsync(cmd, payment, refund, ct);
             return new RefundResponse(refund.Id, refund.State, payment.State);
         }
 
@@ -97,9 +112,17 @@ public sealed class RefundHandler : IRequestHandler<RefundCommand, RefundRespons
         {
             throw new InvalidOperationException($"Provider '{payment.ProviderId}' not registered");
         }
+        // Fail-fast: we never call provider.RefundAsync without the original
+        // capture's provider-message-id. Anything else can silently refund the
+        // wrong order at the provider side.
+        if (string.IsNullOrWhiteSpace(payment.ProviderMessageId))
+        {
+            throw new InvalidOperationException(
+                $"Payment {payment.Id} has no ProviderMessageId; refund cannot be dispatched to provider '{payment.ProviderId}'.");
+        }
 
         var result = await provider.RefundAsync(new RefundDispatch(
-            refund.Id, payment.ProviderMessageId ?? string.Empty, refund.Amount, refund.Currency, refund.Reason), ct);
+            refund.Id, payment.ProviderMessageId, refund.Amount, refund.Currency, refund.Reason), ct);
         if (!result.Success)
         {
             RefundStateMachine.EnsureTransition(refund.State, PaymentsConstants.RefundStates.Failed);
@@ -108,6 +131,7 @@ public sealed class RefundHandler : IRequestHandler<RefundCommand, RefundRespons
             refund.FailedAt = _clock.GetUtcNow();
             refund.UpdatedAt = _clock.GetUtcNow();
             await _db.SaveChangesAsync(ct);
+            await EmitRefundAuditAsync(cmd, payment, refund, ct);
             return new RefundResponse(refund.Id, refund.State, payment.State);
         }
 
@@ -118,7 +142,42 @@ public sealed class RefundHandler : IRequestHandler<RefundCommand, RefundRespons
         refund.UpdatedAt = _clock.GetUtcNow();
         await _db.SaveChangesAsync(ct);
         await _transitions.MarkPartiallyRefundedAsync(_db, payment, newSum, ct);
+        await EmitRefundAuditAsync(cmd, payment, refund, ct);
         return new RefundResponse(refund.Id, refund.State, payment.State);
+    }
+
+    private Task EmitRefundAuditAsync(RefundCommand cmd, Payment payment, Domain.Refund refund, CancellationToken ct) =>
+        _audit.PublishAsync(new AuditEvent(
+            ActorId: cmd.InitiatedBy, ActorRole: "payments-operator",
+            Action: refund.State == PaymentsConstants.RefundStates.Completed
+                ? PaymentsConstants.AuditActions.PaymentRefunded
+                : "payment.refund_failed",
+            EntityType: "Refund", EntityId: refund.Id,
+            BeforeState: null,
+            AfterState: new
+            {
+                payment_id = payment.Id,
+                refund_id = refund.Id,
+                amount = refund.Amount,
+                currency = refund.Currency,
+                state = refund.State,
+                provider_refund_id = refund.ProviderRefundId,
+            },
+            Reason: refund.Reason ?? refund.FailedReason), ct);
+
+    /// <summary>
+    /// Detects the V-5 trigger violation raised by <c>payments.fn_check_refund_sum</c>.
+    /// PostgreSQL maps RAISE EXCEPTION ... USING ERRCODE = 'check_violation' to
+    /// <see cref="PostgresException"/> with <c>SqlState = 23514</c>.
+    /// </summary>
+    private static bool IsRefundCapTriggerViolation(DbUpdateException ex)
+    {
+        if (ex.InnerException is PostgresException pg
+            && (pg.SqlState == "23514" || pg.MessageText.Contains("V-5", StringComparison.Ordinal)))
+        {
+            return true;
+        }
+        return false;
     }
 }
 

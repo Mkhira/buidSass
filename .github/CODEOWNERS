@@ -39,12 +39,16 @@
 
 # Spec 027 — Payments (Phase 1E · Milestone 9)
 # Owned by the payments team. Until a co-maintainer onboards, @Mkhira acts as
-# the @payments-team alias for review purposes. The PciScope/ subtree carries
-# a stricter co-ownership requirement (@payments-team AND @security-team) per
-# spec 027 T002 — represented here by a second @Mkhira slot until the
-# co-maintainer onboards.
+# the @payments-team alias for review purposes. PciScope/ + check-pci-scope.sh
+# require a stricter `@payments-team AND @security-team` review per spec 027
+# T002. GitHub CODEOWNERS collapses duplicate handles to a single approver, so
+# the dual-approval gate for these paths is enforced via branch-protection
+# "required reviewers = 2" (configured separately) rather than via duplicated
+# owners in this file. When a `@security-team` alias / co-maintainer onboards,
+# add them as a second owner on the two PCI-sensitive entries below so the
+# rule is also documented in-file.
 /services/backend_api/Modules/Payments/                       @Mkhira
-/services/backend_api/Modules/Payments/PciScope/              @Mkhira @Mkhira
+/services/backend_api/Modules/Payments/PciScope/              @Mkhira
 /services/backend_api/Tests/Payments.Tests/                   @Mkhira
 /scripts/payments/                                            @Mkhira
-/scripts/ci/check-pci-scope.sh                                @Mkhira @Mkhira
+/scripts/ci/check-pci-scope.sh                                @Mkhira

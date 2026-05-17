@@ -30,6 +30,12 @@ public sealed class GetPaymentMethodsHandler : IRequestHandler<GetPaymentMethods
         {
             return Array.Empty<PaymentMethodOption>();
         }
+        // Reject obviously bogus inputs before evaluating eligibility — a
+        // negative cart total can otherwise pass MinCartTotal == null checks.
+        if (query.CartTotal < 0)
+        {
+            return Array.Empty<PaymentMethodOption>();
+        }
         var currency = PaymentsConstants.Currencies.For(query.MarketCode);
         var configs = await _db.PaymentMethodsMarketConfigs
             .Where(c => c.MarketCode == query.MarketCode && c.Enabled)

@@ -1,7 +1,7 @@
 # Tasks: 027 — Payments Integration
 
 **Spec**: [spec.md](./spec.md) · **Plan**: [plan.md](./plan.md) · **Data model**: [data-model.md](./data-model.md) · **Contract**: [contracts/payments-contract.md](./contracts/payments-contract.md)
-**Phase**: 1E — Integrations · Milestone 8
+**Phase**: 1E — Integrations · Milestone 9
 **Created**: 2026-05-10
 
 ## Phase 0 — Setup
@@ -10,7 +10,7 @@
 - [X] T002 [P] CODEOWNERS additions: `Modules/Payments/**` under `@payments-team`; `Modules/Payments/PciScope/**` requires both `@payments-team` AND `@security-team`.
 - [X] T003 [P] EF entity types under `Modules/Payments/Domain/` for all 12 tables.
 - [X] T004 [P] EF configurations under `Modules/Payments/Persistence/Configurations/`.
-- [X] T005 Initial migration `Persistence/Migrations/0001_create_payments_schema.cs` (12 tables + V-5 partial-refund-sum trigger + V-1 schema constraints).
+- [X] T005 Initial migration `Persistence/Migrations/20260517073918_CreatePaymentsSchema.cs` (12 tables + V-5 partial-refund-sum trigger + V-1 schema constraints).
 - [X] T006 [P] Add CI guard `scripts/ci/check-pci-scope.sh` (greps for cardholder-shaped column names + payload field names; blocks PR on match).
 - [X] T007 [P] Implement `Modules/Payments/PciScope/EgressPayloadFilter.cs` (allow-listed-fields validator; CODEOWNERS-protected per T002).
 
@@ -23,7 +23,7 @@ Covers AC-1, AC-2, AC-3, AC-4.
 - [X] T010 [P] `Modules/Payments/Providers/IPaymentProvider.cs` per contract §6.
 - [X] T011 [P] `Modules/Payments/Domain/StateMachines/{PaymentStateMachine,RefundStateMachine,ReconciliationExceptionStateMachine}.cs`.
 - [X] T012 Wire E1 KV-slot population: `scripts/payments/populate-kv-slots.sh` populates 21 slots (7 providers × 3 keys); each emits `secret.placeholder_replaced` (AC-3).
-- [X] T013 [P] `Modules/Payments/PciScope/PciScopeMonitor.cs` (nightly Hangfire job; emits `pci_scope.config_changed` audit on detected change; alerts on PCI-scope-affecting drift).
+- [X] T013 [P] `Modules/Payments/Workers/PciScopeMonitor.cs` (nightly BackgroundService; emits `pci_scope.config_changed` audit on detected change; alerts on PCI-scope-affecting drift).
 
 ## Phase 2 — Card payments (KSA + EG)
 

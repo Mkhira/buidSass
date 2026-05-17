@@ -115,6 +115,14 @@ public static class CanonicalWebhookEventKinds
     public const string Refunded = "refunded";
     public const string Chargeback = "chargeback";
     public const string Expired = "expired";
+    /// <summary>
+    /// Reserved for events the parser recognized as well-formed but cannot
+    /// map onto a state transition (e.g. provider-internal notifications,
+    /// new event kinds added after our adapter shipped). The webhook handler
+    /// MUST record the receipt for audit + idempotency but MUST NOT mutate
+    /// payment state.
+    /// </summary>
+    public const string Unknown = "unknown";
 }
 
 /// <summary>Provider settlement ledger snapshot returned by <see cref="IPaymentProvider.FetchSettlementLedgerAsync"/>.</summary>
@@ -123,12 +131,23 @@ public sealed record SettlementLedger(
     DateOnly Date,
     IReadOnlyList<SettlementLedgerRow> Rows);
 
+/// <summary>
+/// One row of a provider settlement ledger consumed by the daily
+/// reconciliation matcher. BR-14 / SAQ-A: providers MUST redact every
+/// cardholder field BEFORE constructing this record. The optional
+/// <see cref="RawRedactedRowJson"/> blob is for operator-facing exception
+/// drill-down — it MUST never carry PAN, CVV, expiry, or any other
+/// cardholder data; the egress sweep (T067) and PciScopeMonitor cover
+/// shape-drift detection on the storage side, but each provider's adapter
+/// is the first line of defense and is responsible for stripping these
+/// fields at the source.
+/// </summary>
 public sealed record SettlementLedgerRow(
     string ProviderMessageId,
     decimal Amount,
     string Currency,
     DateTimeOffset SettledAt,
-    string? RawRowJson);
+    string? RawRedactedRowJson);
 
 public sealed record DateRange(DateTimeOffset From, DateTimeOffset To);
 

@@ -24,8 +24,13 @@ public abstract class PaymentProviderBase : IPaymentProvider
     public abstract string ProviderId { get; }
     public abstract bool SupportsMarket(string marketCode);
     public abstract bool SupportsMethod(string method);
-    public virtual bool SupportsLedgerApi => true;
-    public virtual bool SupportsWebhookReplay => true;
+
+    // Default capability flags are FALSE — the base fetcher returns an empty
+    // ledger / a NotSupported replay, so advertising true would silently make
+    // every captured payment look orphaned in daily reconciliation. Subclasses
+    // that implement a real ledger fetcher / replay path MUST override these.
+    public virtual bool SupportsLedgerApi => false;
+    public virtual bool SupportsWebhookReplay => false;
 
     /// <summary>
     /// Indicates whether the provider's primary capture path is synchronous
@@ -110,14 +115,13 @@ public abstract class PaymentProviderBase : IPaymentProvider
     public virtual Task<WebhookReplayResult> ReplayWebhooksAsync(
         DateRange range, CancellationToken cancellationToken)
     {
-        if (!SupportsWebhookReplay)
-        {
-            return Task.FromResult(new WebhookReplayResult(
-                Supported: false, RepliedEventsCount: 0,
-                NotSupportedReason: $"Provider '{ProviderId}' does not expose a webhook replay endpoint at v1."));
-        }
+        // Honest default: the base impl cannot actually replay anything.
+        // Subclasses that wire a real events-API override this method AND
+        // override SupportsWebhookReplay to true.
         return Task.FromResult(new WebhookReplayResult(
-            Supported: true, RepliedEventsCount: 0, NotSupportedReason: null));
+            Supported: false,
+            RepliedEventsCount: 0,
+            NotSupportedReason: $"Provider '{ProviderId}' does not expose a webhook replay endpoint at v1."));
     }
 
     /// <summary>

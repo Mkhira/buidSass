@@ -52,9 +52,15 @@ public sealed class DailyReconciliationJob(
         var date = DateOnly.FromDateTime(nowUtc.UtcDateTime).AddDays(-1);
         using var scope = scopeFactory.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<PaymentsDbContext>();
-        var alreadyRan = await db.ReconciliationRuns.AnyAsync(
-            r => r.DateRangeStart == date && r.DateRangeEnd == date, ct);
-        if (alreadyRan) return;
+        // Only a SUCCESSFULLY COMPLETED run blocks a retry. A previous failed
+        // attempt (one provider's ledger fetcher down, etc.) MUST stay
+        // retryable so a single transient outage cannot permanently skip a
+        // day's reconciliation.
+        var alreadyCompleted = await db.ReconciliationRuns.AnyAsync(
+            r => r.DateRangeStart == date
+                && r.DateRangeEnd == date
+                && r.Status == PaymentsConstants.ReconciliationRunStatuses.Completed, ct);
+        if (alreadyCompleted) return;
 
         await RunOnceAsync(date, ct);
     }
@@ -88,6 +94,7 @@ public sealed class DailyReconciliationJob(
             BeforeState: null, AfterState: new { date }, Reason: null), ct);
 
         int totalLedgerRows = 0, totalMatched = 0, totalExceptions = 0;
+        int providerErrorCount = 0;
         foreach (var provider in providers.All)
         {
             try
@@ -101,6 +108,7 @@ public sealed class DailyReconciliationJob(
             catch (Exception ex)
             {
                 logger.LogError(ex, "Ledger fetch failed for {Provider}", provider.ProviderId);
+                providerErrorCount++;
             }
         }
 
@@ -115,7 +123,13 @@ public sealed class DailyReconciliationJob(
         run.MatchedCount = totalMatched;
         run.ExceptionsCount = totalExceptions;
         run.CompletedAt = clock.GetUtcNow();
-        run.Status = PaymentsConstants.ReconciliationRunStatuses.Completed;
+        // Partial-success policy: any provider error → status=failed so the
+        // run does not block tomorrow's retry attempt (see alreadyCompleted
+        // gate above). Successful matches + exceptions are still persisted
+        // for the operator queue.
+        run.Status = providerErrorCount == 0
+            ? PaymentsConstants.ReconciliationRunStatuses.Completed
+            : PaymentsConstants.ReconciliationRunStatuses.Failed;
         await db.SaveChangesAsync(ct);
 
         await audit.PublishAsync(new AuditEvent(

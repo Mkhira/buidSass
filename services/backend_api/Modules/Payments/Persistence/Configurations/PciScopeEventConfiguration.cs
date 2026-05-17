@@ -11,7 +11,7 @@ public sealed class PciScopeEventConfiguration : IEntityTypeConfiguration<PciSco
         builder.ToTable("pci_scope_events", "payments", t =>
         {
             t.HasCheckConstraint("CK_pci_scope_events_kind",
-                @"""EventKind"" IN ('kv_slot_added','kv_slot_removed','hosted_fields_domain_changed','provider_added','provider_removed')");
+                @"""EventKind"" IN ('kv_slot_added','kv_slot_removed','hosted_fields_domain_changed','provider_added','provider_removed','schema_drift_detected')");
         });
 
         builder.HasKey(x => x.Id);

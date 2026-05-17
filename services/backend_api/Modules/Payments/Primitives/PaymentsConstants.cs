@@ -245,6 +245,8 @@ public static class PaymentsConstants
         public const string HostedFieldsDomainChanged = "hosted_fields_domain_changed";
         public const string ProviderAdded = "provider_added";
         public const string ProviderRemoved = "provider_removed";
+        /// <summary>Cardholder-shape column detected by the nightly PCI-scope sweep.</summary>
+        public const string SchemaDriftDetected = "schema_drift_detected";
     }
 
     /// <summary>Audit action strings emitted by the Payments module (spec §audit).</summary>

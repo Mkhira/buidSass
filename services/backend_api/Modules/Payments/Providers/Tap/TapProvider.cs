@@ -14,6 +14,9 @@ public sealed class TapProvider : PaymentProviderBase
     public override bool SupportsMarket(string marketCode) =>
         marketCode == PaymentsConstants.Markets.SA;
 
+    public override bool SupportsLedgerApi => true;
+    public override bool SupportsWebhookReplay => true;
+
     public override bool SupportsMethod(string method) => method switch
     {
         PaymentsConstants.Methods.Card => true,
@@ -41,7 +44,7 @@ public sealed class TapProvider : PaymentProviderBase
             "AUTHORIZED" => CanonicalWebhookEventKinds.Authorized,
             "DECLINED" or "FAILED" => CanonicalWebhookEventKinds.Failed,
             "REFUNDED" => CanonicalWebhookEventKinds.Refunded,
-            _ => CanonicalWebhookEventKinds.Failed,
+            _ => CanonicalWebhookEventKinds.Unknown,
         };
         decimal? amount = null;
         if (root.TryGetProperty("amount", out var a) && a.TryGetDecimal(out var dec)) amount = dec;

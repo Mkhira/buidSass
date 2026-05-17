@@ -14,6 +14,8 @@ public sealed class ReconciliationRunConfiguration : IEntityTypeConfiguration<Re
                 @"""Status"" IN ('running','completed','failed')");
             t.HasCheckConstraint("CK_reconciliation_runs_date_range",
                 "\"DateRangeStart\" <= \"DateRangeEnd\"");
+            t.HasCheckConstraint("CK_reconciliation_runs_counts_nonneg",
+                "\"InternalPaymentsCount\" >= 0 AND \"ProviderLedgerRowsCount\" >= 0 AND \"MatchedCount\" >= 0 AND \"ExceptionsCount\" >= 0");
         });
 
         builder.HasKey(x => x.Id);

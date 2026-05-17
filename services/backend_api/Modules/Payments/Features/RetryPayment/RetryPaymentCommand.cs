@@ -39,12 +39,16 @@ public sealed class RetryPaymentHandler : IRequestHandler<RetryPaymentCommand, C
 
         var method = command.MethodOverride ?? original.Method;
         // BR-17 soft rate limit — 5 attempts per customer per 24h on cards.
+        // The count MUST be card-method-scoped: a customer with many COD
+        // attempts today should still be allowed to retry a card payment.
         if (IsCardLike(method))
         {
             var since = DateTimeOffset.UtcNow.AddHours(-24);
+            var cardLikeMethodList = CardLikeMethodList;
             var recent = await _db.Payments.CountAsync(p =>
                 p.CustomerId == original.CustomerId
                 && p.CreatedAt >= since
+                && cardLikeMethodList.Contains(p.Method)
                 && PaymentsConstants.PaymentStates.Terminal.Contains(p.State)
                 && p.DeletedAt == null, ct);
             if (recent >= PaymentsConstants.Windows.CardSoftRateLimitPerCustomerPer24h)
@@ -70,4 +74,18 @@ public sealed class RetryPaymentHandler : IRequestHandler<RetryPaymentCommand, C
             or PaymentsConstants.Methods.Meeza
             or PaymentsConstants.Methods.ApplePay
             or PaymentsConstants.Methods.StcPay;
+
+    /// <summary>
+    /// Card-like methods enumerated as a list so EF Core can translate
+    /// <c>Contains</c> into SQL <c>IN (...)</c> on the index-friendly
+    /// <c>(CustomerId, Method, CreatedAt)</c> scan path.
+    /// </summary>
+    private static readonly IReadOnlyList<string> CardLikeMethodList = new[]
+    {
+        PaymentsConstants.Methods.Card,
+        PaymentsConstants.Methods.Mada,
+        PaymentsConstants.Methods.Meeza,
+        PaymentsConstants.Methods.ApplePay,
+        PaymentsConstants.Methods.StcPay,
+    };
 }

@@ -44,15 +44,23 @@ public sealed class ProviderHealthMonitor(
         foreach (var route in routings)
         {
             var windowStart = now - TimeSpan.FromMinutes(route.FailoverWindowMinutes);
-            var recent = await db.Payments
+            // SQL aggregate — avoid materializing every recent payment state
+            // into memory. Two scalar queries against the
+            // (provider_id, created_at) index keep this tick fast even at
+            // high traffic. Per-route SCAN avoided.
+            var totalRecent = await db.Payments
                 .Where(p => p.DeletedAt == null
                     && p.ProviderId == route.PrimaryProviderId
                     && p.CreatedAt >= windowStart)
-                .Select(p => p.State)
-                .ToListAsync(ct);
-            if (recent.Count == 0) continue;
-            var failed = recent.Count(s => s == PaymentsConstants.PaymentStates.Failed);
-            var pct = failed * 100 / recent.Count;
+                .CountAsync(ct);
+            if (totalRecent == 0) continue;
+            var failedRecent = await db.Payments
+                .Where(p => p.DeletedAt == null
+                    && p.ProviderId == route.PrimaryProviderId
+                    && p.CreatedAt >= windowStart
+                    && p.State == PaymentsConstants.PaymentStates.Failed)
+                .CountAsync(ct);
+            var pct = failedRecent * 100 / totalRecent;
             if (pct >= route.FailoverThresholdPct)
             {
                 logger.LogWarning(

@@ -39,11 +39,16 @@ public sealed class UpdateProviderRoutingHandler : IRequestHandler<UpdateProvide
 {
     private readonly PaymentsDbContext _db;
     private readonly ProviderRegistry _providers;
+    private readonly IAuditEventPublisher _audit;
     private readonly TimeProvider _clock;
 
-    public UpdateProviderRoutingHandler(PaymentsDbContext db, ProviderRegistry providers, TimeProvider clock)
+    public UpdateProviderRoutingHandler(
+        PaymentsDbContext db,
+        ProviderRegistry providers,
+        IAuditEventPublisher audit,
+        TimeProvider clock)
     {
-        _db = db; _providers = providers; _clock = clock;
+        _db = db; _providers = providers; _audit = audit; _clock = clock;
     }
 
     public async Task Handle(UpdateProviderRoutingCommand cmd, CancellationToken ct)
@@ -58,9 +63,32 @@ public sealed class UpdateProviderRoutingHandler : IRequestHandler<UpdateProvide
             throw new InvalidOperationException("Unknown primary provider");
         if (!primary.SupportsMarket(cmd.MarketCode) || !primary.SupportsMethod(cmd.Method))
             throw new InvalidOperationException("Primary provider does not support market+method");
+        // Validate backup provider capability at update-time. Failover later
+        // promotes backup → primary and we must never advertise a routing whose
+        // backup is incompatible with the (market, method) pair.
+        if (cmd.BackupProviderId is not null)
+        {
+            if (!_providers.TryResolve(cmd.BackupProviderId, out var backup) || backup is null)
+                throw new InvalidOperationException("Unknown backup provider");
+            if (!backup.SupportsMarket(cmd.MarketCode) || !backup.SupportsMethod(cmd.Method))
+                throw new InvalidOperationException("Backup provider does not support market+method");
+        }
+        // BR-13 + DB CK_provider_routing_auto_failover_requires_backup —
+        // enforce at the app layer too so the caller sees a clean 400 rather
+        // than a check-violation 500.
+        if (cmd.AutoFailoverEnabled && cmd.BackupProviderId is null)
+            throw new InvalidOperationException("AutoFailoverEnabled requires a BackupProviderId");
 
         var row = await _db.ProviderRoutings.FirstOrDefaultAsync(
             r => r.MarketCode == cmd.MarketCode && r.Method == cmd.Method, ct);
+        var before = row is null ? null : new
+        {
+            primary = row.PrimaryProviderId,
+            backup = row.BackupProviderId,
+            auto = row.AutoFailoverEnabled,
+            threshold = row.FailoverThresholdPct,
+            window = row.FailoverWindowMinutes,
+        };
         if (row is null)
         {
             row = new Domain.ProviderRouting { MarketCode = cmd.MarketCode, Method = cmd.Method };
@@ -73,6 +101,22 @@ public sealed class UpdateProviderRoutingHandler : IRequestHandler<UpdateProvide
         row.FailoverWindowMinutes = cmd.FailoverWindowMinutes;
         row.UpdatedAt = _clock.GetUtcNow();
         await _db.SaveChangesAsync(ct);
+
+        // Principle 25 audit — record the operator-driven routing change.
+        await _audit.PublishAsync(new AuditEvent(
+            ActorId: cmd.OperatorId, ActorRole: "payments-operator",
+            Action: "payments.provider_routing.updated",
+            EntityType: "ProviderRouting", EntityId: Guid.Empty,
+            BeforeState: before,
+            AfterState: new
+            {
+                primary = row.PrimaryProviderId,
+                backup = row.BackupProviderId,
+                auto = row.AutoFailoverEnabled,
+                threshold = row.FailoverThresholdPct,
+                window = row.FailoverWindowMinutes,
+            },
+            Reason: $"update routing {cmd.MarketCode}/{cmd.Method}"), ct);
     }
 }
 
@@ -81,12 +125,17 @@ public sealed record FailoverProviderCommand(string MarketCode, string Method, G
 public sealed class FailoverProviderHandler : IRequestHandler<FailoverProviderCommand>
 {
     private readonly PaymentsDbContext _db;
+    private readonly ProviderRegistry _providers;
     private readonly IAuditEventPublisher _audit;
     private readonly TimeProvider _clock;
 
-    public FailoverProviderHandler(PaymentsDbContext db, IAuditEventPublisher audit, TimeProvider clock)
+    public FailoverProviderHandler(
+        PaymentsDbContext db,
+        ProviderRegistry providers,
+        IAuditEventPublisher audit,
+        TimeProvider clock)
     {
-        _db = db; _audit = audit; _clock = clock;
+        _db = db; _providers = providers; _audit = audit; _clock = clock;
     }
 
     public async Task Handle(FailoverProviderCommand cmd, CancellationToken ct)
@@ -96,6 +145,14 @@ public sealed class FailoverProviderHandler : IRequestHandler<FailoverProviderCo
             ?? throw new InvalidOperationException("Routing not found");
         if (string.IsNullOrEmpty(row.BackupProviderId))
             throw new InvalidOperationException("No backup provider configured");
+
+        // Re-validate the backup at failover-time: an admin may have updated
+        // the supported-method matrix between the update-time check and now,
+        // and we MUST never promote an incompatible provider to primary.
+        if (!_providers.TryResolve(row.BackupProviderId, out var backup) || backup is null)
+            throw new InvalidOperationException("Backup provider no longer registered");
+        if (!backup.SupportsMarket(cmd.MarketCode) || !backup.SupportsMethod(cmd.Method))
+            throw new InvalidOperationException("Backup provider no longer supports market+method");
 
         var before = new { primary = row.PrimaryProviderId, backup = row.BackupProviderId };
         (row.PrimaryProviderId, row.BackupProviderId) = (row.BackupProviderId, row.PrimaryProviderId);

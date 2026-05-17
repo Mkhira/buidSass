@@ -44,7 +44,7 @@ public sealed class ValuProvider : PaymentProviderBase
             "APPROVED" or "DISBURSED" => CanonicalWebhookEventKinds.Captured,
             "REJECTED" or "CANCELLED" => CanonicalWebhookEventKinds.Failed,
             "REFUNDED" => CanonicalWebhookEventKinds.Refunded,
-            _ => CanonicalWebhookEventKinds.Failed,
+            _ => CanonicalWebhookEventKinds.Unknown,
         };
         decimal? amount = null;
         if (root.TryGetProperty("amount", out var a) && a.TryGetDecimal(out var dec)) amount = dec;

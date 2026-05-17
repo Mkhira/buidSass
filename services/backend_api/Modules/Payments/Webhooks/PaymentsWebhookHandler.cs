@@ -86,16 +86,12 @@ public sealed class PaymentsWebhookHandler
             return Results.BadRequest(new { error = "missing_provider_message_id" });
         }
 
-        // BR-4 — idempotency. Returns 200 OK on duplicate so providers stop retrying.
-        var alreadyReceived = await _db.WebhooksReceived.AnyAsync(w =>
-            w.ProviderId == providerId
-            && w.ProviderMessageId == canonical.ProviderMessageId
-            && w.EventKind == canonical.EventKind, ct);
-        if (alreadyReceived)
-        {
-            return Results.Ok(new { idempotent = true });
-        }
-
+        // BR-4 — atomic idempotency. The pre-check-then-insert pattern races
+        // under concurrent provider retries; instead we let the composite-PK
+        // INSERT do the work and translate PK violations into the 200/idempotent
+        // reply. Net effect: at most ONE row per
+        // (provider_id, provider_message_id, event_kind) tuple, even with
+        // simultaneous deliveries.
         _db.WebhooksReceived.Add(new WebhookReceived
         {
             ProviderId = providerId,
@@ -112,19 +108,48 @@ public sealed class PaymentsWebhookHandler
             && p.DeletedAt == null, ct);
         if (payment is null)
         {
-            // Orphan event — log + persist for daily reconciliation to surface as orphan_provider_row.
-            await _db.SaveChangesAsync(ct);
+            // Orphan event — try to persist the receipt for daily reconciliation
+            // to surface as orphan_provider_row. If the insert races with
+            // another delivery and the PK collides, swallow as idempotent.
+            try
+            {
+                await _db.SaveChangesAsync(ct);
+            }
+            catch (DbUpdateException)
+            {
+                _db.ChangeTracker.Clear();
+                return Results.Ok(new { idempotent = true });
+            }
             _logger.LogWarning("Orphan webhook: provider={Provider} message_id={MsgId} kind={Kind}",
                 providerId, canonical.ProviderMessageId, canonical.EventKind);
             return Results.Ok(new { orphan = true });
         }
 
-        await _db.SaveChangesAsync(ct);
+        try
+        {
+            await _db.SaveChangesAsync(ct);
+        }
+        catch (DbUpdateException)
+        {
+            // Composite-PK collision = a parallel delivery of the same event
+            // beat us. Treat as idempotent; the winning request will perform
+            // the state transition.
+            _db.ChangeTracker.Clear();
+            return Results.Ok(new { idempotent = true });
+        }
 
         try
         {
             switch (canonical.CanonicalEventKind)
             {
+                case CanonicalWebhookEventKinds.Unknown:
+                    // The receipt row is persisted above for BR-4 idempotency
+                    // and audit. Make NO state mutation — unknown payloads
+                    // can be benign provider-internal notifications.
+                    _logger.LogInformation(
+                        "Unknown webhook event ignored: provider={Provider} message_id={MsgId} kind={Kind}",
+                        providerId, canonical.ProviderMessageId, canonical.EventKind);
+                    return Results.Ok(new { ignored = true, reason = "unknown_event_kind" });
                 case CanonicalWebhookEventKinds.Captured:
                     if (payment.State == PaymentsConstants.PaymentStates.Captured) break;
                     await _transitions.CaptureAsync(_db, payment, ct);

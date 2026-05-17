@@ -88,7 +88,7 @@ public sealed class CreatePaymentHandler : IRequestHandler<CreatePaymentCommand,
             .FirstOrDefaultAsync(p => p.IdempotencyKey == idempotencyKey && p.DeletedAt == null, ct);
         if (existing is not null)
         {
-            return BuildReplayResponse(existing);
+            return await BuildReplayResponseAsync(existing, ct);
         }
 
         // Resolve the provider (nullable for COD / bank_transfer — native methods).
@@ -165,7 +165,24 @@ public sealed class CreatePaymentHandler : IRequestHandler<CreatePaymentCommand,
             });
         }
 
-        await _db.SaveChangesAsync(ct);
+        try
+        {
+            await _db.SaveChangesAsync(ct);
+        }
+        catch (DbUpdateException)
+        {
+            // V-2 race: another request with the same idempotency key won the
+            // unique-index race. Detach our staged entities and replay the
+            // original Payment instead of surfacing a unique-constraint error.
+            _db.ChangeTracker.Clear();
+            var winner = await _db.Payments
+                .FirstOrDefaultAsync(p => p.IdempotencyKey == idempotencyKey && p.DeletedAt == null, ct);
+            if (winner is not null)
+            {
+                return await BuildReplayResponseAsync(winner, ct);
+            }
+            throw;
+        }
 
         // For BNPL we synchronously resolve the external redirect URL to return
         // it to the client; the actual capture awaits the provider webhook.
@@ -197,12 +214,38 @@ public sealed class CreatePaymentHandler : IRequestHandler<CreatePaymentCommand,
             payment.Id, payment.State, providerId, hostedFieldsConfig, redirectUrl, bankTransferRef, IdempotentReplay: false);
     }
 
-    private CreatePaymentResponse BuildReplayResponse(Payment existing)
+    private async Task<CreatePaymentResponse> BuildReplayResponseAsync(Payment existing, CancellationToken ct)
     {
+        // Bank transfer carries a per-payment reference clients still need on
+        // replay (the customer is staring at "transfer to ref ABC" UI). Look
+        // it up from `bank_transfer_references` so the replay path is just as
+        // useful as the original.
+        string? bankTransferRef = null;
+        if (existing.Method == PaymentsConstants.Methods.BankTransfer)
+        {
+            bankTransferRef = await _db.BankTransferReferences
+                .Where(r => r.PaymentId == existing.Id && r.DeletedAt == null)
+                .Select(r => r.Reference)
+                .FirstOrDefaultAsync(ct);
+        }
+
+        // For synchronous-capture card flows we can reconstruct the hosted-
+        // fields config deterministically (it's purely a function of provider
+        // + payment id) so clients that lost their first response can still
+        // mount the iframe.
+        string? hostedFieldsConfig = null;
+        if (existing.State == PaymentsConstants.PaymentStates.PendingAuthorization
+            && existing.ProviderId is not null)
+        {
+            hostedFieldsConfig = BuildHostedFieldsConfigStub(existing.ProviderId, existing);
+        }
+
         return new CreatePaymentResponse(
             existing.Id, existing.State, existing.ProviderId,
-            HostedFieldsConfigJson: null, ExternalRedirectUrl: null,
-            BankTransferReference: null, IdempotentReplay: true);
+            HostedFieldsConfigJson: hostedFieldsConfig,
+            ExternalRedirectUrl: null,
+            BankTransferReference: bankTransferRef,
+            IdempotentReplay: true);
     }
 
     private static string BuildHostedFieldsConfigStub(string providerId, Payment payment) =>

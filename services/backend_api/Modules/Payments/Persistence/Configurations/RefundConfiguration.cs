@@ -21,6 +21,14 @@ public sealed class RefundConfiguration : IEntityTypeConfiguration<Refund>
         builder.HasKey(x => x.Id);
         builder.Property(x => x.Id).HasDefaultValueSql("gen_random_uuid()");
         builder.Property(x => x.PaymentId).IsRequired();
+
+        // BR-11 / referential integrity — a refund row cannot orphan its
+        // parent payment. Restrict deletes so an admin cannot purge a payment
+        // that still has refunds attached (soft-delete is the only path).
+        builder.HasOne<Payment>()
+            .WithMany()
+            .HasForeignKey(x => x.PaymentId)
+            .OnDelete(DeleteBehavior.Restrict);
         builder.Property(x => x.Amount).HasColumnType("numeric(12,2)").IsRequired();
         builder.Property(x => x.Currency).HasColumnType("text").IsRequired();
         builder.Property(x => x.Reason).HasColumnType("text");

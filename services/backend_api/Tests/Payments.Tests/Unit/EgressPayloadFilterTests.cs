@@ -50,37 +50,37 @@ public sealed class EgressPayloadFilterTests
     [Fact]
     public void AllProviders_SatisfyAllowList()
     {
-        // T063 — every provider's CreatePayment egress projection MUST honor the
-        // egress filter. We instantiate each provider with a fake clock and a
-        // valid dispatch, then trigger the same path the real worker uses.
+        // T063 — every provider's CreatePayment egress projection MUST honor
+        // the egress filter. We pass a method that each provider actually
+        // supports so the call reaches the egress-projection path; using a
+        // single hardcoded method ("card") would let unsupported providers
+        // short-circuit before the filter runs and silently weaken the test.
         var clock = TimeProvider.System;
-        var providers = new IPaymentProvider[]
+        var cases = new (IPaymentProvider Provider, string Market, string Method, string Currency)[]
         {
-            new HyperPayProvider(clock),
-            new TapProvider(clock),
-            new PaymobProvider(clock),
-            new KashierProvider(clock),
-            new TabbyProvider(clock),
-            new TamaraProvider(clock),
-            new ValuProvider(clock),
+            (new HyperPayProvider(clock), "sa", "mada", "SAR"),
+            (new TapProvider(clock), "sa", "card", "SAR"),
+            (new PaymobProvider(clock), "eg", "card", "EGP"),
+            (new KashierProvider(clock), "eg", "card", "EGP"),
+            (new TabbyProvider(clock), "sa", "bnpl_tabby", "SAR"),
+            (new TamaraProvider(clock), "sa", "bnpl_tamara", "SAR"),
+            (new ValuProvider(clock), "eg", "bnpl_valu", "EGP"),
         };
-        var dispatch = new CreatePaymentDispatch(
-            PaymentId: Guid.NewGuid(),
-            OrderId: Guid.NewGuid(),
-            MarketCode: "sa",
-            Method: "card",
-            Amount: 100m,
-            Currency: "SAR",
-            IdempotencyKey: "k",
-            CustomerRef: Guid.NewGuid().ToString("N"),
-            RecipientNameRedacted: "A. K",
-            RecipientPhoneMaskedLast4: "1234");
-        foreach (var p in providers)
+        foreach (var (provider, market, method, currency) in cases)
         {
-            // Each call performs an internal EgressPayloadFilter check.
-            // Any provider that ships a forbidden key would throw here.
-            var act = () => p.CreatePaymentAsync(dispatch, CancellationToken.None).GetAwaiter().GetResult();
-            act.Should().NotThrow($"provider {p.ProviderId} must obey BR-14 egress allow-list");
+            var dispatch = new CreatePaymentDispatch(
+                PaymentId: Guid.NewGuid(),
+                OrderId: Guid.NewGuid(),
+                MarketCode: market,
+                Method: method,
+                Amount: 100m,
+                Currency: currency,
+                IdempotencyKey: new string('a', 64),
+                CustomerRef: Guid.NewGuid().ToString("N"),
+                RecipientNameRedacted: "A. K",
+                RecipientPhoneMaskedLast4: "1234");
+            var act = () => provider.CreatePaymentAsync(dispatch, CancellationToken.None).GetAwaiter().GetResult();
+            act.Should().NotThrow($"provider {provider.ProviderId} must obey BR-14 egress allow-list");
         }
     }
 }

@@ -17,6 +17,10 @@ public sealed class HyperPayProvider : PaymentProviderBase
     public override bool SupportsMarket(string marketCode) =>
         marketCode == PaymentsConstants.Markets.SA;
 
+    // Research §4 + §8 — HyperPay exposes ledger API + events replay.
+    public override bool SupportsLedgerApi => true;
+    public override bool SupportsWebhookReplay => true;
+
     public override bool SupportsMethod(string method) => method switch
     {
         PaymentsConstants.Methods.Card => true,
@@ -48,7 +52,11 @@ public sealed class HyperPayProvider : PaymentProviderBase
             "payment.failed" or "payment.declined" => CanonicalWebhookEventKinds.Failed,
             "payment.refunded" => CanonicalWebhookEventKinds.Refunded,
             "chargeback.received" => CanonicalWebhookEventKinds.Chargeback,
-            _ => CanonicalWebhookEventKinds.Failed,
+            // Unknown event kinds get recorded for idempotency + audit but
+            // never mutate payment state. Coercing the default to Failed
+            // would silently terminate payments on benign provider-internal
+            // notifications.
+            _ => CanonicalWebhookEventKinds.Unknown,
         };
         decimal? amount = null;
         if (root.TryGetProperty("amount", out var amt) && amt.TryGetDecimal(out var a)) amount = a;

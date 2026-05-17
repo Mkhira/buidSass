@@ -114,7 +114,12 @@ for entry in "${providers[@]}"; do
     slot="${market}/${provider}/${key}"
     path="${key_files[$slot]:-}"
     if [[ -z "$path" ]]; then
-      echo "error: missing --${provider}-${key//-/-}-file flag for slot ${slot}" >&2
+      # Map canonical KV key → actual CLI flag suffix:
+      # `webhook-signing-key` is shortened to `webhook-key` in the flag form
+      # (matches the CLI declarations above); api-key / api-secret pass through.
+      flag_key="$key"
+      [[ "$key" == "webhook-signing-key" ]] && flag_key="webhook-key"
+      echo "error: missing --${provider}-${flag_key}-file flag for slot ${slot}" >&2
       missing=$((missing + 1))
       continue
     fi

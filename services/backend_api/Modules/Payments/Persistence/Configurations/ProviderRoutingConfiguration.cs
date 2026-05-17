@@ -14,6 +14,9 @@ public sealed class ProviderRoutingConfiguration : IEntityTypeConfiguration<Prov
                 "\"MarketCode\" IN ('sa','eg')");
             t.HasCheckConstraint("CK_provider_routing_primary_not_backup",
                 "\"BackupProviderId\" IS NULL OR \"PrimaryProviderId\" <> \"BackupProviderId\"");
+            // BR-13 — auto-failover is meaningless without a backup target.
+            t.HasCheckConstraint("CK_provider_routing_auto_failover_requires_backup",
+                "\"AutoFailoverEnabled\" = FALSE OR \"BackupProviderId\" IS NOT NULL");
             t.HasCheckConstraint("CK_provider_routing_threshold",
                 "\"FailoverThresholdPct\" BETWEEN 1 AND 100");
             t.HasCheckConstraint("CK_provider_routing_window",

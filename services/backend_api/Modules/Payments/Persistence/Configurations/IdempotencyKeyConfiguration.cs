@@ -8,7 +8,12 @@ public sealed class IdempotencyKeyConfiguration : IEntityTypeConfiguration<Idemp
 {
     public void Configure(EntityTypeBuilder<IdempotencyKey> builder)
     {
-        builder.ToTable("idempotency_keys", "payments");
+        builder.ToTable("idempotency_keys", "payments", t =>
+        {
+            // BR-3 — keys are sha256(order_id:method:attempt_id) → 64 hex chars.
+            t.HasCheckConstraint("CK_idempotency_keys_sha256",
+                "\"Key\" ~ '^[0-9a-fA-F]{64}$'");
+        });
 
         builder.HasKey(x => x.Key);
         builder.Property(x => x.Key).HasColumnType("text");

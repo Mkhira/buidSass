@@ -22,6 +22,9 @@ public sealed class PaymentConfiguration : IEntityTypeConfiguration<Payment>
                 @"""State"" IN ('pending_authorization','pending_external_redirect','pending_collection_on_delivery','pending_bank_transfer','authorized','capture_failed','captured','failed','expired','refunded','partially_refunded','chargeback_received')");
             t.HasCheckConstraint("CK_payments_currency_matches_market",
                 @"(""MarketCode"" = 'sa' AND ""Currency"" = 'SAR') OR (""MarketCode"" = 'eg' AND ""Currency"" = 'EGP')");
+            // BR-3 — keys are sha256(order_id:method:attempt_id) → 64 hex chars.
+            t.HasCheckConstraint("CK_payments_idempotency_key_sha256",
+                "\"IdempotencyKey\" ~ '^[0-9a-fA-F]{64}$'");
             // V-1 (defense-in-depth at the schema layer) — no cardholder-shaped column names allowed.
             // Real enforcement is in the CI guard and PciScopeMonitor; this check is a tripwire only.
         });

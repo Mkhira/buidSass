@@ -14,6 +14,9 @@ public sealed class PaymobProvider : PaymentProviderBase
     public override bool SupportsMarket(string marketCode) =>
         marketCode == PaymentsConstants.Markets.EG;
 
+    public override bool SupportsLedgerApi => true;
+    public override bool SupportsWebhookReplay => true;
+
     public override bool SupportsMethod(string method) => method switch
     {
         PaymentsConstants.Methods.Card => true,
@@ -46,6 +49,10 @@ public sealed class PaymobProvider : PaymentProviderBase
         decimal? amount = null;
         if (root.TryGetProperty("amount_cents", out var a) && a.TryGetInt64(out var cents))
             amount = cents / 100m;
-        return new WebhookEvent(msgId, success ? "success" : "failure", canonical, amount, Clock.GetUtcNow(), "{}");
+        // Distinct event_kind per (success/refund) shape so the
+        // (provider_id, provider_message_id, event_kind) PK does NOT collapse
+        // a refund webhook onto the original capture row (BR-4 idempotency).
+        var eventKind = refunded ? "refund" : (success ? "success" : "failure");
+        return new WebhookEvent(msgId, eventKind, canonical, amount, Clock.GetUtcNow(), "{}");
     }
 }

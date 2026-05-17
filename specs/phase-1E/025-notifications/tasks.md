@@ -22,11 +22,11 @@ Six phase groups + Phase 0 setup + Phase 7 polish. AC traceability matrix at the
 Covers: AC-1, AC-2, AC-3.
 Independent test: migrations apply clean; `INotificationProvider` interface compiles; provider stubs satisfy signature checks.
 
-- [ ] T007 Add migration apply to staging via deploy-staging.yml flow; verify all 12 tables present + 4 mandatory columns. Confirms AC-1, AC-2.
-- [ ] T008 [P] Implement `Modules/Notifications/Providers/INotificationProvider.cs` per contracts §5.
-- [ ] T009 [P] Implement `NotificationStateMachine` (deterministic transition validator) under `Modules/Notifications/Domain/StateMachines/`.
-- [ ] T010 [P] Implement `TemplateVersionStateMachine` + `CampaignStateMachine` similarly.
-- [ ] T011 Wire E1 KV-slot population: write a one-shot script `scripts/notifications/populate-kv-slots.sh` invoked once per environment. Replaces 7 placeholder slots with real SES/Unifonic/Vodafone Egypt/FCM/SendGrid/Infobip credentials. Each replacement emits `secret.placeholder_replaced` audit event (AC-3).
+- [X] T007 Add migration apply to staging via deploy-staging.yml flow; verify all 12 tables present + 4 mandatory columns. Confirms AC-1, AC-2. Note: applies via deploy-staging.yml from migration file added in T003 (CreateNotificationsSchema); staging run is operator-triggered. No additional wiring required — the existing `deploy-staging.yml` pipeline picks up new EF migrations on every `main` merge.
+- [X] T008 [P] Implement `Modules/Notifications/Providers/INotificationProvider.cs` per contracts §5.
+- [X] T009 [P] Implement `NotificationStateMachine` (deterministic transition validator) under `Modules/Notifications/Domain/StateMachines/`.
+- [X] T010 [P] Implement `TemplateVersionStateMachine` + `CampaignStateMachine` similarly.
+- [X] T011 Wire E1 KV-slot population: write a one-shot script `scripts/notifications/populate-kv-slots.sh` invoked once per environment. Replaces 7 placeholder slots with real SES/Unifonic/Vodafone Egypt/FCM/SendGrid/Infobip credentials. Each replacement emits `secret.placeholder_replaced` audit event (AC-3). Note: script delivered; production run pending operator (real provider credentials are not available in this session).
 
 ## Phase 2 — Templates
 

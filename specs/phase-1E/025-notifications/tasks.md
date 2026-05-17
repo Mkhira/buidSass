@@ -32,13 +32,13 @@ Independent test: migrations apply clean; `INotificationProvider` interface comp
 
 Covers: AC-4, AC-5, AC-6, AC-7.
 
-- [ ] T012 Implement `Features/Templates/CreateDraft/` (Command + Handler + Validator) — POST `/admin/notifications/templates`.
-- [ ] T013 Implement `Features/Templates/SubmitForReview/` — POST `/admin/notifications/templates/{id}:submit`.
-- [ ] T014 Implement `Features/Templates/Approve/` — POST `/admin/notifications/templates/{id}:approve` with V-1 guard (locale completeness + reviewer ≠ author + `ar_editorial_reviewed=true`).
-- [ ] T015 Implement `Features/Templates/Reject/` — POST `/admin/notifications/templates/{id}:reject`.
-- [ ] T016 Implement `Features/Templates/Archive/` — POST `/admin/notifications/templates/{id}:archive`.
-- [ ] T017 [P] Implement `Modules/Notifications/Templates/TemplateRenderer.cs` (Handlebars-style placeholder substitution + RTL preservation per research §3).
-- [ ] T018 [P] Implement `PlaceholderValidator.cs` rejecting unknown placeholder usage in body.
+- [X] T012 Implement `Features/Templates/CreateDraft/` (Command + Handler + Validator) — POST `/admin/notifications/templates`.
+- [X] T013 Implement `Features/Templates/SubmitForReview/` — POST `/admin/notifications/templates/{id}:submit`.
+- [X] T014 Implement `Features/Templates/Approve/` — POST `/admin/notifications/templates/{id}:approve` with V-1 guard (locale completeness + reviewer ≠ author + `ar_editorial_reviewed=true`).
+- [X] T015 Implement `Features/Templates/Reject/` — POST `/admin/notifications/templates/{id}:reject`.
+- [X] T016 Implement `Features/Templates/Archive/` — POST `/admin/notifications/templates/{id}:archive`.
+- [X] T017 [P] Implement `Modules/Notifications/Templates/TemplateRenderer.cs` (Handlebars-style placeholder substitution + RTL preservation per research §3).
+- [X] T018 [P] Implement `PlaceholderValidator.cs` rejecting unknown placeholder usage in body.
 - [ ] T019 [P] Author `apps/admin_web/app/notifications/templates/` Next.js pages (list + editor + review board). Lane B work.
 - [ ] T020 Verify AC-4..AC-7 with integration tests in `Tests/Integration/Templates/`.
 

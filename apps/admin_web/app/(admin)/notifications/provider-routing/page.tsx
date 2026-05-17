@@ -18,7 +18,7 @@ export default async function ProviderRoutingPage() {
       <PageHeader title={t("title")} description={t("description")} />
       <div className="rounded-md border border-dashed border-border p-ds-lg text-sm text-muted-foreground">
         <p>{t("scaffold_note")}</p>
-        <ul className="mt-ds-sm list-disc space-y-ds-xs pl-ds-md">
+        <ul className="mt-ds-sm list-disc space-y-ds-xs ps-ds-md">
           {ENDPOINTS.map((e) => (
             <li key={`${e.method}-${e.path}`}>
               <code>{`${e.method} ${e.path}`}</code>

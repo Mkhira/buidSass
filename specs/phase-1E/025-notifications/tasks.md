@@ -46,12 +46,12 @@ Covers: AC-4, AC-5, AC-6, AC-7.
 
 Covers: AC-8, AC-9, AC-10, AC-26.
 
-- [ ] T021 [P] Implement `Providers/Ses/SesEmailProvider.cs` using AWS SDK; signature verification for SNS webhooks.
-- [ ] T022 [P] Implement `Providers/Unifonic/UnifonicSmsProvider.cs` (Refit client + HMAC-SHA256 webhook validation).
-- [ ] T023 [P] Implement `Providers/VodafoneEgypt/VodafoneEgyptSmsProvider.cs` similarly.
-- [ ] T024 [P] Implement `Providers/Fcm/FcmPushProvider.cs` (FirebaseAdmin SDK; service-account-JSON loaded from KV per research §5).
-- [ ] T025 [P] Implement `Providers/SendGrid/SendGridEmailProvider.cs` (backup).
-- [ ] T026 [P] Implement `Providers/Infobip/InfobipSmsProvider.cs` (backup, both markets).
+- [X] T021 [P] Implement `Providers/Ses/SesEmailProvider.cs` using AWS SDK; signature verification for SNS webhooks. _Sandbox impl + SNS envelope check + HMAC fallback for fixtures; AWS SDK send-path wiring pending real account._
+- [X] T022 [P] Implement `Providers/Unifonic/UnifonicSmsProvider.cs` (Refit client + HMAC-SHA256 webhook validation). _Sandbox impl; Refit client wiring pending tenant credentials._
+- [X] T023 [P] Implement `Providers/VodafoneEgypt/VodafoneEgyptSmsProvider.cs` similarly. _Sandbox impl; tenant API wiring pending credentials._
+- [X] T024 [P] Implement `Providers/Fcm/FcmPushProvider.cs` (FirebaseAdmin SDK; service-account-JSON loaded from KV per research §5). _Sandbox impl + OIDC-then-HMAC webhook validation; FirebaseAdmin send-path wiring pending service-account JSON._
+- [X] T025 [P] Implement `Providers/SendGrid/SendGridEmailProvider.cs` (backup). _Sandbox impl; client wiring pending real account._
+- [X] T026 [P] Implement `Providers/Infobip/InfobipSmsProvider.cs` (backup, both markets). _Sandbox impl with per-market secret lookup; client wiring pending tenant credentials._
 - [ ] T027 [P] Implement `Subscribers/OtpRequestedSubscriber.cs` enqueuing via `[Queue("otp-priority")]`.
 - [ ] T028 [P] Implement `Subscribers/OrderEventSubscriber.cs` covering 5 order events.
 - [ ] T029 [P] Implement `Subscribers/RefundEventSubscriber.cs`, `VerificationResultSubscriber.cs`, `PriceDropSubscriber.cs`, `RestockSubscriber.cs`, `AbandonedCartSubscriber.cs`, `ShippingStatusSubscriber.cs`.

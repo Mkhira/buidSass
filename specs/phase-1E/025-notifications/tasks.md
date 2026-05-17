@@ -52,9 +52,9 @@ Covers: AC-8, AC-9, AC-10, AC-26.
 - [X] T024 [P] Implement `Providers/Fcm/FcmPushProvider.cs` (FirebaseAdmin SDK; service-account-JSON loaded from KV per research §5). _Sandbox impl + OIDC-then-HMAC webhook validation; FirebaseAdmin send-path wiring pending service-account JSON._
 - [X] T025 [P] Implement `Providers/SendGrid/SendGridEmailProvider.cs` (backup). _Sandbox impl; client wiring pending real account._
 - [X] T026 [P] Implement `Providers/Infobip/InfobipSmsProvider.cs` (backup, both markets). _Sandbox impl with per-market secret lookup; client wiring pending tenant credentials._
-- [ ] T027 [P] Implement `Subscribers/OtpRequestedSubscriber.cs` enqueuing via `[Queue("otp-priority")]`.
-- [ ] T028 [P] Implement `Subscribers/OrderEventSubscriber.cs` covering 5 order events.
-- [ ] T029 [P] Implement `Subscribers/RefundEventSubscriber.cs`, `VerificationResultSubscriber.cs`, `PriceDropSubscriber.cs`, `RestockSubscriber.cs`, `AbandonedCartSubscriber.cs`, `ShippingStatusSubscriber.cs`.
+- [X] T027 [P] Implement `Subscribers/OtpRequestedSubscriber.cs` enqueuing via `[Queue("otp-priority")]`. _Per Phase 0 deviation (Hangfire→BackgroundService), queue isolation is enforced downstream by OtpDispatchWorker (T030) reading rows whose EventKind=auth.otp_requested rather than via [Queue] attribute._
+- [X] T028 [P] Implement `Subscribers/OrderEventSubscriber.cs` covering 5 order events.
+- [X] T029 [P] Implement `Subscribers/RefundEventSubscriber.cs`, `VerificationResultSubscriber.cs`, `PriceDropSubscriber.cs`, `RestockSubscriber.cs`, `AbandonedCartSubscriber.cs`, `ShippingStatusSubscriber.cs`.
 - [ ] T030 Implement `Workers/DispatchWorker.cs` (default queue) and `Workers/OtpDispatchWorker.cs` (OTP queue) — both implement retry policy per BR-4.
 - [ ] T031 Implement webhook endpoints `Webhooks/{Ses,Unifonic,VodafoneEgypt,Fcm,SendGrid,Infobip}WebhookEndpoint.cs` with idempotency via `webhooks_received` PK (V-6).
 - [ ] T032 Verify AC-8: place test order → 2 deliveries within 60s.

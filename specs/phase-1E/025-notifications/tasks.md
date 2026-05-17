@@ -10,12 +10,12 @@ Six phase groups + Phase 0 setup + Phase 7 polish. AC traceability matrix at the
 
 ## Phase 0 — Setup & module scaffolding
 
-- [ ] T001 [P] Create `services/backend_api/Modules/Notifications/NotificationsModule.cs` registering `NotificationsDbContext` (with `ManyServiceProvidersCreatedWarning` suppression per project memory pattern), Hangfire queue config (`otp-priority` + `default`), MediatR handler scan.
-- [ ] T002 [P] Add CODEOWNERS entries for `Modules/Notifications/**` and `apps/admin_web/app/notifications/**` under `@notifications-team`.
-- [ ] T003 [P] Create the `notifications` schema migration: `services/backend_api/Modules/Notifications/Persistence/Migrations/0001_create_notifications_schema.cs` (creates schema + 12 tables with all FKs, indexes, soft-delete columns, market_code where applicable).
-- [ ] T004 [P] Create EF entity types under `Modules/Notifications/Domain/` for all 12 tables (Notification, Template, TemplateVersion, Campaign, CampaignRecipient, Preference, UnsubscribeToken, ProviderRouting, DeadLetterEntry, MarketSchema, Delivery, WebhookReceived).
-- [ ] T005 [P] Create `Modules/Notifications/Persistence/Configurations/*.cs` EF configs (one per entity).
-- [ ] T006 [P] Add `seed-pii-guard` regex extension covering Saudi mobile prefixes (+9665) and Egyptian (+201[0-2,5]); ensure existing guard catches new fixture data.
+- [X] T001 [P] Create `services/backend_api/Modules/Notifications/NotificationsModule.cs` registering `NotificationsDbContext` (with `ManyServiceProvidersCreatedWarning` suppression per project memory pattern), Hangfire queue config (`otp-priority` + `default`), MediatR handler scan. Note: this repo uses `BackgroundService` not Hangfire (per spec 027 precedent); queue isolation is preserved via separate worker services; queue-name constants live on `NotificationsConstants.Queues`.
+- [X] T002 [P] Add CODEOWNERS entries for `Modules/Notifications/**` and `apps/admin_web/app/notifications/**` under `@notifications-team`.
+- [X] T003 [P] Create the `notifications` schema migration: `services/backend_api/Modules/Notifications/Persistence/Migrations/0001_create_notifications_schema.cs` (creates schema + 12 tables with all FKs, indexes, soft-delete columns, market_code where applicable).
+- [X] T004 [P] Create EF entity types under `Modules/Notifications/Domain/` for all 12 tables (Notification, Template, TemplateVersion, Campaign, CampaignRecipient, Preference, UnsubscribeToken, ProviderRouting, DeadLetterEntry, MarketSchema, Delivery, WebhookReceived).
+- [X] T005 [P] Create `Modules/Notifications/Persistence/Configurations/*.cs` EF configs (one per entity).
+- [X] T006 [P] Add `seed-pii-guard` regex extension covering Saudi mobile prefixes (+9665) and Egyptian (+201[0-2,5]); ensure existing guard catches new fixture data. Delivered as `scripts/ci/check-notifications-no-pii.sh` (per-module guard precedent set by spec 026's `check-shipping-no-pii.sh`).
 
 ## Phase 1 — Foundations + state machines + provider abstraction
 

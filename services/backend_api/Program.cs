@@ -17,6 +17,7 @@ using BackendApi.Modules.TaxInvoices;
 using BackendApi.Modules.Shared;
 using BackendApi.Modules.Reviews;
 using BackendApi.Modules.Cms;
+using BackendApi.Modules.Notifications;
 using BackendApi.Modules.Payments;
 using BackendApi.Modules.Shipping;
 using BackendApi.Modules.Support;
@@ -91,6 +92,7 @@ builder.Services.AddB2BModule(builder.Configuration, builder.Environment);
 builder.Services.AddSupportModule(builder.Configuration, builder.Environment);
 builder.Services.AddShippingModule(builder.Configuration, builder.Environment);
 builder.Services.AddPaymentsModule(builder.Configuration, builder.Environment);
+builder.Services.AddNotificationsModule(builder.Configuration, builder.Environment);
 builder.Services.AddSeeding(builder.Configuration);
 
 // spec-024 R14 / spec-022 R-rate-limit — register forwarded-headers options so
@@ -173,6 +175,7 @@ app.UseB2BModuleEndpoints();
 app.MapSupportEndpoints();
 app.MapShippingEndpoints();
 app.MapPaymentsEndpoints();
+app.MapNotificationsEndpoints();
 
 await app.RunAsync();
 return 0;

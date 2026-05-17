@@ -52,3 +52,13 @@
 /services/backend_api/Tests/Payments.Tests/                   @Mkhira
 /scripts/payments/                                            @Mkhira
 /scripts/ci/check-pci-scope.sh                                @Mkhira
+
+# Spec 025 — Notifications (Phase 1E · Milestone 8)
+# Owned by the notifications team. Until a co-maintainer onboards, @Mkhira
+# acts as the @notifications-team alias for review purposes.
+/services/backend_api/Modules/Notifications/                  @Mkhira
+/services/backend_api/Tests/Notifications.Tests/              @Mkhira
+/apps/admin_web/app/notifications/                            @Mkhira
+/apps/admin_web/app/(admin)/notifications/                    @Mkhira
+/scripts/notifications/                                       @Mkhira
+/scripts/ci/check-notifications-no-pii.sh                     @Mkhira

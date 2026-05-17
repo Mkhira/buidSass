@@ -31,8 +31,17 @@ public static partial class NotificationsModule
     internal static void MapPhase5AdminEndpoints(IEndpointRouteBuilder admin)
     {
         var dl = admin.MapGroup("/dead-letter");
-        dl.MapGet("", async (int skip, int take, IMediator m, CancellationToken ct)
-            => Results.Ok(await m.Send(new ListDeadLetterQuery(skip, take == 0 ? 50 : take), ct)));
+        dl.MapGet("", async (int skip, int take, IMediator m, CancellationToken ct) =>
+        {
+            // Clamp to a sensible page size — prevents arbitrarily-large
+            // requests from pinning memory or driving a long-running query
+            // (CodeRabbit pass-2 Minor).
+            const int defaultPageSize = 50;
+            const int maxPageSize = 200;
+            var effectiveTake = take <= 0 ? defaultPageSize : Math.Min(take, maxPageSize);
+            var effectiveSkip = Math.Max(0, skip);
+            return Results.Ok(await m.Send(new ListDeadLetterQuery(effectiveSkip, effectiveTake), ct));
+        });
         dl.MapPost("/{notificationId:guid}:retry", async (Guid notificationId, HttpContext ctx, IMediator m, CancellationToken ct) =>
         {
             var actor = ResolveAuthenticatedActorId(ctx);

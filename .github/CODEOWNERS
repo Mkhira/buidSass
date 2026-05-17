@@ -36,3 +36,15 @@
 /apps/admin_web/app/(admin)/shipping/               @Mkhira
 /scripts/shipping/                                  @Mkhira
 /scripts/ci/check-shipping-no-pii.sh                @Mkhira
+
+# Spec 027 — Payments (Phase 1E · Milestone 9)
+# Owned by the payments team. Until a co-maintainer onboards, @Mkhira acts as
+# the @payments-team alias for review purposes. The PciScope/ subtree carries
+# a stricter co-ownership requirement (@payments-team AND @security-team) per
+# spec 027 T002 — represented here by a second @Mkhira slot until the
+# co-maintainer onboards.
+/services/backend_api/Modules/Payments/                       @Mkhira
+/services/backend_api/Modules/Payments/PciScope/              @Mkhira @Mkhira
+/services/backend_api/Tests/Payments.Tests/                   @Mkhira
+/scripts/payments/                                            @Mkhira
+/scripts/ci/check-pci-scope.sh                                @Mkhira @Mkhira

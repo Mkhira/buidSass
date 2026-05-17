@@ -39,17 +39,23 @@ public static partial class PaymentsModule
             return Results.Ok(new { methods = result });
         });
 
-        // POST /v1/payments
+        // POST /v1/payments — CustomerId is ALWAYS resolved from the
+        // authenticated principal; the request body deliberately does not
+        // carry a customer_id field. Trusting a client-supplied id would
+        // allow one user to attribute payment attempts to another account.
         customer.MapPost("/", async (
             [FromBody] CreatePaymentRequest body,
+            HttpContext httpContext,
             [FromServices] IMediator mediator,
             CancellationToken ct) =>
         {
             if (body is null) return Results.BadRequest(new { error = "request_body_required" });
+            var customerId = ResolveAuthenticatedCustomerId(httpContext);
+            if (customerId is null) return Results.Unauthorized();
             try
             {
                 var result = await mediator.Send(new CreatePaymentCommand(
-                    body.OrderId, body.CustomerId, body.MarketCode, body.Method,
+                    body.OrderId, customerId.Value, body.MarketCode, body.Method,
                     body.Amount, body.Currency, body.AttemptId), ct);
                 return Results.Ok(result);
             }
@@ -108,6 +114,11 @@ public static partial class PaymentsModule
     }
 }
 
+/// <summary>
+/// Customer-facing create-payment request body. CustomerId is intentionally
+/// absent: the server resolves it from the authenticated principal so a
+/// client cannot impersonate another customer (cross-account abuse vector).
+/// </summary>
 public sealed record CreatePaymentRequest(
-    Guid OrderId, Guid CustomerId, string MarketCode, string Method,
+    Guid OrderId, string MarketCode, string Method,
     decimal Amount, string Currency, Guid AttemptId);

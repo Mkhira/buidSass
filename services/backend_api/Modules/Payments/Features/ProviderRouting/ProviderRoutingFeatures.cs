@@ -78,6 +78,16 @@ public sealed class UpdateProviderRoutingHandler : IRequestHandler<UpdateProvide
         // than a check-violation 500.
         if (cmd.AutoFailoverEnabled && cmd.BackupProviderId is null)
             throw new InvalidOperationException("AutoFailoverEnabled requires a BackupProviderId");
+        // Bound checks for the failover-window dials. The DB CHECK constraints
+        // (FailoverThresholdPct BETWEEN 1 AND 100; FailoverWindowMinutes > 0)
+        // also enforce these; the app-layer check yields a clean 400 instead
+        // of a generic check-violation 500.
+        if (cmd.FailoverThresholdPct < 1 || cmd.FailoverThresholdPct > 100)
+            throw new InvalidOperationException("FailoverThresholdPct must be in [1, 100]");
+        // Cap window at 24h — anything longer is operationally meaningless
+        // for a per-routing failover decision.
+        if (cmd.FailoverWindowMinutes < 1 || cmd.FailoverWindowMinutes > 1440)
+            throw new InvalidOperationException("FailoverWindowMinutes must be in [1, 1440]");
 
         var row = await _db.ProviderRoutings.FirstOrDefaultAsync(
             r => r.MarketCode == cmd.MarketCode && r.Method == cmd.Method, ct);

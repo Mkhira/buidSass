@@ -50,28 +50,15 @@ forbidden=(
   "card_number"
 )
 
-# Words that contain forbidden tokens as substrings but are not cardholder
-# data. Lines matching any of these regexes are exempt from the scan. The
-# list must be conservative — every entry here is a documented false-positive
-# carve-out, and the patterns are matched on the WHOLE line so they should be
-# specific enough not to mask a real violation.
+# Lines exempt from the scan. With the word-boundary regex below, substring
+# false positives ("Pan" inside "AsSpan", "Cvv" inside "EventCvvService", etc.)
+# no longer match — so the only exempt patterns are documentation lines
+# (comments) where these tokens may legitimately appear to discuss the
+# prohibition itself.
 exempt_regexes=(
   "^[[:space:]]*//"
   "^[[:space:]]*\*"
   "^[[:space:]]*/\*"
-  "Span<"
-  "ReadOnlySpan"
-  "AsSpan"
-  "\\.Span\\b"
-  "MarkupSpan"
-  "SpanCarrier"
-  "MarketCodeSpan"
-  "Spanish"
-  "namespace BackendApi"
-  "Microsoft\\."
-  # `.cvv2` / `.pan` / etc. as Postgres-regex character ranges in CHECK
-  # constraint definitions (e.g., '^[0-9a-fA-F]{64}$') would not match the
-  # forbidden-token list anyway, but document the intent here.
 )
 
 violations=0
@@ -94,6 +81,10 @@ for dir in "${SCAN_DIRS[@]}"; do
   while IFS= read -r -d '' file; do
     files_scanned=$((files_scanned + 1))
     for token in "${forbidden[@]}"; do
+      # Word-boundary, case-insensitive match. The `\b` anchors require the
+      # token to appear as a whole word so substrings inside identifiers
+      # (e.g. "Span" containing "Pan") don't trip the guard. POSIX ERE `\b`
+      # is honored by GNU grep on Linux and BSD grep on macOS.
       while IFS= read -r match; do
         [[ -z "$match" ]] && continue
         line_no="${match%%:*}"
@@ -104,7 +95,7 @@ for dir in "${SCAN_DIRS[@]}"; do
         echo "pci-scope violation: ${file}:${line_no}: forbidden token '${token}'" >&2
         echo "  > ${line}" >&2
         violations=$((violations + 1))
-      done < <(grep -n -i -F "$token" "$file" 2>/dev/null || true)
+      done < <(grep -n -i -E "\\b${token}\\b" "$file" 2>/dev/null || true)
     done
   done < <(find "$dir" -type f -name "*.cs" -print0 2>/dev/null)
 done

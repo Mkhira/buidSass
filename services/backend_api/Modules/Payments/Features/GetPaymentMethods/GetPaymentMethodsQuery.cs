@@ -39,6 +39,10 @@ public sealed class GetPaymentMethodsHandler : IRequestHandler<GetPaymentMethods
         var currency = PaymentsConstants.Currencies.For(query.MarketCode);
         var configs = await _db.PaymentMethodsMarketConfigs
             .Where(c => c.MarketCode == query.MarketCode && c.Enabled)
+            // Stable order so the returned method list is deterministic across
+            // requests / DB plans — clients can compare-by-position without
+            // flickering UX.
+            .OrderBy(c => c.Method)
             .ToListAsync(ct);
 
         var result = new List<PaymentMethodOption>();

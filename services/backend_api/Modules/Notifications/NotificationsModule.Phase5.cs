@@ -22,6 +22,7 @@ public static partial class NotificationsModule
     {
         services.AddHostedService<DeadLetterArchiver>();
         services.AddHostedService<ProviderHealthMonitor>();
+        services.AddScoped<Audit.INotificationsAuditEmitter, Audit.NotificationsAuditEmitter>();
         return services;
     }
 

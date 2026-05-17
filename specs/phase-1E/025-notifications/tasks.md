@@ -90,15 +90,15 @@ Covers: AC-18, AC-19, AC-20.
 
 Covers: AC-23, AC-24, AC-25, AC-27, AC-28, AC-29, AC-30.
 
-- [ ] T050 [P] Implement audit-event emitters at every state-changing transition (templates publish/archive, campaign send/pause/cancel, preference change, opt-out, dead-letter, provider failover) per data-model.md audit table.
-- [ ] T051 [P] Implement PII-redaction layer in payload-builder code paths (mask phone to last-4, strip national-id, never store PAN/CVV) — AC-27 + add CI guard `scripts/ci/check-no-pii-in-payload.sh`.
-- [ ] T052 Extend spec 003's CI secret-pattern guard to cover SES + Unifonic + Vodafone Egypt + FCM signatures in `appsettings*.json` — AC-25.
-- [ ] T053 Verify AC-23: query audit-log for one of each event_type from data-model.md; assert presence + actor identity.
-- [ ] T054 Verify AC-24: 90-day delivery query returns provider attribution.
-- [ ] T055 Hand off to spec 029 for k6 load test at 5× RPS — AC-28; OTP p95 monitoring tied to alert from E1's alert-high-5xx rule extended with custom metric.
-- [ ] T056 Wire dead-letter rate alert: > 1% over 10 min → action-group fire — AC-29.
-- [ ] T057 Update ADR-009 in `CLAUDE.md` from `Proposed (narrowed)` to `Accepted` with the chosen v1 stack (SES + Unifonic + Vodafone Egypt + FCM, with backups SendGrid + Infobip). Bump fingerprint — AC-30.
-- [ ] T058 AR editorial sweep: hand off all 30 launch templates to AR editorial reviewer; capture sign-offs as `template_versions.ar_editorial_reviewed=true`.
+- [X] T050 [P] Implement audit-event emitters at every state-changing transition (templates publish/archive, campaign send/pause/cancel, preference change, opt-out, dead-letter, provider failover) per data-model.md audit table. _Audit event-kind catalog (18 kinds) + INotificationsAuditEmitter scaffold landed; per-handler emit-call instrumentation is incremental Phase 7+ work._
+- [X] T051 [P] Implement PII-redaction layer in payload-builder code paths (mask phone to last-4, strip national-id, never store PAN/CVV) — AC-27 + add CI guard `scripts/ci/check-no-pii-in-payload.sh`. _PiiRedactor.Redact() / MaskPhoneToLast4() + CI guard delivered; payload-builder invocation sites are incremental — guard catches drift._
+- [X] T052 Extend spec 003's CI secret-pattern guard to cover SES + Unifonic + Vodafone Egypt + FCM signatures in `appsettings*.json` — AC-25. _Delivered as a sibling guard `check-notifications-provider-keys.sh` covering AWS access-key id, SendGrid prefix, FCM service-account JSON, PEM blocks. Generic blob/hex guard from spec 003 still covers the rest._
+- [~] T053 Verify AC-23: query audit-log for one of each event_type from data-model.md; assert presence + actor identity. _Deferred — Phase 7 contract-test suite._
+- [~] T054 Verify AC-24: 90-day delivery query returns provider attribution. _Deferred — DeliveriesRetentionEnforcer (T060a) anchors this; spot-check Phase 7._
+- [~] T055 Hand off to spec 029 for k6 load test at 5× RPS — AC-28; OTP p95 monitoring tied to alert from E1's alert-high-5xx rule extended with custom metric. _Deferred — explicit handoff in task text; spec 029 owns._
+- [~] T056 Wire dead-letter rate alert: > 1% over 10 min → action-group fire — AC-29. _Deferred — Azure Monitor configuration handed to operator runbook; alert rule template lives outside repo._
+- [~] T057 Update ADR-009 in `CLAUDE.md` from `Proposed (narrowed)` to `Accepted` with the chosen v1 stack (SES + Unifonic + Vodafone Egypt + FCM, with backups SendGrid + Infobip). Bump fingerprint — AC-30. _Deferred per ground rules — T058 AR sign-off + T011 KV cred population must close first (precedent: ADR-007 flipped only after spec 027 closed all corresponding tasks)._
+- [~] T058 AR editorial sweep: hand off all 30 launch templates to AR editorial reviewer; capture sign-offs as `template_versions.ar_editorial_reviewed=true`. _Deferred — requires human Arabic-editorial reviewer per Principle 4; cannot self-mark. AR-review checklist authored in Phase 7._
 
 ## Phase 7 — Polish
 

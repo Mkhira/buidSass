@@ -4,9 +4,9 @@
  * dead-letter, provider-routing).
  *
  * Scaffold-only delivery: full UI (table interactions, editor, review board,
- * routing flip-control) lands in the Phase 7+ UI batch. Strings are inlined
- * here pending the messages/{ar,en}.json translation-key pass.
+ * routing flip-control) lands in the Phase 7+ UI batch.
  */
+import { getTranslations } from "next-intl/server";
 import Link from "next/link";
 import { PageHeader } from "@/components/shell/page-header";
 
@@ -28,33 +28,31 @@ function OverviewCard({ href, title, body }: CardProps) {
   );
 }
 
-export default function NotificationsOverviewPage() {
+export default async function NotificationsOverviewPage() {
+  const t = await getTranslations("notifications.overview");
   return (
     <div className="space-y-ds-lg">
-      <PageHeader
-        title="Notifications"
-        description="Templates, campaigns, dead-letter ops, and provider routing for transactional and marketing messages."
-      />
+      <PageHeader title={t("title")} description={t("description")} />
       <div className="grid gap-ds-md md:grid-cols-2 lg:grid-cols-3">
         <OverviewCard
           href="/notifications/templates"
-          title="Templates"
-          body="Author, review, and publish AR + EN template versions per event kind."
+          title={t("card.templates")}
+          body={t("card.templates_body")}
         />
         <OverviewCard
           href="/notifications/campaigns"
-          title="Campaigns"
-          body="Schedule, pause, resume, cancel campaigns and read per-state delivery reports."
+          title={t("card.campaigns")}
+          body={t("card.campaigns_body")}
         />
         <OverviewCard
           href="/notifications/dead-letter"
-          title="Dead-letter queue"
-          body="Operator review of failed deliveries: retry, discard, archive."
+          title={t("card.dead_letter")}
+          body={t("card.dead_letter_body")}
         />
         <OverviewCard
           href="/notifications/provider-routing"
-          title="Provider routing"
-          body="Per-market × channel primary/backup provider selection and failover."
+          title={t("card.provider_routing")}
+          body={t("card.provider_routing_body")}
         />
       </div>
     </div>

@@ -1,23 +1,31 @@
 /**
- * Spec 025 T040 — admin campaigns. Scaffold-only delivery; full UI lands
- * in the Phase 7+ UI batch.
+ * Spec 025 T040 — admin campaigns. Scaffold-only delivery; full UI is
+ * Phase 7+ work.
  */
+import { getTranslations } from "next-intl/server";
 import { PageHeader } from "@/components/shell/page-header";
 
-export default function CampaignsPage() {
+const ENDPOINTS = [
+  { method: "POST", path: "/admin/notifications/campaigns", labelKey: "create_draft" },
+  { method: "POST", path: "/admin/notifications/campaigns/{id}:schedule", labelKey: "schedule" },
+  { method: "POST", path: "/admin/notifications/campaigns/{id}:<pause|resume|cancel>", labelKey: "pause_resume_cancel" },
+  { method: "GET", path: "/admin/notifications/campaigns/{id}/report", labelKey: "report" },
+] as const;
+
+export default async function CampaignsPage() {
+  const t = await getTranslations("notifications.campaigns");
   return (
     <div className="space-y-ds-lg">
-      <PageHeader
-        title="Campaigns"
-        description="Schedule, pause, resume, cancel campaigns and read per-state delivery reports."
-      />
+      <PageHeader title={t("title")} description={t("description")} />
       <div className="rounded-md border border-dashed border-border p-ds-lg text-sm text-muted-foreground">
-        <p>Full UI scaffolding pending. Wired backend endpoints:</p>
+        <p>{t("scaffold_note")}</p>
         <ul className="mt-ds-sm list-disc space-y-ds-xs pl-ds-md">
-          <li><code>POST /admin/notifications/campaigns</code> — create draft</li>
-          <li><code>POST /admin/notifications/campaigns/{`{id}`}:schedule</code></li>
-          <li><code>POST /admin/notifications/campaigns/{`{id}`}:{`{pause,resume,cancel}`}</code></li>
-          <li><code>GET /admin/notifications/campaigns/{`{id}`}/report</code></li>
+          {ENDPOINTS.map((e) => (
+            <li key={`${e.method}-${e.path}`}>
+              <code>{`${e.method} ${e.path}`}</code>
+              {` — ${t(`endpoints.${e.labelKey}`)}`}
+            </li>
+          ))}
         </ul>
       </div>
     </div>

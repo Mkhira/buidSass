@@ -1,29 +1,35 @@
 /**
  * Spec 025 T019 — admin templates list + editor + review board.
  *
- * Scaffold-only delivery. The full UI (list with search/filter, AR/EN editor
- * with placeholder validation surfaced inline, review board with V-1 gate
- * indicators) is Phase 7+ UI work. The page renders a placeholder grid so
- * navigation routing is testable end-to-end against the wired-up endpoints
- * (POST /admin/notifications/templates*).
+ * Scaffold-only delivery. Full UI is Phase 7+ work. API path literals are
+ * URL routes, not user-facing copy — they live in a typed constant outside
+ * the JSX tree so the i18n linter only inspects translated descriptive text.
  */
+import { getTranslations } from "next-intl/server";
 import { PageHeader } from "@/components/shell/page-header";
 
-export default function TemplatesPage() {
+const ENDPOINTS = [
+  { method: "POST", path: "/admin/notifications/templates", labelKey: "create_draft" },
+  { method: "POST", path: "/admin/notifications/templates/{id}:submit", labelKey: "submit" },
+  { method: "POST", path: "/admin/notifications/templates/{id}:approve", labelKey: "approve" },
+  { method: "POST", path: "/admin/notifications/templates/{id}:reject", labelKey: "reject" },
+  { method: "POST", path: "/admin/notifications/templates/{id}:archive", labelKey: "archive" },
+] as const;
+
+export default async function TemplatesPage() {
+  const t = await getTranslations("notifications.templates");
   return (
     <div className="space-y-ds-lg">
-      <PageHeader
-        title="Templates"
-        description="AR + EN template versions per event kind. Editor + review board UI is Phase 7+ work."
-      />
+      <PageHeader title={t("title")} description={t("description")} />
       <div className="rounded-md border border-dashed border-border p-ds-lg text-sm text-muted-foreground">
-        <p>Full UI scaffolding pending. Wired backend endpoints:</p>
+        <p>{t("scaffold_note")}</p>
         <ul className="mt-ds-sm list-disc space-y-ds-xs pl-ds-md">
-          <li><code>POST /admin/notifications/templates</code> — create draft</li>
-          <li><code>POST /admin/notifications/templates/{`{id}`}:submit</code> — submit for review</li>
-          <li><code>POST /admin/notifications/templates/{`{id}`}:approve</code> — V-1 publish gate</li>
-          <li><code>POST /admin/notifications/templates/{`{id}`}:reject</code> — reject with comment</li>
-          <li><code>POST /admin/notifications/templates/{`{id}`}:archive</code> — archive</li>
+          {ENDPOINTS.map((e) => (
+            <li key={`${e.method}-${e.path}`}>
+              <code>{`${e.method} ${e.path}`}</code>
+              {` — ${t(`endpoints.${e.labelKey}`)}`}
+            </li>
+          ))}
         </ul>
       </div>
     </div>

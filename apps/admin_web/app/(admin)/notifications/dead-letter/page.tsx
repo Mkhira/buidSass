@@ -2,26 +2,31 @@
  * Spec 025 T048 — admin dead-letter operator surface. Scaffold-only;
  * full UI is Phase 7+ work.
  */
+import { getTranslations } from "next-intl/server";
 import { PageHeader } from "@/components/shell/page-header";
 
-export default function DeadLetterPage() {
+const ENDPOINTS = [
+  { method: "GET", path: "/admin/notifications/dead-letter", labelKey: "list" },
+  { method: "POST", path: "/admin/notifications/dead-letter/{id}:retry", labelKey: "retry" },
+  { method: "POST", path: "/admin/notifications/dead-letter/{id}:discard", labelKey: "discard" },
+] as const;
+
+export default async function DeadLetterPage() {
+  const t = await getTranslations("notifications.dead_letter");
   return (
     <div className="space-y-ds-lg">
-      <PageHeader
-        title="Dead-letter queue"
-        description="Notifications whose retry budget exhausted. Operator may retry or discard each row."
-      />
+      <PageHeader title={t("title")} description={t("description")} />
       <div className="rounded-md border border-dashed border-border p-ds-lg text-sm text-muted-foreground">
-        <p>Full UI scaffolding pending. Wired backend endpoints:</p>
+        <p>{t("scaffold_note")}</p>
         <ul className="mt-ds-sm list-disc space-y-ds-xs pl-ds-md">
-          <li><code>GET /admin/notifications/dead-letter</code></li>
-          <li><code>POST /admin/notifications/dead-letter/{`{id}`}:retry</code></li>
-          <li><code>POST /admin/notifications/dead-letter/{`{id}`}:discard</code></li>
+          {ENDPOINTS.map((e) => (
+            <li key={`${e.method}-${e.path}`}>
+              <code>{`${e.method} ${e.path}`}</code>
+              {` — ${t(`endpoints.${e.labelKey}`)}`}
+            </li>
+          ))}
         </ul>
-        <p className="mt-ds-sm">
-          Retention: resolved rows archive after 30 days (clarify-locked);
-          archive purges at 365 days. Both run via <code>DeadLetterArchiver</code> hosted service.
-        </p>
+        <p className="mt-ds-sm">{t("retention_note")}</p>
       </div>
     </div>
   );

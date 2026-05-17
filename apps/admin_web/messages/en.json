@@ -511,5 +511,66 @@
       "description": "Dead-letter labels and delivery disputes that require operator attention.",
       "empty_state": "The queue is empty."
     }
+  },
+  "notifications": {
+    "overview": {
+      "title": "Notifications",
+      "description": "Templates, campaigns, dead-letter ops, and provider routing for transactional and marketing messages.",
+      "card": {
+        "templates": "Templates",
+        "templates_body": "Author, review, and publish AR + EN template versions per event kind.",
+        "campaigns": "Campaigns",
+        "campaigns_body": "Schedule, pause, resume, cancel campaigns and read per-state delivery reports.",
+        "dead_letter": "Dead-letter queue",
+        "dead_letter_body": "Operator review of failed deliveries: retry, discard, archive.",
+        "provider_routing": "Provider routing",
+        "provider_routing_body": "Per-market × channel primary/backup provider selection and failover."
+      }
+    },
+    "templates": {
+      "title": "Templates",
+      "description": "AR + EN template versions per event kind. Editor + review board UI is Phase 7+ work.",
+      "scaffold_note": "Full UI scaffolding pending. Wired backend endpoints:",
+      "endpoints": {
+        "create_draft": "create draft",
+        "submit": "submit for review",
+        "approve": "V-1 publish gate",
+        "reject": "reject with comment",
+        "archive": "archive"
+      }
+    },
+    "campaigns": {
+      "title": "Campaigns",
+      "description": "Schedule, pause, resume, cancel campaigns and read per-state delivery reports.",
+      "scaffold_note": "Full UI scaffolding pending. Wired backend endpoints:",
+      "endpoints": {
+        "create_draft": "create draft",
+        "schedule": "schedule",
+        "pause_resume_cancel": "pause / resume / cancel",
+        "report": "delivery report"
+      }
+    },
+    "dead_letter": {
+      "title": "Dead-letter queue",
+      "description": "Notifications whose retry budget exhausted. Operator may retry or discard each row.",
+      "scaffold_note": "Full UI scaffolding pending. Wired backend endpoints:",
+      "endpoints": {
+        "list": "list",
+        "retry": "retry",
+        "discard": "discard"
+      },
+      "retention_note": "Resolved rows archive after 30 days (clarify-locked); the archive purges at 365 days. Both run via the DeadLetterArchiver hosted service."
+    },
+    "provider_routing": {
+      "title": "Provider routing",
+      "description": "Per-market × channel primary/backup provider with manual or threshold-driven failover.",
+      "scaffold_note": "Full UI scaffolding pending. Wired backend endpoints:",
+      "endpoints": {
+        "get": "read",
+        "set": "upsert",
+        "failover": "failover"
+      },
+      "failover_note": "Auto-failover is disabled by default at v1 (clarify-locked) — operators opt in per row. The ProviderHealthMonitor logs degraded providers when the 5-minute failure-rate window crosses the configured threshold."
+    }
   }
 }

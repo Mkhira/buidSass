@@ -36,6 +36,7 @@ public static partial class NotificationsModule
     static partial void MapAdminEndpoints(IEndpointRouteBuilder admin)
     {
         MapTemplateEndpoints(admin);
+        MapPhase4AdminEndpoints(admin);
     }
 
     private static void MapTemplateEndpoints(IEndpointRouteBuilder admin)

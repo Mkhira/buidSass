@@ -50,5 +50,10 @@ public static partial class NotificationsModule
         services.AddSingleton<Webhooks.ProviderWebhookHandler>();
         services.AddHostedService<DispatchWorker>();
         services.AddHostedService<OtpDispatchWorker>();
+
+        // Phase 4 wiring threads through here so the single AddWorkers
+        // partial owns all hosted-service registrations (campaign scheduler +
+        // sending-stuck reconciler) and the unsubscribe-token service.
+        AddPhase4Services(services);
     }
 }

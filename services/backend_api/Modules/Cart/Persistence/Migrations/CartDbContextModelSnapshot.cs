@@ -67,6 +67,18 @@ namespace BackendApi.Modules.Cart.Persistence.Migrations
                         .HasColumnType("xid")
                         .HasColumnName("xmin");
 
+                    b.Property<decimal?>("ShippingFeeAmountSnapshot")
+                        .HasColumnType("numeric(10,2)");
+
+                    b.Property<DateTimeOffset?>("ShippingFeeSnapshotAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("ShippingFeeSnapshotJson")
+                        .HasColumnType("jsonb");
+
+                    b.Property<Guid?>("ShippingMethodVersionIdSnapshot")
+                        .HasColumnType("uuid");
+
                     b.Property<string>("Status")
                         .IsRequired()
                         .HasColumnType("citext");

@@ -17,6 +17,7 @@ using BackendApi.Modules.TaxInvoices;
 using BackendApi.Modules.Shared;
 using BackendApi.Modules.Reviews;
 using BackendApi.Modules.Cms;
+using BackendApi.Modules.Shipping;
 using BackendApi.Modules.Support;
 using BackendApi.Modules.Verification;
 using Microsoft.AspNetCore.HttpOverrides;
@@ -87,6 +88,7 @@ builder.Services.AddReviewsModule(builder.Configuration, builder.Environment);
 builder.Services.AddCmsModule(builder.Configuration);
 builder.Services.AddB2BModule(builder.Configuration, builder.Environment);
 builder.Services.AddSupportModule(builder.Configuration, builder.Environment);
+builder.Services.AddShippingModule(builder.Configuration, builder.Environment);
 builder.Services.AddSeeding(builder.Configuration);
 
 // spec-024 R14 / spec-022 R-rate-limit — register forwarded-headers options so
@@ -167,6 +169,7 @@ app.MapCmsAdminEndpoints();
 app.MapCmsStorefrontEndpoints();
 app.UseB2BModuleEndpoints();
 app.MapSupportEndpoints();
+app.MapShippingEndpoints();
 
 await app.RunAsync();
 return 0;

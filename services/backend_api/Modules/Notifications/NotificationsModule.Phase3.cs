@@ -55,5 +55,6 @@ public static partial class NotificationsModule
         // partial owns all hosted-service registrations (campaign scheduler +
         // sending-stuck reconciler) and the unsubscribe-token service.
         AddPhase4Services(services);
+        AddPhase5Services(services);
     }
 }

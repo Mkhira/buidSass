@@ -80,11 +80,11 @@ Covers: AC-11, AC-12, AC-13, AC-14, AC-15, AC-16, AC-17, AC-21, AC-22.
 
 Covers: AC-18, AC-19, AC-20.
 
-- [ ] T045 [P] Implement `Features/DeadLetter/List|RetryNow|Discard/` + `Workers/DeadLetterArchiver.cs` (30-day archival per clarify-locked retention).
-- [ ] T046 [P] Implement `Features/ProviderRouting/Get|Set|Failover/`.
-- [ ] T047 [P] Implement `Workers/ProviderHealthMonitor.cs` (5-min sliding window failure-rate calculator; emits `provider.degraded` audit + triggers auto-failover when `auto_failover_enabled=true` AND threshold crossed).
-- [ ] T048 [P] Author `apps/admin_web/app/notifications/dead-letter/` and `apps/admin_web/app/notifications/provider-routing/` pages.
-- [ ] T049 Verify AC-18..AC-20.
+- [X] T045 [P] Implement `Features/DeadLetter/List|RetryNow|Discard/` + `Workers/DeadLetterArchiver.cs` (30-day archival per clarify-locked retention).
+- [X] T046 [P] Implement `Features/ProviderRouting/Get|Set|Failover/`.
+- [X] T047 [P] Implement `Workers/ProviderHealthMonitor.cs` (5-min sliding window failure-rate calculator; emits `provider.degraded` audit + triggers auto-failover when `auto_failover_enabled=true` AND threshold crossed).
+- [~] T048 [P] Author `apps/admin_web/app/notifications/dead-letter/` and `apps/admin_web/app/notifications/provider-routing/` pages. _Deferred to dedicated UI batch alongside T019, T040._
+- [~] T049 Verify AC-18..AC-20. _Deferred — UAT operator-triggered; structural correctness exercised by state-machine validators + handler unit tests (Phase 7)._
 
 ## Phase 6 — Audit + load + AR editorial sign-off
 

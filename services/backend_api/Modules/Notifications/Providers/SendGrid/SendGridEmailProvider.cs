@@ -6,10 +6,23 @@ namespace BackendApi.Modules.Notifications.Providers.SendGrid;
 
 /// <summary>
 /// SendGrid — backup email provider, both markets. Event-webhook payloads are
-/// JSON arrays of events; signature is sent in the
-/// <c>X-Twilio-Email-Event-Webhook-Signature</c> header (base64 of an ECDSA
-/// signature in production; in sandbox we accept either HMAC-SHA256 fallback
-/// or the envelope itself). ADR-009 v1 backup.
+/// JSON arrays of events. ADR-009 v1 backup.
+///
+/// <para><strong>Sandbox-only signature validation.</strong></para>
+/// Production SendGrid Event Webhooks sign each payload with ECDSA over the
+/// secp256r1 curve (key derived from the operator-configured verification
+/// secret). The signature lives in <c>X-Twilio-Email-Event-Webhook-Signature</c>
+/// (base64-DER) and the request-time-of-signing in
+/// <c>X-Twilio-Email-Event-Webhook-Timestamp</c>; the canonical string is
+/// <c>timestamp + raw_body</c>. Implementing ECDSA verification against a
+/// stored verification public key lands when T011 KV creds are populated.
+/// <para>
+/// Until then, this validator accepts only HMAC-SHA256 (base64) carried in
+/// the same header — that lets fixture-driven tests exercise the dispatch
+/// path without standing up a real SendGrid account. Production deployment
+/// MUST swap this for the ECDSA verifier before the webhook ingress is
+/// opened to the public internet.
+/// </para>
 /// </summary>
 public sealed class SendGridEmailProvider : INotificationProvider
 {

@@ -75,9 +75,9 @@ public sealed class TemplateLifecycleTests
     {
         var correlation = Guid.NewGuid();
         var recipient = Guid.NewGuid();
-        var key1 = NotificationEnqueuer.ComputeIdempotencyKey(correlation, "email", recipient);
-        var key2 = NotificationEnqueuer.ComputeIdempotencyKey(correlation, "email", recipient);
-        var key3 = NotificationEnqueuer.ComputeIdempotencyKey(correlation, "sms", recipient);
+        var key1 = NotificationEnqueuer.ComputeIdempotencyKey(correlation, "order.placed", "email", recipient);
+        var key2 = NotificationEnqueuer.ComputeIdempotencyKey(correlation, "order.placed", "email", recipient);
+        var key3 = NotificationEnqueuer.ComputeIdempotencyKey(correlation, "order.placed", "sms", recipient);
 
         key1.Should().Be(key2, "same inputs must produce the same key (BR-3)");
         key1.Should().NotBe(key3, "different channel must produce a different key");
@@ -85,11 +85,26 @@ public sealed class TemplateLifecycleTests
     }
 
     [Fact]
+    public void IdempotencyKey_IsEventKindSensitive()
+    {
+        // Two distinct events sharing the same correlation_id / channel /
+        // recipient (e.g. order.placed and order.confirmed both keyed by
+        // OrderId) MUST produce different idempotency keys — otherwise the
+        // second event would collapse into the first as a duplicate.
+        var correlation = Guid.NewGuid();
+        var recipient = Guid.NewGuid();
+        var placed = NotificationEnqueuer.ComputeIdempotencyKey(correlation, "order.placed", "email", recipient);
+        var confirmed = NotificationEnqueuer.ComputeIdempotencyKey(correlation, "order.confirmed", "email", recipient);
+
+        placed.Should().NotBe(confirmed);
+    }
+
+    [Fact]
     public void IdempotencyKey_AnonymousRecipientStillStable()
     {
         var correlation = Guid.NewGuid();
-        var keyA = NotificationEnqueuer.ComputeIdempotencyKey(correlation, "email", null);
-        var keyB = NotificationEnqueuer.ComputeIdempotencyKey(correlation, "email", null);
+        var keyA = NotificationEnqueuer.ComputeIdempotencyKey(correlation, "auth.otp_requested", "email", null);
+        var keyB = NotificationEnqueuer.ComputeIdempotencyKey(correlation, "auth.otp_requested", "email", null);
         keyA.Should().Be(keyB);
     }
 

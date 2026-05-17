@@ -21,7 +21,7 @@ export default async function DeadLetterPage() {
         <ul className="mt-ds-sm list-disc space-y-ds-xs ps-ds-md">
           {ENDPOINTS.map((e) => (
             <li key={`${e.method}-${e.path}`}>
-              <code>{`${e.method} ${e.path}`}</code>
+              <code dir="ltr" className="font-mono">{`${e.method} ${e.path}`}</code>
               {` — ${t(`endpoints.${e.labelKey}`)}`}
             </li>
           ))}

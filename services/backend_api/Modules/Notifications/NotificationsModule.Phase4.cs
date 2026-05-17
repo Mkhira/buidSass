@@ -37,8 +37,16 @@ public static partial class NotificationsModule
     internal static void MapPhase4AdminEndpoints(IEndpointRouteBuilder admin)
     {
         var campaigns = admin.MapGroup("/campaigns");
-        campaigns.MapPost("/", async (CreateCampaignCommand cmd, IMediator m, CancellationToken ct)
-            => Results.Ok(new { id = await m.Send(cmd, ct) }));
+        campaigns.MapPost("/", async (HttpContext ctx, CreateCampaignRequest body, IMediator m, CancellationToken ct) =>
+        {
+            var actor = ResolveAuthenticatedActorId(ctx);
+            if (actor is null) return Results.Unauthorized();
+            var cmd = new CreateCampaignCommand(
+                body.Name, body.TemplateId, body.TemplateVersionId, body.Channel,
+                body.MarketCode, body.TargetCriteriaJson, body.SendAt,
+                CreatedBy: actor.Value);
+            return Results.Ok(new { id = await m.Send(cmd, ct) });
+        });
         campaigns.MapPost("/{id:guid}:schedule", async (Guid id, ScheduleCampaignRequest body, IMediator m, CancellationToken ct) =>
         {
             await m.Send(new ScheduleCampaignCommand(id, body.SendAt), ct);
@@ -69,22 +77,44 @@ public static partial class NotificationsModule
     internal static void MapPhase4CustomerEndpoints(IEndpointRouteBuilder customer)
     {
         var prefs = customer.MapGroup("/preferences");
-        prefs.MapGet("/{customerId:guid}", async (Guid customerId, IMediator m, CancellationToken ct)
-            => Results.Ok(await m.Send(new GetPreferencesQuery(customerId), ct)));
-        prefs.MapPut("/{customerId:guid}", async (Guid customerId, UpdatePreferenceRequest body, IMediator m, CancellationToken ct) =>
+        // Self-service preferences read/write — customerId is resolved from the
+        // authenticated principal, not the URL path, so a customer cannot read
+        // or mutate another customer's preferences.
+        prefs.MapGet("/me", async (HttpContext ctx, IMediator m, CancellationToken ct) =>
         {
-            await m.Send(new UpdatePreferenceCommand(customerId, body.Channel, body.Category, body.Enabled), ct);
+            var customerId = ResolveAuthenticatedActorId(ctx);
+            if (customerId is null) return Results.Unauthorized();
+            return Results.Ok(await m.Send(new GetPreferencesQuery(customerId.Value), ct));
+        });
+        prefs.MapPut("/me", async (HttpContext ctx, UpdatePreferenceRequest body, IMediator m, CancellationToken ct) =>
+        {
+            var customerId = ResolveAuthenticatedActorId(ctx);
+            if (customerId is null) return Results.Unauthorized();
+            await m.Send(new UpdatePreferenceCommand(customerId.Value, body.Channel, body.Category, body.Enabled), ct);
             return Results.NoContent();
         });
 
         customer.MapPost("/unsubscribe", async (UnsubscribeRequest body, IMediator m, CancellationToken ct) =>
         {
+            // Unsubscribe relies on a signed HMAC token carried in the link;
+            // the token itself proves the customer's intent so no auth principal
+            // is required (AC-21 footer-click works from email clients).
             var ok = await m.Send(new UnsubscribeCommand(body.Token), ct);
             return ok ? Results.Ok(new { unsubscribed = true }) : Results.BadRequest(new { unsubscribed = false, reason = "token_invalid_or_expired" });
         });
     }
 }
 
+// Server-derived: CreatedBy is intentionally absent — resolved from the
+// authenticated principal so callers cannot forge audit attribution.
+public sealed record CreateCampaignRequest(
+    string Name,
+    Guid TemplateId,
+    Guid? TemplateVersionId,
+    string Channel,
+    string MarketCode,
+    string TargetCriteriaJson,
+    DateTimeOffset? SendAt);
 public sealed record ScheduleCampaignRequest(DateTimeOffset SendAt);
 public sealed record CancelCampaignRequest(string Reason);
 public sealed record UpdatePreferenceRequest(string Channel, string Category, bool Enabled);

@@ -33,14 +33,18 @@ public static partial class NotificationsModule
         var dl = admin.MapGroup("/dead-letter");
         dl.MapGet("", async (int skip, int take, IMediator m, CancellationToken ct)
             => Results.Ok(await m.Send(new ListDeadLetterQuery(skip, take == 0 ? 50 : take), ct)));
-        dl.MapPost("/{notificationId:guid}:retry", async (Guid notificationId, RetryDeadLetterRequest body, IMediator m, CancellationToken ct) =>
+        dl.MapPost("/{notificationId:guid}:retry", async (Guid notificationId, HttpContext ctx, IMediator m, CancellationToken ct) =>
         {
-            var ok = await m.Send(new RetryDeadLetterCommand(notificationId, body.OperatorId), ct);
+            var actor = ResolveAuthenticatedActorId(ctx);
+            if (actor is null) return Results.Unauthorized();
+            var ok = await m.Send(new RetryDeadLetterCommand(notificationId, actor.Value), ct);
             return ok ? Results.NoContent() : Results.NotFound();
         });
-        dl.MapPost("/{notificationId:guid}:discard", async (Guid notificationId, DiscardDeadLetterRequest body, IMediator m, CancellationToken ct) =>
+        dl.MapPost("/{notificationId:guid}:discard", async (Guid notificationId, HttpContext ctx, DiscardDeadLetterRequest body, IMediator m, CancellationToken ct) =>
         {
-            var ok = await m.Send(new DiscardDeadLetterCommand(notificationId, body.OperatorId, body.ReasonNote), ct);
+            var actor = ResolveAuthenticatedActorId(ctx);
+            if (actor is null) return Results.Unauthorized();
+            var ok = await m.Send(new DiscardDeadLetterCommand(notificationId, actor.Value, body.ReasonNote), ct);
             return ok ? Results.NoContent() : Results.NotFound();
         });
 
@@ -50,29 +54,32 @@ public static partial class NotificationsModule
             var view = await m.Send(new GetProviderRoutingQuery(market, channel), ct);
             return view is null ? Results.NotFound() : Results.Ok(view);
         });
-        routing.MapPut("/{market}/{channel}", async (string market, string channel, SetProviderRoutingRequest body, IMediator m, CancellationToken ct) =>
+        routing.MapPut("/{market}/{channel}", async (string market, string channel, HttpContext ctx, SetProviderRoutingRequest body, IMediator m, CancellationToken ct) =>
         {
+            var actor = ResolveAuthenticatedActorId(ctx);
+            if (actor is null) return Results.Unauthorized();
             await m.Send(new SetProviderRoutingCommand(
                 market, channel, body.PrimaryProviderId, body.BackupProviderId,
                 body.AutoFailoverEnabled, body.FailoverThresholdPct, body.FailoverWindowMinutes,
-                body.OperatorId), ct);
+                actor.Value), ct);
             return Results.NoContent();
         });
-        routing.MapPost("/{market}/{channel}:failover", async (string market, string channel, FailoverRequest body, IMediator m, CancellationToken ct) =>
+        routing.MapPost("/{market}/{channel}:failover", async (string market, string channel, HttpContext ctx, IMediator m, CancellationToken ct) =>
         {
-            var ok = await m.Send(new FailoverProviderRoutingCommand(market, channel, body.OperatorId), ct);
+            var actor = ResolveAuthenticatedActorId(ctx);
+            if (actor is null) return Results.Unauthorized();
+            var ok = await m.Send(new FailoverProviderRoutingCommand(market, channel, actor.Value), ct);
             return ok ? Results.NoContent() : Results.BadRequest(new { error = "no_backup_configured" });
         });
     }
 }
 
-public sealed record RetryDeadLetterRequest(Guid OperatorId);
-public sealed record DiscardDeadLetterRequest(Guid OperatorId, string ReasonNote);
+// Operator identity is intentionally absent from these DTOs — derived from
+// the authenticated principal via ResolveAuthenticatedActorId.
+public sealed record DiscardDeadLetterRequest(string ReasonNote);
 public sealed record SetProviderRoutingRequest(
     string PrimaryProviderId,
     string? BackupProviderId,
     bool AutoFailoverEnabled,
     int FailoverThresholdPct,
-    int FailoverWindowMinutes,
-    Guid OperatorId);
-public sealed record FailoverRequest(Guid OperatorId);
+    int FailoverWindowMinutes);

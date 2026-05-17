@@ -27,7 +27,7 @@ public sealed class NotificationEnqueuer : INotificationEnqueuer
     public async Task<Guid> EnqueueAsync(EnqueueRequest request, CancellationToken cancellationToken)
     {
         var idempotencyKey = ComputeIdempotencyKey(
-            request.CorrelationId, request.Channel, request.RecipientId);
+            request.CorrelationId, request.EventKind, request.Channel, request.RecipientId);
 
         var existing = await _db.Notifications
             .Where(n => n.IdempotencyKey == idempotencyKey)
@@ -60,10 +60,16 @@ public sealed class NotificationEnqueuer : INotificationEnqueuer
         return row.Id;
     }
 
-    internal static string ComputeIdempotencyKey(Guid correlationId, string channel, Guid? recipientId)
+    internal static string ComputeIdempotencyKey(Guid correlationId, string eventKind, string channel, Guid? recipientId)
     {
-        var sb = new StringBuilder(64);
+        // event_kind is included so two distinct events sharing the same
+        // (correlation_id, channel, recipient_id) — e.g. order.placed and
+        // order.confirmed both keyed off OrderId — do not collapse into a
+        // single notification row. (BR-3 derivation; CodeRabbit pass-1 fix.)
+        var sb = new StringBuilder(80);
         sb.Append(correlationId.ToString("N"));
+        sb.Append(':');
+        sb.Append(eventKind);
         sb.Append(':');
         sb.Append(channel);
         sb.Append(':');

@@ -1,5 +1,3 @@
-using System.Security.Cryptography;
-using System.Text;
 using System.Text.Json;
 using BackendApi.Modules.Notifications.Primitives;
 using Microsoft.AspNetCore.Http;
@@ -8,9 +6,23 @@ namespace BackendApi.Modules.Notifications.Providers.Ses;
 
 /// <summary>
 /// SES — primary email provider, both markets. Bounce/complaint/delivery
-/// events arrive via SNS topic subscriptions; the SNS message signature is
-/// validated against the X.509 cert pointed to by <c>SigningCertURL</c>.
-/// ADR-009 v1 stack.
+/// events arrive via SNS topic subscriptions. ADR-009 v1 stack.
+///
+/// <para><strong>Sandbox-only signature validation.</strong></para>
+/// Real SNS message verification requires fetching the X.509 certificate at
+/// <c>SigningCertURL</c>, validating its hostname (<c>sns.&lt;region&gt;.amazonaws.com</c>
+/// + signature-version 1/2 canonical-string assembly), and verifying the
+/// payload's RSA/SHA-1 (SigVer 1) or RSA/SHA-256 (SigVer 2) signature against
+/// the cert public key. That implementation lands when T011 KV creds are
+/// populated and the real AWS SDK is wired into <c>SendAsync</c>.
+/// <para>
+/// Until then, this validator only accepts payloads carrying a vault-shared
+/// HMAC-SHA256 in <c>X-SNS-HMAC</c>. The previous "envelope contains
+/// SigningCertURL → accept" heuristic was removed because it accepted any
+/// well-formed JSON without verifying any signature (CodeRabbit pass-1
+/// Critical: that would have been a production hole if the dispatch worker
+/// was wired to a public webhook ingress before the real validator landed).
+/// </para>
 /// </summary>
 public sealed class SesEmailProvider : INotificationProvider
 {
@@ -34,24 +46,11 @@ public sealed class SesEmailProvider : INotificationProvider
 
     public bool ValidateWebhookSignature(HttpRequest request, byte[] rawBody, IReadOnlyDictionary<string, string> vaultSecrets)
     {
-        // SNS payload includes its own SigningCertURL + Signature fields. For
-        // sandbox/test exercising, fall back to an HMAC-SHA256 header
-        // (X-SNS-HMAC) keyed off the vault secret. Production deployment
-        // installs the SNS cert-verification middleware ahead of this method.
+        // Sandbox: HMAC-SHA256 against a vault-shared key. Real SNS cert
+        // verification lands with the production SES wiring (see class doc).
         vaultSecrets.TryGetValue("notifications-email/multi/ses/webhook-signing-key", out var secret);
-        if (NotificationWebhookSignature.ValidateHexHmacSha256FromHeader(request, rawBody, "X-SNS-HMAC", secret))
-            return true;
-
-        // Permit envelope-embedded signature for SNS-native payloads — fail-closed otherwise.
-        try
-        {
-            using var doc = JsonDocument.Parse(rawBody);
-            return doc.RootElement.TryGetProperty("Signature", out var sigEl)
-                   && !string.IsNullOrWhiteSpace(sigEl.GetString())
-                   && doc.RootElement.TryGetProperty("SigningCertURL", out var certEl)
-                   && (certEl.GetString() ?? string.Empty).StartsWith("https://sns.", StringComparison.OrdinalIgnoreCase);
-        }
-        catch (JsonException) { return false; }
+        return NotificationWebhookSignature.ValidateHexHmacSha256FromHeader(
+            request, rawBody, "X-SNS-HMAC", secret);
     }
 
     public WebhookEvent ParseWebhookEvent(HttpRequest request, byte[] rawBody)

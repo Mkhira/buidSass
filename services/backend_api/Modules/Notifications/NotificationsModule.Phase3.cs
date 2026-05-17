@@ -6,7 +6,10 @@ using BackendApi.Modules.Notifications.Providers.Ses;
 using BackendApi.Modules.Notifications.Providers.Unifonic;
 using BackendApi.Modules.Notifications.Providers.VodafoneEgypt;
 using BackendApi.Modules.Notifications.Subscribers;
+using BackendApi.Modules.Notifications.Workers;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 
 namespace BackendApi.Modules.Notifications;
 
@@ -36,5 +39,16 @@ public static partial class NotificationsModule
         // up by MediatR's assembly scan (NotificationsModuleAnchor) — no need
         // to register them here individually.
         services.AddScoped<INotificationEnqueuer, NotificationEnqueuer>();
+    }
+
+    static partial void AddWorkers(IServiceCollection services, IConfiguration configuration)
+    {
+        // Default sandbox resolver — Identity replaces this with the real impl
+        // when its DI module overrides the registration (TryAddScoped pattern).
+        services.AddScoped<IRecipientAddressResolver, SandboxRecipientAddressResolver>();
+        services.AddSingleton<NotificationProviderRouter>();
+        services.AddSingleton<Webhooks.ProviderWebhookHandler>();
+        services.AddHostedService<DispatchWorker>();
+        services.AddHostedService<OtpDispatchWorker>();
     }
 }

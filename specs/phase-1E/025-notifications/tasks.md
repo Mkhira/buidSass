@@ -55,8 +55,8 @@ Covers: AC-8, AC-9, AC-10, AC-26.
 - [X] T027 [P] Implement `Subscribers/OtpRequestedSubscriber.cs` enqueuing via `[Queue("otp-priority")]`. _Per Phase 0 deviation (Hangfire→BackgroundService), queue isolation is enforced downstream by OtpDispatchWorker (T030) reading rows whose EventKind=auth.otp_requested rather than via [Queue] attribute._
 - [X] T028 [P] Implement `Subscribers/OrderEventSubscriber.cs` covering 5 order events.
 - [X] T029 [P] Implement `Subscribers/RefundEventSubscriber.cs`, `VerificationResultSubscriber.cs`, `PriceDropSubscriber.cs`, `RestockSubscriber.cs`, `AbandonedCartSubscriber.cs`, `ShippingStatusSubscriber.cs`.
-- [ ] T030 Implement `Workers/DispatchWorker.cs` (default queue) and `Workers/OtpDispatchWorker.cs` (OTP queue) — both implement retry policy per BR-4.
-- [ ] T031 Implement webhook endpoints `Webhooks/{Ses,Unifonic,VodafoneEgypt,Fcm,SendGrid,Infobip}WebhookEndpoint.cs` with idempotency via `webhooks_received` PK (V-6).
+- [X] T030 Implement `Workers/DispatchWorker.cs` (default queue) and `Workers/OtpDispatchWorker.cs` (OTP queue) — both implement retry policy per BR-4.
+- [X] T031 Implement webhook endpoints `Webhooks/{Ses,Unifonic,VodafoneEgypt,Fcm,SendGrid,Infobip}WebhookEndpoint.cs` with idempotency via `webhooks_received` PK (V-6). _Single shared `ProviderWebhookHandler` invoked by 6 thin route registrations (NotificationsModule.Phase3Webhooks.cs); equivalent surface, less duplication._
 - [ ] T032 Verify AC-8: place test order → 2 deliveries within 60s.
 - [ ] T033 Verify AC-9: 100-OTP load test on Staging → p95 < 30s.
 - [ ] T034 Verify AC-10: inject SMS provider 5xx → observe retry sequence + dead-letter transition.

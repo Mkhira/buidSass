@@ -15,6 +15,10 @@
          to the umbrella backend_api.Tests assembly so the audit-emit CLI verb can be
          unit-tested without spinning up a full host (E1 spec 028 T008). -->
     <InternalsVisibleTo Include="backend_api.Tests" />
+    <!-- Expose `internal` Notifications surfaces (e.g. NotificationEnqueuer.ComputeIdempotencyKey)
+         to the Notifications.Tests assembly so the idempotency-key contract +
+         worker tick methods can be unit-tested directly (spec 025 T020). -->
+    <InternalsVisibleTo Include="Notifications.Tests" />
   </ItemGroup>
 
   <ItemGroup>

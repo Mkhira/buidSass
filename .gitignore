@@ -178,3 +178,6 @@ obj/
 .pub/
 pubspec.lock
 build/
+
+# Local agent worktrees (do not commit)
+.claude/worktrees/

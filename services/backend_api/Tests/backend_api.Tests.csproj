@@ -84,6 +84,11 @@
     <EmbeddedResource Remove="Cms.Tests\**" />
     <None Remove="Cms.Tests\**" />
     <Content Remove="Cms.Tests\**" />
+
+    <Compile Remove="Payments.Tests\**" />
+    <EmbeddedResource Remove="Payments.Tests\**" />
+    <None Remove="Payments.Tests\**" />
+    <Content Remove="Payments.Tests\**" />
   </ItemGroup>
 
   <ItemGroup>

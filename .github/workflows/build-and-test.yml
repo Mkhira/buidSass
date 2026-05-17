@@ -231,6 +231,10 @@ jobs:
                     dotnet restore services/backend_api/Tests/Reviews.Tests/Reviews.Tests.csproj
                     dotnet test services/backend_api/Tests/Reviews.Tests/Reviews.Tests.csproj --configuration Release
                   fi
+                  if [ -f "services/backend_api/Tests/Payments.Tests/Payments.Tests.csproj" ]; then
+                    dotnet restore services/backend_api/Tests/Payments.Tests/Payments.Tests.csproj
+                    dotnet test services/backend_api/Tests/Payments.Tests/Payments.Tests.csproj --configuration Release
+                  fi
 
             - name: Emit OpenAPI artifact for shared contracts
               if: steps.changes.outputs.build_targets == 'true'

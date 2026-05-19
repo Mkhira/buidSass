@@ -29,7 +29,13 @@ class InventoryGatewayImpl implements InventoryGateway {
         },
       );
       final data = res.data;
-      if (data is! List) return const [];
+      if (data is! List) {
+        throw DioException(
+          requestOptions: RequestOptions(path: _path),
+          type: DioExceptionType.badResponse,
+          error: 'Malformed inventory availability payload',
+        );
+      }
       return data
           .whereType<Map>()
           .map((m) =>

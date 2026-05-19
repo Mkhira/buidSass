@@ -1,3 +1,4 @@
+import 'package:bloc_concurrency/bloc_concurrency.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
@@ -154,18 +155,31 @@ class ProductListBloc extends Bloc<ProductListEvent, ProductListState> {
         _inventory = inventory,
         _reviews = reviews,
         super(ProductListState(query: initialQuery)) {
-    on<ProductListStarted>(_onStarted);
-    on<ProductListRefreshed>(_onRefreshed);
-    on<ProductListLoadMore>(_onLoadMore);
-    on<ProductListSortChanged>((e, emit) =>
-        _replay(state.query.copyWith(sort: e.sort), emit));
-    on<ProductListBrandChanged>((e, emit) => _replay(
-          state.query.copyWith(
-            brandSlug: e.brandSlug,
-            clearBrand: e.brandSlug == null,
-          ),
-          emit,
-        ));
+    // Started / Refreshed / SortChanged / BrandChanged all reset the
+    // list to page 1 — use `restartable()` so a quick succession of
+    // sort+brand taps cancels the in-flight fetch before kicking off
+    // the next one. This prevents enrichment from a stale query
+    // landing on top of the latest items.
+    on<ProductListStarted>(_onStarted, transformer: restartable());
+    on<ProductListRefreshed>(_onRefreshed, transformer: restartable());
+    on<ProductListSortChanged>(
+      (e, emit) => _replay(state.query.copyWith(sort: e.sort), emit),
+      transformer: restartable(),
+    );
+    on<ProductListBrandChanged>(
+      (e, emit) => _replay(
+        state.query.copyWith(
+          brandSlug: e.brandSlug,
+          clearBrand: e.brandSlug == null,
+        ),
+        emit,
+      ),
+      transformer: restartable(),
+    );
+    // Pagination must serialize — drop duplicate LoadMore events while
+    // one is in-flight so we don't double-fetch or stagger pages out of
+    // order.
+    on<ProductListLoadMore>(_onLoadMore, transformer: droppable());
   }
 
   final CatalogGateway _catalog;

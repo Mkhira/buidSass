@@ -29,7 +29,18 @@ class PricingGatewayImpl implements PricingGateway {
           error: 'Malformed pricing response',
         );
       }
-      return PriceQuote.fromJson(Map<String, Object?>.from(body));
+      // PriceQuote.fromJson can throw on schema drift (cast errors, etc.).
+      // The gateway contract is "always throws a typed Failure" — wrap
+      // non-Dio errors so callers don't see raw runtime exceptions.
+      try {
+        return PriceQuote.fromJson(Map<String, Object?>.from(body));
+      } on Object catch (e) {
+        throw DioException(
+          requestOptions: res.requestOptions,
+          type: DioExceptionType.unknown,
+          error: 'Malformed pricing response: $e',
+        );
+      }
     } on DioException catch (e) {
       throw _errors.fromDio(e);
     }

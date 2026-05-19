@@ -24,6 +24,7 @@ class ProductCard extends StatelessWidget {
     this.availability,
     this.aggregate,
     this.showBrand = true,
+    this.copy = const ProductCardCopy(),
   });
 
   final CatalogProduct product;
@@ -34,6 +35,10 @@ class ProductCard extends StatelessWidget {
   final VoidCallback onAddToCart;
   final VoidCallback onRequestVerification;
   final bool showBrand;
+
+  /// Locale-resolved CTA copy. Defaults are English placeholders; the
+  /// screen layer passes localized strings.
+  final ProductCardCopy copy;
 
   @override
   Widget build(BuildContext context) {
@@ -104,7 +109,7 @@ class ProductCard extends StatelessWidget {
                     onPressed: availability?.inStock == false
                         ? null
                         : onAddToCart,
-                    child: const Text('Add to cart'),
+                    child: Text(copy.addToCart),
                   ),
                 ),
               ),
@@ -114,4 +119,10 @@ class ProductCard extends StatelessWidget {
       ),
     );
   }
+}
+
+/// Locale-resolved copy injected from the screen layer.
+class ProductCardCopy {
+  const ProductCardCopy({this.addToCart = 'Add to cart'});
+  final String addToCart;
 }

@@ -1,3 +1,4 @@
+import 'package:bloc_concurrency/bloc_concurrency.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
@@ -144,8 +145,11 @@ class ProductDetailV2Bloc
         _reviews = reviews,
         _buyerKind = buyerKind,
         super(ProductDetailV2State(slug: slug, market: market)) {
-    on<ProductDetailV2Requested>(_onLoad);
-    on<ProductDetailV2PriceRequested>(_onPrice);
+    // Both handlers write to the price* fields. Without a restartable
+    // transformer, a second-in-flight event would race the first and
+    // could overwrite the user-requested price with a stale qty=1 result.
+    on<ProductDetailV2Requested>(_onLoad, transformer: restartable());
+    on<ProductDetailV2PriceRequested>(_onPrice, transformer: restartable());
   }
 
   final CatalogGateway _catalog;

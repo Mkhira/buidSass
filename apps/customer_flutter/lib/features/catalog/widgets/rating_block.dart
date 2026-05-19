@@ -1,5 +1,6 @@
 import 'package:design_system/design_system.dart';
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 
 import '../../reviews/data/models/reviews_aggregate_models.dart';
 
@@ -13,22 +14,40 @@ class RatingBlock extends StatelessWidget {
     required this.aggregate,
     this.showHistogram = false,
     this.compact = true,
+    this.labels = const RatingBlockLabels(),
+    this.locale,
   });
 
   final ReviewsAggregate? aggregate;
   final bool showHistogram;
   final bool compact;
 
+  /// Caller-supplied locale-resolved copy. Defaults are English
+  /// placeholders so tests + initial wiring compile; the real strings
+  /// are passed in by the screen layer once the Phase 6 i18n catalog
+  /// lands.
+  final RatingBlockLabels labels;
+
+  /// Override locale for digit shaping. When null, resolved from the
+  /// surrounding `Localizations` so AR renders Arabic-Indic digits.
+  final String? locale;
+
   @override
   Widget build(BuildContext context) {
     final a = aggregate;
     if (a == null || a.ratingCount == 0) return const SizedBox.shrink();
-    final avg = a.ratingAverage.toStringAsFixed(1);
+    final resolvedLocale =
+        locale ?? Localizations.localeOf(context).toLanguageTag();
+    final avg = NumberFormat.decimalPatternDigits(
+      locale: resolvedLocale,
+      decimalDigits: 1,
+    ).format(a.ratingAverage);
+    final compact1k = NumberFormat.compact(locale: resolvedLocale);
     final countLabel = a.ratingCount >= 1000
-        ? '${(a.ratingCount / 1000).toStringAsFixed(1)}k'
-        : a.ratingCount.toString();
+        ? compact1k.format(a.ratingCount)
+        : NumberFormat.decimalPattern(resolvedLocale).format(a.ratingCount);
     final summary = Semantics(
-      label: 'Rating $avg from ${a.ratingCount} reviews',
+      label: labels.semanticLabel(avg, a.ratingCount),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -114,4 +133,22 @@ class _StarHistogram extends StatelessWidget {
       }),
     );
   }
+}
+
+/// Locale-resolved copy for [RatingBlock]. Defaults are English
+/// placeholders for tests + initial wiring; the surrounding screen layer
+/// is expected to pass locale-resolved copy (e.g. from AppLocalizations)
+/// once the Phase 6 i18n catalog ships.
+class RatingBlockLabels {
+  const RatingBlockLabels({this.semanticLabelBuilder});
+
+  /// Customizable builder for the accessibility label. Receives the
+  /// locale-formatted average string + raw review count; returns the
+  /// announced phrase. Default is English.
+  final String Function(String avg, int count)? semanticLabelBuilder;
+
+  String semanticLabel(String avg, int count) =>
+      semanticLabelBuilder != null
+          ? semanticLabelBuilder!(avg, count)
+          : 'Rating $avg from $count reviews';
 }

@@ -29,12 +29,28 @@ class ReviewsAggregatesGatewayImpl implements ReviewsAggregatesGateway {
         },
       );
       final data = res.data;
-      if (data is! List) return const [];
-      return data
-          .whereType<Map>()
-          .map((m) =>
-              ReviewsAggregate.fromJson(Map<String, Object?>.from(m)))
-          .toList(growable: false);
+      if (data is! List) {
+        throw DioException(
+          requestOptions: RequestOptions(path: _batchPath),
+          type: DioExceptionType.badResponse,
+          error: 'Malformed reviews aggregates batch payload',
+        );
+      }
+      try {
+        return data
+            .whereType<Map>()
+            .map((m) =>
+                ReviewsAggregate.fromJson(Map<String, Object?>.from(m)))
+            .toList(growable: false);
+      } on Object catch (e) {
+        // Cast / fromJson failures — surface as a typed Failure so the
+        // gateway contract holds.
+        throw DioException(
+          requestOptions: res.requestOptions,
+          type: DioExceptionType.unknown,
+          error: 'Malformed reviews aggregate item: $e',
+        );
+      }
     } on DioException catch (e) {
       throw _errors.fromDio(e);
     }
@@ -51,16 +67,24 @@ class ReviewsAggregatesGatewayImpl implements ReviewsAggregatesGateway {
         queryParameters: {'market_code': marketCode},
       );
       final data = res.data;
-      if (data is Map) {
-        return ReviewsAggregate.fromJson(Map<String, Object?>.from(data));
-      }
-      // Some servers return an array of length 1 instead of an object.
-      if (data is List && data.isNotEmpty && data.first is Map) {
-        return ReviewsAggregate.fromJson(
-          Map<String, Object?>.from(data.first as Map),
+      try {
+        if (data is Map) {
+          return ReviewsAggregate.fromJson(Map<String, Object?>.from(data));
+        }
+        // Some servers return an array of length 1 instead of an object.
+        if (data is List && data.isNotEmpty && data.first is Map) {
+          return ReviewsAggregate.fromJson(
+            Map<String, Object?>.from(data.first as Map),
+          );
+        }
+        return null;
+      } on Object catch (e) {
+        throw DioException(
+          requestOptions: res.requestOptions,
+          type: DioExceptionType.unknown,
+          error: 'Malformed reviews aggregate response: $e',
         );
       }
-      return null;
     } on DioException catch (e) {
       throw _errors.fromDio(e);
     }

@@ -13,24 +13,27 @@ class CategoriesListScreen extends StatelessWidget {
     super.key,
     required this.locale,
     required this.onCategoryTap,
-    this.title = 'Categories',
+    this.copy = const CategoriesListCopy(),
   });
 
   final String locale;
   final ValueChanged<CatalogCategory> onCategoryTap;
-  final String title;
+
+  /// Locale-resolved screen copy. Defaults are English placeholders; the
+  /// router/composition layer passes locale-resolved strings.
+  final CategoriesListCopy copy;
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text(title)),
+      appBar: AppBar(title: Text(copy.title)),
       body: BlocBuilder<CategoriesListBloc, CategoriesListState>(
         builder: (context, state) {
           return switch (state) {
             CategoriesListLoading() => const Center(
                 child: CircularProgressIndicator(),
               ),
-            CategoriesListEmpty() => const Center(child: Text('No categories')),
+            CategoriesListEmpty() => Center(child: Text(copy.empty)),
             CategoriesListError(:final failure) => Center(
                 child: Padding(
                   padding: const EdgeInsets.all(AppSpacing.md),
@@ -40,13 +43,15 @@ class CategoriesListScreen extends StatelessWidget {
                       const Icon(Icons.error_outline,
                           size: 32, color: AppColors.danger),
                       const SizedBox(height: AppSpacing.sm),
-                      Text('Failed to load. (${failure.correlationIdShort})'),
+                      Text(
+                        '${copy.failedToLoad} (${failure.correlationIdShort})',
+                      ),
                       const SizedBox(height: AppSpacing.sm),
                       FilledButton(
                         onPressed: () => context
                             .read<CategoriesListBloc>()
                             .add(const CategoriesListRequested()),
-                        child: const Text('Retry'),
+                        child: Text(copy.retry),
                       ),
                     ],
                   ),
@@ -138,4 +143,20 @@ class _CategoryTile extends StatelessWidget {
       ),
     );
   }
+}
+
+/// Locale-resolved screen copy. Defaults are English placeholders for
+/// test + initial wiring; the screen layer passes localized strings.
+class CategoriesListCopy {
+  const CategoriesListCopy({
+    this.title = 'Categories',
+    this.empty = 'No categories',
+    this.failedToLoad = 'Failed to load.',
+    this.retry = 'Retry',
+  });
+
+  final String title;
+  final String empty;
+  final String failedToLoad;
+  final String retry;
 }

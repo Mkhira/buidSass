@@ -54,7 +54,8 @@ class CatalogGatewayImpl implements CatalogGateway {
         _categoriesPath,
         queryParameters: {'market': market},
       );
-      return _decodeList(res.data, CatalogCategory.fromJson);
+      return _decodeList(res.data, CatalogCategory.fromJson,
+          path: _categoriesPath);
     });
   }
 
@@ -66,7 +67,7 @@ class CatalogGatewayImpl implements CatalogGateway {
         _brandsPath,
         queryParameters: {'market': market},
       );
-      return _decodeList(res.data, CatalogBrand.fromJson);
+      return _decodeList(res.data, CatalogBrand.fromJson, path: _brandsPath);
     });
   }
 
@@ -106,11 +107,15 @@ class CatalogGatewayImpl implements CatalogGateway {
         // Some server builds return the array directly when paging is off.
         return CatalogProductPage.fromJson({'items': raw});
       }
-      return const CatalogProductPage(
-        items: [],
-        page: 1,
-        pageSize: 0,
-        totalItems: 0,
+      // Malformed payload — surface as a typed failure rather than a
+      // silent empty page, so the bloc can render an error state and
+      // we don't cache a fake-empty response.
+      throw DioException(
+        requestOptions: RequestOptions(
+          path: '/v1/customer/catalog/categories/$slug/products',
+        ),
+        type: DioExceptionType.badResponse,
+        error: 'Malformed category products payload',
       );
     });
   }
@@ -160,8 +165,21 @@ class CatalogGatewayImpl implements CatalogGateway {
     }
   }
 
-  List<T> _decodeList<T>(Object? data, T Function(Map<String, Object?>) fromJson) {
-    if (data is! List) return const [];
+  List<T> _decodeList<T>(
+    Object? data,
+    T Function(Map<String, Object?>) fromJson, {
+    required String path,
+  }) {
+    if (data is! List) {
+      // Surface a typed failure rather than a silent empty list — the
+      // _readThrough wrapper will not cache the result, and the bloc
+      // gets the same error path as any other server fault.
+      throw DioException(
+        requestOptions: RequestOptions(path: path),
+        type: DioExceptionType.badResponse,
+        error: 'Malformed list payload',
+      );
+    }
     return data
         .whereType<Map>()
         .map((m) => fromJson(Map<String, Object?>.from(m)))

@@ -123,6 +123,12 @@ class CatalogHomeBloc extends Bloc<CatalogHomeEvent, CatalogHomeState> {
     Emitter<CatalogHomeState> emit,
   ) async {
     if (event.market != null) _market = event.market!;
+    // Snapshot the market at the start of this logical flow so a second
+    // in-flight `CatalogHomeRequested` (with a different market) cannot
+    // mutate it mid-await. Every gateway call below uses [market], never
+    // the field. This satisfies the bloc's strict unidirectional event-
+    // to-state mapping.
+    final market = _market;
     emit(state.copyWith(loading: true, clearFailure: true));
 
     // Step 1 + 2 in parallel — both block the screen until they return.
@@ -130,8 +136,8 @@ class CatalogHomeBloc extends Bloc<CatalogHomeEvent, CatalogHomeState> {
     List<CatalogBrand> brands;
     try {
       final results = await Future.wait<Object>([
-        _catalog.listCategories(market: _market),
-        _catalog.listBrands(market: _market),
+        _catalog.listCategories(market: market),
+        _catalog.listBrands(market: market),
       ]);
       categories = results[0] as List<CatalogCategory>;
       brands = results[1] as List<CatalogBrand>;
@@ -155,7 +161,7 @@ class CatalogHomeBloc extends Bloc<CatalogHomeEvent, CatalogHomeState> {
     try {
       final page = await _catalog.listCategoryProducts(
         slug: categories.first.slug,
-        market: _market,
+        market: market,
         pageSize: 8,
       );
       featured = page.items;
@@ -170,8 +176,8 @@ class CatalogHomeBloc extends Bloc<CatalogHomeEvent, CatalogHomeState> {
     // Step 4 — enrichment. Run in parallel; failures are swallowed.
     final productIds = featured.map((p) => p.id).toList(growable: false);
     final results = await Future.wait<Object?>([
-      _safeAvailability(productIds),
-      _safeAggregates(productIds),
+      _safeAvailability(productIds, market),
+      _safeAggregates(productIds, market),
     ]);
     final availability =
         (results[0] as Map<String, InventoryAvailability>?) ?? const {};
@@ -186,10 +192,11 @@ class CatalogHomeBloc extends Bloc<CatalogHomeEvent, CatalogHomeState> {
 
   Future<Map<String, InventoryAvailability>?> _safeAvailability(
     List<String> productIds,
+    String market,
   ) async {
     try {
       final list =
-          await _inventory.getAvailability(productIds: productIds, market: _market);
+          await _inventory.getAvailability(productIds: productIds, market: market);
       return {for (final av in list) av.productId: av};
     } on Failure {
       return null;
@@ -198,11 +205,12 @@ class CatalogHomeBloc extends Bloc<CatalogHomeEvent, CatalogHomeState> {
 
   Future<Map<String, ReviewsAggregate>?> _safeAggregates(
     List<String> productIds,
+    String market,
   ) async {
     try {
       final list = await _reviews.getAggregatesBatch(
         productIds: productIds,
-        marketCode: _market.toUpperCase(),
+        marketCode: market.toUpperCase(),
       );
       return {for (final a in list) a.productId: a};
     } on Failure {

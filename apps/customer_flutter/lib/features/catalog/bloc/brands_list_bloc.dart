@@ -56,9 +56,11 @@ class BrandsListBloc extends Bloc<BrandsListEvent, BrandsListState> {
     Emitter<BrandsListState> emit,
   ) async {
     if (event.market != null) _market = event.market!;
+    // Snapshot the market — see CategoriesListBloc._onLoad for rationale.
+    final market = _market;
     emit(const BrandsListLoading());
     try {
-      final result = await _gateway.listBrands(market: _market);
+      final result = await _gateway.listBrands(market: market);
       if (result.isEmpty) {
         emit(const BrandsListEmpty());
       } else {

@@ -14,24 +14,26 @@ class BrandsListScreen extends StatelessWidget {
     super.key,
     required this.locale,
     required this.onBrandTap,
-    this.title = 'Brands',
+    this.copy = const BrandsListCopy(),
   });
 
   final String locale;
   final ValueChanged<CatalogBrand> onBrandTap;
-  final String title;
+
+  /// Locale-resolved copy. Defaults are English placeholders.
+  final BrandsListCopy copy;
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text(title)),
+      appBar: AppBar(title: Text(copy.title)),
       body: BlocBuilder<BrandsListBloc, BrandsListState>(
         builder: (context, state) {
           return switch (state) {
             BrandsListLoading() => const Center(
                 child: CircularProgressIndicator(),
               ),
-            BrandsListEmpty() => const Center(child: Text('No brands')),
+            BrandsListEmpty() => Center(child: Text(copy.empty)),
             BrandsListError(:final failure) => Center(
                 child: Padding(
                   padding: const EdgeInsets.all(AppSpacing.md),
@@ -41,13 +43,15 @@ class BrandsListScreen extends StatelessWidget {
                       const Icon(Icons.error_outline,
                           size: 32, color: AppColors.danger),
                       const SizedBox(height: AppSpacing.sm),
-                      Text('Failed to load. (${failure.correlationIdShort})'),
+                      Text(
+                        '${copy.failedToLoad} (${failure.correlationIdShort})',
+                      ),
                       const SizedBox(height: AppSpacing.sm),
                       FilledButton(
                         onPressed: () => context
                             .read<BrandsListBloc>()
                             .add(const BrandsListRequested()),
-                        child: const Text('Retry'),
+                        child: Text(copy.retry),
                       ),
                     ],
                   ),
@@ -130,6 +134,21 @@ class _BrandTile extends StatelessWidget {
       ),
     );
   }
+}
+
+/// Locale-resolved copy for [BrandsListScreen].
+class BrandsListCopy {
+  const BrandsListCopy({
+    this.title = 'Brands',
+    this.empty = 'No brands',
+    this.failedToLoad = 'Failed to load.',
+    this.retry = 'Retry',
+  });
+
+  final String title;
+  final String empty;
+  final String failedToLoad;
+  final String retry;
 }
 
 class _Initials extends StatelessWidget {

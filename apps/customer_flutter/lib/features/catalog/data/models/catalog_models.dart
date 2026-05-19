@@ -107,8 +107,11 @@ class CatalogMoney {
   const CatalogMoney({required this.amountMinor, required this.currency});
 
   /// Reads either `{amountMinor, currency}` or the more common
-  /// `{amount: "120.00", currency: "SAR"}` decimal shape. Decimal strings
-  /// are converted to minor units assuming 2 fraction digits.
+  /// `{amount: "120.00", currency: "SAR"}` decimal shape. Decimal-string
+  /// scaling uses **currency-aware fraction digits**, not a hardcoded
+  /// `× 100`, so non-2-decimal currencies (JPY=0, KWD/BHD/OMR=3) decode
+  /// correctly across markets. Server payloads MAY override the default
+  /// with an explicit `fractionDigits` field on the money object.
   factory CatalogMoney.fromJson(Object? raw) {
     if (raw is! Map) return const CatalogMoney(amountMinor: 0, currency: '');
     final currency = raw['currency']?.toString() ?? '';
@@ -116,10 +119,15 @@ class CatalogMoney {
     if (minor is num) {
       return CatalogMoney(amountMinor: minor.toInt(), currency: currency);
     }
+    final explicitDigits = raw['fractionDigits'];
+    final digits = explicitDigits is num
+        ? explicitDigits.toInt()
+        : fractionDigitsForCurrency(currency);
+    final scale = _pow10(digits);
     final amount = raw['amount'];
     if (amount is num) {
       return CatalogMoney(
-        amountMinor: (amount * 100).round(),
+        amountMinor: (amount * scale).round(),
         currency: currency,
       );
     }
@@ -127,7 +135,7 @@ class CatalogMoney {
       final asDouble = double.tryParse(amount);
       if (asDouble != null) {
         return CatalogMoney(
-          amountMinor: (asDouble * 100).round(),
+          amountMinor: (asDouble * scale).round(),
           currency: currency,
         );
       }
@@ -137,6 +145,48 @@ class CatalogMoney {
 
   final int amountMinor;
   final String currency;
+}
+
+/// Minor-unit fraction digits per ISO-4217 currency code. Defaults to 2
+/// for any currency not listed (the most common case). Exported so UI
+/// formatting (e.g. PriceLabel) can render the same way the engine
+/// stored the value.
+///
+/// Source: ISO-4217 published exponents. Zero-decimal currencies span
+/// JPY, KRW, VND, etc.; three-decimal cluster is the Gulf dinars
+/// (KWD/BHD/OMR/JOD/LYD/TND).
+int fractionDigitsForCurrency(String currency) {
+  switch (currency.toUpperCase()) {
+    case 'JPY':
+    case 'KRW':
+    case 'VND':
+    case 'CLP':
+    case 'ISK':
+    case 'PYG':
+    case 'UGX':
+    case 'RWF':
+    case 'XAF':
+    case 'XOF':
+    case 'XPF':
+      return 0;
+    case 'KWD':
+    case 'BHD':
+    case 'OMR':
+    case 'JOD':
+    case 'LYD':
+    case 'TND':
+      return 3;
+    default:
+      return 2;
+  }
+}
+
+int _pow10(int n) {
+  var r = 1;
+  for (var i = 0; i < n; i++) {
+    r *= 10;
+  }
+  return r;
 }
 
 @immutable

@@ -57,9 +57,13 @@ class CategoriesListBloc
     Emitter<CategoriesListState> emit,
   ) async {
     if (event.market != null) _market = event.market!;
+    // Snapshot the market so a second in-flight request can't mutate it
+    // mid-await and produce a response keyed to a different market than
+    // we'll claim in state.
+    final market = _market;
     emit(const CategoriesListLoading());
     try {
-      final result = await _gateway.listCategories(market: _market);
+      final result = await _gateway.listCategories(market: market);
       if (result.isEmpty) {
         emit(const CategoriesListEmpty());
       } else {

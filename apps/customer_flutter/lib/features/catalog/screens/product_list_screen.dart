@@ -23,6 +23,7 @@ class ProductListScreen extends StatelessWidget {
     required this.onRequestVerification,
     this.brands = const [],
     this.showBrandOnCards = true,
+    this.copy = const ProductListCopy(),
   });
 
   final String locale;
@@ -32,6 +33,9 @@ class ProductListScreen extends StatelessWidget {
   final ValueChanged<CatalogProduct> onRequestVerification;
   final List<CatalogBrand> brands;
   final bool showBrandOnCards;
+
+  /// Locale-resolved copy. Defaults are English placeholders.
+  final ProductListCopy copy;
 
   @override
   Widget build(BuildContext context) {
@@ -48,6 +52,8 @@ class ProductListScreen extends StatelessWidget {
               onRetry: () => context
                   .read<ProductListBloc>()
                   .add(const ProductListRefreshed()),
+              failedToLoad: copy.failedToLoad,
+              retry: copy.retry,
             );
           }
           if (state.isEmpty) {
@@ -60,13 +66,13 @@ class ProductListScreen extends StatelessWidget {
                     const Icon(Icons.inventory_2_outlined,
                         size: 32, color: AppColors.textSecondary),
                     const SizedBox(height: AppSpacing.sm),
-                    const Text('No products match these filters'),
+                    Text(copy.empty),
                     const SizedBox(height: AppSpacing.sm),
                     FilledButton(
                       onPressed: () => context.read<ProductListBloc>().add(
                             const ProductListBrandChanged(null),
                           ),
-                      child: const Text('Clear filters'),
+                      child: Text(copy.clearFilters),
                     ),
                   ],
                 ),
@@ -148,9 +154,16 @@ class ProductListScreen extends StatelessWidget {
 }
 
 class _ErrorView extends StatelessWidget {
-  const _ErrorView({required this.failure, required this.onRetry});
+  const _ErrorView({
+    required this.failure,
+    required this.onRetry,
+    required this.failedToLoad,
+    required this.retry,
+  });
   final Object failure;
   final VoidCallback onRetry;
+  final String failedToLoad;
+  final String retry;
 
   @override
   Widget build(BuildContext context) {
@@ -163,12 +176,27 @@ class _ErrorView extends StatelessWidget {
             const Icon(Icons.error_outline,
                 size: 32, color: AppColors.danger),
             const SizedBox(height: AppSpacing.sm),
-            const Text('Failed to load products.'),
+            Text(failedToLoad),
             const SizedBox(height: AppSpacing.sm),
-            FilledButton(onPressed: onRetry, child: const Text('Retry')),
+            FilledButton(onPressed: onRetry, child: Text(retry)),
           ],
         ),
       ),
     );
   }
+}
+
+/// Locale-resolved copy for [ProductListScreen].
+class ProductListCopy {
+  const ProductListCopy({
+    this.empty = 'No products match these filters',
+    this.clearFilters = 'Clear filters',
+    this.failedToLoad = 'Failed to load products.',
+    this.retry = 'Retry',
+  });
+
+  final String empty;
+  final String clearFilters;
+  final String failedToLoad;
+  final String retry;
 }

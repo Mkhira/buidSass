@@ -16,7 +16,7 @@ class FilterBar extends StatelessWidget {
     this.brands = const [],
     this.selectedBrandSlug,
     this.onBrandChanged,
-    this.sortLabels = const FilterBarSortLabels(),
+    this.copy = const FilterBarCopy(),
   });
 
   final CatalogSort sort;
@@ -25,7 +25,10 @@ class FilterBar extends StatelessWidget {
   final List<CatalogBrand> brands;
   final String? selectedBrandSlug;
   final ValueChanged<String?>? onBrandChanged;
-  final FilterBarSortLabels sortLabels;
+
+  /// All user-facing copy (field labels + sort enum labels). Defaults
+  /// are English placeholders; screen layer passes locale-resolved copy.
+  final FilterBarCopy copy;
 
   @override
   Widget build(BuildContext context) {
@@ -40,13 +43,13 @@ class FilterBar extends StatelessWidget {
             Expanded(
               child: DropdownButtonFormField<String?>(
                 initialValue: selectedBrandSlug,
-                decoration: const InputDecoration(
+                decoration: InputDecoration(
                   isDense: true,
-                  border: OutlineInputBorder(),
-                  labelText: 'Brand',
+                  border: const OutlineInputBorder(),
+                  labelText: copy.brandLabel,
                 ),
                 items: [
-                  const DropdownMenuItem(value: null, child: Text('All')),
+                  DropdownMenuItem(value: null, child: Text(copy.allBrands)),
                   for (final b in brands)
                     DropdownMenuItem(
                       value: b.slug,
@@ -61,14 +64,14 @@ class FilterBar extends StatelessWidget {
           Expanded(
             child: DropdownButtonFormField<CatalogSort>(
               initialValue: sort,
-              decoration: const InputDecoration(
+              decoration: InputDecoration(
                 isDense: true,
-                border: OutlineInputBorder(),
-                labelText: 'Sort',
+                border: const OutlineInputBorder(),
+                labelText: copy.sortLabel,
               ),
               items: [
                 for (final s in CatalogSort.values)
-                  DropdownMenuItem(value: s, child: Text(sortLabels.labelFor(s))),
+                  DropdownMenuItem(value: s, child: Text(copy.labelFor(s))),
               ],
               onChanged: (v) => v == null ? null : onSortChanged(v),
             ),
@@ -79,14 +82,23 @@ class FilterBar extends StatelessWidget {
   }
 }
 
-class FilterBarSortLabels {
-  const FilterBarSortLabels({
+/// Locale-resolved copy for [FilterBar]. Defaults are English
+/// placeholders; the screen layer passes localized strings from the i18n
+/// catalog.
+class FilterBarCopy {
+  const FilterBarCopy({
+    this.brandLabel = 'Brand',
+    this.sortLabel = 'Sort',
+    this.allBrands = 'All',
     this.relevance = 'Relevance',
     this.priceAsc = 'Price low to high',
     this.priceDesc = 'Price high to low',
     this.newest = 'Newest',
   });
 
+  final String brandLabel;
+  final String sortLabel;
+  final String allBrands;
   final String relevance;
   final String priceAsc;
   final String priceDesc;

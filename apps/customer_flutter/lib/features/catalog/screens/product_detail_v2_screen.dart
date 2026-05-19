@@ -19,11 +19,15 @@ class ProductDetailV2Screen extends StatelessWidget {
     required this.locale,
     required this.onAddToCart,
     required this.onRequestVerification,
+    this.copy = const ProductDetailV2Copy(),
   });
 
   final String locale;
   final ValueChanged<CatalogProductDetail> onAddToCart;
   final ValueChanged<CatalogProductDetail> onRequestVerification;
+
+  /// Locale-resolved screen copy. Defaults are English placeholders.
+  final ProductDetailV2Copy copy;
 
   @override
   Widget build(BuildContext context) {
@@ -43,6 +47,8 @@ class ProductDetailV2Screen extends StatelessWidget {
               onRetry: () => context
                   .read<ProductDetailV2Bloc>()
                   .add(const ProductDetailV2Requested()),
+              failedToLoad: copy.failedToLoadProduct,
+              retry: copy.retry,
             ),
           );
         }
@@ -72,7 +78,7 @@ class ProductDetailV2Screen extends StatelessWidget {
                   ),
                 ],
                 const SizedBox(height: AppSpacing.md),
-                _PriceRow(state: state, locale: locale),
+                _PriceRow(state: state, locale: locale, copy: copy),
                 const SizedBox(height: AppSpacing.sm),
                 Row(
                   children: [
@@ -106,7 +112,7 @@ class ProductDetailV2Screen extends StatelessWidget {
                       onPressed: state.availability?.inStock == false
                           ? null
                           : () => onAddToCart(product),
-                      child: const Text('Add to cart'),
+                      child: Text(copy.addToCart),
                     ),
                   ),
                 ),
@@ -163,9 +169,14 @@ class _Media extends StatelessWidget {
 }
 
 class _PriceRow extends StatelessWidget {
-  const _PriceRow({required this.state, required this.locale});
+  const _PriceRow({
+    required this.state,
+    required this.locale,
+    required this.copy,
+  });
   final ProductDetailV2State state;
   final String locale;
+  final ProductDetailV2Copy copy;
 
   @override
   Widget build(BuildContext context) {
@@ -188,7 +199,7 @@ class _PriceRow extends StatelessWidget {
         ),
         if (state.priceDrift) ...[
           const SizedBox(width: AppSpacing.sm),
-          _DriftBadge(),
+          _DriftBadge(label: copy.priceUpdated),
         ],
         if (state.priceQuote?.lines.firstOrNull?.tierLabel == 'business') ...[
           const SizedBox(width: AppSpacing.sm),
@@ -201,9 +212,9 @@ class _PriceRow extends StatelessWidget {
               color: AppColors.secondary.withValues(alpha: 0.18),
               borderRadius: BorderRadius.circular(4),
             ),
-            child: const Text(
-              'Business price',
-              style: TextStyle(
+            child: Text(
+              copy.businessPriceTier,
+              style: const TextStyle(
                 color: AppColors.primary,
                 fontSize: 11,
                 fontWeight: FontWeight.w600,
@@ -217,6 +228,9 @@ class _PriceRow extends StatelessWidget {
 }
 
 class _DriftBadge extends StatelessWidget {
+  const _DriftBadge({required this.label});
+  final String label;
+
   @override
   Widget build(BuildContext context) {
     return Container(
@@ -228,9 +242,9 @@ class _DriftBadge extends StatelessWidget {
         color: AppColors.warning.withValues(alpha: 0.18),
         borderRadius: BorderRadius.circular(4),
       ),
-      child: const Text(
-        'Updated just now',
-        style: TextStyle(
+      child: Text(
+        label,
+        style: const TextStyle(
           color: AppColors.warning,
           fontSize: 11,
           fontWeight: FontWeight.w600,
@@ -310,9 +324,16 @@ class _SkeletonChip extends StatelessWidget {
 }
 
 class _ErrorView extends StatelessWidget {
-  const _ErrorView({this.failure, required this.onRetry});
+  const _ErrorView({
+    this.failure,
+    required this.onRetry,
+    required this.failedToLoad,
+    required this.retry,
+  });
   final Object? failure;
   final VoidCallback onRetry;
+  final String failedToLoad;
+  final String retry;
 
   @override
   Widget build(BuildContext context) {
@@ -325,12 +346,31 @@ class _ErrorView extends StatelessWidget {
             const Icon(Icons.error_outline,
                 size: 32, color: AppColors.danger),
             const SizedBox(height: AppSpacing.sm),
-            const Text('Failed to load product'),
+            Text(failedToLoad),
             const SizedBox(height: AppSpacing.sm),
-            FilledButton(onPressed: onRetry, child: const Text('Retry')),
+            FilledButton(onPressed: onRetry, child: Text(retry)),
           ],
         ),
       ),
     );
   }
+}
+
+/// Locale-resolved copy for [ProductDetailV2Screen]. Defaults are
+/// English placeholders; the router/composition layer passes localized
+/// strings from the i18n catalog.
+class ProductDetailV2Copy {
+  const ProductDetailV2Copy({
+    this.addToCart = 'Add to cart',
+    this.businessPriceTier = 'Business price',
+    this.priceUpdated = 'Updated just now',
+    this.failedToLoadProduct = 'Failed to load product',
+    this.retry = 'Retry',
+  });
+
+  final String addToCart;
+  final String businessPriceTier;
+  final String priceUpdated;
+  final String failedToLoadProduct;
+  final String retry;
 }

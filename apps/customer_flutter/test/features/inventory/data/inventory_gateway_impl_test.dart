@@ -97,12 +97,18 @@ void main() {
       );
     });
 
-    test('non-list body → empty list', () async {
+    test('non-list body → typed Failure (no silent empty)', () async {
+      // CR review: don't swallow malformed payloads as empty availability —
+      // that masks contract drift.
       final pair = _buildStubbedDio((opts) => {'wrong': 'shape'});
       final gw = InventoryGatewayImpl(dio: pair.dio);
-      final result =
-          await gw.getAvailability(productIds: const ['p-1'], market: 'ksa');
-      expect(result, isEmpty);
+      await expectLater(
+        () => gw.getAvailability(
+          productIds: const ['p-1'],
+          market: 'ksa',
+        ),
+        throwsA(isA<Failure>()),
+      );
     });
   });
 }

@@ -2,7 +2,7 @@
 
 ## Module layout
 
-```
+```text
 apps/customer_flutter/lib/features/
 ├── returns/
 │   ├── data/{returns_gateway,returns_gateway_impl}.dart
@@ -17,7 +17,7 @@ apps/customer_flutter/lib/features/
 
 ## Routing additions
 
-```
+```text
 /returns                                          → ReturnsListScreen
 /orders/{orderId}/returns/new                     → ReturnWizardScreen
 /returns/{id}                                     → ReturnDetailScreen

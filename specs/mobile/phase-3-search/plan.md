@@ -2,7 +2,7 @@
 
 ## Module layout
 
-```
+```text
 apps/customer_flutter/lib/features/search/
 ├── data/
 │   ├── search_gateway.dart                # autocomplete, products, lookup
@@ -34,7 +34,7 @@ Cancel-in-flight is achieved by `switchMap` semantics — newer query cancels ol
 
 ## Routing additions
 
-```
+```text
 /search                       → SearchScreen (idle)
 /search?q={q}                 → SearchScreen (results, restorable from back stack)
 /search/lookup                → LookupScreen

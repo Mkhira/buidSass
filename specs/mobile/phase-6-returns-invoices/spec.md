@@ -40,6 +40,7 @@ Deliver returns and invoice access for completed orders: list returns, request a
 **Wireframe:** [`#phase-6-returns-list`](../../../docs/mobile-screens-wireframes.md#phase-6-returns-list--s-61-returns-list)
 
 #### Endpoints used
+
 | Method | Path | When | Idempotent | Notes |
 |---|---|---|---|---|
 | GET | /v1/customer/returns | mount + filter + pagination + pull-to-refresh | safe | filters: status, page, pageSize |
@@ -84,6 +85,7 @@ loading → list → empty ("No returns yet") → error/offline.
 **Wireframe:** [`#phase-6-return-create`](../../../docs/mobile-screens-wireframes.md#phase-6-return-create--s-62b-return-create-wizard) (+ eligibility entry [`#phase-6-return-eligibility`](../../../docs/mobile-screens-wireframes.md#phase-6-return-eligibility--s-62a-return-eligibility-entry))
 
 #### Endpoints used
+
 | Method | Path | When | Idempotent | Notes |
 |---|---|---|---|---|
 | GET | /v1/customer/orders/{orderId}/return-eligibility | mount | safe | gates line selection |
@@ -106,6 +108,7 @@ loading → list → empty ("No returns yet") → error/offline.
 ```
 
 #### UI states
+
 | State | Trigger | What renders |
 |---|---|---|
 | loading | mount | spinner over eligibility check |
@@ -151,6 +154,7 @@ loading → list → empty ("No returns yet") → error/offline.
 **Wireframe:** [`#phase-6-return-detail`](../../../docs/mobile-screens-wireframes.md#phase-6-return-detail--s-63-return-detail)
 
 #### Endpoints used
+
 | Method | Path | When | Idempotent | Notes |
 |---|---|---|---|---|
 | GET | /v1/customer/returns/{id} | mount + pull-to-refresh | safe | |
@@ -196,6 +200,7 @@ loading → loaded (state pill + timeline + items + photos + refund + rejection 
 **Wireframe:** [`#phase-6-invoice-preview`](../../../docs/mobile-screens-wireframes.md#phase-6-invoice-preview--s-64-invoice-preview)
 
 #### Endpoints used
+
 | Method | Path | When | Idempotent | Notes |
 |---|---|---|---|---|
 | GET | /v1/customer/orders/{orderId}/invoice | mount | safe | JSON preview (line items + totals + tax fields) |
@@ -235,6 +240,7 @@ loading → loaded (preview + Download PDF CTA) → 404 (invoice not yet availab
 **Wireframe:** [`#phase-6-invoice-pdf`](../../../docs/mobile-screens-wireframes.md#phase-6-invoice-pdf--s-65-invoice-pdf-download)
 
 #### Endpoints used
+
 | Method | Path | When | Idempotent | Notes |
 |---|---|---|---|---|
 | GET | /v1/customer/orders/{orderId}/invoice.pdf | Download CTA | safe | binary; `Content-Type: application/pdf` |
@@ -243,6 +249,7 @@ loading → loaded (preview + Download PDF CTA) → 404 (invoice not yet availab
 binary PDF.
 
 #### UI states
+
 | State | Trigger | What renders |
 |---|---|---|
 | downloading | request in-flight | progress |

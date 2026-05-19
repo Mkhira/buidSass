@@ -72,9 +72,12 @@ Deep link scheme registration for `myapp://invitations/{token}` mirrors Phase 1'
 
 ## Role gating
 
-`CompanyProfileBloc.state.loaded.company.myRole` is the source of truth for admin / buyer / approver visibility. UI widgets read this directly; no separate "roles" service.
+`CompanyProfileBloc.state.loaded.company.myRole` is the **single source of truth** for admin / buyer / approver visibility throughout this phase. Both UI widgets AND the router redirect for approver-only routes (`/quotes/awaiting-approval`) read from this Bloc state — never from `Me.roles` directly, since `Me.roles` is account-scoped (not company-scoped) and the same account can hold different roles in different companies.
 
-Approver-only routes (`/quotes/awaiting-approval`) are guarded in the router via a redirect that checks `Me.roles`. Non-approvers attempting deep link land on `/quotes` with a toast.
+Wiring:
+- The router guard for `/quotes/awaiting-approval` calls `BlocProvider.of<CompanyProfileBloc>(context).state.maybeWhen(loaded: (c) => c.myRole == 'approver', orElse: () => false)`. On `false` it redirects to `/quotes` with a toast.
+- If `CompanyProfileBloc` is not yet in the `loaded` state when the deep link fires (e.g., cold start), the guard waits for one emission of the loaded state (max 2 s) before deciding; on timeout it falls back to redirecting to `/quotes`.
+- `Me.roles` is treated as a coarse pre-gate (e.g., to hide the entire Company tab from accounts with no company memberships at all); company-scoped role decisions never read it.
 
 ## Build sequence
 

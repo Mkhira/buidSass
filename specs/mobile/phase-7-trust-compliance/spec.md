@@ -46,6 +46,7 @@ Deliver verification (KYC-style) submission, document upload, resubmit, renew, p
 **Wireframe:** [`#phase-7-verification-list`](../../../docs/mobile-screens-wireframes.md#phase-7-verification-list--s-71-verification-list)
 
 #### Endpoints used
+
 | Method | Path | When | Idempotent | Notes |
 |---|---|---|---|---|
 | GET | /api/customer/verifications | mount + pull-to-refresh | safe | |
@@ -92,6 +93,7 @@ loading skeleton → loaded (active banner + history list) → empty (no history
 **Wireframe:** [`#phase-7-verification-submit`](../../../docs/mobile-screens-wireframes.md#phase-7-verification-submit--s-72-submit-verification)
 
 #### Endpoints used
+
 | Method | Path | When | Idempotent | Notes |
 |---|---|---|---|---|
 | GET | /api/customer/verifications/schema | mount | safe | per-market dynamic form |
@@ -137,6 +139,7 @@ loading-schema → form rendered dynamically from schema → submitting → subm
 **Wireframe:** [`#phase-7-verification-detail`](../../../docs/mobile-screens-wireframes.md#phase-7-verification-detail--s-73-verification-detail--docs-upload)
 
 #### Endpoints used
+
 | Method | Path | When | Idempotent | Notes |
 |---|---|---|---|---|
 | GET | /api/customer/verifications/{id} | mount + pull-to-refresh | safe | |
@@ -180,6 +183,7 @@ loading → loaded (timeline + fields + documents + requested-info checklist + U
 **Wireframe:** [`#phase-7-verification-resubmit`](../../../docs/mobile-screens-wireframes.md#phase-7-verification-resubmit--s-74-resubmit--renew)
 
 #### Endpoints used
+
 | Method | Path | When | Idempotent | Notes |
 |---|---|---|---|---|
 | POST | /api/customer/verifications/{id}/resubmit | submit (resubmit flow) | yes | **Idempotency-Key required** (BR-4a) |
@@ -210,6 +214,7 @@ Two cubits: `ResubmitCubit(verificationId)` and `RenewBloc`. Both standard.
 **Wireframe:** [`#phase-7-review-submit`](../../../docs/mobile-screens-wireframes.md#phase-7-review-submit--s-75-submit-review)
 
 #### Endpoints used
+
 | Method | Path | When | Idempotent | Notes |
 |---|---|---|---|---|
 | POST | /v1/customer/reviews | submit | **Idempotency-Key required** | verified-buyer gate (server) |
@@ -243,6 +248,7 @@ form (stars + comment + optional media) → submitting → submitted (toast + ba
 **Wireframe:** [`#phase-7-my-reviews`](../../../docs/mobile-screens-wireframes.md#phase-7-my-reviews--s-76-my-reviews-list)
 
 #### Endpoints used
+
 | Method | Path | When | Idempotent | Notes |
 |---|---|---|---|---|
 | GET | /v1/customer/reviews/me | mount + filter + pagination | safe | |
@@ -285,6 +291,7 @@ standard list states.
 **Wireframe:** [`#phase-7-review-detail`](../../../docs/mobile-screens-wireframes.md#phase-7-review-detail--s-77-my-review-detail--edit)
 
 #### Endpoints used
+
 | Method | Path | When | Idempotent | Notes |
 |---|---|---|---|---|
 | GET | /v1/customer/reviews/me/{id} | mount | safe | |
@@ -328,6 +335,7 @@ detail view → Edit toggles in-place form → save → success → moderation s
 **Wireframe:** [`#phase-7-report`](../../../docs/mobile-screens-wireframes.md#phase-7-report--s-78-report-review)
 
 #### Endpoints used
+
 | Method | Path | When | Idempotent | Notes |
 |---|---|---|---|---|
 | GET | /v1/customer/reviews/report-reasons | mount | safe | per-market |

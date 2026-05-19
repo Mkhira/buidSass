@@ -4,7 +4,7 @@
 
 ## Module layout
 
-```
+```text
 apps/customer_flutter/lib/
 ├── core/
 │   ├── api/
@@ -98,7 +98,7 @@ Rules:
 
 ## Routing (go_router)
 
-```
+```text
 /                                 → SplashScreen           (Unknown only)
 /login                            → LoginScreen            (Anonymous only)
 /register                         → RegisterScreen         (Anonymous only)

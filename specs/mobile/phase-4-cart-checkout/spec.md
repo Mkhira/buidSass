@@ -47,6 +47,7 @@ Cart is **client-state**. The backend touches the cart only via `POST /customer/
 **Wireframe:** [`#phase-4-cart`](../../../docs/mobile-screens-wireframes.md#phase-4-cart--s-41-cart)
 
 #### Endpoints used
+
 | Method | Path | When | Idempotent | Notes |
 |---|---|---|---|---|
 | POST | /customer/pricing/price-cart | on cart change, coupon entry, mount | safe* | preview only |
@@ -56,6 +57,7 @@ Cart is **client-state**. The backend touches the cart only via `POST /customer/
 See Phase 2 data-model for both shapes (`price-cart` preview, `availability`).
 
 #### UI states
+
 | State | Trigger | What renders |
 |---|---|---|
 | empty | empty cart | empty illustration + "Continue shopping" CTA |
@@ -92,6 +94,7 @@ See Phase 2 data-model for both shapes (`price-cart` preview, `availability`).
 **Wireframe:** [`#phase-4-checkout-start`](../../../docs/mobile-screens-wireframes.md#phase-4-checkout-start--s-43-checkout-start)
 
 #### Endpoints used
+
 | Method | Path | When | Idempotent | Notes |
 |---|---|---|---|---|
 | POST | /v1/customer/checkout/sessions | on screen mount (with cart payload) | yes | materializes cart server-side |
@@ -129,6 +132,7 @@ loading on mount → loaded routes immediately to `/checkout/summary` (S-4.4); o
 **Wireframe:** [`#phase-4-summary`](../../../docs/mobile-screens-wireframes.md#phase-4-summary--s-44-checkout-summary)
 
 #### Endpoints used
+
 | Method | Path | When | Idempotent | Notes |
 |---|---|---|---|---|
 | GET | /v1/customer/checkout/sessions/{sessionId}/summary | mount + after each step | safe | |
@@ -169,6 +173,7 @@ loading skeleton → loaded with stepper; error/offline standard.
 **Wireframe:** [`#phase-4-address`](../../../docs/mobile-screens-wireframes.md#phase-4-address--s-45-address-step)
 
 #### Endpoints used
+
 | Method | Path | When | Idempotent | Notes |
 |---|---|---|---|---|
 | PATCH | /v1/customer/checkout/sessions/{sessionId}/address | submit | yes | |
@@ -202,6 +207,7 @@ Address-list picker: shows existing addresses (from `me` profile addresses or a 
 **Wireframe:** [`#phase-4-shipping-quotes`](../../../docs/mobile-screens-wireframes.md#phase-4-shipping-quotes--s-46-shipping-step)
 
 #### Endpoints used
+
 | Method | Path | When | Idempotent | Notes |
 |---|---|---|---|---|
 | GET | /v1/customer/checkout/sessions/{sessionId}/shipping-quotes | mount | safe | |
@@ -235,6 +241,7 @@ loading quotes → list of radio options → submit → route to S-4.7.
 **Wireframe:** [`#phase-4-payment`](../../../docs/mobile-screens-wireframes.md#phase-4-payment--s-47-payment-step)
 
 #### Endpoints used
+
 | Method | Path | When | Idempotent | Notes |
 |---|---|---|---|---|
 | PATCH | /v1/customer/checkout/sessions/{sessionId}/payment-method | submit | yes | |
@@ -243,6 +250,7 @@ loading quotes → list of radio options → submit → route to S-4.7.
 Available methods come from the summary payload's `availableMethods` (server-driven per market — BR-5).
 
 #### UI states
+
 | State | Trigger | What renders |
 |---|---|---|
 | loading | mount | spinner |
@@ -272,6 +280,7 @@ Available methods come from the summary payload's `availableMethods` (server-dri
 **Wireframe:** [`#phase-4-review-submit`](../../../docs/mobile-screens-wireframes.md#phase-4-review-submit--s-48-order-review--submit)
 
 #### Endpoints used
+
 | Method | Path | When | Idempotent | Notes |
 |---|---|---|---|---|
 | POST | /v1/customer/checkout/sessions/{sessionId}/submit | Place Order tap | **Idempotency-Key required** | terminal |
@@ -313,6 +322,7 @@ review summary → submit → spinner → success routes to S-4.10 OR routes to 
 **Wireframe:** [`#phase-4-drift`](../../../docs/mobile-screens-wireframes.md#phase-4-drift--s-49-drift--409-conflict)
 
 #### Endpoints used
+
 | Method | Path | When | Idempotent | Notes |
 |---|---|---|---|---|
 | POST | /v1/customer/checkout/sessions/{sessionId}/accept-drift | accept tap | yes | |

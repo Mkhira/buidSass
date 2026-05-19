@@ -123,7 +123,7 @@ Session id is preserved in `SessionStore.checkoutSessionId` so a cold-start mid-
 | 3 | Provider WebView return drops context. | Use `flutter_web_auth_2` (or platform-specific equivalents) with custom URL scheme; Bloc holds the pre-redirect state in a `redirectCorrelationId`. |
 | 4 | 3DS challenge times out (often 5 min). | Server-side session expiry; UI surfaces a "Resume" CTA that refreshes the summary and re-enters Review. |
 | 5 | Cart corrupted by an app crash mid-write. | `CartStore` writes are atomic (write to temp + rename). |
-| 6 | PCI scope drift: a stray `cardNumber` string in a log. | Lint rule + CI grep for `cardNumber|cvv|pan` outside the payment adapter folder. |
+| 6 | PCI scope drift: a stray `cardNumber` string in a log. | Lint rule + CI grep for `cardNumber\|cvv\|pan` outside the payment adapter folder. |
 
 ## Definition of Done
 

@@ -4,6 +4,7 @@ class FeatureFlags {
   const FeatureFlags({
     this.verificationCtaShipped = false,
     this.cmsContentShipped = false,
+    this.realIdentityClientShipped = false,
   });
 
   factory FeatureFlags.fromEnvironment() {
@@ -11,9 +12,12 @@ class FeatureFlags {
         bool.fromEnvironment('VERIFICATION_CTA_SHIPPED', defaultValue: false);
     const cms =
         bool.fromEnvironment('CMS_CONTENT_SHIPPED', defaultValue: false);
+    const identity = bool.fromEnvironment('IDENTITY_CLIENT_SHIPPED',
+        defaultValue: false);
     return const FeatureFlags(
       verificationCtaShipped: verification,
       cmsContentShipped: cms,
+      realIdentityClientShipped: identity,
     );
   }
 
@@ -24,4 +28,11 @@ class FeatureFlags {
   /// Spec 022 — when `true`, the home Bloc consumes the real CMS adapter; on
   /// `false` it consumes [CmsStubRepository].
   final bool cmsContentShipped;
+
+  /// `specs/mobile/phase-1-auth-identity` — when `true`, DI wires
+  /// `AuthRepositoryImpl` (real HTTP calls to spec 004 identity endpoints)
+  /// in place of `StubAuthRepository`. Default `false` so test runs and
+  /// pre-backend dev builds keep the stub behavior. Flip via
+  /// `--dart-define=IDENTITY_CLIENT_SHIPPED=true`.
+  final bool realIdentityClientShipped;
 }

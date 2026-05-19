@@ -14,6 +14,7 @@ import '../core/platform/app_links_adapter.dart';
 import '../core/platform/secure_storage_web.dart';
 import '../core/platform/sms_autofill_adapter.dart';
 import '../features/auth/data/auth_repository.dart';
+import '../features/auth/data/auth_repository_impl.dart';
 import '../features/cart/data/cart_repository.dart';
 import '../features/catalog/data/catalog_repository.dart';
 import '../features/checkout/data/checkout_repository.dart';
@@ -107,7 +108,13 @@ Future<void> bootstrap({
   );
   sl.registerLazySingleton<CatalogRepository>(StubCatalogRepository.new);
   sl.registerLazySingleton<CartRepository>(StubCartRepository.new);
-  sl.registerLazySingleton<AuthRepository>(StubAuthRepository.new);
+  sl.registerLazySingleton<AuthRepository>(() {
+    final flags = sl<FeatureFlags>();
+    if (flags.realIdentityClientShipped) {
+      return AuthRepositoryImpl(dio: sl<ApiModule>().dio);
+    }
+    return StubAuthRepository();
+  });
   sl.registerLazySingleton<CheckoutRepository>(StubCheckoutRepository.new);
   sl.registerLazySingleton<OrdersRepository>(StubOrdersRepository.new);
   sl.registerLazySingleton<AddressesRepository>(StubAddressesRepository.new);

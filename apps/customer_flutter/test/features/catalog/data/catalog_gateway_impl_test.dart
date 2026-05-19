@@ -199,7 +199,8 @@ void main() {
   });
 
   group('getProductBySlug', () {
-    test('decodes localized name + description + attributes', () async {
+    test('decodes localized name + description + attributes (list shape)',
+        () async {
       final pair = _buildStubbedDio((opts) => {
             'id': 'p-1',
             'slug': 'tile-a',
@@ -207,10 +208,19 @@ void main() {
             'name': {'ar': 'بلاط أ', 'en': 'Tile A'},
             'description': {'en': 'Hard-wearing tile'},
             'mediaUrls': ['https://cdn/a-1.png', 'https://cdn/a-2.png'],
-            'attributes': {
-              'finish': {'ar': 'لامع', 'en': 'Glossy'},
-              'size': '30x30',
-            },
+            // New preferred shape — labels are themselves localizable.
+            'attributes': [
+              {
+                'key': 'finish',
+                'label': {'ar': 'التشطيب', 'en': 'Finish'},
+                'value': {'ar': 'لامع', 'en': 'Glossy'},
+              },
+              {
+                'key': 'size',
+                'label': {'ar': 'الحجم', 'en': 'Size'},
+                'value': '30x30',
+              },
+            ],
             'priceHint': {'amount': '120.00', 'currency': 'SAR'},
             'restricted': true,
             'restrictedRationale': {'en': 'Requires verification'},
@@ -220,12 +230,40 @@ void main() {
           await gw.getProductBySlug(slug: 'tile-a', market: 'ksa');
       expect(detail.sku, 'SKU-1');
       expect(detail.name.resolve('ar'), 'بلاط أ');
-      expect(detail.attributes['finish']?.resolve('ar'), 'لامع');
-      expect(detail.attributes['size']?.resolve('en'), '30x30');
+      expect(detail.attributes, hasLength(2));
+      expect(detail.attributes.first.key, 'finish');
+      expect(detail.attributes.first.label.resolve('ar'), 'التشطيب');
+      expect(detail.attributes.first.value.resolve('ar'), 'لامع');
+      expect(detail.attributes.last.value.resolve('en'), '30x30');
       expect(detail.mediaUrls, hasLength(2));
       expect(detail.isRestricted, isTrue);
       expect(detail.restrictedRationale?.resolve('en'),
           'Requires verification');
+    });
+
+    test('decodes legacy map-shape attributes for backwards compat',
+        () async {
+      final pair = _buildStubbedDio((opts) => {
+            'id': 'p-1',
+            'slug': 'tile-a',
+            'sku': 'SKU-1',
+            'name': 'Tile A',
+            'description': 'd',
+            'mediaUrls': const <String>[],
+            // Older payload: bare map of key → value(-or-LocalizedText)
+            'attributes': {
+              'finish': {'ar': 'لامع', 'en': 'Glossy'},
+            },
+            'priceHint': {'amount': '0.00', 'currency': 'SAR'},
+          });
+      final gw = CatalogGatewayImpl(dio: pair.dio, locale: () => 'en');
+      final detail =
+          await gw.getProductBySlug(slug: 'tile-a', market: 'ksa');
+      expect(detail.attributes, hasLength(1));
+      // Label falls back to the JSON key — Arabic label arrives once the
+      // server upgrades to the new list shape.
+      expect(detail.attributes.first.label.resolve('en'), 'finish');
+      expect(detail.attributes.first.value.resolve('en'), 'Glossy');
     });
 
     test('throws on non-object payload', () async {

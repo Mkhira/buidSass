@@ -86,6 +86,14 @@ class RestrictionGate extends StatelessWidget {
   }
 }
 
+/// Locale-resolved copy injected from the screen layer.
+///
+/// ⚠️ **Production callers MUST pass locale-resolved copy** — the
+/// English defaults below are kept ONLY so widget tests and composition
+/// scaffolding compile without a localization context. Every place
+/// [RestrictionGate] appears in a real screen routes its copy through
+/// `AppLocalizations` before construction. Treat the defaults as test
+/// fixtures, not shipping copy.
 class RestrictionGateCopy {
   const RestrictionGateCopy({
     this.compactLabel = 'Verify to buy',

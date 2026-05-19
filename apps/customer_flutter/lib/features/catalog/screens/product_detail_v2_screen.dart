@@ -59,6 +59,9 @@ class ProductDetailV2Screen extends StatelessWidget {
                 .read<ProductDetailV2Bloc>()
                 .add(const ProductDetailV2Requested()),
             child: ListView(
+              // Arm pull-to-refresh even when the content fits the
+              // viewport (terse descriptions / no attributes).
+              physics: const AlwaysScrollableScrollPhysics(),
               padding: const EdgeInsets.all(AppSpacing.md),
               children: [
                 _Media(urls: product.mediaUrls),
@@ -280,7 +283,7 @@ class _AttributesTable extends StatelessWidget {
         1: FlexColumnWidth(),
       },
       children: [
-        for (final entry in product.attributes.entries)
+        for (final attr in product.attributes)
           TableRow(
             decoration: const BoxDecoration(
               border: Border(
@@ -291,13 +294,13 @@ class _AttributesTable extends StatelessWidget {
               Padding(
                 padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
                 child: Text(
-                  entry.key,
+                  attr.label.resolve(locale),
                   style: TextStyle(color: Theme.of(context).hintColor),
                 ),
               ),
               Padding(
                 padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
-                child: Text(entry.value.resolve(locale)),
+                child: Text(attr.value.resolve(locale)),
               ),
             ],
           ),

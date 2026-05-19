@@ -36,11 +36,22 @@ class InventoryGatewayImpl implements InventoryGateway {
           error: 'Malformed inventory availability payload',
         );
       }
-      return data
-          .whereType<Map>()
-          .map((m) =>
-              InventoryAvailability.fromJson(Map<String, Object?>.from(m)))
-          .toList(growable: false);
+      // Don't silently drop non-map items with `.whereType<Map>()` — a
+      // single junk row means the response contract drifted and we
+      // should surface that as a typed failure rather than render a
+      // partial stock list.
+      return data.map((item) {
+        if (item is! Map) {
+          throw DioException(
+            requestOptions: res.requestOptions,
+            type: DioExceptionType.badResponse,
+            error: 'Malformed inventory availability item payload',
+          );
+        }
+        return InventoryAvailability.fromJson(
+          Map<String, Object?>.from(item),
+        );
+      }).toList(growable: false);
     } on DioException catch (e) {
       throw _errors.fromDio(e);
     }

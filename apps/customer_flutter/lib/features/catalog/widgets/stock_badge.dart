@@ -54,9 +54,15 @@ class StockBadge extends StatelessWidget {
   }
 }
 
-/// Locale-keyed labels. Phase 2 uses plain strings (no l10n keys yet);
-/// callers pass locale-resolved copy when wiring screens. Defaults are
-/// English placeholders so widget tests can compile without setup.
+/// Locale-resolved labels injected from the screen layer.
+///
+/// ⚠️ **Production callers MUST pass locale-resolved copy** — the
+/// English defaults below are kept ONLY so widget tests and
+/// composition-root scaffolding compile without a localization context.
+/// Every place [StockBadge] appears in a real screen routes its labels
+/// through `AppLocalizations` (or the upcoming Phase 6 i18n catalog)
+/// before construction. Treat the defaults as test fixtures, not
+/// shipping copy.
 class StockBadgeLabels {
   const StockBadgeLabels({
     this.inStock = 'In stock',

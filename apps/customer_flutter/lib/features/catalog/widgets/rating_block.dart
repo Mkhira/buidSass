@@ -74,20 +74,25 @@ class RatingBlock extends StatelessWidget {
       children: [
         summary,
         const SizedBox(height: AppSpacing.sm),
-        _StarHistogram(distribution: a.starHistogram),
+        _StarHistogram(
+          distribution: a.starHistogram,
+          locale: resolvedLocale,
+        ),
       ],
     );
   }
 }
 
 class _StarHistogram extends StatelessWidget {
-  const _StarHistogram({required this.distribution});
+  const _StarHistogram({required this.distribution, required this.locale});
   final List<int> distribution;
+  final String locale;
 
   @override
   Widget build(BuildContext context) {
     final total = distribution.fold<int>(0, (a, b) => a + b);
     if (total == 0) return const SizedBox.shrink();
+    final number = NumberFormat.decimalPattern(locale);
     return Column(
       children: List.generate(5, (idx) {
         final star = 5 - idx;
@@ -101,7 +106,10 @@ class _StarHistogram extends StatelessWidget {
             children: [
               SizedBox(
                 width: 14,
-                child: Text('$star', style: const TextStyle(fontSize: 12)),
+                child: Text(
+                  number.format(star),
+                  style: const TextStyle(fontSize: 12),
+                ),
               ),
               const SizedBox(width: AppSpacing.xs),
               Expanded(
@@ -119,7 +127,7 @@ class _StarHistogram extends StatelessWidget {
               SizedBox(
                 width: 32,
                 child: Text(
-                  '$count',
+                  number.format(count),
                   textAlign: TextAlign.end,
                   style: TextStyle(
                     fontSize: 12,

@@ -123,21 +123,30 @@ class CatalogMoney {
     final digits = explicitDigits is num
         ? explicitDigits.toInt()
         : fractionDigitsForCurrency(currency);
-    final scale = _pow10(digits);
     final amount = raw['amount'];
-    if (amount is num) {
-      return CatalogMoney(
-        amountMinor: (amount * scale).round(),
-        currency: currency,
-      );
-    }
+    // String path — parse as decimal lexically (no `double.tryParse`)
+    // so we never round-trip through IEEE-754 binary floats. Currency
+    // values like 1.005 or KWD's 3-decimal precision must be exact.
     if (amount is String) {
-      final asDouble = double.tryParse(amount);
-      if (asDouble != null) {
+      final parsed = _parseDecimalToMinorUnits(amount, digits);
+      if (parsed != null) {
+        return CatalogMoney(amountMinor: parsed, currency: currency);
+      }
+    }
+    if (amount is num) {
+      // Numeric server payloads are a fallback contract; reduce
+      // float exposure by going through the decimal string parser
+      // when the value is integral, otherwise accept the IEEE round-
+      // trip with a clear warning in the contract docs.
+      if (amount is int) {
         return CatalogMoney(
-          amountMinor: (asDouble * scale).round(),
+          amountMinor: amount * _pow10(digits),
           currency: currency,
         );
+      }
+      final parsed = _parseDecimalToMinorUnits(amount.toString(), digits);
+      if (parsed != null) {
+        return CatalogMoney(amountMinor: parsed, currency: currency);
       }
     }
     return CatalogMoney(amountMinor: 0, currency: currency);
@@ -187,6 +196,60 @@ int _pow10(int n) {
     r *= 10;
   }
   return r;
+}
+
+/// Parse a decimal string (e.g. `"120.50"`, `"-1.005"`, `"42"`) directly
+/// into integer minor units, **without going through `double`**. Avoids
+/// the IEEE-754 rounding artefacts `double.tryParse` introduces on
+/// boundary values like `1.005` and on three-decimal currencies.
+///
+/// Returns null when the input isn't a well-formed decimal.
+int? _parseDecimalToMinorUnits(String s, int fractionDigits) {
+  if (s.isEmpty) return null;
+  var input = s.trim();
+  if (input.isEmpty) return null;
+  var sign = 1;
+  if (input.startsWith('-')) {
+    sign = -1;
+    input = input.substring(1);
+  } else if (input.startsWith('+')) {
+    input = input.substring(1);
+  }
+  if (input.isEmpty) return null;
+  final dotIdx = input.indexOf('.');
+  String whole;
+  String frac;
+  if (dotIdx < 0) {
+    whole = input;
+    frac = '';
+  } else {
+    whole = input.substring(0, dotIdx);
+    frac = input.substring(dotIdx + 1);
+  }
+  if (whole.isEmpty && frac.isEmpty) return null;
+  // Reject non-digit characters early — keeps parsing strict.
+  for (final ch in whole.codeUnits) {
+    if (ch < 0x30 || ch > 0x39) return null;
+  }
+  for (final ch in frac.codeUnits) {
+    if (ch < 0x30 || ch > 0x39) return null;
+  }
+  // Right-pad or round the fractional part to `fractionDigits` precision.
+  final fracPadded = frac.length >= fractionDigits
+      ? frac.substring(0, fractionDigits)
+      : frac.padRight(fractionDigits, '0');
+  // Banker-style half-up rounding when the input carried more digits
+  // than the currency precision (e.g. 1.005 → 1.01 for SAR).
+  var rounded = int.tryParse(fracPadded.isEmpty ? '0' : fracPadded);
+  if (rounded == null) return null;
+  if (frac.length > fractionDigits) {
+    final nextDigit = frac.codeUnitAt(fractionDigits) - 0x30;
+    if (nextDigit >= 5) rounded += 1;
+  }
+  final wholeInt = whole.isEmpty ? 0 : int.tryParse(whole);
+  if (wholeInt == null) return null;
+  final total = wholeInt * _pow10(fractionDigits) + rounded;
+  return sign * total;
 }
 
 @immutable
@@ -293,10 +356,26 @@ class CatalogProductDetail {
         ? rawMedia.whereType<String>().toList(growable: false)
         : const <String>[];
     final rawAttrs = json['attributes'];
-    final attrs = <String, LocalizedText>{};
-    if (rawAttrs is Map) {
+    final attrs = <ProductAttribute>[];
+    if (rawAttrs is List) {
+      // New shape: `[{ key, label: {ar,en}, value: {ar,en} }, …]`.
+      // Preferred because labels themselves are localizable.
+      for (final entry in rawAttrs.whereType<Map>()) {
+        attrs.add(ProductAttribute.fromJson(
+          Map<String, Object?>.from(entry),
+        ));
+      }
+    } else if (rawAttrs is Map) {
+      // Back-compat with the older `{ key: value-or-LocalizedText }` shape
+      // (used by some seed payloads). Without a server-supplied label we
+      // promote the JSON key as the label fallback — the bilingual label
+      // arrives once the server upgrades to the new shape.
       rawAttrs.forEach((k, v) {
-        attrs[k.toString()] = LocalizedText.fromJson(v);
+        attrs.add(ProductAttribute(
+          key: k.toString(),
+          label: LocalizedText.fromJson(k.toString()),
+          value: LocalizedText.fromJson(v),
+        ));
       });
     }
     return CatalogProductDetail(
@@ -325,10 +404,48 @@ class CatalogProductDetail {
   final LocalizedText name;
   final LocalizedText description;
   final List<String> mediaUrls;
-  final Map<String, LocalizedText> attributes;
+
+  /// Spec attributes ordered as the server sent them. Each carries both
+  /// a localized label (so AR PDPs render an Arabic attribute name) and
+  /// a localized value, addressing Principle 4 (editorial-grade Arabic
+  /// everywhere — including the spec table on the PDP).
+  final List<ProductAttribute> attributes;
   final CatalogMoney priceHint;
   final bool isRestricted;
   final String? brandSlug;
   final LocalizedText? brandName;
   final LocalizedText? restrictedRationale;
+}
+
+@immutable
+class ProductAttribute {
+  const ProductAttribute({
+    required this.key,
+    required this.label,
+    required this.value,
+  });
+
+  factory ProductAttribute.fromJson(Map<String, Object?> json) {
+    final key = json['key']?.toString() ?? '';
+    return ProductAttribute(
+      key: key,
+      // Fall back to the stable key when the server omits a label —
+      // covers transitional payloads and admin-side keys that aren't
+      // editorialized yet.
+      label: json['label'] == null
+          ? LocalizedText.fromJson(key)
+          : LocalizedText.fromJson(json['label']),
+      value: LocalizedText.fromJson(json['value']),
+    );
+  }
+
+  /// Stable identifier (e.g. `weight`, `finish`). Useful for tests and
+  /// for analytics; never surfaced to users.
+  final String key;
+
+  /// Bilingual user-facing label.
+  final LocalizedText label;
+
+  /// Bilingual user-facing value.
+  final LocalizedText value;
 }

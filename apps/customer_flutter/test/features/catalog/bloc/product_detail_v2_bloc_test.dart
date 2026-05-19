@@ -27,7 +27,7 @@ const _detail = CatalogProductDetail(
   name: LocalizedText(en: 'Tile A'),
   description: LocalizedText(en: 'desc'),
   mediaUrls: [],
-  attributes: {},
+  attributes: [],
   priceHint: CatalogMoney(amountMinor: 12000, currency: 'SAR'),
   isRestricted: false,
 );

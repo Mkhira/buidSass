@@ -106,9 +106,8 @@ class ProductCard extends StatelessWidget {
                   onRequestVerification: onRequestVerification,
                   compact: true,
                   child: FilledButton(
-                    onPressed: availability?.inStock == false
-                        ? null
-                        : onAddToCart,
+                    onPressed:
+                        availability?.inStock == false ? null : onAddToCart,
                     child: Text(copy.addToCart),
                   ),
                 ),

@@ -28,8 +28,8 @@ void main() {
     act: (b) => b.add(const CategoriesListRequested()),
     expect: () => [
       isA<CategoriesListLoading>(),
-      isA<CategoriesListLoaded>().having(
-          (s) => s.categories, 'categories', hasLength(1)),
+      isA<CategoriesListLoaded>()
+          .having((s) => s.categories, 'categories', hasLength(1)),
     ],
   );
 
@@ -49,9 +49,7 @@ void main() {
     build: () {
       when(() => catalog.listCategories(market: any(named: 'market')))
           .thenThrow(const OfflineFailure(
-              code: 'network.offline',
-              message: 'x',
-              correlationId: 'c-1'));
+              code: 'network.offline', message: 'x', correlationId: 'c-1'));
       return CategoriesListBloc(gateway: catalog);
     },
     act: (b) => b.add(const CategoriesListRequested()),
@@ -66,7 +64,6 @@ void main() {
       return CategoriesListBloc(gateway: catalog);
     },
     act: (b) => b.add(const CategoriesListRequested(market: 'eg')),
-    verify: (_) =>
-        verify(() => catalog.listCategories(market: 'eg')).called(1),
+    verify: (_) => verify(() => catalog.listCategories(market: 'eg')).called(1),
   );
 }

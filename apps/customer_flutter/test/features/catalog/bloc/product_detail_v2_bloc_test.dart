@@ -66,7 +66,8 @@ void main() {
             slug: any(named: 'slug'),
             market: any(named: 'market'),
           )).thenAnswer((_) async => _detail);
-      when(() => pricing.preview(any())).thenAnswer((_) async => const PriceQuote(
+      when(() => pricing.preview(any())).thenAnswer((_) async =>
+          const PriceQuote(
             total: CatalogMoney(amountMinor: 12000, currency: 'SAR'),
             lines: [
               PricedLine(
@@ -85,18 +86,18 @@ void main() {
             productIds: any(named: 'productIds'),
             market: any(named: 'market'),
           )).thenAnswer((_) async => const [
-                InventoryAvailability(
-                    productId: 'p-1', inStock: true, lowStock: false),
-              ]);
+            InventoryAvailability(
+                productId: 'p-1', inStock: true, lowStock: false),
+          ]);
       when(() => reviews.getAggregate(
             productId: any(named: 'productId'),
             marketCode: any(named: 'marketCode'),
           )).thenAnswer((_) async => const ReviewsAggregate(
-                productId: 'p-1',
-                ratingAverage: 4.5,
-                ratingCount: 30,
-                starHistogram: [],
-              ));
+            productId: 'p-1',
+            ratingAverage: 4.5,
+            ratingCount: 30,
+            starHistogram: [],
+          ));
       return build();
     },
     act: (b) => b.add(const ProductDetailV2Requested()),
@@ -115,12 +116,11 @@ void main() {
     'product failure halts the screen',
     build: () {
       when(() => catalog.getProductBySlug(
-            slug: any(named: 'slug'),
-            market: any(named: 'market'),
-          )).thenThrow(const NotFoundFailure(
-              code: 'product.not_found',
-              message: 'x',
-              correlationId: 'c-1'));
+                slug: any(named: 'slug'),
+                market: any(named: 'market'),
+              ))
+          .thenThrow(const NotFoundFailure(
+              code: 'product.not_found', message: 'x', correlationId: 'c-1'));
       return build();
     },
     act: (b) => b.add(const ProductDetailV2Requested()),
@@ -167,7 +167,8 @@ void main() {
             slug: any(named: 'slug'),
             market: any(named: 'market'),
           )).thenAnswer((_) async => _detail);
-      when(() => pricing.preview(any())).thenAnswer((_) async => const PriceQuote(
+      when(() => pricing.preview(any())).thenAnswer((_) async =>
+          const PriceQuote(
             total: CatalogMoney(amountMinor: 11500, currency: 'SAR'),
             lines: [
               PricedLine(

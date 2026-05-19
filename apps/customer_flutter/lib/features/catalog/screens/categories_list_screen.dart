@@ -64,8 +64,7 @@ class CategoriesListScreen extends StatelessWidget {
                 child: GridView.builder(
                   padding: const EdgeInsets.all(AppSpacing.md),
                   itemCount: categories.length,
-                  gridDelegate:
-                      const SliverGridDelegateWithFixedCrossAxisCount(
+                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                     crossAxisCount: 2,
                     mainAxisSpacing: AppSpacing.sm,
                     crossAxisSpacing: AppSpacing.sm,

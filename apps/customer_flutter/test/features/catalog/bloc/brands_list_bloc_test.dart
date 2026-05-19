@@ -46,11 +46,9 @@ void main() {
   blocTest<BrandsListBloc, BrandsListState>(
     'Loading -> Error on Failure',
     build: () {
-      when(() => catalog.listBrands(market: any(named: 'market')))
-          .thenThrow(const ServerFailure(
-              code: 'server.boom',
-              message: 'x',
-              correlationId: 'c-1'));
+      when(() => catalog.listBrands(market: any(named: 'market'))).thenThrow(
+          const ServerFailure(
+              code: 'server.boom', message: 'x', correlationId: 'c-1'));
       return BrandsListBloc(gateway: catalog);
     },
     act: (b) => b.add(const BrandsListRequested()),

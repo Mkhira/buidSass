@@ -195,8 +195,8 @@ class CatalogHomeBloc extends Bloc<CatalogHomeEvent, CatalogHomeState> {
     String market,
   ) async {
     try {
-      final list =
-          await _inventory.getAvailability(productIds: productIds, market: market);
+      final list = await _inventory.getAvailability(
+          productIds: productIds, market: market);
       return {for (final av in list) av.productId: av};
     } on Failure {
       return null;

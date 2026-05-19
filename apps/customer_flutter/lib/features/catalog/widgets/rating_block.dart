@@ -96,9 +96,8 @@ class _StarHistogram extends StatelessWidget {
     return Column(
       children: List.generate(5, (idx) {
         final star = 5 - idx;
-        final count = star - 1 < distribution.length
-            ? distribution[star - 1]
-            : 0;
+        final count =
+            star - 1 < distribution.length ? distribution[star - 1] : 0;
         final ratio = total == 0 ? 0.0 : count / total;
         return Padding(
           padding: const EdgeInsets.symmetric(vertical: 2),
@@ -155,8 +154,7 @@ class RatingBlockLabels {
   /// announced phrase. Default is English.
   final String Function(String avg, int count)? semanticLabelBuilder;
 
-  String semanticLabel(String avg, int count) =>
-      semanticLabelBuilder != null
-          ? semanticLabelBuilder!(avg, count)
-          : 'Rating $avg from $count reviews';
+  String semanticLabel(String avg, int count) => semanticLabelBuilder != null
+      ? semanticLabelBuilder!(avg, count)
+      : 'Rating $avg from $count reviews';
 }

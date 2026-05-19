@@ -119,8 +119,8 @@ void main() {
       );
       expect(result, isNotNull);
       expect(result!.ratingCount, 10);
-      expect(pair.stub.requests.single.path,
-          '/v1/public/reviews/aggregates/p-1');
+      expect(
+          pair.stub.requests.single.path, '/v1/public/reviews/aggregates/p-1');
     });
 
     test('single-element array response is unwrapped', () async {
@@ -143,8 +143,7 @@ void main() {
     test('malformed body returns null instead of throwing', () async {
       final pair = _buildStubbedDio((opts) => 'oops');
       final gw = ReviewsAggregatesGatewayImpl(dio: pair.dio);
-      final result =
-          await gw.getAggregate(productId: 'p-1', marketCode: 'SA');
+      final result = await gw.getAggregate(productId: 'p-1', marketCode: 'SA');
       expect(result, isNull);
     });
   });

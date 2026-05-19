@@ -48,9 +48,8 @@ void main() {
     reviews = _MockReviews();
     registerFallbackValue(<String>[]);
     when(() => inventory.getAvailability(
-            productIds: any(named: 'productIds'),
-            market: any(named: 'market')))
-        .thenAnswer((_) async => const []);
+        productIds: any(named: 'productIds'),
+        market: any(named: 'market'))).thenAnswer((_) async => const []);
     when(() => reviews.getAggregatesBatch(
             productIds: any(named: 'productIds'),
             marketCode: any(named: 'marketCode')))
@@ -75,29 +74,29 @@ void main() {
             market: any(named: 'market'),
             pageSize: any(named: 'pageSize'),
           )).thenAnswer((_) async => const CatalogProductPage(
-                items: [_prod1],
-                page: 1,
-                pageSize: 8,
-                totalItems: 1,
-              ));
+            items: [_prod1],
+            page: 1,
+            pageSize: 8,
+            totalItems: 1,
+          ));
       when(() => inventory.getAvailability(
             productIds: any(named: 'productIds'),
             market: any(named: 'market'),
           )).thenAnswer((_) async => const [
-                InventoryAvailability(
-                    productId: 'p-1', inStock: true, lowStock: false),
-              ]);
+            InventoryAvailability(
+                productId: 'p-1', inStock: true, lowStock: false),
+          ]);
       when(() => reviews.getAggregatesBatch(
             productIds: any(named: 'productIds'),
             marketCode: any(named: 'marketCode'),
           )).thenAnswer((_) async => const [
-                ReviewsAggregate(
-                  productId: 'p-1',
-                  ratingAverage: 4.5,
-                  ratingCount: 10,
-                  starHistogram: [],
-                ),
-              ]);
+            ReviewsAggregate(
+              productId: 'p-1',
+              ratingAverage: 4.5,
+              ratingCount: 10,
+              starHistogram: [],
+            ),
+          ]);
       return build();
     },
     act: (b) => b.add(const CatalogHomeRequested()),
@@ -124,9 +123,7 @@ void main() {
     build: () {
       when(() => catalog.listCategories(market: any(named: 'market')))
           .thenThrow(const OfflineFailure(
-              code: 'network.offline',
-              message: 'x',
-              correlationId: 'c-1'));
+              code: 'network.offline', message: 'x', correlationId: 'c-1'));
       when(() => catalog.listBrands(market: any(named: 'market')))
           .thenAnswer((_) async => const []);
       return build();
@@ -151,26 +148,26 @@ void main() {
             market: any(named: 'market'),
             pageSize: any(named: 'pageSize'),
           )).thenAnswer((_) async => const CatalogProductPage(
-                items: [_prod1],
-                page: 1,
-                pageSize: 8,
-                totalItems: 1,
-              ));
+            items: [_prod1],
+            page: 1,
+            pageSize: 8,
+            totalItems: 1,
+          ));
       when(() => inventory.getAvailability(
-            productIds: any(named: 'productIds'),
-            market: any(named: 'market'),
-          )).thenThrow(const ValidationFailure(
+                productIds: any(named: 'productIds'),
+                market: any(named: 'market'),
+              ))
+          .thenThrow(const ValidationFailure(
               code: 'rate.limited',
               message: 'x',
               correlationId: 'c-2',
               retryAfterSeconds: 60));
       when(() => reviews.getAggregatesBatch(
-            productIds: any(named: 'productIds'),
-            marketCode: any(named: 'marketCode'),
-          )).thenThrow(const ValidationFailure(
-              code: 'rate.limited',
-              message: 'x',
-              correlationId: 'c-3'));
+                productIds: any(named: 'productIds'),
+                marketCode: any(named: 'marketCode'),
+              ))
+          .thenThrow(const ValidationFailure(
+              code: 'rate.limited', message: 'x', correlationId: 'c-3'));
       return build();
     },
     act: (b) => b.add(const CatalogHomeRequested()),

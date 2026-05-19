@@ -134,7 +134,8 @@ class CatalogGatewayImpl implements CatalogGateway {
       final raw = res.data;
       if (raw is! Map) {
         throw DioException(
-          requestOptions: RequestOptions(path: '/v1/customer/catalog/products/$slug'),
+          requestOptions:
+              RequestOptions(path: '/v1/customer/catalog/products/$slug'),
           type: DioExceptionType.unknown,
           error: 'Malformed product detail payload',
         );
@@ -199,6 +200,5 @@ class _CacheEntry {
   final Object? value;
   final DateTime storedAt;
 
-  bool isExpired(DateTime now, Duration ttl) =>
-      now.difference(storedAt) >= ttl;
+  bool isExpired(DateTime now, Duration ttl) => now.difference(storedAt) >= ttl;
 }

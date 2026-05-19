@@ -12,8 +12,8 @@ class FeatureFlags {
         bool.fromEnvironment('VERIFICATION_CTA_SHIPPED', defaultValue: false);
     const cms =
         bool.fromEnvironment('CMS_CONTENT_SHIPPED', defaultValue: false);
-    const identity = bool.fromEnvironment('IDENTITY_CLIENT_SHIPPED',
-        defaultValue: false);
+    const identity =
+        bool.fromEnvironment('IDENTITY_CLIENT_SHIPPED', defaultValue: false);
     return const FeatureFlags(
       verificationCtaShipped: verification,
       cmsContentShipped: cms,

@@ -39,8 +39,7 @@ class ReviewsAggregatesGatewayImpl implements ReviewsAggregatesGateway {
       try {
         return data
             .whereType<Map>()
-            .map((m) =>
-                ReviewsAggregate.fromJson(Map<String, Object?>.from(m)))
+            .map((m) => ReviewsAggregate.fromJson(Map<String, Object?>.from(m)))
             .toList(growable: false);
       } on Object catch (e) {
         // Cast / fromJson failures — surface as a typed Failure so the

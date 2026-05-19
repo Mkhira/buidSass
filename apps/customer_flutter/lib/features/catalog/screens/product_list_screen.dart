@@ -102,8 +102,7 @@ class ProductListScreen extends StatelessWidget {
                       .add(const ProductListRefreshed()),
                   child: NotificationListener<ScrollNotification>(
                     onNotification: (n) {
-                      if (n.metrics.pixels >=
-                              n.metrics.maxScrollExtent - 240 &&
+                      if (n.metrics.pixels >= n.metrics.maxScrollExtent - 240 &&
                           state.hasMore &&
                           !state.loadingMore) {
                         context
@@ -173,8 +172,7 @@ class _ErrorView extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.error_outline,
-                size: 32, color: AppColors.danger),
+            const Icon(Icons.error_outline, size: 32, color: AppColors.danger),
             const SizedBox(height: AppSpacing.sm),
             Text(failedToLoad),
             const SizedBox(height: AppSpacing.sm),

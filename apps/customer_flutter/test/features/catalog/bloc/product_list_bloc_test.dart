@@ -46,9 +46,8 @@ void main() {
     inventory = _MockInventory();
     reviews = _MockReviews();
     when(() => inventory.getAvailability(
-            productIds: any(named: 'productIds'),
-            market: any(named: 'market')))
-        .thenAnswer((_) async => const []);
+        productIds: any(named: 'productIds'),
+        market: any(named: 'market'))).thenAnswer((_) async => const []);
     when(() => reviews.getAggregatesBatch(
             productIds: any(named: 'productIds'),
             marketCode: any(named: 'marketCode')))
@@ -187,19 +186,18 @@ void main() {
     'Error on initial load surfaces in state.failure',
     build: () {
       when(() => catalog.listCategoryProducts(
-            slug: any(named: 'slug'),
-            market: any(named: 'market'),
-            page: any(named: 'page'),
-            pageSize: any(named: 'pageSize'),
-            sort: any(named: 'sort'),
-            brand: any(named: 'brand'),
-            priceMin: any(named: 'priceMin'),
-            priceMax: any(named: 'priceMax'),
-            restricted: any(named: 'restricted'),
-          )).thenThrow(const OfflineFailure(
-              code: 'network.offline',
-              message: 'x',
-              correlationId: 'c-1'));
+                slug: any(named: 'slug'),
+                market: any(named: 'market'),
+                page: any(named: 'page'),
+                pageSize: any(named: 'pageSize'),
+                sort: any(named: 'sort'),
+                brand: any(named: 'brand'),
+                priceMin: any(named: 'priceMin'),
+                priceMax: any(named: 'priceMax'),
+                restricted: any(named: 'restricted'),
+              ))
+          .thenThrow(const OfflineFailure(
+              code: 'network.offline', message: 'x', correlationId: 'c-1'));
       return build();
     },
     act: (b) => b.add(const ProductListStarted(_q)),
@@ -227,20 +225,20 @@ void main() {
             productIds: any(named: 'productIds'),
             market: any(named: 'market'),
           )).thenAnswer((_) async => const [
-                InventoryAvailability(
-                    productId: 'p-1', inStock: true, lowStock: false),
-              ]);
+            InventoryAvailability(
+                productId: 'p-1', inStock: true, lowStock: false),
+          ]);
       when(() => reviews.getAggregatesBatch(
             productIds: any(named: 'productIds'),
             marketCode: any(named: 'marketCode'),
           )).thenAnswer((_) async => const [
-                ReviewsAggregate(
-                  productId: 'p-1',
-                  ratingAverage: 4.0,
-                  ratingCount: 5,
-                  starHistogram: [],
-                ),
-              ]);
+            ReviewsAggregate(
+              productId: 'p-1',
+              ratingAverage: 4.0,
+              ratingCount: 5,
+              starHistogram: [],
+            ),
+          ]);
       return build();
     },
     act: (b) => b.add(const ProductListStarted(_q)),

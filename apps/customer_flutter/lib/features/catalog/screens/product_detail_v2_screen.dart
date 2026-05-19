@@ -149,8 +149,7 @@ class _Media extends StatelessWidget {
         aspectRatio: 1,
         child: ColoredBox(
           color: AppColors.neutral,
-          child: Icon(Icons.image_outlined,
-              color: AppColors.textSecondary),
+          child: Icon(Icons.image_outlined, color: AppColors.textSecondary),
         ),
       );
     }
@@ -346,8 +345,7 @@ class _ErrorView extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.error_outline,
-                size: 32, color: AppColors.danger),
+            const Icon(Icons.error_outline, size: 32, color: AppColors.danger),
             const SizedBox(height: AppSpacing.sm),
             Text(failedToLoad),
             const SizedBox(height: AppSpacing.sm),

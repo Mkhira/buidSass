@@ -81,8 +81,7 @@ void main() {
       final gw = CatalogGatewayImpl(dio: pair.dio, locale: () => 'en');
       await gw.listCategories(market: 'eg');
       expect(pair.stub.requests.single.queryParameters['market'], 'eg');
-      expect(pair.stub.requests.single.path,
-          '/v1/customer/catalog/categories');
+      expect(pair.stub.requests.single.path, '/v1/customer/catalog/categories');
     });
 
     test('maps DioException to a typed Failure', () async {
@@ -226,8 +225,7 @@ void main() {
             'restrictedRationale': {'en': 'Requires verification'},
           });
       final gw = CatalogGatewayImpl(dio: pair.dio, locale: () => 'en');
-      final detail =
-          await gw.getProductBySlug(slug: 'tile-a', market: 'ksa');
+      final detail = await gw.getProductBySlug(slug: 'tile-a', market: 'ksa');
       expect(detail.sku, 'SKU-1');
       expect(detail.name.resolve('ar'), 'بلاط أ');
       expect(detail.attributes, hasLength(2));
@@ -237,12 +235,11 @@ void main() {
       expect(detail.attributes.last.value.resolve('en'), '30x30');
       expect(detail.mediaUrls, hasLength(2));
       expect(detail.isRestricted, isTrue);
-      expect(detail.restrictedRationale?.resolve('en'),
-          'Requires verification');
+      expect(
+          detail.restrictedRationale?.resolve('en'), 'Requires verification');
     });
 
-    test('decodes legacy map-shape attributes for backwards compat',
-        () async {
+    test('decodes legacy map-shape attributes for backwards compat', () async {
       final pair = _buildStubbedDio((opts) => {
             'id': 'p-1',
             'slug': 'tile-a',
@@ -257,8 +254,7 @@ void main() {
             'priceHint': {'amount': '0.00', 'currency': 'SAR'},
           });
       final gw = CatalogGatewayImpl(dio: pair.dio, locale: () => 'en');
-      final detail =
-          await gw.getProductBySlug(slug: 'tile-a', market: 'ksa');
+      final detail = await gw.getProductBySlug(slug: 'tile-a', market: 'ksa');
       expect(detail.attributes, hasLength(1));
       // Label falls back to the JSON key — Arabic label arrives once the
       // server upgrades to the new list shape.

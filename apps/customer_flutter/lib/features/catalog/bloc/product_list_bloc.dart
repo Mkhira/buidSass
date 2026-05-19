@@ -86,8 +86,7 @@ class ProductListState {
   final bool loadingMore;
   final Failure? failure;
 
-  bool get isEmpty =>
-      !loadingInitial && items.isEmpty && failure == null;
+  bool get isEmpty => !loadingInitial && items.isEmpty && failure == null;
 
   ProductListState copyWith({
     ProductListQuery? query,
@@ -289,7 +288,8 @@ class ProductListBloc extends Bloc<ProductListEvent, ProductListState> {
           )),
     ]);
     if (emit.isDone) return;
-    final mergedAvail = Map<String, InventoryAvailability>.from(state.availability);
+    final mergedAvail =
+        Map<String, InventoryAvailability>.from(state.availability);
     if (results[0] is List<InventoryAvailability>) {
       for (final av in results[0] as List<InventoryAvailability>) {
         mergedAvail[av.productId] = av;

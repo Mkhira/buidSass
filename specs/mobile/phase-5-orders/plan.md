@@ -2,7 +2,7 @@
 
 ## Module layout
 
-```
+```text
 apps/customer_flutter/lib/features/orders/
 ├── data/
 │   ├── orders_gateway.dart                # 5 endpoints
@@ -30,7 +30,7 @@ Standard sealed-state shape. `OrderDetailBloc` orchestrates two parallel calls (
 
 ## Routing additions
 
-```
+```text
 /orders                                                  (existing)
 /orders/{id}                                             (existing)
 /orders/{id}/cancel                                      → CancelOrderScreen (new)
@@ -46,8 +46,9 @@ Tracking renders inline within `/orders/{id}` via `TrackingTimeline`.
 3. OrderDetailBloc + screen verify + four-state-pill widget (T-5.3, T-5.4).
 4. CancelOrderBloc + screen (T-5.5).
 5. ReorderBloc + screen with cart merge (T-5.6).
-6. TrackingTimeline widget (T-5.7).
-7. Tests + exit (T-5.8, T-5.9).
+6. TrackingTimeline widget (T-5.3 — co-delivered with state-pills widget).
+7. Retry-payment hand-off (T-5.7).
+8. Tests + exit (T-5.8, T-5.9).
 
 ## Risks specific to Phase 5
 

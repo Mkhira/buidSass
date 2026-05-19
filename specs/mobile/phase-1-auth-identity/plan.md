@@ -132,10 +132,10 @@ See [`tasks.md`](./tasks.md) for the ordered task list. Summary order:
 1. **Foundation** (T-1.1 – T-1.6): error types, session store, Dio factory + interceptors, theme, router, identity gateway. Block on completion.
 2. **Splash** (T-1.7): consume foundation; first end-to-end exercise of refresh + me.
 3. **Login + Register + OTP** (T-1.8 – T-1.10): existing screens, verify + retrofit to Bloc shape + foundation interceptors.
-4. **Password reset** (T-1.11 – T-1.12): split existing single screen into request + complete sub-routes.
-5. **Email confirm** (T-1.13): new screen + deep-link wiring.
-6. **More hub + Account Security + Locale + Sessions** (T-1.14 – T-1.17): More tab destinations.
-7. **Phase exit** (T-1.18): run flutter analyze + flutter test, update overview doc §8 status row.
+4. **Password reset** (T-1.11): split existing single screen into request + complete sub-routes (covers S-1.6 + S-1.7).
+5. **Email confirm** (T-1.12): new screen + deep-link wiring.
+6. **More hub + Account Security + Locale + Sessions** (T-1.13 – T-1.16): More tab destinations (T-1.13 More hub, T-1.14 Account Security, T-1.15 Locale & Market, T-1.16 Sessions).
+7. **Phase exit** (T-1.17 – T-1.18): T-1.17 `flutter analyze` + `flutter test` sweep; T-1.18 update overview doc §8 status row.
 
 ## Testing strategy
 

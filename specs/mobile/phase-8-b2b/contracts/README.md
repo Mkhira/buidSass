@@ -12,7 +12,7 @@
 
 ## Endpoints
 
-```
+```text
 # Quotes (b2b)
 GET    /api/customer/quotes
 GET    /api/customer/quotes/awaiting-my-approval

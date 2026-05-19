@@ -4,7 +4,7 @@
 
 ## Module layout
 
-```
+```text
 apps/customer_flutter/lib/features/
 ├── catalog/
 │   ├── data/
@@ -60,7 +60,7 @@ Same shape as Phase 1 (sealed states/events, `Failure` from `core/error/failure.
 
 ## Routing additions
 
-```
+```text
 /home                            (existing)
 /categories                      → CategoriesListScreen (new)
 /categories/{slug}               → ListingScreen (existing wraps ProductList with categorySlug)

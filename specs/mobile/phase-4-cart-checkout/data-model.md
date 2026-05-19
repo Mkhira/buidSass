@@ -106,4 +106,4 @@ Response: refreshed summary.
 }
 ```
 
-Persisted to `shared_preferences` under `cart.v1`. Cleared on submit-success and on sign-out.
+Persisted to `shared_preferences` under `cart.v1`. Clearing behavior follows BR-1 in [`./spec.md`](./spec.md): configurable via a single setting whose default clears the cart on submit-success and on sign-out. The setting itself is not user-exposed at launch; the default is the implementation.

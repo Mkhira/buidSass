@@ -12,15 +12,15 @@
 
 ## Endpoints
 
-```
+```text
 POST   /api/customer/verifications              # Idempotency-Key REQUIRED
 GET    /api/customer/verifications
 GET    /api/customer/verifications/active
 GET    /api/customer/verifications/schema
 GET    /api/customer/verifications/{id}
 POST   /api/customer/verifications/{id}/documents
-POST   /api/customer/verifications/{id}/resubmit
-POST   /api/customer/verifications/renew
+POST   /api/customer/verifications/{id}/resubmit  # Idempotency-Key REQUIRED
+POST   /api/customer/verifications/renew          # Idempotency-Key REQUIRED
 
 POST   /v1/customer/reviews                     # Idempotency-Key REQUIRED
 GET    /v1/customer/reviews/me

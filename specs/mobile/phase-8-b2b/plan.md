@@ -2,7 +2,7 @@
 
 ## Module layout
 
-```
+```text
 apps/customer_flutter/lib/features/
 ├── b2b/
 │   ├── data/
@@ -52,7 +52,7 @@ apps/customer_flutter/lib/features/
 
 ## Routing additions
 
-```
+```text
 /quotes                                                                  → MyQuotesScreen
 /quotes/awaiting-approval                                                → AwaitingApprovalScreen
 /quotes/from-cart                                                        → QuoteFromCartScreen

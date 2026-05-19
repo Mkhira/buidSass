@@ -39,6 +39,7 @@ Response:
 ```
 
 ### POST `/api/customer/verifications/{id}/resubmit`
+Headers: `Idempotency-Key` REQUIRED (BR-4a in `spec.md`).
 Request:
 ```json
 { "fields": { "businessLicense": "new value" }, "noteToAdmin": "string?" }
@@ -46,6 +47,7 @@ Request:
 Response: refreshed detail.
 
 ### POST `/api/customer/verifications/renew`
+Headers: `Idempotency-Key` REQUIRED (BR-5a in `spec.md`).
 Request:
 ```json
 { "priorVerificationId": "uuid", "marketCode": "SA | EG" }

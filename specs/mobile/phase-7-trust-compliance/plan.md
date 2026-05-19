@@ -2,7 +2,7 @@
 
 ## Module layout
 
-```
+```text
 apps/customer_flutter/lib/features/
 ├── verification/
 │   ├── data/{verification_gateway,verification_gateway_impl}.dart
@@ -28,6 +28,11 @@ Widget renderField(SchemaField f, dynamic value, void Function(dynamic) onChange
     case 'enum': return DropdownButton(items: f.options, ...);
     case 'date': return DatePicker(...);
     case 'doc': return DocumentSlot(slotKey: f.key, ...);  // document slot, no upload yet
+    default:
+      // Defensive fallback: matches the `quickstart.md` troubleshooting note —
+      // unknown server-introduced types render as a plain text input so the
+      // form remains usable instead of crashing.
+      return TextField(...);
   }
 }
 ```

@@ -2,7 +2,7 @@
 
 ## Module layout
 
-```
+```text
 apps/customer_flutter/lib/features/
 ├── cart/
 │   ├── data/
@@ -60,7 +60,7 @@ The `IdempotencyInterceptor` (Phase 1) picks the key from `RequestOptions.extra[
 
 Each payment method has an adapter in `lib/features/checkout/payment_adapters/`:
 
-```
+```text
 card_adapter.dart           # hosted-fields (provider SDK)
 apple_pay_adapter.dart      # PassKit
 mada_adapter.dart           # provider SDK
@@ -84,7 +84,7 @@ abstract class PaymentAdapter {
 
 ## Routing additions
 
-```
+```text
 /cart                                                    (existing)
 /checkout                                                → CheckoutStartScreen
 /checkout/{sessionId}/summary                            → CheckoutSummaryScreen
@@ -107,9 +107,12 @@ Session id is preserved in `SessionStore.checkoutSessionId` so a cold-start mid-
 6. Shipping step (T-4.8).
 7. Payment step + adapters (T-4.9 … T-4.12).
 8. Review + submit + idempotency (T-4.13).
-9. Confirmation screen verify (T-4.14).
-10. 3DS / WebView return handling (T-4.15).
-11. Tests + exit (T-4.16, T-4.17).
+9. Drift dialog wiring (T-4.14).
+10. Confirmation screen verify (T-4.15).
+11. 3DS / WebView return handler (T-4.16).
+12. Resume mid-flow on cold start (T-4.17).
+13. PCI scope guard (CI grep) (T-4.18).
+14. Phase exit — analyze + tests (T-4.19), update overview doc (T-4.20).
 
 ## Risks specific to Phase 4
 

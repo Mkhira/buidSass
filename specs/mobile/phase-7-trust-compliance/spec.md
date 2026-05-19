@@ -27,7 +27,9 @@ Deliver verification (KYC-style) submission, document upload, resubmit, renew, p
 | BR-2 | Verification submit requires `Idempotency-Key`. | Principle 13 |
 | BR-3 | Document upload happens after verification creation (the case must exist to attach to). One upload per call; multiple docs supported. | Principle 17 (analogue) |
 | BR-4 | Resubmit endpoint is used after admin requested info; the screen surfaces a checklist of fixes derived from `verification.detail.requestedInfo[]`. | Principle 23 |
+| BR-4a | Resubmit requires `Idempotency-Key` (one key per resubmit intent, regenerated each time the user re-enters the resubmit screen). | Principle 13 |
 | BR-5 | Renewal endpoint creates a fresh case linked to a prior verification; UI surfaces both as separate cases in the list. | Principle 23 |
+| BR-5a | Renew requires `Idempotency-Key` (one key per renew intent). | Principle 13 |
 | BR-6 | Review submission requires verified-buyer eligibility (server enforces; client surfaces a "Buy this product to review it" empty state otherwise). | Principle 15 |
 | BR-7 | Review submission carries `Idempotency-Key`. | Principle 13 |
 | BR-8 | Reviews are single-locale per Principle 4's long-form rule. Submit screen offers a locale selector defaulting to the user's locale. | Principle 4, 15 |
@@ -180,8 +182,8 @@ loading → loaded (timeline + fields + documents + requested-info checklist + U
 #### Endpoints used
 | Method | Path | When | Idempotent | Notes |
 |---|---|---|---|---|
-| POST | /api/customer/verifications/{id}/resubmit | submit (resubmit flow) | yes | |
-| POST | /api/customer/verifications/renew | submit (renew flow) | yes | creates a new linked case |
+| POST | /api/customer/verifications/{id}/resubmit | submit (resubmit flow) | yes | **Idempotency-Key required** (BR-4a) |
+| POST | /api/customer/verifications/renew | submit (renew flow) | yes | **Idempotency-Key required** (BR-5a); creates a new linked case |
 
 #### Response data shape
 Resubmit → refreshed detail; renew → new case id + state submitted.

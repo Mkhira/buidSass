@@ -21,8 +21,11 @@ apps/customer_flutter/lib/features/search/
 
 `SearchBloc` is a single Bloc with multiple states (`SearchIdle`, `SearchAutocompleting`, `SearchAutocompleted`, `SearchResults`, `SearchEmpty`, `SearchFailure`). One Bloc avoids state thrash when the user types into the input and the screen toggles between sub-states.
 
-Debouncing handled inside the Bloc with `EventTransformer<SearchQueryChanged>`:
+Debouncing handled inside the Bloc with `EventTransformer<SearchQueryChanged>`. `debounceTime` and `switchMap` are **RxDart** operators, so this phase introduces `rxdart` as a `dependencies:` entry in `apps/customer_flutter/pubspec.yaml` (if not already present). Import where the transformer is defined:
+
 ```dart
+import 'package:rxdart/rxdart.dart';
+
 EventTransformer<E> debounce<E>(Duration d) =>
     (events, mapper) => events.debounceTime(d).switchMap(mapper);
 ```

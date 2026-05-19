@@ -10,7 +10,7 @@
 
 ## Endpoints
 
-```
+```text
 GET    /v1/customer/orders
 GET    /v1/customer/orders/{id}
 POST   /v1/customer/orders/{id}/cancel

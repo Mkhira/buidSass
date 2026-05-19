@@ -36,13 +36,19 @@ sealed class PhotoTileState { /* uploading, ready, failed */ }
 Each tile carries:
 - Original file reference (for re-upload on retry).
 - Server `photoId` once upload returns.
-- A `clientPhotoKey` (UUID) used in the upload's Idempotency-Key so a retry yields the same server-side photo (server dedupe by checksum + key).
+- A `clientPhotoKey` (UUID v4) — sent as both the HTTP `Idempotency-Key` header AND the multipart form field `clientPhotoKey`. The server dedupes by `(clientPhotoKey, checksum)` so a retry yields the same `photoId`. See [`./data-model.md`](./data-model.md#post-v1customerreturnsphotos) and [`./contracts/README.md`](./contracts/README.md) for the exact contract.
+
+**Cache key for any client-side state keyed on the photo:** `clientPhotoKey` (not `photoId`, since `photoId` is only known after upload succeeds).
 
 Downscale images > 10 MB locally with `image` package to ≤ 2 MB before upload.
 
 ## PDF caching
 
-`InvoicePdfBloc` downloads via Dio with `responseType: ResponseType.bytes`, writes to `getTemporaryDirectory()/invoices/{orderId}-{invoiceNumber}.pdf`. Cache key invalidated when `issuedAt` changes on the preview payload.
+`InvoicePdfBloc` downloads via Dio with `responseType: ResponseType.bytes`, writes to `getTemporaryDirectory()/invoices/{orderId}-{invoiceNumber}.pdf`.
+
+**Logical cache key:** `(orderId, invoiceNumber, issuedAt)`. The on-disk filename only embeds `orderId` and `invoiceNumber`; `issuedAt` is the eviction trigger. Eviction rules:
+- If the preview's `issuedAt` changes, the cached file is overwritten on next download.
+- If the preview's `invoiceNumber` changes (regenerated invoice), the old file is orphaned and removed by the 30-day sweeper; the new file lives under the new `invoiceNumber` filename.
 
 `Open` uses `open_filex`; `Share` uses `share_plus`. Both reject if the file is no longer at the cached path (re-download triggered).
 

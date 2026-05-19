@@ -3,7 +3,7 @@
 > **Phase:** 4 of 8 · **Owner:** mobile + checkout + pricing · **Last updated:** 2026-05-19
 > **OpenAPI sources:** [`openapi.checkout.json`](../../../services/backend_api/openapi.checkout.json), [`openapi.pricing.json`](../../../services/backend_api/openapi.pricing.json), [`openapi.inventory.json`](../../../services/backend_api/openapi.inventory.json), and `identity.json` for address management (addresses are part of the customer profile; see notes below).
 > **Endpoint count:** 8 checkout + 1 pricing + 1 inventory = 10 customer-callable.
-> **Depends on:** Phase 1 (foundation, addresses), Phase 2 (price/inventory gateways, PDP price-quote contract).
+> **Depends on:** Phase 1 (foundation; address management from the customer profile `me` payload — see BR-10), Phase 2 (price/inventory gateways, PDP price-quote contract).
 
 ---
 
@@ -35,7 +35,7 @@ Cart is **client-state**. The backend touches the cart only via `POST /customer/
 | BR-7 | Bank-transfer flow shows a reference number + bank details after submit; order enters `pending_bank_transfer` state. | Principle 17 |
 | BR-8 | Failed payment (provider declines, etc.) routes user back to Payment step with an error banner; retry uses the same checkout session and same Idempotency-Key. | Principle 13 |
 | BR-9 | Cart panel batches `inventory/availability` for all line items on every open; lines that became unavailable get a strike-through + remove CTA. | Principle 11 |
-| BR-10 | Addresses are managed in the customer profile (`/api/customer/identity/me` profile addresses array — out of strict Phase 1 scope, but the existing `apps/customer_flutter/lib/features/more/screens/addresses_screen.dart` confirms a profile-level address management exists). Checkout consumes the existing address list; address CRUD belongs to Phase 1 More. *If the address CRUD endpoints aren't yet in OpenAPI surface, Phase 4 documents them as a gap.* | Principle 27 |
+| BR-10 | Addresses are managed in the customer profile. Checkout READS the existing address list from the `me` payload and the checkout session summary; checkout WRITES the chosen/new address via `PATCH /v1/customer/checkout/sessions/{sessionId}/address`. Standalone address CRUD outside of checkout (add/edit/remove from `/more/addresses`) is **out of Phase 4 scope** — the existing `apps/customer_flutter/lib/features/more/screens/addresses_screen.dart` is treated as a Phase 1 More-hub destination. **Gap documented:** if the OpenAPI surface lacks dedicated profile-level address CRUD endpoints at the time of Phase 4 implementation, the More-hub addresses screen reads-only from `me` and add/edit flows route the user into a checkout-session-scoped flow; resolution belongs to the team owning the identity contract (spec 004), not to Phase 4. | Principle 27 |
 
 ## 4. Screens
 
@@ -356,7 +356,7 @@ success illustration + order number + bank-transfer reference (if applicable) + 
 
 Server is the source of truth (Principle 24). Client mirrors the relevant states:
 
-```
+```text
 [Cart] --(POST sessions)--> [SessionCreated]
                                  |
                                  v

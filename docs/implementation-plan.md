@@ -930,6 +930,8 @@ Hybrid: Stages 0–2 collapse into **3 foundation specs** (001–003); Stages 3�
 
 The number column is *suggested execution order* — `create-new-feature.sh` will assign real sequential numbers at creation time.
 
+**Customer mobile screen specs.** Spec 014 (`customer-app-shell`) frames the mobile shell; the full per-screen, per-endpoint mobile delivery is carved into 8 sequential phase specs under [`specs/mobile/`](../specs/mobile/) (`phase-1-auth-identity/` through `phase-8-b2b/`). Each follows the standard Spec Kit layout (`spec.md`, `plan.md`, `tasks.md`, `data-model.md`, `contracts/`, `quickstart.md`, `checklists/`) and is independently `/speckit-implement`-able. The navigable index + endpoint coverage matrix lives at [`docs/mobile-app-screen-api-plan.md`](./mobile-app-screen-api-plan.md); wireframes at [`docs/mobile-screens-wireframes.md`](./mobile-screens-wireframes.md).
+
 ---
 
 ## 9. Stage-by-stage plan

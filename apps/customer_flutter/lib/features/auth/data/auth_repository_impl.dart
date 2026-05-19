@@ -209,8 +209,9 @@ class AuthRepositoryImpl implements AuthRepository {
       }
       return const AuthOutcome.failure(reasonCode: 'identity.gap');
     }
-    final profile =
-        (body['profile'] is Map) ? body['profile'] as Map<Object?, Object?> : const {};
+    final profile = (body['profile'] is Map)
+        ? body['profile'] as Map<Object?, Object?>
+        : const {};
     return AuthOutcome.success(
       accessToken: accessToken,
       refreshToken: refreshToken,

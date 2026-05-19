@@ -357,7 +357,7 @@ Phases are intended to be implemented strictly in order, but later phases that d
 | # | Spec folder | Status snapshot (as of 2026-05-19) |
 |---|---|---|
 | 1 | phase-1-auth-identity | **Partially done** — login, register, OTP, password reset screens exist (`apps/customer_flutter/lib/features/auth/screens/`). Splash, email confirm, sessions list, locale switcher, account security, MFA = planned. Foundation interceptors exist (`core/api/`). |
-| 2 | phase-2-catalog | **Partially done** — listing + product detail exist (`features/catalog/screens/`), home exists (`features/home/screens/`). Brand list, restricted-product UX, ratings block = planned. |
+| 2 | phase-2-catalog | **Done** (data + bloc layer) — 4 gateways (`features/{catalog,pricing,inventory,reviews}/data/`), 6 shared widgets (`features/catalog/widgets/`), 5 catalog blocs (`CatalogHomeBloc`, `CategoriesListBloc`, `BrandsListBloc`, `ProductListBloc`, `ProductDetailV2Bloc`), 3 new screens (`categories_list_screen`, `brands_list_screen`, `product_list_screen`, `product_detail_v2_screen`). 204 tests passing. Router/DI wiring to switch existing routes to the new blocs lands in Phase 1.5 polish — old `ListingBloc` + `ProductDetailBloc` stay until then. |
 | 3 | phase-3-search | **Planned** — no `features/search/` folder yet. |
 | 4 | phase-4-cart-checkout | **Partially done** — cart, checkout, drift, order_confirmation screens exist. Pricing preview wire-up, address step, shipping step, payment-method step refinement = verify against code; may be partial. |
 | 5 | phase-5-orders | **Partially done** — orders_list + order_detail exist. Reorder, cancel, tracking timeline, payment retry = verify. |

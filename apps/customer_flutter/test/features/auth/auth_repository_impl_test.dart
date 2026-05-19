@@ -77,8 +77,7 @@ void main() {
             },
           ));
       final repo = AuthRepositoryImpl(dio: dio);
-      final outcome =
-          await repo.login(email: 'a@b.com', password: 'secret');
+      final outcome = await repo.login(email: 'a@b.com', password: 'secret');
       expect(outcome.ok, isTrue);
       expect(outcome.accessToken, 'at');
       expect(outcome.refreshToken, 'rt');
@@ -104,8 +103,7 @@ void main() {
             },
           ));
       final repo = AuthRepositoryImpl(dio: dio);
-      final outcome =
-          await repo.login(email: 'a@b.com', password: 'secret');
+      final outcome = await repo.login(email: 'a@b.com', password: 'secret');
       expect(outcome.otpChallenge, isNotNull);
       expect(outcome.otpChallenge!.challengeId, 'mfa-1');
       expect(outcome.otpChallenge!.channel, 'sms');
@@ -320,8 +318,7 @@ void main() {
       );
     });
 
-    test(
-        'confirmPasswordReset with "challengeId:code" splits and sends both',
+    test('confirmPasswordReset with "challengeId:code" splits and sends both',
         () async {
       Map<String, Object?>? capturedBody;
       final dio = buildStubbedDio((m, p, d) {
@@ -341,8 +338,7 @@ void main() {
       expect(capturedBody!['newPassword'], 'newPass');
     });
 
-    test('confirmPasswordReset with single token sends token field',
-        () async {
+    test('confirmPasswordReset with single token sends token field', () async {
       Map<String, Object?>? capturedBody;
       final dio = buildStubbedDio((m, p, d) {
         if (d is Map) capturedBody = d.cast<String, Object?>();

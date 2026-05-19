@@ -168,7 +168,9 @@ void main() {
     test('falls back to X-Correlation-Id header when body lacks one', () {
       final f = mapper.fromDio(badResponse(
         status: 500,
-        body: {'error': {'code': 'server', 'message': 'x'}},
+        body: {
+          'error': {'code': 'server', 'message': 'x'}
+        },
         correlationId: 'header-corr',
       ));
       expect(f.correlationId, 'header-corr');

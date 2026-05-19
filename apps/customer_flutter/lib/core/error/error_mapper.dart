@@ -22,11 +22,15 @@ class ErrorMapper {
     final correlationId = _correlationId(e);
 
     // ----- transport-level conditions (no usable response) -----
+    // Fallback messages are localization keys, not human-readable copy.
+    // UI resolves them against the active locale per Principle 4 (no
+    // English-only surfaces). The raw server message is preferred when
+    // present (see [_fromResponse]).
     switch (e.type) {
       case DioExceptionType.cancel:
         return NetworkFailure(
           code: 'network.cancelled',
-          message: 'Request was cancelled',
+          message: 'error.network.cancelled',
           correlationId: correlationId,
         );
       case DioExceptionType.connectionTimeout:
@@ -34,26 +38,26 @@ class ErrorMapper {
       case DioExceptionType.receiveTimeout:
         return NetworkFailure(
           code: 'network.timeout',
-          message: 'The server took too long to respond',
+          message: 'error.network.timeout',
           correlationId: correlationId,
         );
       case DioExceptionType.connectionError:
         return OfflineFailure(
           code: 'network.offline',
-          message: 'No network connection',
+          message: 'error.network.offline',
           correlationId: correlationId,
         );
       case DioExceptionType.badCertificate:
         return NetworkFailure(
           code: 'network.bad_certificate',
-          message: 'Could not verify the server certificate',
+          message: 'error.network.bad_certificate',
           correlationId: correlationId,
         );
       case DioExceptionType.unknown:
         if (e.response == null) {
           return OfflineFailure(
             code: 'network.unknown',
-            message: 'Network is unreachable',
+            message: 'error.network.unreachable',
             correlationId: correlationId,
           );
         }
@@ -67,7 +71,7 @@ class ErrorMapper {
     if (response == null) {
       return ServerFailure(
         code: 'server.no_response',
-        message: 'No response from server',
+        message: 'error.server.no_response',
         correlationId: correlationId,
       );
     }
@@ -97,8 +101,9 @@ class ErrorMapper {
     if (error is DioException) return fromDio(error);
     return ServerFailure(
       code: 'server.unknown',
-      message: error.toString(),
+      message: 'error.server.unknown',
       correlationId: correlationId ?? '',
+      details: {'debugMessage': error.toString()},
     );
   }
 
@@ -109,7 +114,7 @@ class ErrorMapper {
   }) {
     final body = _readErrorBody(data);
     final code = body.code ?? 'http.$statusCode';
-    final message = body.message ?? 'Request failed ($statusCode)';
+    final message = body.message ?? 'error.http.$statusCode';
     final details = body.details;
 
     if (statusCode >= 500) {
@@ -200,6 +205,14 @@ class ErrorMapper {
     final body = _readErrorBody(e.response?.data);
     if (body.correlationId != null && body.correlationId!.isNotEmpty) {
       return body.correlationId!;
+    }
+    // Prefer the response header — it reflects the id the server actually
+    // logged for this error, which may differ from the request header when
+    // the server stamps its own correlation id.
+    final fromResponseHeader = e.response?.headers.value('x-correlation-id') ??
+        e.response?.headers.value('X-Correlation-Id');
+    if (fromResponseHeader != null && fromResponseHeader.isNotEmpty) {
+      return fromResponseHeader;
     }
     final fromHeader =
         e.requestOptions.headers['X-Correlation-Id']?.toString() ??

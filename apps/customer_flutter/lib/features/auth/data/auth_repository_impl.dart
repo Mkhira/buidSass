@@ -121,12 +121,14 @@ class AuthRepositoryImpl implements AuthRepository {
     required String code,
   }) async {
     try {
+      // Spec `VerifyOtpRequest` only requires {challengeId, code}; the
+      // backend infers the intent (register vs login MFA vs password reset)
+      // from the challenge id, so we don't send one.
       final res = await _dio.post<Map<String, Object?>>(
         _otpVerifyPath,
         data: {
           'challengeId': challengeId,
           'code': code,
-          'intent': 'register',
         },
       );
       return _outcomeFromSessionBody(res.data ?? const {});
@@ -176,6 +178,21 @@ class AuthRepositoryImpl implements AuthRepository {
   }
 
   AuthOutcome _outcomeFromSessionBody(Map<String, Object?> body) {
+    // MFA challenges are checked first: a valid MFA login response may
+    // omit tokens entirely until the second factor is verified, so a
+    // missing-token check before MFA would mis-route into `identity.gap`.
+    if (body['mfaRequired'] == true) {
+      final mfaChallengeId = body['mfaChallengeId']?.toString();
+      if (mfaChallengeId != null && mfaChallengeId.isNotEmpty) {
+        return AuthOutcome.requiresOtp(
+          otpChallenge: OtpChallenge(
+            challengeId: mfaChallengeId,
+            channel: body['mfaChannel']?.toString() ?? 'sms',
+            retryAfterSeconds: _readInt(body['mfaResendInSeconds']) ?? 30,
+          ),
+        );
+      }
+    }
     final accessToken = body['accessToken']?.toString();
     final refreshToken = body['refreshToken']?.toString();
     if (accessToken == null || refreshToken == null) {
@@ -194,19 +211,6 @@ class AuthRepositoryImpl implements AuthRepository {
     }
     final profile =
         (body['profile'] is Map) ? body['profile'] as Map<Object?, Object?> : const {};
-    final mfaRequired = body['mfaRequired'] == true;
-    if (mfaRequired) {
-      final mfaChallengeId = body['mfaChallengeId']?.toString();
-      if (mfaChallengeId != null && mfaChallengeId.isNotEmpty) {
-        return AuthOutcome.requiresOtp(
-          otpChallenge: OtpChallenge(
-            challengeId: mfaChallengeId,
-            channel: body['mfaChannel']?.toString() ?? 'sms',
-            retryAfterSeconds: _readInt(body['mfaResendInSeconds']) ?? 30,
-          ),
-        );
-      }
-    }
     return AuthOutcome.success(
       accessToken: accessToken,
       refreshToken: refreshToken,

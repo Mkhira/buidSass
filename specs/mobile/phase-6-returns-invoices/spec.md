@@ -70,10 +70,10 @@ loading → list → empty ("No returns yet") → error/offline.
 - `ReturnsListBloc`. Standard.
 
 #### Acceptance criteria
-- [ ] Filter chips: All / Pending / Approved / Issued / Rejected.
-- [ ] Row taps route to S-6.3 detail.
-- [ ] AR + EN.
-- [ ] Tests.
+- [x] Filter chips: All / Pending / Approved / Issued / Rejected.
+- [x] Row taps route to S-6.3 detail.
+- [x] AR + EN.
+- [x] Tests.
 
 ---
 
@@ -132,13 +132,13 @@ loading → list → empty ("No returns yet") → error/offline.
 - States: `WizardLoading`, `WizardForm(eligibility, selectedLines, photos, errors?)`, `WizardSubmitting`, `WizardSubmitted(returnId)`, `WizardFailure(reason, correlationId)`.
 
 #### Acceptance criteria
-- [ ] At least one eligible line must be selected to enable Submit.
-- [ ] Reason picker comes from a server-supplied enum (fallback list documented if endpoint not present).
-- [ ] Photo upload uses `Idempotency-Key` per upload (re-uploads same checksum yield same id).
-- [ ] Final submit reuses one Idempotency-Key across retries.
-- [ ] Submit-success routes to detail.
-- [ ] AR + EN.
-- [ ] Tests.
+- [x] At least one eligible line must be selected to enable Submit.
+- [x] Reason picker comes from a server-supplied enum (fallback list documented if endpoint not present).
+- [x] Photo upload uses `Idempotency-Key` per upload (re-uploads same checksum yield same id).
+- [x] Final submit reuses one Idempotency-Key across retries.
+- [x] Submit-success routes to detail.
+- [x] AR + EN.
+- [x] Tests.
 
 #### Edge cases
 - Photo > 10 MB ⇒ client downscales before upload.
@@ -185,10 +185,10 @@ loading → loaded (state pill + timeline + items + photos + refund + rejection 
 - `ReturnDetailBloc`. Standard.
 
 #### Acceptance criteria
-- [ ] Photos rendered as a gallery with zoom.
-- [ ] Rejected returns show the rejection reason prominently.
-- [ ] AR + EN.
-- [ ] Tests.
+- [x] Photos rendered as a gallery with zoom.
+- [x] Rejected returns show the rejection reason prominently.
+- [x] AR + EN.
+- [x] Tests.
 
 ---
 
@@ -225,10 +225,10 @@ loading → loaded (preview + Download PDF CTA) → 404 (invoice not yet availab
 - `InvoicePreviewBloc`. Standard.
 
 #### Acceptance criteria
-- [ ] AR locale formats numbers per locale; EN locale formats per locale.
-- [ ] VAT rate explicitly shown.
-- [ ] Download CTA navigates to S-6.5 (or directly triggers download).
-- [ ] Tests.
+- [x] AR locale formats numbers per locale; EN locale formats per locale.
+- [x] VAT rate explicitly shown.
+- [x] Download CTA navigates to S-6.5 (or directly triggers download).
+- [x] Tests.
 
 ---
 
@@ -264,10 +264,10 @@ binary PDF.
 - `InvoicePdfBloc`. Events: downloadRequested, openTapped, shareTapped. States: loading, ready(localPath), failure.
 
 #### Acceptance criteria
-- [ ] PDF saved to app cache directory; not exposed via document picker beyond the share-sheet.
-- [ ] Cache key by `orderId + invoiceNumber + issuedAt` so updated invoices re-download.
-- [ ] AR filename localized: `فاتورة-{orderNumber}.pdf` in AR; `invoice-{orderNumber}.pdf` in EN.
-- [ ] Tests.
+- [x] PDF saved to app cache directory; not exposed via document picker beyond the share-sheet.
+- [x] Cache key by `orderId + invoiceNumber + issuedAt` so updated invoices re-download.
+- [x] AR filename localized: `فاتورة-{orderNumber}.pdf` in AR; `invoice-{orderNumber}.pdf` in EN.
+- [x] Tests.
 
 #### Edge cases
 - Disk full ⇒ surface "Not enough space" error.
@@ -276,12 +276,12 @@ binary PDF.
 
 ## 5. Acceptance criteria — phase-wide
 
-- [ ] 5 screens above pass per-screen DoD.
-- [ ] Return wizard uses Idempotency-Key per create and per photo upload.
-- [ ] Invoice download caches locally; share-sheet works.
-- [ ] No client-side tax computation (BR-7).
-- [ ] `flutter analyze` + `flutter test` green.
-- [ ] §8 row → **Done**.
+- [x] 5 screens above pass per-screen DoD.
+- [x] Return wizard uses Idempotency-Key per create and per photo upload.
+- [x] Invoice download caches locally; share-sheet works.
+- [x] No client-side tax computation (BR-7).
+- [x] `flutter analyze` + `flutter test` green.
+- [x] §8 row → **Done**.
 
 ## 6. Dependencies
 

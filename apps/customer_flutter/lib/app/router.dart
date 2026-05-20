@@ -6,7 +6,6 @@ import 'package:get_it/get_it.dart';
 import 'package:go_router/go_router.dart';
 
 import '../core/auth/auth_session_bloc.dart';
-import '../core/cart/anonymous_cart_token_store.dart';
 import '../core/localization/locale_bloc.dart';
 import '../core/market/market_resolver.dart';
 import '../features/auth/bloc/login_bloc.dart';
@@ -18,18 +17,29 @@ import '../features/auth/screens/login_screen.dart';
 import '../features/auth/screens/otp_screen.dart';
 import '../features/auth/screens/password_reset_screen.dart';
 import '../features/auth/screens/register_screen.dart';
-import '../features/cart/bloc/cart_bloc.dart';
-import '../features/cart/data/cart_repository.dart';
-import '../features/cart/screens/cart_screen.dart';
+import '../features/cart/bloc/cart_v2_bloc.dart';
+import '../features/cart/data/cart_store.dart';
+import '../features/cart/screens/cart_screen_v2.dart';
 import '../features/catalog/bloc/listing_bloc.dart';
 import '../features/catalog/bloc/product_detail_bloc.dart';
 import '../features/catalog/data/catalog_repository.dart';
 import '../features/catalog/screens/listing_screen.dart';
 import '../features/catalog/screens/product_detail_screen.dart';
-import '../features/checkout/bloc/checkout_bloc.dart';
-import '../features/checkout/data/checkout_repository.dart';
-import '../features/checkout/screens/checkout_screen.dart';
+import '../features/checkout/bloc/checkout_address_bloc.dart';
+import '../features/checkout/bloc/checkout_payment_bloc.dart';
+import '../features/checkout/bloc/checkout_review_bloc.dart';
+import '../features/checkout/bloc/checkout_shipping_bloc.dart';
+import '../features/checkout/bloc/checkout_start_bloc.dart';
+import '../features/checkout/bloc/checkout_summary_bloc.dart';
+import '../features/checkout/data/checkout_gateway.dart';
+import '../features/checkout/data/models/checkout_models.dart';
+import '../features/checkout/screens/address_step_screen.dart';
+import '../features/checkout/screens/checkout_start_screen.dart';
+import '../features/checkout/screens/checkout_summary_screen.dart';
 import '../features/checkout/screens/order_confirmation_screen.dart';
+import '../features/checkout/screens/payment_step_screen.dart';
+import '../features/checkout/screens/review_screen.dart';
+import '../features/checkout/screens/shipping_step_screen.dart';
 import '../features/home/bloc/home_bloc.dart';
 import '../features/home/data/home_repository.dart';
 import '../features/home/screens/home_screen.dart';
@@ -151,32 +161,107 @@ GoRouter buildRouter(AuthSessionBloc authBloc) {
         path: '/cart',
         name: 'cart',
         builder: (context, _) => BlocProvider(
-          create: (_) => CartBloc(
-            repository: sl<CartRepository>(),
-            tokenStore: sl<AnonymousCartTokenStore>(),
-            authSessionBloc: authBloc,
-          )..add(const CartRefreshed()),
-          child: const CartScreen(),
+          create: (_) => CartV2Bloc(
+            store: sl<CartStore>(),
+            gateway: sl<CheckoutGateway>(),
+            marketProvider: () => sl<MarketResolver>().resolve().code,
+          )..add(const CartStarted()),
+          child: const CartScreenV2(),
         ),
       ),
       GoRoute(
         path: '/checkout',
         name: 'checkout',
-        builder: (context, _) => BlocProvider(
-          create: (_) => CheckoutBloc(repository: sl<CheckoutRepository>())
-            ..add(const CheckoutStarted()),
-          child: const CheckoutScreen(),
-        ),
+        builder: (context, _) {
+          final cart = sl<CartStore>().snapshot;
+          return BlocProvider(
+            create: (_) => CheckoutStartBloc(gateway: sl<CheckoutGateway>())
+              ..add(StartCheckoutRequested(
+                request: CreateSessionRequest(
+                  lines: cart.lines
+                      .map((l) =>
+                          CreateSessionLine(productId: l.productId, qty: l.qty))
+                      .toList(growable: false),
+                  couponCode: cart.couponCode,
+                  buyerKind: 'consumer',
+                  marketCode: sl<MarketResolver>().resolve().code,
+                ),
+              )),
+            child: const CheckoutStartScreen(),
+          );
+        },
       ),
-      // /checkout/drift route removed — drift is rendered inline within
-      // /checkout so the bloc state survives. Deep-linking to drift
-      // without prior session context would land on a stub Idle bloc
-      // that can't show the drift detail anyway.
+      GoRoute(
+        path: '/checkout/:sessionId/summary',
+        name: 'checkoutSummary',
+        builder: (context, s) {
+          final id = s.pathParameters['sessionId']!;
+          return BlocProvider(
+            create: (_) => CheckoutSummaryBloc(
+              gateway: sl<CheckoutGateway>(),
+              sessionId: id,
+            )..add(const CheckoutSummaryRequested()),
+            child: CheckoutSummaryScreen(sessionId: id),
+          );
+        },
+      ),
+      GoRoute(
+        path: '/checkout/:sessionId/address',
+        name: 'checkoutAddress',
+        builder: (context, s) {
+          final id = s.pathParameters['sessionId']!;
+          return BlocProvider(
+            create: (_) => CheckoutAddressBloc(
+                gateway: sl<CheckoutGateway>(), sessionId: id),
+            child: AddressStepScreen(sessionId: id),
+          );
+        },
+      ),
+      GoRoute(
+        path: '/checkout/:sessionId/shipping',
+        name: 'checkoutShipping',
+        builder: (context, s) {
+          final id = s.pathParameters['sessionId']!;
+          return BlocProvider(
+            create: (_) => CheckoutShippingBloc(
+              gateway: sl<CheckoutGateway>(),
+              sessionId: id,
+            )..add(const ShippingQuotesRequested()),
+            child: ShippingStepScreen(sessionId: id),
+          );
+        },
+      ),
+      GoRoute(
+        path: '/checkout/:sessionId/payment',
+        name: 'checkoutPayment',
+        builder: (context, s) {
+          final id = s.pathParameters['sessionId']!;
+          // The payment screen needs the latest summary to know the
+          // server-driven `availableMethods` list (BR-5). We fetch it
+          // inline via a tiny SummaryBloc and pipe the result into the
+          // PaymentBloc. The screen renders nothing until both arrive.
+          return _CheckoutPaymentRoute(sessionId: id);
+        },
+      ),
+      GoRoute(
+        path: '/checkout/:sessionId/review',
+        name: 'checkoutReview',
+        builder: (context, s) {
+          final id = s.pathParameters['sessionId']!;
+          return _CheckoutReviewRoute(sessionId: id);
+        },
+      ),
       GoRoute(
         path: '/checkout/confirmation/:orderId',
         name: 'checkoutConfirmation',
-        builder: (context, s) =>
-            OrderConfirmationScreen(orderId: s.pathParameters['orderId']!),
+        builder: (context, s) {
+          final extra = s.extra;
+          return OrderConfirmationScreen(
+            orderId: s.pathParameters['orderId']!,
+            result: extra is SubmitResult ? extra : null,
+            cartStore: sl<CartStore>(),
+          );
+        },
       ),
       GoRoute(
         path: '/orders',
@@ -308,5 +393,65 @@ class _BlocRefresh extends ChangeNotifier {
   void dispose() {
     _sub.cancel();
     super.dispose();
+  }
+}
+
+/// Payment-step route helper. Fetches the latest summary so the bloc is
+/// constructed against the server-driven `availableMethods` list (BR-5)
+/// before the user lands on the screen.
+class _CheckoutPaymentRoute extends StatelessWidget {
+  const _CheckoutPaymentRoute({required this.sessionId});
+  final String sessionId;
+
+  @override
+  Widget build(BuildContext context) {
+    final sl = GetIt.instance;
+    return FutureBuilder<CheckoutSummary>(
+      future: sl<CheckoutGateway>().getSummary(sessionId),
+      builder: (context, snap) {
+        if (!snap.hasData) {
+          return const Scaffold(
+              body: Center(child: CircularProgressIndicator()));
+        }
+        return BlocProvider(
+          create: (_) => CheckoutPaymentBloc(
+            gateway: sl<CheckoutGateway>(),
+            sessionId: sessionId,
+            initial: snap.data!,
+          ),
+          child: PaymentStepScreen(sessionId: sessionId),
+        );
+      },
+    );
+  }
+}
+
+/// Review-step route helper. Same summary-prefetch pattern as the
+/// payment route — needed so the review bloc seeds its initial state
+/// with the rendered totals + line items the user will confirm.
+class _CheckoutReviewRoute extends StatelessWidget {
+  const _CheckoutReviewRoute({required this.sessionId});
+  final String sessionId;
+
+  @override
+  Widget build(BuildContext context) {
+    final sl = GetIt.instance;
+    return FutureBuilder<CheckoutSummary>(
+      future: sl<CheckoutGateway>().getSummary(sessionId),
+      builder: (context, snap) {
+        if (!snap.hasData) {
+          return const Scaffold(
+              body: Center(child: CircularProgressIndicator()));
+        }
+        return BlocProvider(
+          create: (_) => CheckoutReviewBloc(
+            gateway: sl<CheckoutGateway>(),
+            sessionId: sessionId,
+            initialSummary: snap.data!,
+          ),
+          child: ReviewScreen(sessionId: sessionId),
+        );
+      },
+    );
   }
 }

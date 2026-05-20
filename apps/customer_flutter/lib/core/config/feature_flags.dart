@@ -6,6 +6,7 @@ class FeatureFlags {
     this.cmsContentShipped = false,
     this.realIdentityClientShipped = false,
     this.realSearchClientShipped = false,
+    this.realCheckoutClientShipped = false,
   });
 
   factory FeatureFlags.fromEnvironment() {
@@ -17,11 +18,14 @@ class FeatureFlags {
         bool.fromEnvironment('IDENTITY_CLIENT_SHIPPED', defaultValue: false);
     const search =
         bool.fromEnvironment('SEARCH_CLIENT_SHIPPED', defaultValue: false);
+    const checkout =
+        bool.fromEnvironment('CHECKOUT_CLIENT_SHIPPED', defaultValue: false);
     return const FeatureFlags(
       verificationCtaShipped: verification,
       cmsContentShipped: cms,
       realIdentityClientShipped: identity,
       realSearchClientShipped: search,
+      realCheckoutClientShipped: checkout,
     );
   }
 
@@ -46,4 +50,12 @@ class FeatureFlags {
   /// against the deterministic stub until the backend search client is
   /// reachable. Flip via `--dart-define=SEARCH_CLIENT_SHIPPED=true`.
   final bool realSearchClientShipped;
+
+  /// `specs/mobile/phase-4-cart-checkout` — when `true`, DI wires
+  /// `CheckoutGatewayImpl` (real HTTP calls to spec 010 checkout
+  /// endpoints) in place of [StubCheckoutGateway]. Default `false` so
+  /// dev builds run against the deterministic stub until the backend
+  /// checkout client is reachable. Flip via
+  /// `--dart-define=CHECKOUT_CLIENT_SHIPPED=true`.
+  final bool realCheckoutClientShipped;
 }

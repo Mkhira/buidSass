@@ -17,8 +17,13 @@ import '../core/platform/sms_autofill_adapter.dart';
 import '../features/auth/data/auth_repository.dart';
 import '../features/auth/data/auth_repository_impl.dart';
 import '../features/cart/data/cart_repository.dart';
+import '../features/cart/data/cart_store.dart';
 import '../features/catalog/data/catalog_repository.dart';
+import '../features/checkout/data/checkout_gateway.dart';
+import '../features/checkout/data/checkout_gateway_impl.dart';
 import '../features/checkout/data/checkout_repository.dart';
+import '../features/checkout/data/session_store.dart';
+import '../features/checkout/data/stub_checkout_gateway.dart';
 import '../features/home/data/cms_stub_repository.dart';
 import '../features/home/data/home_repository.dart';
 import '../features/more/data/addresses_repository.dart';
@@ -144,6 +149,36 @@ Future<void> bootstrap({
       },
     ),
   );
+
+  // Cart + checkout — Phase 4. CartStore is a singleton so every bloc
+  // and the order-confirmation screen reads/writes the same persisted
+  // snapshot. CheckoutGateway flips between Dio impl and stub via
+  // `CHECKOUT_CLIENT_SHIPPED` dart-define (default stub for offline dev).
+  final cartStore = CartStore(prefs: prefs);
+  await cartStore.load();
+  sl.registerSingleton<CartStore>(cartStore);
+  sl.registerLazySingleton<CheckoutSessionStore>(
+    () => CheckoutSessionStore(prefs: prefs),
+  );
+  sl.registerLazySingleton<CheckoutGateway>(() {
+    final flags = sl<FeatureFlags>();
+    if (flags.realCheckoutClientShipped) {
+      return CheckoutGatewayImpl(dio: sl<ApiModule>().dio);
+    }
+    return StubCheckoutGateway();
+  });
+
+  // Clear cart on sign-out (BR-1). The subscription survives DI bootstrap
+  // for the lifetime of the app, so we don't track the StreamSubscription
+  // — `sl.reset()` in tests tears down via the AuthSessionBloc close().
+  var wasAuth = sl<AuthSessionBloc>().state is AuthAuthenticated;
+  sl<AuthSessionBloc>().stream.listen((s) async {
+    final isAuth = s is AuthAuthenticated;
+    if (wasAuth && !isAuth) {
+      await cartStore.clear();
+    }
+    wasAuth = isAuth;
+  });
 
   sl.registerSingleton<bool>(true, instanceName: 'di.bootstrapped');
 }

@@ -7,6 +7,8 @@ import 'package:go_router/go_router.dart';
 
 import '../core/auth/auth_session_bloc.dart';
 import '../core/cart/anonymous_cart_token_store.dart';
+import '../core/localization/locale_bloc.dart';
+import '../core/market/market_resolver.dart';
 import '../features/auth/bloc/login_bloc.dart';
 import '../features/auth/bloc/otp_bloc.dart';
 import '../features/auth/bloc/password_reset_bloc.dart';
@@ -41,6 +43,12 @@ import '../features/orders/bloc/order_list_bloc.dart';
 import '../features/orders/data/orders_repository.dart';
 import '../features/orders/screens/order_detail_screen.dart';
 import '../features/orders/screens/orders_list_screen.dart';
+import '../features/search/bloc/lookup_bloc.dart';
+import '../features/search/bloc/search_bloc.dart';
+import '../features/search/data/recent_searches_store.dart';
+import '../features/search/data/search_gateway.dart';
+import '../features/search/screens/lookup_screen.dart';
+import '../features/search/screens/search_screen.dart';
 
 /// Customer-app routing. Routes mirror `contracts/deeplink-routes.md`.
 /// Auth-gated paths redirect through `/auth/login?continueTo=…`.
@@ -116,13 +124,28 @@ GoRouter buildRouter(AuthSessionBloc authBloc) {
         path: '/search',
         name: 'search',
         builder: (context, s) {
-          final q = s.uri.queryParameters['q'] ?? '';
+          final q = s.uri.queryParameters['q'];
           return BlocProvider(
-            create: (_) => ListingBloc(repository: sl<CatalogRepository>())
-              ..add(QueryChanged(q)),
-            child: const ListingScreen(),
+            create: (_) => SearchBloc(
+              gateway: sl<SearchGateway>(),
+              recentStore: sl<RecentSearchesStore>(),
+              marketProvider: () => sl<MarketResolver>().resolve().code,
+              localeProvider: () => sl<LocaleBloc>().state.locale.code,
+            ),
+            child: SearchScreen(initialQuery: q),
           );
         },
+      ),
+      GoRoute(
+        path: '/search/lookup',
+        name: 'searchLookup',
+        builder: (context, _) => BlocProvider(
+          create: (_) => LookupBloc(
+            gateway: sl<SearchGateway>(),
+            marketProvider: () => sl<MarketResolver>().resolve().code,
+          ),
+          child: const LookupScreen(),
+        ),
       ),
       GoRoute(
         path: '/cart',

@@ -47,5 +47,40 @@
   "moreVerification": "Verification — EN_PLACEHOLDER",
   "verificationRequired": "Verification required to add this item — EN_PLACEHOLDER",
   "stockOutOfStock": "Out of stock — EN_PLACEHOLDER",
-  "stockLow": "Low stock — EN_PLACEHOLDER"
+  "stockLow": "Low stock — EN_PLACEHOLDER",
+  "searchHint": "Search for products, brands, SKUs… — EN_PLACEHOLDER",
+  "searchRecentTitle": "Recent searches — EN_PLACEHOLDER",
+  "searchRecentClear": "Clear — EN_PLACEHOLDER",
+  "searchRecentClearConfirm": "Clear recent searches? — EN_PLACEHOLDER",
+  "searchTopMatchesTitle": "Top matches — EN_PLACEHOLDER",
+  "searchSuggestionsTitle": "Suggestions — EN_PLACEHOLDER",
+  "searchEmptyTitle": "No matches — EN_PLACEHOLDER",
+  "searchEmptyBody": "Try a different search or look up by SKU. — EN_PLACEHOLDER",
+  "searchLookupCta": "Look up by SKU or barcode — EN_PLACEHOLDER",
+  "searchSortLabel": "Sort — EN_PLACEHOLDER",
+  "searchFiltersLabel": "Filters — EN_PLACEHOLDER",
+  "searchResultsCount": "{count, plural, =0{No results — EN_PLACEHOLDER} =1{1 result — EN_PLACEHOLDER} other{{count} results — EN_PLACEHOLDER}}",
+  "@searchResultsCount": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "lookupTitle": "Lookup product — EN_PLACEHOLDER",
+  "lookupManualLabel": "Enter SKU — EN_PLACEHOLDER",
+  "lookupSubmit": "Look up — EN_PLACEHOLDER",
+  "lookupScanCta": "Scan barcode — EN_PLACEHOLDER",
+  "lookupScanCancel": "Cancel scan — EN_PLACEHOLDER",
+  "lookupMatchedTitle": "Found {name} — EN_PLACEHOLDER",
+  "@lookupMatchedTitle": {
+    "placeholders": {
+      "name": { "type": "String" }
+    }
+  },
+  "lookupOpenProduct": "Open — EN_PLACEHOLDER",
+  "lookupNoMatchTitle": "No product found — EN_PLACEHOLDER",
+  "lookupNoMatchBody": "Try the search instead. — EN_PLACEHOLDER",
+  "lookupGoToSearch": "Search — EN_PLACEHOLDER",
+  "lookupPermissionDeniedTitle": "Camera permission required — EN_PLACEHOLDER",
+  "lookupPermissionDeniedBody": "Allow camera access to scan barcodes. — EN_PLACEHOLDER",
+  "lookupOpenSettings": "Open settings — EN_PLACEHOLDER"
 }

@@ -58,9 +58,11 @@ import '../features/orders/screens/order_detail_v2_screen.dart';
 import '../features/orders/screens/orders_list_v2_screen.dart';
 import '../features/orders/screens/reorder_screen.dart';
 import '../features/returns/bloc/return_detail_bloc.dart';
+import '../features/returns/bloc/return_wizard_bloc.dart';
 import '../features/returns/bloc/returns_list_bloc.dart';
 import '../features/returns/data/returns_gateway.dart';
 import '../features/returns/screens/return_detail_screen.dart';
+import '../features/returns/screens/return_wizard_screen.dart';
 import '../features/returns/screens/returns_list_screen.dart';
 import '../features/search/bloc/lookup_bloc.dart';
 import '../features/search/bloc/search_bloc.dart';
@@ -68,7 +70,6 @@ import '../features/search/data/recent_searches_store.dart';
 import '../features/search/data/search_gateway.dart';
 import '../features/search/screens/lookup_screen.dart';
 import '../features/search/screens/search_screen.dart';
-import '../generated/l10n/app_localizations.dart';
 
 /// Customer-app routing. Routes mirror `contracts/deeplink-routes.md`.
 /// Auth-gated paths redirect through `/auth/login?continueTo=…`.
@@ -325,28 +326,21 @@ GoRouter buildRouter(AuthSessionBloc authBloc) {
           );
         },
       ),
+      // Phase 6 — return wizard. Path matches the order-detail
+      // "Request return" CTA that has shipped since Phase 5; the
+      // placeholder body is now retired.
       GoRoute(
-        // Placeholder for the return wizard until T-6.4 lands in the
-        // next commit; keeps the order-detail "Request return" CTA
-        // navigable without a 404. Will be swapped for the real
-        // `ReturnWizardScreen` in the same phase.
         path: '/o/:orderId/return',
         name: 'orderReturn',
         builder: (context, s) {
-          return Builder(
-            builder: (ctx) {
-              final l10n = AppLocalizations.of(ctx);
-              return Scaffold(
-                appBar: AppBar(title: Text(l10n.orderReturnPlaceholderTitle)),
-                body: Center(
-                  child: Padding(
-                    padding: const EdgeInsets.all(24),
-                    child: Text(l10n.orderReturnPlaceholderBody,
-                        textAlign: TextAlign.center),
-                  ),
-                ),
-              );
-            },
+          final orderId = s.pathParameters['orderId']!;
+          return BlocProvider(
+            create: (_) => ReturnWizardBloc(
+              ordersGateway: sl<OrdersGateway>(),
+              returnsGateway: sl<ReturnsGateway>(),
+              orderId: orderId,
+            )..add(ReturnWizardStarted(orderId)),
+            child: ReturnWizardScreen(orderId: orderId),
           );
         },
       ),

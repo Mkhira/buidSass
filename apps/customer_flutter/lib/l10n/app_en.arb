@@ -152,8 +152,6 @@
     }
   },
   "orderReorderReasonUnknown": "Not available",
-  "orderReturnPlaceholderTitle": "Returns coming soon",
-  "orderReturnPlaceholderBody": "The return wizard ships in Phase 6.",
   "ordersTitle": "Orders",
   "ordersFilterAll": "All",
   "ordersFilterPending": "Pending",

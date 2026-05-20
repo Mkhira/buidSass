@@ -6,9 +6,15 @@ import 'orders_gateway.dart';
 /// a small fixed list, a detail with all four state pills populated,
 /// and synthetic reorder / return-eligibility payloads.
 class StubOrdersGateway implements OrdersGateway {
-  StubOrdersGateway();
+  StubOrdersGateway({DateTime? now}) : _now = now ?? _seedNow;
 
+  /// Fixed epoch for deterministic seeded timestamps. The constructor
+  /// accepts an override so tests can pin the clock for golden
+  /// comparisons.
+  static final DateTime _seedNow = DateTime.utc(2026, 5, 20);
   static const _currency = 'SAR';
+
+  final DateTime _now;
 
   @override
   Future<OrderListPage> list(OrdersListFilter filter) async {
@@ -104,14 +110,15 @@ class StubOrdersGateway implements OrdersGateway {
   bool _statusMatches(OrderStateBundle s, String status) {
     return s.orderState == status ||
         s.paymentState == status ||
-        s.fulfillmentState == status;
+        s.fulfillmentState == status ||
+        s.refundState == status;
   }
 
   late final List<OrderListItem> _seed = [
     OrderListItem(
       id: 'order-1',
       orderNumber: '2026-05-000123',
-      placedAt: DateTime.now().subtract(const Duration(days: 1)),
+      placedAt: _now.subtract(const Duration(days: 1)),
       totals: const CheckoutTotals(
         subtotal: '240.00',
         discount: '0.00',
@@ -133,7 +140,7 @@ class StubOrdersGateway implements OrdersGateway {
     OrderListItem(
       id: 'order-2',
       orderNumber: '2026-05-000122',
-      placedAt: DateTime.now().subtract(const Duration(days: 3)),
+      placedAt: _now.subtract(const Duration(days: 3)),
       totals: const CheckoutTotals(
         subtotal: '120.00',
         discount: '0.00',
@@ -153,7 +160,7 @@ class StubOrdersGateway implements OrdersGateway {
   ];
 
   OrderDetail _detail(String orderId) {
-    final placed = DateTime.now().subtract(const Duration(days: 2));
+    final placed = _now.subtract(const Duration(days: 2));
     return OrderDetail(
       id: orderId,
       orderNumber: '2026-05-${orderId.hashCode.abs() % 1000000}',

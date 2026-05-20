@@ -1,6 +1,7 @@
-import 'package:design_system/design_system.dart';
+import 'package:design_system/design_system.dart' hide AppLocalizations;
 import 'package:flutter/material.dart';
 
+import '../../../generated/l10n/app_localizations.dart';
 import '../data/models/order_models.dart';
 
 /// Four-pill row per Phase 5 BR-1 — `orderState`, `paymentState`,
@@ -14,23 +15,31 @@ class StatePillsRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return Wrap(
       spacing: AppSpacing.xs,
       runSpacing: AppSpacing.xs,
       children: [
-        _Pill(label: 'Order', value: states.orderState, palette: _orderPalette),
         _Pill(
-            label: 'Payment',
-            value: states.paymentState,
-            palette: _paymentPalette),
+          label: l10n.orderStatePillOrder,
+          value: states.orderState,
+          palette: _orderPalette,
+        ),
         _Pill(
-            label: 'Fulfillment',
-            value: states.fulfillmentState,
-            palette: _fulfillmentPalette),
+          label: l10n.orderStatePillPayment,
+          value: states.paymentState,
+          palette: _paymentPalette,
+        ),
         _Pill(
-            label: 'Refund',
-            value: states.refundState,
-            palette: _refundPalette),
+          label: l10n.orderStatePillFulfillment,
+          value: states.fulfillmentState,
+          palette: _fulfillmentPalette,
+        ),
+        _Pill(
+          label: l10n.orderStatePillRefund,
+          value: states.refundState,
+          palette: _refundPalette,
+        ),
       ],
     );
   }

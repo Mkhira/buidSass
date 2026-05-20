@@ -136,6 +136,24 @@
   "paymentMethodMeeza": "Meeza",
   "paymentMethodBankTransfer": "Bank transfer",
   "paymentMethodCod": "Cash on delivery",
+  "orderStatePillOrder": "Order",
+  "orderStatePillPayment": "Payment",
+  "orderStatePillFulfillment": "Fulfillment",
+  "orderStatePillRefund": "Refund",
+  "orderCancelReasonChangedMind": "Changed my mind",
+  "orderCancelReasonWrongItem": "Ordered the wrong item",
+  "orderCancelReasonDeliverySlow": "Delivery too slow",
+  "orderCancelReasonBetterPrice": "Found a better price",
+  "orderCancelReasonOther": "Other",
+  "orderReorderQtyLabel": "× {qty}",
+  "@orderReorderQtyLabel": {
+    "placeholders": {
+      "qty": { "type": "int" }
+    }
+  },
+  "orderReorderReasonUnknown": "Not available",
+  "orderReturnPlaceholderTitle": "Returns coming soon",
+  "orderReturnPlaceholderBody": "The return wizard ships in Phase 6.",
   "ordersTitle": "Orders",
   "ordersFilterAll": "All",
   "ordersFilterPending": "Pending",

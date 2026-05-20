@@ -63,6 +63,7 @@ import '../features/search/data/recent_searches_store.dart';
 import '../features/search/data/search_gateway.dart';
 import '../features/search/screens/lookup_screen.dart';
 import '../features/search/screens/search_screen.dart';
+import '../generated/l10n/app_localizations.dart';
 
 /// Customer-app routing. Routes mirror `contracts/deeplink-routes.md`.
 /// Auth-gated paths redirect through `/auth/login?continueTo=…`.
@@ -316,6 +317,31 @@ GoRouter buildRouter(AuthSessionBloc authBloc) {
               orderId: orderId,
             )..add(const ReorderStarted()),
             child: ReorderScreen(orderId: orderId),
+          );
+        },
+      ),
+      GoRoute(
+        // Return wizard ships in Phase 6; this placeholder keeps the
+        // detail-screen CTA navigable without a 404. Once spec
+        // `phase-6-returns-invoices` lands, this route swaps to the
+        // real `ReturnWizardScreen`.
+        path: '/o/:orderId/return',
+        name: 'orderReturn',
+        builder: (context, s) {
+          return Builder(
+            builder: (ctx) {
+              final l10n = AppLocalizations.of(ctx);
+              return Scaffold(
+                appBar: AppBar(title: Text(l10n.orderReturnPlaceholderTitle)),
+                body: Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(24),
+                    child: Text(l10n.orderReturnPlaceholderBody,
+                        textAlign: TextAlign.center),
+                  ),
+                ),
+              );
+            },
           );
         },
       ),

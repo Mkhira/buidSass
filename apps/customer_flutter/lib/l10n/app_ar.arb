@@ -134,6 +134,24 @@
   "paymentMethodMeeza": "Meeza — EN_PLACEHOLDER",
   "paymentMethodBankTransfer": "Bank transfer — EN_PLACEHOLDER",
   "paymentMethodCod": "Cash on delivery — EN_PLACEHOLDER",
+  "orderStatePillOrder": "Order — EN_PLACEHOLDER",
+  "orderStatePillPayment": "Payment — EN_PLACEHOLDER",
+  "orderStatePillFulfillment": "Fulfillment — EN_PLACEHOLDER",
+  "orderStatePillRefund": "Refund — EN_PLACEHOLDER",
+  "orderCancelReasonChangedMind": "Changed my mind — EN_PLACEHOLDER",
+  "orderCancelReasonWrongItem": "Ordered the wrong item — EN_PLACEHOLDER",
+  "orderCancelReasonDeliverySlow": "Delivery too slow — EN_PLACEHOLDER",
+  "orderCancelReasonBetterPrice": "Found a better price — EN_PLACEHOLDER",
+  "orderCancelReasonOther": "Other — EN_PLACEHOLDER",
+  "orderReorderQtyLabel": "× {qty} — EN_PLACEHOLDER",
+  "@orderReorderQtyLabel": {
+    "placeholders": {
+      "qty": { "type": "int" }
+    }
+  },
+  "orderReorderReasonUnknown": "Not available — EN_PLACEHOLDER",
+  "orderReturnPlaceholderTitle": "Returns coming soon — EN_PLACEHOLDER",
+  "orderReturnPlaceholderBody": "The return wizard ships in Phase 6. — EN_PLACEHOLDER",
   "ordersTitle": "Orders — EN_PLACEHOLDER",
   "ordersFilterAll": "All — EN_PLACEHOLDER",
   "ordersFilterPending": "Pending — EN_PLACEHOLDER",

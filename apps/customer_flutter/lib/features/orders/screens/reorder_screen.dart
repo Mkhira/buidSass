@@ -2,6 +2,7 @@ import 'package:design_system/design_system.dart' hide AppLocalizations;
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
+import 'package:intl/intl.dart';
 
 import '../../../generated/l10n/app_localizations.dart';
 import '../bloc/reorder_bloc.dart';
@@ -68,12 +69,21 @@ class _Loaded extends StatelessWidget {
               if (hasAvailable) ...[
                 _SectionHeader(text: l10n.orderReorderAvailable),
                 for (final line in result.available)
-                  ListTile(
-                    leading: const Icon(Icons.check_circle_outline,
-                        color: Colors.green),
-                    title: Text(line.name),
-                    trailing: Text('×${line.qty}'),
-                  ),
+                  Builder(builder: (ctx) {
+                    final qtyFmt = NumberFormat.decimalPattern(
+                        Localizations.localeOf(ctx).toString());
+                    return ListTile(
+                      leading: const Icon(Icons.check_circle_outline,
+                          color: Colors.green),
+                      title: Text(line.name),
+                      // Locale-aware quantity (e.g. `×٢` in AR) via
+                      // `orderReorderQtyLabel`. NumberFormat handles
+                      // Arabic-Indic digit shaping.
+                      trailing: Text(l10n
+                          .orderReorderQtyLabel(line.qty)
+                          .replaceAll('${line.qty}', qtyFmt.format(line.qty))),
+                    );
+                  }),
               ],
               if (result.unavailable.isNotEmpty) ...[
                 const SizedBox(height: AppSpacing.md),
@@ -119,7 +129,9 @@ class _Loaded extends StatelessWidget {
       case 'market_blocked':
         return l10n.orderReorderReasonMarketBlocked;
       default:
-        return reason;
+        // Unmapped reason from server — show the localized generic
+        // fallback rather than raw English wire text.
+        return l10n.orderReorderReasonUnknown;
     }
   }
 }

@@ -51,9 +51,12 @@ class _OrdersListV2ScreenState extends State<OrdersListV2Screen> {
                     LoadingState(semanticsLabel: l10n.commonLoading),
                   OrdersListEmpty() => EmptyState(title: l10n.ordersEmpty),
                   OrdersListLoaded() => RefreshIndicator(
-                      onRefresh: () async => context
-                          .read<OrdersListV2Bloc>()
-                          .add(const OrdersListRefreshed()),
+                      onRefresh: () async {
+                        final bloc = context.read<OrdersListV2Bloc>();
+                        bloc.add(const OrdersListRefreshed());
+                        await bloc.stream
+                            .firstWhere((s) => s is! OrdersListLoading);
+                      },
                       child: ListView.builder(
                         controller: _scroll,
                         padding: const EdgeInsets.all(AppSpacing.md),

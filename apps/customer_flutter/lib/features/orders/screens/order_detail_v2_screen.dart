@@ -35,9 +35,14 @@ class OrderDetailV2Screen extends StatelessWidget {
               ),
             OrderDetailLoaded(:final order, :final eligibility) =>
               RefreshIndicator(
-                onRefresh: () async => context
-                    .read<OrderDetailV2Bloc>()
-                    .add(const OrderDetailRefreshed()),
+                onRefresh: () async {
+                  final bloc = context.read<OrderDetailV2Bloc>();
+                  bloc.add(const OrderDetailRefreshed());
+                  // Wait until the bloc settles into a non-loading
+                  // state so the pull-to-refresh spinner only hides
+                  // once data has actually reloaded.
+                  await bloc.stream.firstWhere((s) => s is! OrderDetailLoading);
+                },
                 child: _LoadedBody(
                     order: order, eligibility: eligibility, orderId: orderId),
               ),

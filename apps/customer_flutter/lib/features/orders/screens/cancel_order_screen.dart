@@ -63,7 +63,8 @@ class _Body extends StatelessWidget {
             decoration: InputDecoration(labelText: l10n.orderCancelReasonLabel),
             items: [
               for (final r in kCancelReasonFallback)
-                DropdownMenuItem(value: r.code, child: Text(r.label)),
+                DropdownMenuItem(
+                    value: r.code, child: Text(_reasonLabel(l10n, r.code))),
             ],
             onChanged: (v) {
               if (v == null) return;
@@ -92,6 +93,27 @@ class _Body extends StatelessWidget {
         ],
       ),
     );
+  }
+}
+
+/// Map fallback reason codes to localized labels. The fallback list in
+/// `order_models.dart` keeps English copy as dev-side defaults; the
+/// screen layer is responsible for showing localized text per
+/// Principle 4.
+String _reasonLabel(AppLocalizations l10n, String code) {
+  switch (code) {
+    case 'changed_mind':
+      return l10n.orderCancelReasonChangedMind;
+    case 'ordered_wrong_item':
+      return l10n.orderCancelReasonWrongItem;
+    case 'delivery_too_slow':
+      return l10n.orderCancelReasonDeliverySlow;
+    case 'found_better_price':
+      return l10n.orderCancelReasonBetterPrice;
+    case 'other':
+      return l10n.orderCancelReasonOther;
+    default:
+      return code;
   }
 }
 

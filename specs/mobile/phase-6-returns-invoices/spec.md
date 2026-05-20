@@ -34,7 +34,7 @@ Deliver returns and invoice access for completed orders: list returns, request a
 
 ### S-6.1 Returns list
 
-**Status:** Planned
+**Status:** Done
 **Route:** `/returns` · **Bottom nav:** visible (More tab → My Returns; also linked from order detail)
 **OpenAPI source:** `openapi.returns.json`
 **Wireframe:** [`#phase-6-returns-list`](../../../docs/mobile-screens-wireframes.md#phase-6-returns-list--s-61-returns-list)
@@ -79,7 +79,7 @@ loading → list → empty ("No returns yet") → error/offline.
 
 ### S-6.2 Return wizard (eligibility + create)
 
-**Status:** Planned
+**Status:** Done
 **Route:** `/orders/{orderId}/returns/new` · **Bottom nav:** hidden
 **OpenAPI source:** `openapi.returns.json` + `openapi.orders.json` (eligibility)
 **Wireframe:** [`#phase-6-return-create`](../../../docs/mobile-screens-wireframes.md#phase-6-return-create--s-62b-return-create-wizard) (+ eligibility entry [`#phase-6-return-eligibility`](../../../docs/mobile-screens-wireframes.md#phase-6-return-eligibility--s-62a-return-eligibility-entry))
@@ -148,7 +148,7 @@ loading → list → empty ("No returns yet") → error/offline.
 
 ### S-6.3 Return detail
 
-**Status:** Planned
+**Status:** Done
 **Route:** `/returns/{id}` · **Bottom nav:** hidden
 **OpenAPI source:** `openapi.returns.json`
 **Wireframe:** [`#phase-6-return-detail`](../../../docs/mobile-screens-wireframes.md#phase-6-return-detail--s-63-return-detail)
@@ -194,7 +194,7 @@ loading → loaded (state pill + timeline + items + photos + refund + rejection 
 
 ### S-6.4 Invoice preview
 
-**Status:** Planned
+**Status:** Done
 **Route:** `/orders/{orderId}/invoice` · **Bottom nav:** hidden
 **OpenAPI source:** `openapi.invoices.json`
 **Wireframe:** [`#phase-6-invoice-preview`](../../../docs/mobile-screens-wireframes.md#phase-6-invoice-preview--s-64-invoice-preview)
@@ -234,7 +234,7 @@ loading → loaded (preview + Download PDF CTA) → 404 (invoice not yet availab
 
 ### S-6.5 Invoice PDF download
 
-**Status:** Planned
+**Status:** Done
 **Route:** `/orders/{orderId}/invoice/pdf` (or no route — trigger from S-6.4)
 **OpenAPI source:** `openapi.invoices.json`
 **Wireframe:** [`#phase-6-invoice-pdf`](../../../docs/mobile-screens-wireframes.md#phase-6-invoice-pdf--s-65-invoice-pdf-download)

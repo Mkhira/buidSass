@@ -43,6 +43,11 @@ import '../features/checkout/screens/shipping_step_screen.dart';
 import '../features/home/bloc/home_bloc.dart';
 import '../features/home/data/home_repository.dart';
 import '../features/home/screens/home_screen.dart';
+import '../features/invoices/bloc/invoice_pdf_bloc.dart';
+import '../features/invoices/bloc/invoice_preview_bloc.dart';
+import '../features/invoices/data/invoices_gateway.dart';
+import '../features/invoices/screens/invoice_pdf_screen.dart';
+import '../features/invoices/screens/invoice_preview_screen.dart';
 import '../features/more/bloc/addresses_bloc.dart';
 import '../features/more/data/addresses_repository.dart';
 import '../features/more/screens/addresses_screen.dart';
@@ -364,6 +369,34 @@ GoRouter buildRouter(AuthSessionBloc authBloc) {
               returnId: id,
             )..add(const ReturnDetailStarted()),
             child: ReturnDetailScreen(returnId: id),
+          );
+        },
+      ),
+      GoRoute(
+        path: '/o/:orderId/invoice',
+        name: 'orderInvoice',
+        builder: (context, s) {
+          final orderId = s.pathParameters['orderId']!;
+          return BlocProvider(
+            create: (_) => InvoicePreviewBloc(
+              gateway: sl<InvoicesGateway>(),
+              orderId: orderId,
+            )..add(const InvoicePreviewStarted()),
+            child: InvoicePreviewScreen(orderId: orderId),
+          );
+        },
+      ),
+      GoRoute(
+        path: '/o/:orderId/invoice/pdf',
+        name: 'orderInvoicePdf',
+        builder: (context, s) {
+          final orderId = s.pathParameters['orderId']!;
+          return BlocProvider(
+            create: (_) => InvoicePdfBloc(
+              gateway: sl<InvoicesGateway>(),
+              orderId: orderId,
+            )..add(const InvoicePdfDownloadRequested()),
+            child: InvoicePdfScreen(orderId: orderId),
           );
         },
       ),

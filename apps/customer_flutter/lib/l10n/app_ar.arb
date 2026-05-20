@@ -172,6 +172,7 @@
   "orderActionReturn": "Request return — EN_PLACEHOLDER",
   "orderActionRetryPayment": "Retry payment — EN_PLACEHOLDER",
   "orderActionTrack": "Open tracking — EN_PLACEHOLDER",
+  "orderActionInvoice": "عرض الفاتورة",
   "orderTrackingEmpty": "Tracking will appear once your order ships. — EN_PLACEHOLDER",
   "orderCancelTitle": "Cancel order — EN_PLACEHOLDER",
   "orderCancelReasonLabel": "Reason — EN_PLACEHOLDER",

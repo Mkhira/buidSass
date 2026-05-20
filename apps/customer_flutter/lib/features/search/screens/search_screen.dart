@@ -2,6 +2,7 @@ import 'package:design_system/design_system.dart' hide AppLocalizations;
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
+import 'package:intl/intl.dart';
 
 import '../../../generated/l10n/app_localizations.dart';
 import '../bloc/search_bloc.dart';
@@ -506,7 +507,16 @@ class _SearchResultCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
-    final priceMajor = (item.priceMinor / 100).toStringAsFixed(2);
+    // Locale-aware currency formatting per Principle 4. NumberFormat picks
+    // the right decimal/grouping separators and Arabic-Indic digit shape
+    // when the active locale is `ar`.
+    final locale = Localizations.localeOf(context).toString();
+    final priceFormatter = NumberFormat.currency(
+      locale: locale,
+      symbol: item.currency,
+      decimalDigits: 2,
+    );
+    final priceText = priceFormatter.format(item.priceMinor / 100);
     return Card(
       clipBehavior: Clip.antiAlias,
       child: InkWell(
@@ -539,7 +549,7 @@ class _SearchResultCard extends StatelessWidget {
                 children: [
                   Expanded(
                     child: Text(
-                      '$priceMajor ${item.currency}',
+                      priceText,
                       style: Theme.of(context).textTheme.titleSmall,
                     ),
                   ),

@@ -158,7 +158,7 @@ void main() {
   });
 
   group('lookup', () {
-    test('rejects sku-only payloads with a stable wire shape', () async {
+    test('accepts sku-only payloads with a stable wire shape', () async {
       final pair = _build((_) => {
             'matched': true,
             'match': {

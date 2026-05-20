@@ -93,14 +93,12 @@ void main() {
       sharer: ({required path, required filename}) async {},
     );
     bloc.add(const InvoicePdfDownloadRequested());
-    final s =
-        await bloc.stream.firstWhere((s) => s is InvoicePdfUnavailable);
+    final s = await bloc.stream.firstWhere((s) => s is InvoicePdfUnavailable);
     expect(s, isA<InvoicePdfUnavailable>());
     await bloc.close();
   });
 
-  test('share invokes the injected sharer with localized filename',
-      () async {
+  test('share invokes the injected sharer with localized filename', () async {
     String? sharedPath;
     String? sharedFilename;
     final bloc = InvoicePdfBloc(
@@ -155,7 +153,8 @@ void main() {
         bytes: Uint8List.fromList(const [1]),
       );
       // Backdate the mtime past the 30-day cutoff.
-      await f.setLastModified(DateTime.now().subtract(const Duration(days: 31)));
+      await f
+          .setLastModified(DateTime.now().subtract(const Duration(days: 31)));
       final removed = await cache.sweep();
       expect(removed, 1);
       expect(f.existsSync(), isFalse);

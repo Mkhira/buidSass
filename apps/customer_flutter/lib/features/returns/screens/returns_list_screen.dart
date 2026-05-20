@@ -77,8 +77,7 @@ class _ReturnsListScreenState extends State<ReturnsListScreen> {
                           if (i >= state.items.length) {
                             return const Padding(
                               padding: EdgeInsets.all(AppSpacing.md),
-                              child: Center(
-                                  child: CircularProgressIndicator()),
+                              child: Center(child: CircularProgressIndicator()),
                             );
                           }
                           return _ReturnRow(item: state.items[i]);

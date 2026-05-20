@@ -49,7 +49,8 @@ class InvoicePreviewRefreshed extends InvoicePreviewEvent {
 /// Bloc for S-6.4 invoice preview. 404 routes to a friendly
 /// `InvoicePreviewUnavailable` state (BR-6); other failures go through
 /// the standard error path.
-class InvoicePreviewBloc extends Bloc<InvoicePreviewEvent, InvoicePreviewState> {
+class InvoicePreviewBloc
+    extends Bloc<InvoicePreviewEvent, InvoicePreviewState> {
   InvoicePreviewBloc({required InvoicesGateway gateway, required this.orderId})
       : _gateway = gateway,
         super(const InvoicePreviewLoading()) {

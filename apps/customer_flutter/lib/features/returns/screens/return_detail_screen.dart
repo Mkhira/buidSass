@@ -38,7 +38,8 @@ class ReturnDetailScreen extends StatelessWidget {
                 onRefresh: () async {
                   final bloc = context.read<ReturnDetailBloc>();
                   bloc.add(const ReturnDetailRefreshed());
-                  await bloc.stream.firstWhere((s) => s is! ReturnDetailLoading);
+                  await bloc.stream
+                      .firstWhere((s) => s is! ReturnDetailLoading);
                 },
                 child: _LoadedBody(detail: detail),
               ),
@@ -187,8 +188,7 @@ class _LineBlock extends StatelessWidget {
               if (line.note != null && line.note!.isNotEmpty) line.note!,
             ].join(' · ')),
           ),
-          if (line.photos.isNotEmpty)
-            _PhotoGallery(photos: line.photos),
+          if (line.photos.isNotEmpty) _PhotoGallery(photos: line.photos),
         ],
       ),
     );

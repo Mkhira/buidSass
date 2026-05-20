@@ -372,8 +372,7 @@ class ReturnWizardBloc extends Bloc<ReturnWizardEvent, ReturnWizardState> {
       }
       final lines = eligibility.lines
           .where((l) => l.eligible)
-          .map((l) =>
-              ReturnWizardLineDraft(productId: l.productId, qty: l.qty))
+          .map((l) => ReturnWizardLineDraft(productId: l.productId, qty: l.qty))
           .toList(growable: false);
       emit(ReturnWizardForm(
         eligibility: eligibility,
@@ -431,9 +430,8 @@ class ReturnWizardBloc extends Bloc<ReturnWizardEvent, ReturnWizardState> {
     final form = _form();
     if (form == null) return;
     final lines = form.lines
-        .map((l) => l.productId == event.productId
-            ? l.copyWith(note: event.note)
-            : l)
+        .map((l) =>
+            l.productId == event.productId ? l.copyWith(note: event.note) : l)
         .toList(growable: false);
     emit(form.copyWith(lines: lines));
   }

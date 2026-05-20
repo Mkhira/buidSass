@@ -214,8 +214,8 @@ void main() {
       );
       bloc.add(const ReturnWizardStarted('order-1'));
       await bloc.stream.firstWhere((s) => s is ReturnWizardForm);
-      bloc.add(const ReturnWizardLineSelected(
-          productId: 'p-1', selected: true));
+      bloc.add(
+          const ReturnWizardLineSelected(productId: 'p-1', selected: true));
       bloc.add(const ReturnWizardLineReasonChanged(
           productId: 'p-1', reason: 'damaged'));
       // Wait for the bloc to digest the line + reason events.
@@ -292,15 +292,14 @@ void main() {
       );
       bloc.add(const ReturnWizardStarted('order-1'));
       await bloc.stream.firstWhere((s) => s is ReturnWizardForm);
-      bloc.add(const ReturnWizardLineSelected(
-          productId: 'p-1', selected: true));
+      bloc.add(
+          const ReturnWizardLineSelected(productId: 'p-1', selected: true));
       bloc.add(const ReturnWizardLineReasonChanged(
           productId: 'p-1', reason: 'damaged'));
       await Future<void>.delayed(Duration.zero);
       bloc.add(const ReturnWizardSubmitted());
       await bloc.stream.firstWhere((s) => s is ReturnWizardFailure);
-      expect(
-          (bloc.state as ReturnWizardFailure).form.eligibilityStale, isTrue);
+      expect((bloc.state as ReturnWizardFailure).form.eligibilityStale, isTrue);
       await bloc.close();
     });
   });

@@ -68,8 +68,7 @@ class InvoiceTotals {
 
   factory InvoiceTotals.fromJson(Map<String, Object?>? j) {
     if (j == null) {
-      return const InvoiceTotals(
-          subtotal: '0', taxTotal: '0', grandTotal: '0');
+      return const InvoiceTotals(subtotal: '0', taxTotal: '0', grandTotal: '0');
     }
     return InvoiceTotals(
       subtotal: j['subtotal']?.toString() ?? '0',

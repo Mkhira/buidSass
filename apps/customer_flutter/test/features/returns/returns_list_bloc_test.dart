@@ -115,8 +115,8 @@ void main() {
       },
       act: (bloc) => bloc.add(const ReturnsListFilterChanged('issued')),
       expect: () => [
-        isA<ReturnsListLoading>().having(
-            (s) => s.filter.status, 'filter.status', 'issued'),
+        isA<ReturnsListLoading>()
+            .having((s) => s.filter.status, 'filter.status', 'issued'),
         isA<ReturnsListLoaded>(),
       ],
     );

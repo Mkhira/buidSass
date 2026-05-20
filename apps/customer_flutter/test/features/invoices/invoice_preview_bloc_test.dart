@@ -48,8 +48,8 @@ InvoicePreview _preview() => InvoicePreview(
           lineTotal: '115',
         ),
       ],
-      totals:
-          const InvoiceTotals(subtotal: '100', taxTotal: '15', grandTotal: '115'),
+      totals: const InvoiceTotals(
+          subtotal: '100', taxTotal: '15', grandTotal: '115'),
     );
 
 void main() {
@@ -60,8 +60,8 @@ void main() {
     act: (bloc) => bloc.add(const InvoicePreviewStarted()),
     expect: () => [
       isA<InvoicePreviewLoading>(),
-      isA<InvoicePreviewLoaded>().having(
-          (s) => s.preview.invoiceNumber, 'invoiceNumber', 'INV-1'),
+      isA<InvoicePreviewLoaded>()
+          .having((s) => s.preview.invoiceNumber, 'invoiceNumber', 'INV-1'),
     ],
   );
 

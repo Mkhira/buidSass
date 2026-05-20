@@ -170,8 +170,8 @@ class InvoicePdfBloc extends Bloc<InvoicePdfEvent, InvoicePdfState> {
       debugPrint('InvoicePdfBloc.download FileSystem: $e');
       emit(const InvoicePdfDiskFull());
     } on Failure catch (f) {
-      emit(InvoicePdfFailure(
-          reason: f.message, correlationId: f.correlationId));
+      emit(
+          InvoicePdfFailure(reason: f.message, correlationId: f.correlationId));
     } on Object catch (e) {
       emit(InvoicePdfFailure(reason: e.toString()));
     }

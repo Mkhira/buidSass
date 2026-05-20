@@ -206,8 +206,8 @@ class _LinePicker extends StatelessWidget {
         child: ListTile(
           contentPadding: EdgeInsets.zero,
           title: Text(eligibilityLine.name),
-          subtitle: Text(eligibilityLine.reason ??
-              l10n.returnWizardLineIneligible),
+          subtitle:
+              Text(eligibilityLine.reason ?? l10n.returnWizardLineIneligible),
           trailing: const Icon(Icons.lock_outline),
         ),
       );
@@ -375,8 +375,8 @@ class _RefundMethodPicker extends StatelessWidget {
           children: [
             _chip(context, 'original_payment',
                 l10n.returnRefundMethodOriginalPayment),
-            _chip(context, 'bank_transfer',
-                l10n.returnRefundMethodBankTransfer),
+            _chip(
+                context, 'bank_transfer', l10n.returnRefundMethodBankTransfer),
             _chip(context, 'wallet', l10n.returnRefundMethodWallet),
           ],
         ),

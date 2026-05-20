@@ -34,8 +34,7 @@ class InvoicePdfCache {
     // platform file systems reject. We replace anything outside
     // [A-Za-z0-9_-] with `_` so the filename stays deterministic
     // without escaping.
-    final safe =
-        '${_sanitize(orderId)}-${_sanitize(invoiceNumber)}.pdf';
+    final safe = '${_sanitize(orderId)}-${_sanitize(invoiceNumber)}.pdf';
     return File('${dir.path}/$safe');
   }
 

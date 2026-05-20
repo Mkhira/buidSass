@@ -135,5 +135,68 @@
   "paymentMethodValu": "ValU",
   "paymentMethodMeeza": "Meeza",
   "paymentMethodBankTransfer": "Bank transfer",
-  "paymentMethodCod": "Cash on delivery"
+  "paymentMethodCod": "Cash on delivery",
+  "orderStatePillOrder": "Order",
+  "orderStatePillPayment": "Payment",
+  "orderStatePillFulfillment": "Fulfillment",
+  "orderStatePillRefund": "Refund",
+  "orderCancelReasonChangedMind": "Changed my mind",
+  "orderCancelReasonWrongItem": "Ordered the wrong item",
+  "orderCancelReasonDeliverySlow": "Delivery too slow",
+  "orderCancelReasonBetterPrice": "Found a better price",
+  "orderCancelReasonOther": "Other",
+  "orderReorderQtyLabel": "× {qty}",
+  "@orderReorderQtyLabel": {
+    "placeholders": {
+      "qty": { "type": "int" }
+    }
+  },
+  "orderReorderReasonUnknown": "Not available",
+  "orderReturnPlaceholderTitle": "Returns coming soon",
+  "orderReturnPlaceholderBody": "The return wizard ships in Phase 6.",
+  "ordersTitle": "Orders",
+  "ordersFilterAll": "All",
+  "ordersFilterPending": "Pending",
+  "ordersFilterShipped": "Shipped",
+  "ordersFilterDelivered": "Delivered",
+  "ordersFilterCancelled": "Cancelled",
+  "ordersListPlacedAt": "Placed {date}",
+  "@ordersListPlacedAt": {
+    "placeholders": {
+      "date": { "type": "String" }
+    }
+  },
+  "orderDetailTitle": "Order",
+  "orderDetailLines": "Items",
+  "orderDetailShipping": "Shipping",
+  "orderDetailPayment": "Payment",
+  "orderDetailTotals": "Totals",
+  "orderActionCancel": "Cancel order",
+  "orderActionReorder": "Reorder",
+  "orderActionReturn": "Request return",
+  "orderActionRetryPayment": "Retry payment",
+  "orderActionTrack": "Open tracking",
+  "orderTrackingEmpty": "Tracking will appear once your order ships.",
+  "orderCancelTitle": "Cancel order",
+  "orderCancelReasonLabel": "Reason",
+  "orderCancelNoteLabel": "Note (optional)",
+  "orderCancelSubmit": "Cancel order",
+  "orderCancelSuccessToast": "Your order was cancelled.",
+  "orderCancelStaleBanner": "This order can no longer be cancelled. Refresh to see the latest status.",
+  "orderReorderTitle": "Reorder",
+  "orderReorderAvailable": "Available to reorder",
+  "orderReorderUnavailable": "Unavailable",
+  "orderReorderReasonOutOfStock": "Out of stock",
+  "orderReorderReasonDiscontinued": "Discontinued",
+  "orderReorderReasonMarketBlocked": "Not available in your market",
+  "orderReorderAddToCart": "Add to cart",
+  "orderReorderNothingTitle": "Nothing to reorder",
+  "orderReorderNothingBody": "None of the items in this order are available right now.",
+  "orderReorderAddedToast": "{added} added, {skipped} skipped",
+  "@orderReorderAddedToast": {
+    "placeholders": {
+      "added": { "type": "int" },
+      "skipped": { "type": "int" }
+    }
+  }
 }

@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import '../../../generated/l10n/app_localizations.dart';
 import '../bloc/checkout_drift.dart';
 import '../bloc/checkout_payment_bloc.dart';
+import '../payment_adapters/payment_adapter.dart';
 import '../widgets/conflict_dialog.dart';
 
 class PaymentStepScreen extends StatelessWidget {
@@ -22,7 +23,12 @@ class PaymentStepScreen extends StatelessWidget {
         } else if (state is CheckoutPaymentConflict) {
           final r = await showConflictDialog(context, state.conflict);
           if (!context.mounted) return;
-          if (r == DriftResolution.review) {
+          if (r == DriftResolution.accept) {
+            // Drift on payment must round-trip through summary so the
+            // updated `availableMethods` list and totals are visible
+            // before the user re-selects a method.
+            context.go('/checkout/$sessionId/summary');
+          } else if (r == DriftResolution.review) {
             context.go('/checkout/$sessionId/summary');
           }
         }
@@ -74,10 +80,20 @@ class _MethodPicker extends StatelessWidget {
                 final bloc = context.read<CheckoutPaymentBloc>();
                 final adapter = bloc.adapterFor(m);
                 if (adapter == null) return;
-                final result = await adapter.collectToken(
-                  summary: summary,
-                  context: context,
-                );
+                // Adapter calls can throw — provider SDKs surface
+                // network / cancel errors as exceptions, and we don't
+                // want those to escape to the UI thread once real
+                // adapters ship. Treat any throw as cancellation; the
+                // user can retry from the picker.
+                PaymentTokenResult result;
+                try {
+                  result = await adapter.collectToken(
+                    summary: summary,
+                    context: context,
+                  );
+                } on Object {
+                  result = PaymentTokenResult(method: m, cancelled: true);
+                }
                 if (!context.mounted) return;
                 bloc.add(PaymentMethodChosen(method: m, token: result));
               },

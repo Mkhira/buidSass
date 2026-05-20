@@ -66,6 +66,7 @@ class CheckoutStartBloc extends Bloc<CheckoutStartEvent, CheckoutStartState>
   }
 
   final CheckoutGateway _gateway;
+  bool _creating = false;
 
   Future<void> _onStart(
     StartCheckoutRequested event,
@@ -78,6 +79,12 @@ class CheckoutStartBloc extends Bloc<CheckoutStartEvent, CheckoutStartState>
     CreateSessionRequest request,
     Emitter<CheckoutStartState> emit,
   ) async {
+    // Guard against double-tap / re-mount creating two sessions for the
+    // same cart intent — once we have a sessionId, the user must
+    // explicitly retry (the failure UI dispatches `StartCheckoutRetried`,
+    // which resets state and clears the guard).
+    if (_creating || state is CheckoutStartedState) return;
+    _creating = true;
     emit(const CheckoutStarting());
     try {
       final result = await _gateway.createSession(request);
@@ -89,6 +96,8 @@ class CheckoutStartBloc extends Bloc<CheckoutStartEvent, CheckoutStartState>
       emit(CheckoutStartConflict(driftFrom(e)));
     } on Object catch (e) {
       emit(CheckoutStartFailure(reason: e.toString()));
+    } finally {
+      _creating = false;
     }
   }
 }

@@ -398,58 +398,95 @@ class _BlocRefresh extends ChangeNotifier {
 
 /// Payment-step route helper. Fetches the latest summary so the bloc is
 /// constructed against the server-driven `availableMethods` list (BR-5)
-/// before the user lands on the screen.
-class _CheckoutPaymentRoute extends StatelessWidget {
+/// before the user lands on the screen. Caches the future in
+/// [initState] so rebuilds (keyboard, route animation frames) don't
+/// re-issue `getSummary`.
+class _CheckoutPaymentRoute extends StatefulWidget {
   const _CheckoutPaymentRoute({required this.sessionId});
   final String sessionId;
 
   @override
+  State<_CheckoutPaymentRoute> createState() => _CheckoutPaymentRouteState();
+}
+
+class _CheckoutPaymentRouteState extends State<_CheckoutPaymentRoute> {
+  late final Future<CheckoutSummary> _summary;
+
+  @override
+  void initState() {
+    super.initState();
+    _summary = GetIt.instance<CheckoutGateway>().getSummary(widget.sessionId);
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final sl = GetIt.instance;
     return FutureBuilder<CheckoutSummary>(
-      future: sl<CheckoutGateway>().getSummary(sessionId),
+      future: _summary,
       builder: (context, snap) {
+        if (snap.hasError) {
+          return Scaffold(
+            body: Center(child: Text('${snap.error}')),
+          );
+        }
         if (!snap.hasData) {
           return const Scaffold(
               body: Center(child: CircularProgressIndicator()));
         }
         return BlocProvider(
           create: (_) => CheckoutPaymentBloc(
-            gateway: sl<CheckoutGateway>(),
-            sessionId: sessionId,
+            gateway: GetIt.instance<CheckoutGateway>(),
+            sessionId: widget.sessionId,
             initial: snap.data!,
           ),
-          child: PaymentStepScreen(sessionId: sessionId),
+          child: PaymentStepScreen(sessionId: widget.sessionId),
         );
       },
     );
   }
 }
 
-/// Review-step route helper. Same summary-prefetch pattern as the
-/// payment route — needed so the review bloc seeds its initial state
-/// with the rendered totals + line items the user will confirm.
-class _CheckoutReviewRoute extends StatelessWidget {
+/// Review-step route helper. Same summary-prefetch + cached-future
+/// pattern as the payment route — needed so the review bloc seeds its
+/// initial state with the rendered totals + line items the user will
+/// confirm.
+class _CheckoutReviewRoute extends StatefulWidget {
   const _CheckoutReviewRoute({required this.sessionId});
   final String sessionId;
 
   @override
+  State<_CheckoutReviewRoute> createState() => _CheckoutReviewRouteState();
+}
+
+class _CheckoutReviewRouteState extends State<_CheckoutReviewRoute> {
+  late final Future<CheckoutSummary> _summary;
+
+  @override
+  void initState() {
+    super.initState();
+    _summary = GetIt.instance<CheckoutGateway>().getSummary(widget.sessionId);
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final sl = GetIt.instance;
     return FutureBuilder<CheckoutSummary>(
-      future: sl<CheckoutGateway>().getSummary(sessionId),
+      future: _summary,
       builder: (context, snap) {
+        if (snap.hasError) {
+          return Scaffold(
+            body: Center(child: Text('${snap.error}')),
+          );
+        }
         if (!snap.hasData) {
           return const Scaffold(
               body: Center(child: CircularProgressIndicator()));
         }
         return BlocProvider(
           create: (_) => CheckoutReviewBloc(
-            gateway: sl<CheckoutGateway>(),
-            sessionId: sessionId,
+            gateway: GetIt.instance<CheckoutGateway>(),
+            sessionId: widget.sessionId,
             initialSummary: snap.data!,
           ),
-          child: ReviewScreen(sessionId: sessionId),
+          child: ReviewScreen(sessionId: widget.sessionId),
         );
       },
     );

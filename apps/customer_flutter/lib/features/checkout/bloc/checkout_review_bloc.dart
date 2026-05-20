@@ -27,9 +27,16 @@ class CheckoutReviewSubmitting extends CheckoutReviewState {
 }
 
 class CheckoutReviewRedirecting extends CheckoutReviewState {
-  const CheckoutReviewRedirecting({required this.url, required this.orderId});
+  const CheckoutReviewRedirecting({
+    required this.url,
+    required this.orderId,
+    required this.idempotencyKey,
+  });
   final String url;
   final String orderId;
+  // Carried through the redirect state so re-dispatched submit on return
+  // reuses the original key — BR-3 forbids generating a fresh key here.
+  final String idempotencyKey;
 }
 
 class CheckoutReviewSuccess extends CheckoutReviewState {
@@ -112,6 +119,7 @@ class CheckoutReviewBloc extends Bloc<CheckoutReviewEvent, CheckoutReviewState>
     return switch (s) {
       CheckoutReviewLoaded(:final idempotencyKey) => idempotencyKey,
       CheckoutReviewSubmitting(:final idempotencyKey) => idempotencyKey,
+      CheckoutReviewRedirecting(:final idempotencyKey) => idempotencyKey,
       CheckoutReviewConflict(:final idempotencyKey) => idempotencyKey,
       CheckoutReviewFailure(:final idempotencyKey) => idempotencyKey,
       _ => _idFactory(),
@@ -140,6 +148,7 @@ class CheckoutReviewBloc extends Bloc<CheckoutReviewEvent, CheckoutReviewState>
         emit(CheckoutReviewRedirecting(
           url: result.redirect.url!,
           orderId: result.orderId,
+          idempotencyKey: key,
         ));
         return;
       }

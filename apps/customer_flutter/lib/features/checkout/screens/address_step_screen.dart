@@ -29,9 +29,10 @@ class _AddressStepScreenState extends State<AddressStepScreen> {
   @override
   void initState() {
     super.initState();
-    final initial =
-        (context.read<CheckoutAddressBloc>().state as CheckoutAddressForm)
-            .initial;
+    // The bloc usually mounts in CheckoutAddressForm, but a hot-reload or
+    // a router re-build can land us here in any state. Read defensively.
+    final s = context.read<CheckoutAddressBloc>().state;
+    final initial = s is CheckoutAddressForm ? s.initial : null;
     _name = TextEditingController(text: initial?.name ?? '');
     _phone = TextEditingController(text: initial?.phone ?? '');
     _city = TextEditingController(text: initial?.city ?? '');

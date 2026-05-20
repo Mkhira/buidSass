@@ -23,7 +23,13 @@ class ShippingStepScreen extends StatelessWidget {
         } else if (state is CheckoutShippingConflict) {
           final r = await showConflictDialog(context, state.conflict);
           if (!context.mounted) return;
-          if (r == DriftResolution.review) {
+          if (r == DriftResolution.accept) {
+            // Re-fetch quotes; the server-resolved drift may change the
+            // available shipping methods and totals.
+            context
+                .read<CheckoutShippingBloc>()
+                .add(const ShippingQuotesRequested());
+          } else if (r == DriftResolution.review) {
             context.go('/checkout/$sessionId/summary');
           }
         }

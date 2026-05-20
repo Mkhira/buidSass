@@ -80,6 +80,14 @@ class CheckoutPaymentBloc
     PaymentMethodChosen event,
     Emitter<CheckoutPaymentState> emit,
   ) async {
+    // Fail fast on adapter / picker desync: if the screen layer dispatched
+    // a method that doesn't match the token's method, the PATCH would
+    // send an inconsistent payload server-side.
+    if (event.method != event.token.method) {
+      emit(const CheckoutPaymentFailure(
+          reason: 'payment_method_token_mismatch'));
+      return;
+    }
     if (event.token.cancelled) {
       // Re-enter the idle picker with the current summary if we have
       // one; bloc re-fetches summary on cancel via the screen layer

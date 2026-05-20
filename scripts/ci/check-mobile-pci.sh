@@ -32,6 +32,7 @@ fi
 # Word-boundary tokens — same shape as the backend guard, lowercase
 # variants included for snake_case fields and JSON keys.
 forbidden=(
+  "pan"
   "cardNumber"
   "card_number"
   "cardPan"
@@ -39,6 +40,7 @@ forbidden=(
   "primary_account_number"
   "cvv"
   "cvc"
+  "pin"
   "track1"
   "track2"
   "magstripe"

@@ -191,7 +191,14 @@ class StubCheckoutGateway implements CheckoutGateway {
             ))
         .toList(growable: false);
     final subtotal = req.lines.fold<double>(0, (s, l) => s + 120 * l.qty);
-    final discount = req.couponCode != null ? subtotal * 0.05 : 0;
+    // Discount applies only when the coupon is valid — keeps stub
+    // totals consistent with `couponValid`, which the cart bloc
+    // surfaces as the inline error message.
+    final coupon = req.couponCode?.trim().toUpperCase();
+    final couponValid = coupon == null || coupon != 'INVALID';
+    final discount = (couponValid && coupon != null && coupon.isNotEmpty)
+        ? subtotal * 0.05
+        : 0;
     final tax = (subtotal - discount) * 0.15;
     final grandTotal = subtotal - discount + tax;
     return PriceCartResult(
@@ -204,11 +211,8 @@ class StubCheckoutGateway implements CheckoutGateway {
         grandTotal: grandTotal.toStringAsFixed(2),
         currency: 'SAR',
       ),
-      couponValid:
-          req.couponCode == null || req.couponCode!.toUpperCase() != 'INVALID',
-      couponMessage: req.couponCode?.toUpperCase() == 'INVALID'
-          ? 'Coupon code not recognized'
-          : null,
+      couponValid: couponValid,
+      couponMessage: !couponValid ? 'Coupon code not recognized' : null,
     );
   }
 

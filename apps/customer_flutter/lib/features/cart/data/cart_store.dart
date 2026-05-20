@@ -47,9 +47,12 @@ class CartStore {
         if (decoded is Map) {
           _snapshot = CartSnapshot.fromJson(Map<String, Object?>.from(decoded));
         }
-      } on FormatException {
-        // Corrupt cart — drop it; the user notices a missing cart far
-        // sooner than they notice a misleading old one, and the
+      } on Object {
+        // Corrupt cart — drop it. We catch broadly because failures can
+        // surface as `FormatException` (json layer), `TypeError` /
+        // `_CastError` (shape mismatch during map conversion), or any
+        // other downstream parsing throw. The user notices a missing
+        // cart far sooner than a misleading old one, and the
         // shared_preferences atomic-write contract means corruption is
         // almost always a schema-version mismatch we can ignore.
         _snapshot = const CartSnapshot();

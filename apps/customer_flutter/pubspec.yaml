@@ -51,6 +51,10 @@ dependencies:
   # handlers at build time.
   permission_handler: ^11.3.1
 
+  # External link launching for Phase 5 tracking-URL CTA (Phase 5
+  # plan §Risk 4: always external, never in-app WebView).
+  url_launcher: ^6.3.1
+
   # Image caching
   cached_network_image: ^3.4.1
 

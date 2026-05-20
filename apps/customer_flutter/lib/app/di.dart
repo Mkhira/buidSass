@@ -27,7 +27,10 @@ import '../features/checkout/data/stub_checkout_gateway.dart';
 import '../features/home/data/cms_stub_repository.dart';
 import '../features/home/data/home_repository.dart';
 import '../features/more/data/addresses_repository.dart';
+import '../features/orders/data/orders_gateway.dart';
+import '../features/orders/data/orders_gateway_impl.dart';
 import '../features/orders/data/orders_repository.dart';
+import '../features/orders/data/stub_orders_gateway.dart';
 import '../features/search/data/recent_searches_store.dart';
 import '../features/search/data/search_gateway.dart';
 import '../features/search/data/search_gateway_impl.dart';
@@ -166,6 +169,13 @@ Future<void> bootstrap({
       return CheckoutGatewayImpl(dio: sl<ApiModule>().dio);
     }
     return StubCheckoutGateway();
+  });
+  sl.registerLazySingleton<OrdersGateway>(() {
+    final flags = sl<FeatureFlags>();
+    if (flags.realOrdersClientShipped) {
+      return OrdersGatewayImpl(dio: sl<ApiModule>().dio);
+    }
+    return StubOrdersGateway();
   });
 
   // Clear cart on sign-out (BR-1). The subscription survives DI bootstrap

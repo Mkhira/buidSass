@@ -7,6 +7,7 @@ class FeatureFlags {
     this.realIdentityClientShipped = false,
     this.realSearchClientShipped = false,
     this.realCheckoutClientShipped = false,
+    this.realOrdersClientShipped = false,
   });
 
   factory FeatureFlags.fromEnvironment() {
@@ -20,12 +21,15 @@ class FeatureFlags {
         bool.fromEnvironment('SEARCH_CLIENT_SHIPPED', defaultValue: false);
     const checkout =
         bool.fromEnvironment('CHECKOUT_CLIENT_SHIPPED', defaultValue: false);
+    const orders =
+        bool.fromEnvironment('ORDERS_CLIENT_SHIPPED', defaultValue: false);
     return const FeatureFlags(
       verificationCtaShipped: verification,
       cmsContentShipped: cms,
       realIdentityClientShipped: identity,
       realSearchClientShipped: search,
       realCheckoutClientShipped: checkout,
+      realOrdersClientShipped: orders,
     );
   }
 
@@ -58,4 +62,9 @@ class FeatureFlags {
   /// checkout client is reachable. Flip via
   /// `--dart-define=CHECKOUT_CLIENT_SHIPPED=true`.
   final bool realCheckoutClientShipped;
+
+  /// `specs/mobile/phase-5-orders` — when `true`, DI wires
+  /// `OrdersGatewayImpl` in place of [StubOrdersGateway]. Default
+  /// `false`. Flip via `--dart-define=ORDERS_CLIENT_SHIPPED=true`.
+  final bool realOrdersClientShipped;
 }

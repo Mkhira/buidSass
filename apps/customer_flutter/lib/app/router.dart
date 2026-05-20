@@ -48,11 +48,15 @@ import '../features/more/data/addresses_repository.dart';
 import '../features/more/screens/addresses_screen.dart';
 import '../features/more/screens/more_screen.dart';
 import '../features/more/screens/verification_cta_screen.dart';
-import '../features/orders/bloc/order_detail_bloc.dart';
-import '../features/orders/bloc/order_list_bloc.dart';
-import '../features/orders/data/orders_repository.dart';
-import '../features/orders/screens/order_detail_screen.dart';
-import '../features/orders/screens/orders_list_screen.dart';
+import '../features/orders/bloc/cancel_order_bloc.dart';
+import '../features/orders/bloc/order_detail_v2_bloc.dart';
+import '../features/orders/bloc/orders_list_v2_bloc.dart';
+import '../features/orders/bloc/reorder_bloc.dart';
+import '../features/orders/data/orders_gateway.dart';
+import '../features/orders/screens/cancel_order_screen.dart';
+import '../features/orders/screens/order_detail_v2_screen.dart';
+import '../features/orders/screens/orders_list_v2_screen.dart';
+import '../features/orders/screens/reorder_screen.dart';
 import '../features/search/bloc/lookup_bloc.dart';
 import '../features/search/bloc/search_bloc.dart';
 import '../features/search/data/recent_searches_store.dart';
@@ -267,9 +271,9 @@ GoRouter buildRouter(AuthSessionBloc authBloc) {
         path: '/orders',
         name: 'orders',
         builder: (context, _) => BlocProvider(
-          create: (_) => OrderListBloc(repository: sl<OrdersRepository>())
-            ..add(const OrderListRefreshTapped()),
-          child: const OrdersListScreen(),
+          create: (_) => OrdersListV2Bloc(gateway: sl<OrdersGateway>())
+            ..add(const OrdersListStarted()),
+          child: const OrdersListV2Screen(),
         ),
       ),
       GoRoute(
@@ -278,9 +282,40 @@ GoRouter buildRouter(AuthSessionBloc authBloc) {
         builder: (context, s) {
           final orderId = s.pathParameters['orderId']!;
           return BlocProvider(
-            create: (_) => OrderDetailBloc(repository: sl<OrdersRepository>())
-              ..add(OrderDetailRequested(orderId)),
-            child: OrderDetailScreen(orderId: orderId),
+            create: (_) => OrderDetailV2Bloc(
+              gateway: sl<OrdersGateway>(),
+              orderId: orderId,
+            )..add(const OrderDetailStarted()),
+            child: OrderDetailV2Screen(orderId: orderId),
+          );
+        },
+      ),
+      GoRoute(
+        path: '/o/:orderId/cancel',
+        name: 'orderCancel',
+        builder: (context, s) {
+          final orderId = s.pathParameters['orderId']!;
+          return BlocProvider(
+            create: (_) => CancelOrderBloc(
+              gateway: sl<OrdersGateway>(),
+              orderId: orderId,
+            ),
+            child: CancelOrderScreen(orderId: orderId),
+          );
+        },
+      ),
+      GoRoute(
+        path: '/o/:orderId/reorder',
+        name: 'orderReorder',
+        builder: (context, s) {
+          final orderId = s.pathParameters['orderId']!;
+          return BlocProvider(
+            create: (_) => ReorderBloc(
+              gateway: sl<OrdersGateway>(),
+              cartStore: sl<CartStore>(),
+              orderId: orderId,
+            )..add(const ReorderStarted()),
+            child: ReorderScreen(orderId: orderId),
           );
         },
       ),

@@ -133,5 +133,50 @@
   "paymentMethodValu": "ValU — EN_PLACEHOLDER",
   "paymentMethodMeeza": "Meeza — EN_PLACEHOLDER",
   "paymentMethodBankTransfer": "Bank transfer — EN_PLACEHOLDER",
-  "paymentMethodCod": "Cash on delivery — EN_PLACEHOLDER"
+  "paymentMethodCod": "Cash on delivery — EN_PLACEHOLDER",
+  "ordersTitle": "Orders — EN_PLACEHOLDER",
+  "ordersFilterAll": "All — EN_PLACEHOLDER",
+  "ordersFilterPending": "Pending — EN_PLACEHOLDER",
+  "ordersFilterShipped": "Shipped — EN_PLACEHOLDER",
+  "ordersFilterDelivered": "Delivered — EN_PLACEHOLDER",
+  "ordersFilterCancelled": "Cancelled — EN_PLACEHOLDER",
+  "ordersListPlacedAt": "Placed {date} — EN_PLACEHOLDER",
+  "@ordersListPlacedAt": {
+    "placeholders": {
+      "date": { "type": "String" }
+    }
+  },
+  "orderDetailTitle": "Order — EN_PLACEHOLDER",
+  "orderDetailLines": "Items — EN_PLACEHOLDER",
+  "orderDetailShipping": "Shipping — EN_PLACEHOLDER",
+  "orderDetailPayment": "Payment — EN_PLACEHOLDER",
+  "orderDetailTotals": "Totals — EN_PLACEHOLDER",
+  "orderActionCancel": "Cancel order — EN_PLACEHOLDER",
+  "orderActionReorder": "Reorder — EN_PLACEHOLDER",
+  "orderActionReturn": "Request return — EN_PLACEHOLDER",
+  "orderActionRetryPayment": "Retry payment — EN_PLACEHOLDER",
+  "orderActionTrack": "Open tracking — EN_PLACEHOLDER",
+  "orderTrackingEmpty": "Tracking will appear once your order ships. — EN_PLACEHOLDER",
+  "orderCancelTitle": "Cancel order — EN_PLACEHOLDER",
+  "orderCancelReasonLabel": "Reason — EN_PLACEHOLDER",
+  "orderCancelNoteLabel": "Note (optional) — EN_PLACEHOLDER",
+  "orderCancelSubmit": "Cancel order — EN_PLACEHOLDER",
+  "orderCancelSuccessToast": "Your order was cancelled. — EN_PLACEHOLDER",
+  "orderCancelStaleBanner": "This order can no longer be cancelled. Refresh to see the latest status. — EN_PLACEHOLDER",
+  "orderReorderTitle": "Reorder — EN_PLACEHOLDER",
+  "orderReorderAvailable": "Available to reorder — EN_PLACEHOLDER",
+  "orderReorderUnavailable": "Unavailable — EN_PLACEHOLDER",
+  "orderReorderReasonOutOfStock": "Out of stock — EN_PLACEHOLDER",
+  "orderReorderReasonDiscontinued": "Discontinued — EN_PLACEHOLDER",
+  "orderReorderReasonMarketBlocked": "Not available in your market — EN_PLACEHOLDER",
+  "orderReorderAddToCart": "Add to cart — EN_PLACEHOLDER",
+  "orderReorderNothingTitle": "Nothing to reorder — EN_PLACEHOLDER",
+  "orderReorderNothingBody": "None of the items in this order are available right now. — EN_PLACEHOLDER",
+  "orderReorderAddedToast": "{added} added, {skipped} skipped — EN_PLACEHOLDER",
+  "@orderReorderAddedToast": {
+    "placeholders": {
+      "added": { "type": "int" },
+      "skipped": { "type": "int" }
+    }
+  }
 }

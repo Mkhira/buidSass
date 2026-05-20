@@ -16,7 +16,17 @@ class HomeScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
     return AppScaffold(
-      appBar: AppBar(title: Text(l10n.navHome)),
+      appBar: AppBar(
+        title: Text(l10n.navHome),
+        actions: [
+          IconButton(
+            key: const ValueKey('home-search-icon'),
+            icon: const Icon(Icons.search),
+            tooltip: l10n.searchHint,
+            onPressed: () => context.push('/search'),
+          ),
+        ],
+      ),
       body: BlocBuilder<HomeBloc, HomeState>(
         builder: (context, state) {
           return switch (state) {

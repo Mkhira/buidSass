@@ -39,6 +39,18 @@ dependencies:
   # Secure storage — research §R5
   flutter_secure_storage: ^9.2.2
 
+  # Lightweight prefs for non-sensitive client state (Phase 3 recent
+  # searches per spec.md BR-3).
+  shared_preferences: ^2.3.2
+
+  # Barcode scanning for Phase 3 lookup (S-3.4).
+  mobile_scanner: ^5.2.3
+
+  # Camera permission flow for lookup scan (Phase 3 plan §Camera
+  # permission). Camera-only — does not pull additional permission
+  # handlers at build time.
+  permission_handler: ^11.3.1
+
   # Image caching
   cached_network_image: ^3.4.1
 

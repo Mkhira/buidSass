@@ -49,5 +49,40 @@
   "moreVerification": "Verification",
   "verificationRequired": "Verification required to add this item",
   "stockOutOfStock": "Out of stock",
-  "stockLow": "Low stock"
+  "stockLow": "Low stock",
+  "searchHint": "Search for products, brands, SKUs…",
+  "searchRecentTitle": "Recent searches",
+  "searchRecentClear": "Clear",
+  "searchRecentClearConfirm": "Clear recent searches?",
+  "searchTopMatchesTitle": "Top matches",
+  "searchSuggestionsTitle": "Suggestions",
+  "searchEmptyTitle": "No matches",
+  "searchEmptyBody": "Try a different search or look up by SKU.",
+  "searchLookupCta": "Look up by SKU or barcode",
+  "searchSortLabel": "Sort",
+  "searchFiltersLabel": "Filters",
+  "searchResultsCount": "{count, plural, =0{No results} =1{1 result} other{{count} results}}",
+  "@searchResultsCount": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "lookupTitle": "Lookup product",
+  "lookupManualLabel": "Enter SKU",
+  "lookupSubmit": "Look up",
+  "lookupScanCta": "Scan barcode",
+  "lookupScanCancel": "Cancel scan",
+  "lookupMatchedTitle": "Found {name}",
+  "@lookupMatchedTitle": {
+    "placeholders": {
+      "name": { "type": "String" }
+    }
+  },
+  "lookupOpenProduct": "Open",
+  "lookupNoMatchTitle": "No product found",
+  "lookupNoMatchBody": "Try the search instead.",
+  "lookupGoToSearch": "Search",
+  "lookupPermissionDeniedTitle": "Camera permission required",
+  "lookupPermissionDeniedBody": "Allow camera access to scan barcodes.",
+  "lookupOpenSettings": "Open settings"
 }

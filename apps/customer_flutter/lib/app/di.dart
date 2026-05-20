@@ -1,4 +1,5 @@
 import 'package:get_it/get_it.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../core/api/api_module.dart';
 import '../core/api/auth_interceptor.dart';
@@ -22,6 +23,9 @@ import '../features/home/data/cms_stub_repository.dart';
 import '../features/home/data/home_repository.dart';
 import '../features/more/data/addresses_repository.dart';
 import '../features/orders/data/orders_repository.dart';
+import '../features/search/data/recent_searches_store.dart';
+import '../features/search/data/search_gateway.dart';
+import '../features/search/data/search_gateway_impl.dart';
 
 /// GetIt composition root. Boots in [bootstrap]; feature modules and tests
 /// register additional bindings on top via [GetIt.I].
@@ -118,6 +122,28 @@ Future<void> bootstrap({
   sl.registerLazySingleton<CheckoutRepository>(StubCheckoutRepository.new);
   sl.registerLazySingleton<OrdersRepository>(StubOrdersRepository.new);
   sl.registerLazySingleton<AddressesRepository>(StubAddressesRepository.new);
+
+  // Search — Phase 3. Backend search module is not yet wired into the
+  // app's Dio stack; until the OpenAPI client lands the stub gateway
+  // satisfies BR-1..7 against deterministic seed data.
+  sl.registerLazySingleton<SearchGateway>(() {
+    final flags = sl<FeatureFlags>();
+    if (flags.realSearchClientShipped) {
+      return SearchGatewayImpl(dio: sl<ApiModule>().dio);
+    }
+    return const StubSearchGateway();
+  });
+  final prefs = await SharedPreferences.getInstance();
+  sl.registerLazySingleton<RecentSearchesStore>(
+    () => SharedPreferencesRecentSearchesStore(
+      prefs: prefs,
+      accountIdProvider: () {
+        final s = sl<AuthSessionBloc>().state;
+        if (s is AuthAuthenticated) return s.customerId;
+        return null;
+      },
+    ),
+  );
 
   sl.registerSingleton<bool>(true, instanceName: 'di.bootstrapped');
 }

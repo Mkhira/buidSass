@@ -5,6 +5,7 @@ class FeatureFlags {
     this.verificationCtaShipped = false,
     this.cmsContentShipped = false,
     this.realIdentityClientShipped = false,
+    this.realSearchClientShipped = false,
   });
 
   factory FeatureFlags.fromEnvironment() {
@@ -14,10 +15,13 @@ class FeatureFlags {
         bool.fromEnvironment('CMS_CONTENT_SHIPPED', defaultValue: false);
     const identity =
         bool.fromEnvironment('IDENTITY_CLIENT_SHIPPED', defaultValue: false);
+    const search =
+        bool.fromEnvironment('SEARCH_CLIENT_SHIPPED', defaultValue: false);
     return const FeatureFlags(
       verificationCtaShipped: verification,
       cmsContentShipped: cms,
       realIdentityClientShipped: identity,
+      realSearchClientShipped: search,
     );
   }
 
@@ -35,4 +39,11 @@ class FeatureFlags {
   /// pre-backend dev builds keep the stub behavior. Flip via
   /// `--dart-define=IDENTITY_CLIENT_SHIPPED=true`.
   final bool realIdentityClientShipped;
+
+  /// `specs/mobile/phase-3-search` — when `true`, DI wires
+  /// `SearchGatewayImpl` (real HTTP calls to spec 006 search endpoints)
+  /// in place of [StubSearchGateway]. Default `false` so dev builds run
+  /// against the deterministic stub until the backend search client is
+  /// reachable. Flip via `--dart-define=SEARCH_CLIENT_SHIPPED=true`.
+  final bool realSearchClientShipped;
 }

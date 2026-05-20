@@ -111,8 +111,7 @@ class StubSearchGateway implements SearchGateway {
           slug: 'stub-product-1',
           name: '$q — Sample Product',
           imageUrl: '',
-          priceHint:
-              const SearchPriceHint(amount: '120.00', currency: 'SAR'),
+          priceHint: const SearchPriceHint(amount: '120.00', currency: 'SAR'),
         ),
       ],
     );

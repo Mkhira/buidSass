@@ -34,9 +34,7 @@ class _LookupScreenState extends State<LookupScreen> {
   Future<bool> _probe() {
     final injected = widget.permissionProbe;
     if (injected != null) return injected();
-    return Permission.camera
-        .request()
-        .then((s) => s.isGranted || s.isLimited);
+    return Permission.camera.request().then((s) => s.isGranted || s.isLimited);
   }
 
   Future<void> _onScanTap(BuildContext context) async {
@@ -180,10 +178,9 @@ class _ScanningBody extends StatelessWidget {
           MobileScanner(
             controller: controller,
             onDetect: (capture) {
-              final raw = capture.barcodes
-                  .map((b) => b.rawValue)
-                  .firstWhere((v) => v != null && v.isNotEmpty,
-                      orElse: () => null);
+              final raw = capture.barcodes.map((b) => b.rawValue).firstWhere(
+                  (v) => v != null && v.isNotEmpty,
+                  orElse: () => null);
               if (raw == null) return;
               context.read<LookupBloc>().add(LookupScanResult(raw));
             },
@@ -256,8 +253,8 @@ class _NoMatchBody extends StatelessWidget {
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 TextButton(
-                  onPressed: () => context.read<LookupBloc>()
-                      .add(const LookupStarted()),
+                  onPressed: () =>
+                      context.read<LookupBloc>().add(const LookupStarted()),
                   child: Text(l10n.commonRetry),
                 ),
                 const SizedBox(width: AppSpacing.md),
@@ -292,8 +289,7 @@ class _PermissionDeniedBody extends StatelessWidget {
             Text(l10n.lookupPermissionDeniedTitle,
                 style: Theme.of(context).textTheme.titleMedium),
             const SizedBox(height: AppSpacing.sm),
-            Text(l10n.lookupPermissionDeniedBody,
-                textAlign: TextAlign.center),
+            Text(l10n.lookupPermissionDeniedBody, textAlign: TextAlign.center),
             const SizedBox(height: AppSpacing.lg),
             FilledButton(
               onPressed: openAppSettings,

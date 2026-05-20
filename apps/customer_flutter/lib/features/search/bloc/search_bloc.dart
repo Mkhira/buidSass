@@ -262,10 +262,7 @@ class SearchBloc extends Bloc<SearchEvent, SearchState> {
       next[event.kind] = bucket;
     }
     await _runSearch(emit,
-        query: s.query,
-        selectedFacets: next,
-        sort: s.selectedSort,
-        page: 1);
+        query: s.query, selectedFacets: next, sort: s.selectedSort, page: 1);
   }
 
   Future<void> _onSortChanged(

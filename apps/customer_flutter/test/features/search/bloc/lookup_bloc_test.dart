@@ -37,8 +37,7 @@ void main() {
       });
       return build();
     },
-    act: (b) =>
-        b.add(const LookupSubmitted(value: 'SKU-1', kind: 'sku')),
+    act: (b) => b.add(const LookupSubmitted(value: 'SKU-1', kind: 'sku')),
     expect: () => [
       isA<LookupLooking>(),
       isA<LookupMatched>().having((s) => s.slug, 'slug', 'tile-a'),
@@ -53,24 +52,21 @@ void main() {
       });
       return build();
     },
-    act: (b) =>
-        b.add(const LookupSubmitted(value: 'NOTFOUND', kind: 'sku')),
+    act: (b) => b.add(const LookupSubmitted(value: 'NOTFOUND', kind: 'sku')),
     expect: () => [isA<LookupLooking>(), isA<LookupNoMatch>()],
   );
 
   blocTest<LookupBloc, LookupState>(
     'LookupScanRequested without permission emits PermissionDenied',
     build: build,
-    act: (b) =>
-        b.add(const LookupScanRequested(permissionGranted: false)),
+    act: (b) => b.add(const LookupScanRequested(permissionGranted: false)),
     expect: () => [isA<LookupPermissionDenied>()],
   );
 
   blocTest<LookupBloc, LookupState>(
     'LookupScanRequested with permission emits Scanning',
     build: build,
-    act: (b) =>
-        b.add(const LookupScanRequested(permissionGranted: true)),
+    act: (b) => b.add(const LookupScanRequested(permissionGranted: true)),
     expect: () => [isA<LookupScanning>()],
   );
 

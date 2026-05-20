@@ -176,9 +176,9 @@ void main() {
         b.add(const SearchFacetToggled(kind: 'brand', value: 'brand-x')),
     expect: () => [isA<SearchResults>()],
     verify: (_) {
-      final capture =
-          verify(() => gateway.searchProducts(captureAny())).captured.last
-              as SearchProductsRequest;
+      final capture = verify(() => gateway.searchProducts(captureAny()))
+          .captured
+          .last as SearchProductsRequest;
       expect(capture.facets['brand'], ['brand-x']);
     },
   );

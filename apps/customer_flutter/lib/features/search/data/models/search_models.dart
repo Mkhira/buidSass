@@ -103,15 +103,14 @@ class AutocompleteResult {
       suggestions: s is List
           ? s
               .whereType<Map>()
-              .map((m) => SearchSuggestion.fromJson(
-                  Map<String, Object?>.from(m)))
+              .map((m) =>
+                  SearchSuggestion.fromJson(Map<String, Object?>.from(m)))
               .toList(growable: false)
           : const [],
       topMatches: t is List
           ? t
               .whereType<Map>()
-              .map((m) => SearchTopMatch.fromJson(
-                  Map<String, Object?>.from(m)))
+              .map((m) => SearchTopMatch.fromJson(Map<String, Object?>.from(m)))
               .toList(growable: false)
           : const [],
     );
@@ -246,8 +245,8 @@ class SearchFacet {
       options: opts is List
           ? opts
               .whereType<Map>()
-              .map((m) => SearchFacetOption.fromJson(
-                  Map<String, Object?>.from(m)))
+              .map((m) =>
+                  SearchFacetOption.fromJson(Map<String, Object?>.from(m)))
               .toList(growable: false)
           : const [],
     );
@@ -310,8 +309,7 @@ class SearchProductsResult {
       facets: facets is List
           ? facets
               .whereType<Map>()
-              .map(
-                  (m) => SearchFacet.fromJson(Map<String, Object?>.from(m)))
+              .map((m) => SearchFacet.fromJson(Map<String, Object?>.from(m)))
               .toList(growable: false)
           : const [],
       sortOptions: sortOpts is List
@@ -382,7 +380,8 @@ class LookupResult {
     final m = j['match'];
     return LookupResult(
       matched: j['matched'] as bool? ?? false,
-      match: m is Map ? LookupMatch.fromJson(Map<String, Object?>.from(m)) : null,
+      match:
+          m is Map ? LookupMatch.fromJson(Map<String, Object?>.from(m)) : null,
     );
   }
 }

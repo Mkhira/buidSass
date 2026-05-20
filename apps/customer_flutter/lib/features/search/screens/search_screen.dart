@@ -82,7 +82,8 @@ class _SearchScreenState extends State<SearchScreen> {
               ),
             SearchFailure(:final reason, :final correlationId) => ErrorState(
                 title: l10n.commonErrorTitle,
-                body: '$reason${correlationId == null ? '' : ' · $correlationId'}',
+                body:
+                    '$reason${correlationId == null ? '' : ' · $correlationId'}',
                 onRetry: () {
                   final q = _controller.text.trim();
                   if (q.isNotEmpty) {
@@ -133,8 +134,7 @@ class _SearchInput extends StatelessWidget {
           },
         ),
       ),
-      onChanged: (v) =>
-          context.read<SearchBloc>().add(SearchQueryChanged(v)),
+      onChanged: (v) => context.read<SearchBloc>().add(SearchQueryChanged(v)),
       onSubmitted: (v) {
         final t = v.trim();
         if (t.isEmpty) return;
@@ -231,8 +231,7 @@ class _AutocompletedBody extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
-    final hasAny =
-        state.suggestions.isNotEmpty || state.topMatches.isNotEmpty;
+    final hasAny = state.suggestions.isNotEmpty || state.topMatches.isNotEmpty;
     if (!hasAny) {
       return Center(
         child: Padding(
@@ -268,8 +267,7 @@ class _AutocompletedBody extends StatelessWidget {
                   horizontal: AppSpacing.lg, vertical: AppSpacing.sm),
               scrollDirection: Axis.horizontal,
               itemCount: state.topMatches.length,
-              separatorBuilder: (_, __) =>
-                  const SizedBox(width: AppSpacing.sm),
+              separatorBuilder: (_, __) => const SizedBox(width: AppSpacing.sm),
               itemBuilder: (context, i) {
                 final m = state.topMatches[i];
                 return _TopMatchTile(match: m);
@@ -371,8 +369,7 @@ class _ResultsBodyState extends State<_ResultsBody> {
   }
 
   void _onScroll() {
-    if (_scroll.position.pixels >=
-        _scroll.position.maxScrollExtent - 200) {
+    if (_scroll.position.pixels >= _scroll.position.maxScrollExtent - 200) {
       context.read<SearchBloc>().add(const SearchPageRequested());
     }
   }
@@ -388,8 +385,7 @@ class _ResultsBodyState extends State<_ResultsBody> {
           child: GridView.builder(
             controller: _scroll,
             padding: const EdgeInsets.all(AppSpacing.md),
-            gridDelegate:
-                const SliverGridDelegateWithFixedCrossAxisCount(
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
               crossAxisCount: 2,
               mainAxisExtent: 240,
               crossAxisSpacing: AppSpacing.sm,
@@ -556,8 +552,7 @@ class _SearchResultCard extends StatelessWidget {
                   if (item.isRestricted)
                     Tooltip(
                       message: l10n.verificationRequired,
-                      child: const Icon(Icons.verified_user_outlined,
-                          size: 16),
+                      child: const Icon(Icons.verified_user_outlined, size: 16),
                     ),
                 ],
               ),

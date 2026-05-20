@@ -83,7 +83,12 @@ class _LoadedBody extends StatelessWidget {
         ),
         _HeaderRow(
           label: l10n.invoicePreviewIssuedAtLabel,
-          value: dateFmt.format(preview.issuedAt),
+          // Per CodeRabbit feedback: the model now exposes `issuedAt`
+          // as nullable so the wire layer doesn't fabricate a date
+          // when the server omits one. UI surfaces an em-dash placeholder.
+          value: preview.issuedAt == null
+              ? '—'
+              : dateFmt.format(preview.issuedAt!),
         ),
         const Divider(height: AppSpacing.lg),
         _SectionTitle(text: l10n.invoicePreviewBillingTitle),

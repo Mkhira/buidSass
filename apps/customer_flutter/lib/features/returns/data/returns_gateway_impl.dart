@@ -35,9 +35,14 @@ class ReturnsGatewayImpl implements ReturnsGateway {
 
   @override
   Future<ReturnDetail> getById(String id) async {
+    // Encode the path segment — uuid IDs are URL-safe today, but the
+    // gateway contract accepts arbitrary strings so we defend against
+    // reserved characters (CodeRabbit feedback). Same fix for the
+    // orders-root path in `create` below.
+    final encodedId = Uri.encodeComponent(id);
     try {
-      final res = await _dio.get<Object?>('$_root/$id');
-      return ReturnDetail.fromJson(_asMap(res.data, 'returns/$id'));
+      final res = await _dio.get<Object?>('$_root/$encodedId');
+      return ReturnDetail.fromJson(_asMap(res.data, 'returns/$encodedId'));
     } on DioException catch (e) {
       throw _errors.fromDio(e);
     }
@@ -77,9 +82,10 @@ class ReturnsGatewayImpl implements ReturnsGateway {
     required CreateReturnRequest request,
     required String idempotencyKey,
   }) async {
+    final encodedOrderId = Uri.encodeComponent(orderId);
     try {
       final res = await _dio.post<Object?>(
-        '$_ordersRoot/$orderId/returns',
+        '$_ordersRoot/$encodedOrderId/returns',
         data: request.toJson(),
         options: Options(
           extra: {IdempotencyInterceptor.extraKey: idempotencyKey},

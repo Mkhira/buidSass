@@ -230,6 +230,7 @@
   "returnStateInspected": "تم الفحص",
   "returnStateIssued": "تم رد المبلغ",
   "returnStateRejected": "مرفوض",
+  "returnStateUnknown": "جاري تحديث الحالة…",
   "returnDetailTitle": "تفاصيل الإرجاع",
   "returnDetailTimelineTitle": "سجل الحالة",
   "returnDetailLinesTitle": "المنتجات",

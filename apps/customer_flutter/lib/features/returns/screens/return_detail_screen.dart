@@ -304,7 +304,8 @@ class _RefundBlock extends StatelessWidget {
                 )),
         if (refund.method != null && refund.method!.isNotEmpty) ...[
           const SizedBox(height: AppSpacing.xs),
-          Text('${l10n.returnDetailRefundMethodLabel}: ${refund.method!}'),
+          Text(
+              '${l10n.returnDetailRefundMethodLabel}: ${_refundMethodLabel(l10n, refund.method!)}'),
         ],
         if (refund.issuedAt != null) ...[
           const SizedBox(height: AppSpacing.xs),
@@ -313,6 +314,18 @@ class _RefundBlock extends StatelessWidget {
         ],
       ],
     );
+  }
+
+  /// Map known wire codes to localized labels; fall back to the raw
+  /// code for unknown values so a forward-compat server enum doesn't
+  /// render as a blank string. CodeRabbit feedback.
+  String _refundMethodLabel(AppLocalizations l10n, String code) {
+    return switch (code) {
+      'original_payment' => l10n.returnRefundMethodOriginalPayment,
+      'bank_transfer' => l10n.returnRefundMethodBankTransfer,
+      'wallet' => l10n.returnRefundMethodWallet,
+      _ => code,
+    };
   }
 }
 

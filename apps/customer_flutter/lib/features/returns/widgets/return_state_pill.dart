@@ -25,7 +25,11 @@ class ReturnStatePill extends StatelessWidget {
       'inspected' => (l10n.returnStateInspected, AppColors.secondary),
       'issued' => (l10n.returnStateIssued, AppColors.success),
       'rejected' => (l10n.returnStateRejected, AppColors.danger),
-      _ => (state, AppColors.textSecondary),
+      // CodeRabbit feedback: never surface raw wire enum codes to
+      // users. Show a localized "status updating" placeholder when
+      // the server sends a forward-compat value the client doesn't
+      // know yet.
+      _ => (l10n.returnStateUnknown, AppColors.textSecondary),
     };
     return Container(
       padding: const EdgeInsets.symmetric(

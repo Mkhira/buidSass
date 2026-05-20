@@ -470,10 +470,17 @@ class ReturnWizardBloc extends Bloc<ReturnWizardEvent, ReturnWizardState> {
   ) async {
     final form = _form();
     if (form == null) return;
-    final tile = form.photos.firstWhere(
-      (p) => p.clientPhotoKey == event.clientPhotoKey,
-      orElse: () => throw StateError('retry on unknown tile'),
-    );
+    // Retry/cancel race: a user can tap Retry on a tile that's just
+    // been removed by another event. Silently drop the retry instead
+    // of throwing (CodeRabbit feedback) — the cancel already won.
+    ReturnPhotoTile? tile;
+    for (final p in form.photos) {
+      if (p.clientPhotoKey == event.clientPhotoKey) {
+        tile = p;
+        break;
+      }
+    }
+    if (tile == null) return;
     final updated = tile.copyWith(
       status: ReturnPhotoTileStatus.uploading,
       errorMessage: '',

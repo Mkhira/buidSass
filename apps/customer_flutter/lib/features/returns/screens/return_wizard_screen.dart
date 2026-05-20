@@ -248,8 +248,11 @@ class _LinePicker extends StatelessWidget {
             ),
             if (selected)
               Padding(
-                padding: const EdgeInsets.only(
-                    left: AppSpacing.lg, top: AppSpacing.sm),
+                // Directional inset — flips to right-side in RTL so
+                // the reason picker stays indented under the checkbox
+                // column in Arabic. CodeRabbit feedback.
+                padding: const EdgeInsetsDirectional.only(
+                    start: AppSpacing.lg, top: AppSpacing.sm),
                 child: _ReasonPicker(
                   productId: eligibilityLine.productId,
                   active: draft?.reason,
@@ -340,16 +343,29 @@ class _PhotoStrip extends StatelessWidget {
 
   Future<void> _pickPhoto(BuildContext context) async {
     final bloc = context.read<ReturnWizardBloc>();
+    final messenger = ScaffoldMessenger.maybeOf(context);
+    final l10n = AppLocalizations.of(context);
     final picker = ImagePicker();
-    final picked = await picker.pickImage(
-      source: ImageSource.gallery,
-      imageQuality: 85,
-    );
-    if (picked == null) return;
-    final bytes = await picked.readAsBytes();
-    bloc.add(
-      ReturnWizardPhotoAddRequested(bytes: bytes, filename: picked.name),
-    );
+    try {
+      final picked = await picker.pickImage(
+        source: ImageSource.gallery,
+        imageQuality: 85,
+      );
+      if (picked == null) return;
+      final bytes = await picked.readAsBytes();
+      bloc.add(
+        ReturnWizardPhotoAddRequested(bytes: bytes, filename: picked.name),
+      );
+    } on Object catch (e) {
+      // CodeRabbit feedback: image_picker can throw on permission
+      // denial, platform errors, or transient file-read failures.
+      // Surface a snack-bar rather than crash the wizard.
+      // ignore: avoid_print
+      print('_pickPhoto failed: $e');
+      messenger?.showSnackBar(
+        SnackBar(content: Text(l10n.returnWizardPhotoFailed)),
+      );
+    }
   }
 }
 

@@ -24,8 +24,12 @@ class InvoicesGatewayImpl implements InvoicesGateway {
 
   @override
   Future<InvoicePreview> getPreview(String orderId) async {
+    // Encode orderId once — reserved characters in the path segment
+    // would otherwise break the URL (CodeRabbit feedback). Same id is
+    // reused across both invoice endpoints for consistency.
+    final encodedOrderId = Uri.encodeComponent(orderId);
     try {
-      final res = await _dio.get<Object?>('$_root/$orderId/invoice');
+      final res = await _dio.get<Object?>('$_root/$encodedOrderId/invoice');
       final raw = res.data;
       if (raw is! Map) {
         throw DioException(
@@ -42,9 +46,10 @@ class InvoicesGatewayImpl implements InvoicesGateway {
 
   @override
   Future<Uint8List> getPdf(String orderId) async {
+    final encodedOrderId = Uri.encodeComponent(orderId);
     try {
       final res = await _dio.get<List<int>>(
-        '$_root/$orderId/invoice.pdf',
+        '$_root/$encodedOrderId/invoice.pdf',
         options: Options(responseType: ResponseType.bytes),
       );
       final raw = res.data;

@@ -27,14 +27,27 @@ class StubReturnsGateway implements ReturnsGateway {
   @override
   Future<ReturnListPage> list(ReturnsListFilter filter) async {
     final all = _seedList();
-    final items = filter.status == null
+    final filtered = filter.status == null
         ? all
         : all.where((r) => r.state == filter.status).toList(growable: false);
+    // CodeRabbit feedback: honor `page` + `pageSize` in the stub so
+    // the bloc's pagination handler exercises a realistic
+    // page-sliced response rather than always seeing the same fixed
+    // list. Defensive bounds keep `start >= length` returning empty.
+    final page = filter.page < 1 ? 1 : filter.page;
+    final pageSize = filter.pageSize < 1 ? 20 : filter.pageSize;
+    final start = (page - 1) * pageSize;
+    final end = (start + pageSize) > filtered.length
+        ? filtered.length
+        : start + pageSize;
+    final items = start >= filtered.length
+        ? const <ReturnListItem>[]
+        : filtered.sublist(start, end);
     return ReturnListPage(
       items: items,
-      page: filter.page,
-      pageSize: filter.pageSize,
-      totalCount: items.length,
+      page: page,
+      pageSize: pageSize,
+      totalCount: filtered.length,
     );
   }
 

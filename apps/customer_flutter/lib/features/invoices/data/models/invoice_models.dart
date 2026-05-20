@@ -91,7 +91,11 @@ class InvoicePreview {
   });
 
   final String invoiceNumber;
-  final DateTime issuedAt;
+
+  /// `null` only when the server's `issuedAt` value is missing or
+  /// unparseable. Renderers SHOULD show a localized "unknown" label
+  /// rather than fabricating a date.
+  final DateTime? issuedAt;
 
   /// `SAR | EGP` — the only currencies a customer-facing invoice may
   /// carry in V1. UI never converts.
@@ -107,8 +111,10 @@ class InvoicePreview {
     final totals = j['totals'];
     return InvoicePreview(
       invoiceNumber: j['invoiceNumber'] as String? ?? '',
-      issuedAt:
-          DateTime.tryParse(j['issuedAt'] as String? ?? '') ?? DateTime.now(),
+      // Per CodeRabbit feedback: never fabricate a legal date. Null
+      // here is fine — the renderer shows a localized "—" / "غير
+      // متوفر" label when issuedAt can't be parsed.
+      issuedAt: DateTime.tryParse(j['issuedAt'] as String? ?? ''),
       currency: j['currency'] as String? ?? '',
       billing: billing is Map
           ? InvoiceBilling.fromJson(Map<String, Object?>.from(billing))

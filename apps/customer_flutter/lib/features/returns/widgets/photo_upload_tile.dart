@@ -25,7 +25,10 @@ class PhotoUploadTile extends StatelessWidget {
     return Container(
       width: 96,
       height: 96,
-      margin: const EdgeInsets.only(right: AppSpacing.sm),
+      // Directional inset — RTL flips this to the start-edge so the
+      // tile gap stays on the trailing side in Arabic. CodeRabbit
+      // feedback.
+      margin: const EdgeInsetsDirectional.only(end: AppSpacing.sm),
       decoration: BoxDecoration(
         color: AppColors.neutral,
         borderRadius: BorderRadius.circular(8),
@@ -89,24 +92,39 @@ class PhotoUploadTile extends StatelessWidget {
               ),
             ),
           if (tile.status != ReturnPhotoTileStatus.uploading)
-            Positioned(
+            // PositionedDirectional flips `end` to the start edge in
+            // RTL — keeps the X chip on the trailing-top corner in
+            // both locales. CodeRabbit feedback.
+            PositionedDirectional(
               top: 0,
-              right: 0,
-              child: Material(
-                color: Colors.black.withValues(alpha: 0.55),
-                shape: const CircleBorder(),
-                child: InkWell(
-                  customBorder: const CircleBorder(),
-                  onTap: onRemove,
-                  child: Padding(
-                    padding: const EdgeInsets.all(2.0),
-                    child: Semantics(
-                      button: true,
-                      label: l10n.returnWizardRemovePhoto,
-                      child: const Icon(
-                        Icons.close,
-                        color: Colors.white,
-                        size: 16,
+              end: 0,
+              // Expand the hit area to 44×44 while keeping the visible
+              // chip small — addresses the audit P2 finding (WCAG 2.5.5
+              // target size). The Material+InkWell still sits at the
+              // visible-chip dimensions; the surrounding SizedBox
+              // catches stray taps near the corner.
+              child: SizedBox(
+                width: 44,
+                height: 44,
+                child: Align(
+                  alignment: AlignmentDirectional.topEnd,
+                  child: Material(
+                    color: Colors.black.withValues(alpha: 0.55),
+                    shape: const CircleBorder(),
+                    child: InkWell(
+                      customBorder: const CircleBorder(),
+                      onTap: onRemove,
+                      child: Padding(
+                        padding: const EdgeInsets.all(4.0),
+                        child: Semantics(
+                          button: true,
+                          label: l10n.returnWizardRemovePhoto,
+                          child: const Icon(
+                            Icons.close,
+                            color: Colors.white,
+                            size: 18,
+                          ),
+                        ),
                       ),
                     ),
                   ),

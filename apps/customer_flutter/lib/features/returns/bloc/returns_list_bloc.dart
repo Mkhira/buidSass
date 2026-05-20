@@ -152,7 +152,14 @@ class ReturnsListBloc extends Bloc<ReturnsListEvent, ReturnsListState> {
         isLoadingMore: false,
       ));
     } on Object catch (e) {
-      emit(ReturnsListFailure(filter: s.filter, reason: e.toString()));
+      // CodeRabbit feedback: a pagination error must NOT wipe the
+      // already-loaded list. Stop the spinner and keep the existing
+      // items + filter so the user can scroll/retry. The bloc state
+      // still surfaces the error via debug log; UI relies on the
+      // pull-to-refresh cycle for the next visible attempt.
+      // ignore: avoid_print
+      print('ReturnsListBloc pagination error (preserving loaded list): $e');
+      emit(s.copyWith(isLoadingMore: false));
     }
   }
 }

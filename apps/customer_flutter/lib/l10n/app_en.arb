@@ -232,6 +232,7 @@
   "returnStateInspected": "Inspected",
   "returnStateIssued": "Refund issued",
   "returnStateRejected": "Rejected",
+  "returnStateUnknown": "Status updating…",
   "returnDetailTitle": "Return",
   "returnDetailTimelineTitle": "Timeline",
   "returnDetailLinesTitle": "Items",

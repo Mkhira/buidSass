@@ -28,17 +28,20 @@ const Set<String> kKnownReturnStates = {
 /// Server-supplied reason codes used by S-6.2 reason picker. Mirrors the
 /// fallback documented in data-model.md `POST /returns` request shape.
 /// Used when the server has no enum endpoint yet (spec.md S-6.2 AC).
+///
+/// Codes only — display strings live in the l10n catalogs and are
+/// resolved by the screen via a switch on `code`. Keeping the model
+/// label-free avoids leaking English copy into UI surfaces (Principle 4).
 class ReturnReason {
-  const ReturnReason({required this.code, required this.label});
+  const ReturnReason({required this.code});
   final String code;
-  final String label;
 }
 
 const List<ReturnReason> kReturnReasonFallback = [
-  ReturnReason(code: 'wrong_item', label: 'Wrong item received'),
-  ReturnReason(code: 'damaged', label: 'Damaged or defective'),
-  ReturnReason(code: 'not_as_described', label: 'Not as described'),
-  ReturnReason(code: 'other', label: 'Other'),
+  ReturnReason(code: 'wrong_item'),
+  ReturnReason(code: 'damaged'),
+  ReturnReason(code: 'not_as_described'),
+  ReturnReason(code: 'other'),
 ];
 
 @immutable

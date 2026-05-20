@@ -198,5 +198,138 @@
       "added": { "type": "int" },
       "skipped": { "type": "int" }
     }
-  }
+  },
+  "returnsTitle": "Returns",
+  "returnsEmpty": "No returns yet",
+  "returnsEmptyBody": "Once you submit a return, you'll see its status here.",
+  "returnsFilterAll": "All",
+  "returnsFilterPending": "Pending",
+  "returnsFilterApproved": "Approved",
+  "returnsFilterReceived": "Received",
+  "returnsFilterInspected": "Inspected",
+  "returnsFilterIssued": "Issued",
+  "returnsFilterRejected": "Rejected",
+  "returnsListCreatedAt": "Submitted {date}",
+  "@returnsListCreatedAt": {
+    "placeholders": {
+      "date": { "type": "String" }
+    }
+  },
+  "returnsListRefundAmount": "Refunded {amount}",
+  "@returnsListRefundAmount": {
+    "placeholders": {
+      "amount": { "type": "String" }
+    }
+  },
+  "returnsListOrderLabel": "Order {orderNumber}",
+  "@returnsListOrderLabel": {
+    "placeholders": {
+      "orderNumber": { "type": "String" }
+    }
+  },
+  "returnStatePending": "Pending review",
+  "returnStateApproved": "Approved",
+  "returnStateReceived": "Received",
+  "returnStateInspected": "Inspected",
+  "returnStateIssued": "Refund issued",
+  "returnStateRejected": "Rejected",
+  "returnDetailTitle": "Return",
+  "returnDetailTimelineTitle": "Timeline",
+  "returnDetailLinesTitle": "Items",
+  "returnDetailPhotosTitle": "Photos",
+  "returnDetailRefundTitle": "Refund",
+  "returnDetailRejectionTitle": "Rejection reason",
+  "returnDetailRefundMethodLabel": "Method",
+  "returnDetailRefundIssuedAtLabel": "Issued",
+  "returnTimelineKindCreated": "Submitted",
+  "returnTimelineKindApproved": "Approved",
+  "returnTimelineKindReceived": "Received",
+  "returnTimelineKindInspected": "Inspected",
+  "returnTimelineKindIssued": "Refund issued",
+  "returnTimelineKindRejected": "Rejected",
+  "returnTimelineActorCustomer": "by you",
+  "returnTimelineActorAdmin": "by support",
+  "returnTimelineActorSystem": "by system",
+  "returnReasonWrongItem": "Wrong item received",
+  "returnReasonDamaged": "Damaged or defective",
+  "returnReasonNotAsDescribed": "Not as described",
+  "returnReasonOther": "Other",
+  "returnWizardTitle": "Request return",
+  "returnWizardStepLines": "Select items to return",
+  "returnWizardStepReason": "Reason",
+  "returnWizardStepPhotos": "Photos",
+  "returnWizardPhotosCaption": "Add photos to support your return (optional but helpful).",
+  "returnWizardAddPhoto": "Add photo",
+  "returnWizardRemovePhoto": "Remove",
+  "returnWizardRetryPhoto": "Retry upload",
+  "returnWizardPhotoUploading": "Uploading…",
+  "returnWizardPhotoFailed": "Upload failed",
+  "returnWizardSelectLineCta": "Select",
+  "returnWizardLineQty": "Qty {qty}",
+  "@returnWizardLineQty": {
+    "placeholders": {
+      "qty": { "type": "int" }
+    }
+  },
+  "returnWizardLineIneligible": "Not eligible",
+  "returnWizardNoteHint": "Optional note for support",
+  "returnWizardSubmit": "Submit return",
+  "returnWizardSubmitting": "Submitting…",
+  "returnWizardIneligibleTitle": "No eligible items",
+  "returnWizardIneligibleBody": "None of the items in this order can be returned right now.",
+  "returnWizardEligibilityStale": "Eligibility changed. Refresh to see the latest options.",
+  "returnWizardRefreshEligibility": "Refresh",
+  "returnWizardValidationSelectLine": "Select at least one item to return.",
+  "returnWizardValidationReasonRequired": "Pick a reason for each selected item.",
+  "returnRefundMethodOriginalPayment": "Refund to original payment",
+  "returnRefundMethodBankTransfer": "Refund by bank transfer",
+  "returnRefundMethodWallet": "Refund to wallet",
+  "returnRefundMethodLabel": "Refund method",
+  "invoicePreviewTitle": "Invoice",
+  "invoicePreviewBillingTitle": "Billed to",
+  "invoicePreviewLinesTitle": "Items",
+  "invoicePreviewTotalsTitle": "Totals",
+  "invoicePreviewSubtotalLabel": "Subtotal",
+  "invoicePreviewTaxLabel": "VAT ({rate})",
+  "@invoicePreviewTaxLabel": {
+    "placeholders": {
+      "rate": { "type": "String" }
+    }
+  },
+  "invoicePreviewGrandTotalLabel": "Total",
+  "invoicePreviewInvoiceNumberLabel": "Invoice number",
+  "invoicePreviewIssuedAtLabel": "Issued",
+  "invoicePreviewVatNumberLabel": "VAT registration",
+  "invoicePreviewLineVatLabel": "VAT {rate}",
+  "@invoicePreviewLineVatLabel": {
+    "placeholders": {
+      "rate": { "type": "String" }
+    }
+  },
+  "invoicePreviewDownloadCta": "Download PDF",
+  "invoicePreviewShareCta": "Share",
+  "invoiceUnavailableTitle": "Invoice not ready",
+  "invoiceUnavailableBody": "Your invoice will be available after payment is captured.",
+  "invoicePdfTitle": "Invoice PDF",
+  "invoicePdfDownloading": "Downloading invoice…",
+  "invoicePdfReadyTitle": "Invoice ready",
+  "invoicePdfReadyBody": "Open it in your PDF viewer or share it.",
+  "invoicePdfOpenCta": "Open",
+  "invoicePdfShareCta": "Share",
+  "invoicePdfRedownloadCta": "Download again",
+  "invoicePdfDiskFullTitle": "Not enough space",
+  "invoicePdfDiskFullBody": "Free some space on this device and try again.",
+  "invoicePdfFilenameAr": "فاتورة-{orderNumber}.pdf",
+  "@invoicePdfFilenameAr": {
+    "placeholders": {
+      "orderNumber": { "type": "String" }
+    }
+  },
+  "invoicePdfFilenameEn": "invoice-{orderNumber}.pdf",
+  "@invoicePdfFilenameEn": {
+    "placeholders": {
+      "orderNumber": { "type": "String" }
+    }
+  },
+  "moreReturns": "My returns"
 }

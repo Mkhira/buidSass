@@ -57,6 +57,11 @@ import '../features/orders/screens/cancel_order_screen.dart';
 import '../features/orders/screens/order_detail_v2_screen.dart';
 import '../features/orders/screens/orders_list_v2_screen.dart';
 import '../features/orders/screens/reorder_screen.dart';
+import '../features/returns/bloc/return_detail_bloc.dart';
+import '../features/returns/bloc/returns_list_bloc.dart';
+import '../features/returns/data/returns_gateway.dart';
+import '../features/returns/screens/return_detail_screen.dart';
+import '../features/returns/screens/returns_list_screen.dart';
 import '../features/search/bloc/lookup_bloc.dart';
 import '../features/search/bloc/search_bloc.dart';
 import '../features/search/data/recent_searches_store.dart';
@@ -321,10 +326,10 @@ GoRouter buildRouter(AuthSessionBloc authBloc) {
         },
       ),
       GoRoute(
-        // Return wizard ships in Phase 6; this placeholder keeps the
-        // detail-screen CTA navigable without a 404. Once spec
-        // `phase-6-returns-invoices` lands, this route swaps to the
-        // real `ReturnWizardScreen`.
+        // Placeholder for the return wizard until T-6.4 lands in the
+        // next commit; keeps the order-detail "Request return" CTA
+        // navigable without a 404. Will be swapped for the real
+        // `ReturnWizardScreen` in the same phase.
         path: '/o/:orderId/return',
         name: 'orderReturn',
         builder: (context, s) {
@@ -342,6 +347,29 @@ GoRouter buildRouter(AuthSessionBloc authBloc) {
                 ),
               );
             },
+          );
+        },
+      ),
+      GoRoute(
+        path: '/returns',
+        name: 'returns',
+        builder: (context, _) => BlocProvider(
+          create: (_) => ReturnsListBloc(gateway: sl<ReturnsGateway>())
+            ..add(const ReturnsListStarted()),
+          child: const ReturnsListScreen(),
+        ),
+      ),
+      GoRoute(
+        path: '/returns/:id',
+        name: 'returnDetail',
+        builder: (context, s) {
+          final id = s.pathParameters['id']!;
+          return BlocProvider(
+            create: (_) => ReturnDetailBloc(
+              gateway: sl<ReturnsGateway>(),
+              returnId: id,
+            )..add(const ReturnDetailStarted()),
+            child: ReturnDetailScreen(returnId: id),
           );
         },
       ),
@@ -441,6 +469,7 @@ const _authGatedPrefixes = <String>[
   '/orders',
   '/o/',
   '/more',
+  '/returns',
 ];
 
 class _BlocRefresh extends ChangeNotifier {

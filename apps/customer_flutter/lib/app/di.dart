@@ -26,11 +26,17 @@ import '../features/checkout/data/session_store.dart';
 import '../features/checkout/data/stub_checkout_gateway.dart';
 import '../features/home/data/cms_stub_repository.dart';
 import '../features/home/data/home_repository.dart';
+import '../features/invoices/data/invoices_gateway.dart';
+import '../features/invoices/data/invoices_gateway_impl.dart';
+import '../features/invoices/data/stub_invoices_gateway.dart';
 import '../features/more/data/addresses_repository.dart';
 import '../features/orders/data/orders_gateway.dart';
 import '../features/orders/data/orders_gateway_impl.dart';
 import '../features/orders/data/orders_repository.dart';
 import '../features/orders/data/stub_orders_gateway.dart';
+import '../features/returns/data/returns_gateway.dart';
+import '../features/returns/data/returns_gateway_impl.dart';
+import '../features/returns/data/stub_returns_gateway.dart';
 import '../features/search/data/recent_searches_store.dart';
 import '../features/search/data/search_gateway.dart';
 import '../features/search/data/search_gateway_impl.dart';
@@ -176,6 +182,28 @@ Future<void> bootstrap({
       return OrdersGatewayImpl(dio: sl<ApiModule>().dio);
     }
     return StubOrdersGateway();
+  });
+
+  // Phase 6 — returns + invoices. Gateways flip between Dio impls and
+  // deterministic stubs via dart-defines so dev builds run offline
+  // until the backend clients land. The same `ApiModule.dio` carries
+  // the auth + correlation-id + idempotency interceptors; returns'
+  // create + photo-upload routes use the existing
+  // `IdempotencyInterceptor` extras pattern (see
+  // returns_gateway_impl.dart).
+  sl.registerLazySingleton<ReturnsGateway>(() {
+    final flags = sl<FeatureFlags>();
+    if (flags.realReturnsClientShipped) {
+      return ReturnsGatewayImpl(dio: sl<ApiModule>().dio);
+    }
+    return StubReturnsGateway();
+  });
+  sl.registerLazySingleton<InvoicesGateway>(() {
+    final flags = sl<FeatureFlags>();
+    if (flags.realInvoicesClientShipped) {
+      return InvoicesGatewayImpl(dio: sl<ApiModule>().dio);
+    }
+    return StubInvoicesGateway();
   });
 
   // Clear cart on sign-out (BR-1). The subscription survives DI bootstrap

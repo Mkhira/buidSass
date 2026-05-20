@@ -8,6 +8,8 @@ class FeatureFlags {
     this.realSearchClientShipped = false,
     this.realCheckoutClientShipped = false,
     this.realOrdersClientShipped = false,
+    this.realReturnsClientShipped = false,
+    this.realInvoicesClientShipped = false,
   });
 
   factory FeatureFlags.fromEnvironment() {
@@ -23,6 +25,10 @@ class FeatureFlags {
         bool.fromEnvironment('CHECKOUT_CLIENT_SHIPPED', defaultValue: false);
     const orders =
         bool.fromEnvironment('ORDERS_CLIENT_SHIPPED', defaultValue: false);
+    const returns =
+        bool.fromEnvironment('RETURNS_CLIENT_SHIPPED', defaultValue: false);
+    const invoices =
+        bool.fromEnvironment('INVOICES_CLIENT_SHIPPED', defaultValue: false);
     return const FeatureFlags(
       verificationCtaShipped: verification,
       cmsContentShipped: cms,
@@ -30,6 +36,8 @@ class FeatureFlags {
       realSearchClientShipped: search,
       realCheckoutClientShipped: checkout,
       realOrdersClientShipped: orders,
+      realReturnsClientShipped: returns,
+      realInvoicesClientShipped: invoices,
     );
   }
 
@@ -67,4 +75,17 @@ class FeatureFlags {
   /// `OrdersGatewayImpl` in place of [StubOrdersGateway]. Default
   /// `false`. Flip via `--dart-define=ORDERS_CLIENT_SHIPPED=true`.
   final bool realOrdersClientShipped;
+
+  /// `specs/mobile/phase-6-returns-invoices` — when `true`, DI wires
+  /// `ReturnsGatewayImpl` (real HTTP calls to spec 013 endpoints) in
+  /// place of `StubReturnsGateway`. Default `false` so dev builds run
+  /// against the deterministic stub. Flip via
+  /// `--dart-define=RETURNS_CLIENT_SHIPPED=true`.
+  final bool realReturnsClientShipped;
+
+  /// `specs/mobile/phase-6-returns-invoices` — when `true`, DI wires
+  /// `InvoicesGatewayImpl` (real HTTP calls to spec 012 tax-invoice
+  /// endpoints) in place of `StubInvoicesGateway`. Default `false`.
+  /// Flip via `--dart-define=INVOICES_CLIENT_SHIPPED=true`.
+  final bool realInvoicesClientShipped;
 }

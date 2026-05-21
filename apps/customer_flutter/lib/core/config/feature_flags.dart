@@ -10,6 +10,8 @@ class FeatureFlags {
     this.realOrdersClientShipped = false,
     this.realReturnsClientShipped = false,
     this.realInvoicesClientShipped = false,
+    this.realVerificationClientShipped = false,
+    this.realReviewsClientShipped = false,
   });
 
   factory FeatureFlags.fromEnvironment() {
@@ -29,6 +31,12 @@ class FeatureFlags {
         bool.fromEnvironment('RETURNS_CLIENT_SHIPPED', defaultValue: false);
     const invoices =
         bool.fromEnvironment('INVOICES_CLIENT_SHIPPED', defaultValue: false);
+    const verificationClient = bool.fromEnvironment(
+      'VERIFICATION_CLIENT_SHIPPED',
+      defaultValue: false,
+    );
+    const reviews =
+        bool.fromEnvironment('REVIEWS_CLIENT_SHIPPED', defaultValue: false);
     return const FeatureFlags(
       verificationCtaShipped: verification,
       cmsContentShipped: cms,
@@ -38,6 +46,8 @@ class FeatureFlags {
       realOrdersClientShipped: orders,
       realReturnsClientShipped: returns,
       realInvoicesClientShipped: invoices,
+      realVerificationClientShipped: verificationClient,
+      realReviewsClientShipped: reviews,
     );
   }
 
@@ -88,4 +98,16 @@ class FeatureFlags {
   /// endpoints) in place of `StubInvoicesGateway`. Default `false`.
   /// Flip via `--dart-define=INVOICES_CLIENT_SHIPPED=true`.
   final bool realInvoicesClientShipped;
+
+  /// `specs/mobile/phase-7-trust-compliance` — when `true`, DI wires
+  /// `VerificationGatewayImpl` (real HTTP calls to spec 020 endpoints)
+  /// in place of `StubVerificationGateway`. Default `false`. Flip via
+  /// `--dart-define=VERIFICATION_CLIENT_SHIPPED=true`.
+  final bool realVerificationClientShipped;
+
+  /// `specs/mobile/phase-7-trust-compliance` — when `true`, DI wires
+  /// `ReviewsCustomerGatewayImpl` (real HTTP calls to spec 022 endpoints)
+  /// in place of `StubReviewsCustomerGateway`. Default `false`. Flip via
+  /// `--dart-define=REVIEWS_CLIENT_SHIPPED=true`.
+  final bool realReviewsClientShipped;
 }

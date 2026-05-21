@@ -37,9 +37,15 @@ import '../features/orders/data/stub_orders_gateway.dart';
 import '../features/returns/data/returns_gateway.dart';
 import '../features/returns/data/returns_gateway_impl.dart';
 import '../features/returns/data/stub_returns_gateway.dart';
+import '../features/reviews/data/reviews_customer_gateway.dart';
+import '../features/reviews/data/reviews_customer_gateway_impl.dart';
+import '../features/reviews/data/stub_reviews_customer_gateway.dart';
 import '../features/search/data/recent_searches_store.dart';
 import '../features/search/data/search_gateway.dart';
 import '../features/search/data/search_gateway_impl.dart';
+import '../features/verification/data/stub_verification_gateway.dart';
+import '../features/verification/data/verification_gateway.dart';
+import '../features/verification/data/verification_gateway_impl.dart';
 
 /// GetIt composition root. Boots in [bootstrap]; feature modules and tests
 /// register additional bindings on top via [GetIt.I].
@@ -204,6 +210,26 @@ Future<void> bootstrap({
       return InvoicesGatewayImpl(dio: sl<ApiModule>().dio);
     }
     return StubInvoicesGateway();
+  });
+
+  // Phase 7 — verification + reviews. Gateways flip between Dio impls
+  // and deterministic stubs via dart-defines so dev builds run offline
+  // until the backend clients land. Idempotency on submit/resubmit/
+  // renew + review submit routes through the existing
+  // `IdempotencyInterceptor` extras pattern.
+  sl.registerLazySingleton<VerificationGateway>(() {
+    final flags = sl<FeatureFlags>();
+    if (flags.realVerificationClientShipped) {
+      return VerificationGatewayImpl(dio: sl<ApiModule>().dio);
+    }
+    return StubVerificationGateway();
+  });
+  sl.registerLazySingleton<ReviewsCustomerGateway>(() {
+    final flags = sl<FeatureFlags>();
+    if (flags.realReviewsClientShipped) {
+      return ReviewsCustomerGatewayImpl(dio: sl<ApiModule>().dio);
+    }
+    return StubReviewsCustomerGateway();
   });
 
   // Clear cart on sign-out (BR-1). The subscription survives DI bootstrap

@@ -7,8 +7,10 @@ import '../../../generated/l10n/app_localizations.dart';
 ///
 /// Color mapping follows the Phase 5 state-pill semantics — neutral for
 /// pre-decision states, success-green for terminal positive states,
-/// danger-red for `rejected`. Unknown wire values fall back to the raw
-/// string with the neutral chip color (forward-compat).
+/// danger-red for `rejected`. Unknown wire values fall back to the
+/// localized `returnStateUnknown` label ("Status updating…" / "جاري
+/// تحديث الحالة…") with the neutral chip color — forward-compat for
+/// new server-side states without leaking raw enum codes to users.
 class ReturnStatePill extends StatelessWidget {
   const ReturnStatePill({super.key, required this.state});
 

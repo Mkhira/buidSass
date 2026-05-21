@@ -98,24 +98,26 @@ class PhotoUploadTile extends StatelessWidget {
             PositionedDirectional(
               top: 0,
               end: 0,
-              // Expand the hit area to 44×44 while keeping the visible
-              // chip small — addresses the audit P2 finding (WCAG 2.5.5
-              // target size). The Material+InkWell still sits at the
-              // visible-chip dimensions; the surrounding SizedBox
-              // catches stray taps near the corner.
+              // 44×44 tap target per WCAG 2.5.5 + CodeRabbit loop 2
+              // follow-up. The InkWell itself fills the full 44×44 so
+              // a tap anywhere in that region fires `onRemove`; the
+              // visible circular chip is decorative-only via
+              // `AlignmentDirectional.topEnd` inside the ink response.
               child: SizedBox(
                 width: 44,
                 height: 44,
-                child: Align(
-                  alignment: AlignmentDirectional.topEnd,
-                  child: Material(
-                    color: Colors.black.withValues(alpha: 0.55),
-                    shape: const CircleBorder(),
-                    child: InkWell(
-                      customBorder: const CircleBorder(),
-                      onTap: onRemove,
-                      child: Padding(
-                        padding: const EdgeInsets.all(4.0),
+                child: Material(
+                  type: MaterialType.transparency,
+                  child: InkWell(
+                    onTap: onRemove,
+                    child: Align(
+                      alignment: AlignmentDirectional.topEnd,
+                      child: Container(
+                        padding: const EdgeInsets.all(4),
+                        decoration: BoxDecoration(
+                          color: Colors.black.withValues(alpha: 0.55),
+                          shape: BoxShape.circle,
+                        ),
                         child: Semantics(
                           button: true,
                           label: l10n.returnWizardRemovePhoto,

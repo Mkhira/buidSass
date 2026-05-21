@@ -76,8 +76,10 @@ import '../features/search/data/search_gateway.dart';
 import '../features/search/screens/lookup_screen.dart';
 import '../features/search/screens/search_screen.dart';
 import '../features/verification/bloc/verification_list_bloc.dart';
+import '../features/verification/bloc/verification_submit_bloc.dart';
 import '../features/verification/data/verification_gateway.dart';
 import '../features/verification/screens/verification_list_screen.dart';
+import '../features/verification/screens/verification_submit_screen.dart';
 
 /// Customer-app routing. Routes mirror `contracts/deeplink-routes.md`.
 /// Auth-gated paths redirect through `/auth/login?continueTo=…`.
@@ -500,6 +502,21 @@ GoRouter buildRouter(AuthSessionBloc authBloc) {
           create: (_) => VerificationListBloc(gateway: sl<VerificationGateway>())
             ..add(const VerificationListStarted()),
           child: const VerificationListScreen(),
+        ),
+      ),
+      // S-7.2 submit. Idempotency-Key generated on bloc construction
+      // and reused across submit retries (BR-2). Re-entering the route
+      // constructs a new bloc, which generates a fresh key.
+      GoRoute(
+        path: '/verification/new',
+        name: 'verificationNew',
+        builder: (context, _) => BlocProvider(
+          create: (_) => VerificationSubmitBloc(
+            gateway: sl<VerificationGateway>(),
+          )..add(VerificationSubmitStarted(
+              marketCode: sl<MarketResolver>().resolve().code,
+            )),
+          child: const VerificationSubmitScreen(),
         ),
       ),
     ],

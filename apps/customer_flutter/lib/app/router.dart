@@ -18,13 +18,31 @@ import '../features/auth/screens/otp_screen.dart';
 import '../features/auth/screens/password_reset_screen.dart';
 import '../features/auth/screens/register_screen.dart';
 import '../features/b2b/bloc/awaiting_approval_bloc.dart';
+import '../features/b2b/bloc/branches_bloc.dart';
+import '../features/b2b/bloc/company_profile_bloc.dart';
+import '../features/b2b/bloc/company_register_bloc.dart';
+import '../features/b2b/bloc/invitation_accept_bloc.dart';
+import '../features/b2b/bloc/invite_user_bloc.dart';
+import '../features/b2b/bloc/legacy_quotation_detail_bloc.dart';
+import '../features/b2b/bloc/legacy_quotations_list_bloc.dart';
+import '../features/b2b/bloc/memberships_bloc.dart';
 import '../features/b2b/bloc/my_quotes_bloc.dart';
 import '../features/b2b/bloc/quote_detail_bloc.dart';
 import '../features/b2b/bloc/quote_document_bloc.dart';
 import '../features/b2b/bloc/quote_from_cart_bloc.dart';
 import '../features/b2b/bloc/quote_from_product_bloc.dart';
+import '../features/b2b/data/companies_gateway.dart';
+import '../features/b2b/data/legacy_quotations_gateway.dart';
 import '../features/b2b/data/quotes_gateway.dart';
 import '../features/b2b/screens/awaiting_approval_screen.dart';
+import '../features/b2b/screens/branches_screen.dart';
+import '../features/b2b/screens/company_profile_screen.dart';
+import '../features/b2b/screens/company_register_screen.dart';
+import '../features/b2b/screens/invitation_accept_screen.dart';
+import '../features/b2b/screens/invite_user_screen.dart';
+import '../features/b2b/screens/legacy_quotation_detail_screen.dart';
+import '../features/b2b/screens/legacy_quotations_list_screen.dart';
+import '../features/b2b/screens/memberships_screen.dart';
 import '../features/b2b/screens/my_quotes_screen.dart';
 import '../features/b2b/screens/quote_detail_screen.dart';
 import '../features/b2b/screens/quote_document_screen.dart';
@@ -746,6 +764,119 @@ GoRouter buildRouter(AuthSessionBloc authBloc) {
           );
         },
       ),
+      // S-8.7 — company register. Static path; before `/company/:id`.
+      GoRoute(
+        path: '/company/register',
+        name: 'companyRegister',
+        builder: (context, _) => BlocProvider(
+          create: (_) => CompanyRegisterBloc(gateway: sl<CompaniesGateway>())
+            ..add(CompanyRegisterStarted(
+              marketCode: sl<MarketResolver>().resolve().code,
+            )),
+          child: const CompanyRegisterScreen(),
+        ),
+      ),
+      // S-8.9 / S-8.10 / S-8.12 — nested under /company/:id.
+      GoRoute(
+        path: '/company/:id/branches',
+        name: 'companyBranches',
+        builder: (context, s) {
+          final id = s.pathParameters['id']!;
+          return BlocProvider(
+            create: (_) => BranchesBloc(
+              gateway: sl<CompaniesGateway>(),
+              companyId: id,
+            )..add(const BranchesStarted()),
+            child: BranchesScreen(companyId: id),
+          );
+        },
+      ),
+      GoRoute(
+        path: '/company/:id/invitations/new',
+        name: 'companyInvite',
+        builder: (context, s) {
+          final id = s.pathParameters['id']!;
+          return BlocProvider(
+            create: (_) => InviteUserBloc(
+              gateway: sl<CompaniesGateway>(),
+              companyId: id,
+            ),
+            child: const InviteUserScreen(),
+          );
+        },
+      ),
+      GoRoute(
+        path: '/company/:id/members',
+        name: 'companyMembers',
+        builder: (context, s) {
+          final id = s.pathParameters['id']!;
+          return BlocProvider(
+            create: (_) => MembershipsBloc(
+              gateway: sl<CompaniesGateway>(),
+              companyId: id,
+            )..add(const MembershipsStarted()),
+            child: MembershipsScreen(companyId: id),
+          );
+        },
+      ),
+      // S-8.8 — company profile. Dynamic catchall; declared last.
+      GoRoute(
+        path: '/company/:id',
+        name: 'companyProfile',
+        builder: (context, s) {
+          final id = s.pathParameters['id']!;
+          return BlocProvider(
+            create: (_) => CompanyProfileBloc(
+              gateway: sl<CompaniesGateway>(),
+              companyId: id,
+            )..add(const CompanyProfileStarted()),
+            child: CompanyProfileScreen(companyId: id),
+          );
+        },
+      ),
+      // S-8.11 — invitation accept deep link.
+      GoRoute(
+        path: '/invitations/:token',
+        name: 'invitationAccept',
+        builder: (context, s) {
+          final token = s.pathParameters['token'] ?? '';
+          return BlocProvider(
+            create: (_) => InvitationAcceptBloc(
+              gateway: sl<CompaniesGateway>(),
+              token: token,
+            )..add(const InvitationAcceptStarted()),
+            child: const InvitationAcceptScreen(),
+          );
+        },
+      ),
+      // S-8.legacy.1 — legacy quotations list. Menu entry surfaces this
+      // route only when the list isn't empty; the bloc transitions to
+      // Empty when the gateway returns no items (404 → []).
+      GoRoute(
+        path: '/legacy-quotations',
+        name: 'legacyQuotations',
+        builder: (context, _) => BlocProvider(
+          create: (_) => LegacyQuotationsListBloc(
+            gateway: sl<LegacyQuotationsGateway>(),
+          )..add(const LegacyQuotationsListStarted()),
+          child: const LegacyQuotationsListScreen(),
+        ),
+      ),
+      // S-8.legacy.2 — legacy quotation detail / accept / reject.
+      GoRoute(
+        path: '/legacy-quotations/:id',
+        name: 'legacyQuotationDetail',
+        builder: (context, s) {
+          final id = s.pathParameters['id']!;
+          return BlocProvider(
+            create: (_) => LegacyQuotationDetailBloc(
+              gateway: sl<LegacyQuotationsGateway>(),
+              quotationId: id,
+            )..add(const LegacyQuotationDetailStarted()),
+            child: LegacyQuotationDetailScreen(quotationId: id),
+          );
+        },
+      ),
     ],
   );
 }
@@ -762,6 +893,7 @@ const _authGatedPrefixes = <String>[
   '/quotes',
   '/company',
   '/legacy-quotations',
+  '/invitations',
 ];
 
 class _BlocRefresh extends ChangeNotifier {

@@ -44,24 +44,24 @@ class ReviewSubmitScreen extends StatelessWidget {
           // changes.
           return switch (state) {
             ReviewSubmitNotEligible() => Column(
-              children: [
-                Expanded(
-                  child: EmptyState(
-                    title: l10n.reviewSubmitNotEligibleTitle,
-                    body: l10n.reviewSubmitNotEligibleBody,
-                    icon: Icons.lock_outlined,
+                children: [
+                  Expanded(
+                    child: EmptyState(
+                      title: l10n.reviewSubmitNotEligibleTitle,
+                      body: l10n.reviewSubmitNotEligibleBody,
+                      icon: Icons.lock_outlined,
+                    ),
                   ),
-                ),
-                Padding(
-                  padding: const EdgeInsets.all(AppSpacing.md),
-                  child: AppButton(
-                    label: l10n.navOrders,
-                    expand: true,
-                    onPressed: () => context.go('/orders'),
+                  Padding(
+                    padding: const EdgeInsets.all(AppSpacing.md),
+                    child: AppButton(
+                      label: l10n.navOrders,
+                      expand: true,
+                      onPressed: () => context.go('/orders'),
+                    ),
                   ),
-                ),
-              ],
-            ),
+                ],
+              ),
             ReviewSubmitForm() => _Form(form: state, submitting: false),
             ReviewSubmitSubmitting(:final form) =>
               _Form(form: form, submitting: true),

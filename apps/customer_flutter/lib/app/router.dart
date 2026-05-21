@@ -69,12 +69,32 @@ import '../features/returns/data/returns_gateway.dart';
 import '../features/returns/screens/return_detail_screen.dart';
 import '../features/returns/screens/return_wizard_screen.dart';
 import '../features/returns/screens/returns_list_screen.dart';
+import '../features/reviews/bloc/my_review_detail_bloc.dart';
+import '../features/reviews/bloc/my_reviews_bloc.dart';
+import '../features/reviews/bloc/report_review_bloc.dart';
+import '../features/reviews/bloc/review_submit_bloc.dart';
+import '../features/reviews/data/reviews_customer_gateway.dart';
+import '../features/reviews/screens/my_review_detail_screen.dart';
+import '../features/reviews/screens/my_reviews_screen.dart';
+import '../features/reviews/screens/report_review_screen.dart';
+import '../features/reviews/screens/review_submit_screen.dart';
 import '../features/search/bloc/lookup_bloc.dart';
 import '../features/search/bloc/search_bloc.dart';
 import '../features/search/data/recent_searches_store.dart';
 import '../features/search/data/search_gateway.dart';
 import '../features/search/screens/lookup_screen.dart';
 import '../features/search/screens/search_screen.dart';
+import '../features/verification/bloc/renew_bloc.dart';
+import '../features/verification/bloc/resubmit_cubit.dart';
+import '../features/verification/bloc/verification_detail_bloc.dart';
+import '../features/verification/bloc/verification_list_bloc.dart';
+import '../features/verification/bloc/verification_submit_bloc.dart';
+import '../features/verification/data/verification_gateway.dart';
+import '../features/verification/screens/renew_screen.dart';
+import '../features/verification/screens/resubmit_screen.dart';
+import '../features/verification/screens/verification_detail_screen.dart';
+import '../features/verification/screens/verification_list_screen.dart';
+import '../features/verification/screens/verification_submit_screen.dart';
 
 /// Customer-app routing. Routes mirror `contracts/deeplink-routes.md`.
 /// Auth-gated paths redirect through `/auth/login?continueTo=…`.
@@ -484,8 +504,152 @@ GoRouter buildRouter(AuthSessionBloc authBloc) {
       ),
       GoRoute(
         path: '/more/verification',
-        name: 'verification',
+        name: 'verificationCta',
         builder: (context, _) => const VerificationCtaScreen(),
+      ),
+      // Phase 7 — verification list. Path matches the spec's S-7.1
+      // route. The legacy `/more/verification` CTA stays alive until
+      // the More hub link migrates over.
+      GoRoute(
+        path: '/verification',
+        name: 'verification',
+        builder: (context, _) => BlocProvider(
+          create: (_) =>
+              VerificationListBloc(gateway: sl<VerificationGateway>())
+                ..add(const VerificationListStarted()),
+          child: const VerificationListScreen(),
+        ),
+      ),
+      // S-7.2 submit. Idempotency-Key generated on bloc construction
+      // and reused across submit retries (BR-2). Re-entering the route
+      // constructs a new bloc, which generates a fresh key.
+      GoRoute(
+        path: '/verification/new',
+        name: 'verificationNew',
+        builder: (context, _) => BlocProvider(
+          create: (_) => VerificationSubmitBloc(
+            gateway: sl<VerificationGateway>(),
+          )..add(VerificationSubmitStarted(
+              marketCode: sl<MarketResolver>().resolve().code,
+            )),
+          child: const VerificationSubmitScreen(),
+        ),
+      ),
+      // S-7.4 renew. Static path declared BEFORE the dynamic `:id`
+      // route so go_router matches it first. Reads the prior case id
+      // from the `prior` query param when arriving via the detail
+      // screen's Renew CTA.
+      GoRoute(
+        path: '/verification/renew',
+        name: 'verificationRenew',
+        builder: (context, s) {
+          final priorId = s.uri.queryParameters['prior'] ?? '';
+          final marketCode = sl<MarketResolver>().resolve().code;
+          return BlocProvider(
+            create: (_) => RenewBloc(gateway: sl<VerificationGateway>())
+              ..add(RenewStarted(
+                priorVerificationId: priorId,
+                marketCode: marketCode,
+              )),
+            child: const RenewScreen(),
+          );
+        },
+      ),
+      // S-7.4 resubmit. Nested under the dynamic `:id` parent so the
+      // detail screen's Resubmit CTA can deep-link directly.
+      GoRoute(
+        path: '/verification/:id/resubmit',
+        name: 'verificationResubmit',
+        builder: (context, s) {
+          final id = s.pathParameters['id']!;
+          return BlocProvider(
+            create: (_) => ResubmitCubit(
+              gateway: sl<VerificationGateway>(),
+              verificationId: id,
+            )..load(),
+            child: ResubmitScreen(verificationId: id),
+          );
+        },
+      ),
+      // S-7.3 detail + doc upload. Path :id parameter doubles as the
+      // bloc's verificationId so the URL is bookmarkable/deeplinkable.
+      GoRoute(
+        path: '/verification/:id',
+        name: 'verificationDetail',
+        builder: (context, s) {
+          final id = s.pathParameters['id']!;
+          return BlocProvider(
+            create: (_) => VerificationDetailBloc(
+              gateway: sl<VerificationGateway>(),
+              verificationId: id,
+            )..add(const VerificationDetailStarted()),
+            child: VerificationDetailScreen(verificationId: id),
+          );
+        },
+      ),
+      // S-7.5 review submit. productId + orderId from query params so
+      // the order-detail "Write review" CTA can deep-link directly.
+      GoRoute(
+        path: '/reviews/new',
+        name: 'reviewSubmit',
+        builder: (context, s) {
+          final productId = s.uri.queryParameters['productId'] ?? '';
+          final orderId = s.uri.queryParameters['orderId'] ?? '';
+          final locale = sl<LocaleBloc>().state.locale.code;
+          return BlocProvider(
+            create: (_) => ReviewSubmitBloc(
+              gateway: sl<ReviewsCustomerGateway>(),
+            )..add(ReviewSubmitStarted(
+                productId: productId,
+                orderId: orderId,
+                locale: locale,
+              )),
+            child: ReviewSubmitScreen(
+              productId: productId,
+              orderId: orderId,
+            ),
+          );
+        },
+      ),
+      // S-7.8 report someone else's review.
+      GoRoute(
+        path: '/reviews/:id/report',
+        name: 'reviewReport',
+        builder: (context, s) {
+          final id = s.pathParameters['id']!;
+          return BlocProvider(
+            create: (_) => ReportReviewBloc(
+              gateway: sl<ReviewsCustomerGateway>(),
+              reviewId: id,
+            )..add(const ReportReviewStarted()),
+            child: const ReportReviewScreen(),
+          );
+        },
+      ),
+      // S-7.6 my reviews list.
+      GoRoute(
+        path: '/my-reviews',
+        name: 'myReviews',
+        builder: (context, _) => BlocProvider(
+          create: (_) => MyReviewsBloc(gateway: sl<ReviewsCustomerGateway>())
+            ..add(const MyReviewsStarted()),
+          child: const MyReviewsScreen(),
+        ),
+      ),
+      // S-7.7 my review detail / edit.
+      GoRoute(
+        path: '/my-reviews/:id',
+        name: 'myReviewDetail',
+        builder: (context, s) {
+          final id = s.pathParameters['id']!;
+          return BlocProvider(
+            create: (_) => MyReviewDetailBloc(
+              gateway: sl<ReviewsCustomerGateway>(),
+              reviewId: id,
+            )..add(const MyReviewDetailStarted()),
+            child: const MyReviewDetailScreen(),
+          );
+        },
       ),
     ],
   );
@@ -497,6 +661,9 @@ const _authGatedPrefixes = <String>[
   '/o/',
   '/more',
   '/returns',
+  '/verification',
+  '/reviews',
+  '/my-reviews',
 ];
 
 class _BlocRefresh extends ChangeNotifier {

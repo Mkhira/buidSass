@@ -40,7 +40,7 @@ Deliver verification (KYC-style) submission, document upload, resubmit, renew, p
 
 ### S-7.1 Verification list
 
-**Status:** Partial — `features/more/screens/verification_cta_screen.dart` exists as a CTA entry; full list is new.
+**Status:** Done
 **Route:** `/verification` · **Bottom nav:** visible (More tab)
 **OpenAPI source:** `openapi.verification.json`
 **Wireframe:** [`#phase-7-verification-list`](../../../docs/mobile-screens-wireframes.md#phase-7-verification-list--s-71-verification-list)
@@ -77,17 +77,17 @@ loading skeleton → loaded (active banner + history list) → empty (no history
 - `VerificationListBloc`. Events: started, refreshed. States standard.
 
 #### Acceptance criteria
-- [ ] Active banner styles by state (green=approved, amber=info_requested, grey=expired).
-- [ ] Start New CTA routes to S-7.2 with verification kind picker (or single kind based on user's needs).
-- [ ] Resume CTA routes to S-7.3 detail when an in-progress case exists.
-- [ ] AR + EN.
-- [ ] Tests.
+- [x] Active banner styles by state (green=approved, amber=info_requested, grey=expired).
+- [x] Start New CTA routes to S-7.2 with verification kind picker (or single kind based on user's needs).
+- [x] Resume CTA routes to S-7.3 detail when an in-progress case exists.
+- [x] AR + EN.
+- [x] Tests.
 
 ---
 
 ### S-7.2 Submit verification
 
-**Status:** Planned
+**Status:** Done
 **Route:** `/verification/new` · **Bottom nav:** hidden
 **OpenAPI source:** `openapi.verification.json`
 **Wireframe:** [`#phase-7-verification-submit`](../../../docs/mobile-screens-wireframes.md#phase-7-verification-submit--s-72-submit-verification)
@@ -123,17 +123,17 @@ loading-schema → form rendered dynamically from schema → submitting → subm
 - States: schemaLoading, form(schema, values, errors?), submitting, submitted(id), failure.
 
 #### Acceptance criteria
-- [ ] Form fields rendered from schema (text, number, enum dropdown, date picker, document slot).
-- [ ] Required-field validation client-side.
-- [ ] Documents NOT uploaded here — only after submit (S-7.3).
-- [ ] Editorial AR copy.
-- [ ] Tests.
+- [x] Form fields rendered from schema (text, number, enum dropdown, date picker, document slot).
+- [x] Required-field validation client-side.
+- [x] Documents NOT uploaded here — only after submit (S-7.3).
+- [x] Editorial AR copy.
+- [x] Tests.
 
 ---
 
 ### S-7.3 Verification detail + document upload
 
-**Status:** Planned
+**Status:** Done
 **Route:** `/verification/{id}` · **Bottom nav:** hidden
 **OpenAPI source:** `openapi.verification.json`
 **Wireframe:** [`#phase-7-verification-detail`](../../../docs/mobile-screens-wireframes.md#phase-7-verification-detail--s-73-verification-detail--docs-upload)
@@ -167,17 +167,17 @@ loading → loaded (timeline + fields + documents + requested-info checklist + U
 - `VerificationDetailBloc`. Events: started(id), refreshed, documentUploadRequested(slotKey, file). States: loading, loaded(detail), uploading(slotKey), failure.
 
 #### Acceptance criteria
-- [ ] Document upload UI surfaces per-slot progress.
-- [ ] Multi-document upload runs in parallel with bounded concurrency (max 2 simultaneous).
-- [ ] On `info_requested`: requested-info checklist shown prominently; Resubmit CTA enabled once all requested items are addressed.
-- [ ] AR + EN.
-- [ ] Tests.
+- [x] Document upload UI surfaces per-slot progress.
+- [x] Multi-document upload runs in parallel with bounded concurrency (max 2 simultaneous).
+- [x] On `info_requested`: requested-info checklist shown prominently; Resubmit CTA enabled once all requested items are addressed.
+- [x] AR + EN.
+- [x] Tests.
 
 ---
 
 ### S-7.4 Resubmit / Renew
 
-**Status:** Planned
+**Status:** Done
 **Route:** `/verification/{id}/resubmit` and `/verification/renew` · **Bottom nav:** hidden
 **OpenAPI source:** `openapi.verification.json`
 **Wireframe:** [`#phase-7-verification-resubmit`](../../../docs/mobile-screens-wireframes.md#phase-7-verification-resubmit--s-74-resubmit--renew)
@@ -199,16 +199,16 @@ checklist (resubmit) or new form (renew) → submitting → success (routes back
 Two cubits: `ResubmitCubit(verificationId)` and `RenewBloc`. Both standard.
 
 #### Acceptance criteria
-- [ ] Resubmit: only requested-info items shown for editing; everything else read-only.
-- [ ] Renew: similar to S-7.2 with the prior case's data pre-filled.
-- [ ] AR + EN.
-- [ ] Tests.
+- [x] Resubmit: only requested-info items shown for editing; everything else read-only.
+- [x] Renew: similar to S-7.2 with the prior case's data pre-filled.
+- [x] AR + EN.
+- [x] Tests.
 
 ---
 
 ### S-7.5 Submit review
 
-**Status:** Planned
+**Status:** Done
 **Route:** `/reviews/new?productId={id}&orderId={id}` · **Bottom nav:** hidden
 **OpenAPI source:** `openapi.reviews.json`
 **Wireframe:** [`#phase-7-review-submit`](../../../docs/mobile-screens-wireframes.md#phase-7-review-submit--s-75-submit-review)
@@ -231,18 +231,18 @@ form (stars + comment + optional media) → submitting → submitted (toast + ba
 - `ReviewSubmitBloc`. Events: started(productId, orderId), starsChanged, commentChanged, mediaAdded, submitted. States: form, submitting, submitted, failure.
 
 #### Acceptance criteria
-- [ ] Star rating 1–5 required.
-- [ ] Comment ≤ 2000 chars.
-- [ ] Media upload reuses pattern from Phase 6 photos (separate `/reviews/media` endpoint if backend offers, else inline).
-- [ ] 403 surfaces friendly "Only verified buyers can review" with link to orders.
-- [ ] AR + EN.
-- [ ] Tests.
+- [x] Star rating 1–5 required.
+- [x] Comment ≤ 2000 chars.
+- [x] Media upload reuses pattern from Phase 6 photos (separate `/reviews/media` endpoint if backend offers, else inline).
+- [x] 403 surfaces friendly "Only verified buyers can review" with link to orders.
+- [x] AR + EN.
+- [x] Tests.
 
 ---
 
 ### S-7.6 My reviews list
 
-**Status:** Planned
+**Status:** Done
 **Route:** `/my-reviews` · **Bottom nav:** visible (More)
 **OpenAPI source:** `openapi.reviews.json`
 **Wireframe:** [`#phase-7-my-reviews`](../../../docs/mobile-screens-wireframes.md#phase-7-my-reviews--s-76-my-reviews-list)
@@ -277,15 +277,15 @@ standard list states.
 `MyReviewsBloc` standard.
 
 #### Acceptance criteria
-- [ ] State chips per row.
-- [ ] Tap row → S-7.7 detail.
-- [ ] Tests.
+- [x] State chips per row.
+- [x] Tap row → S-7.7 detail.
+- [x] Tests.
 
 ---
 
 ### S-7.7 My review detail + edit
 
-**Status:** Planned
+**Status:** Done
 **Route:** `/my-reviews/{id}` · **Bottom nav:** hidden
 **OpenAPI source:** `openapi.reviews.json`
 **Wireframe:** [`#phase-7-review-detail`](../../../docs/mobile-screens-wireframes.md#phase-7-review-detail--s-77-my-review-detail--edit)
@@ -320,16 +320,16 @@ detail view → Edit toggles in-place form → save → success → moderation s
 `MyReviewDetailBloc` with Events started, editToggled, fieldChanged, saved. States loaded(detail, editing?), saving, failure.
 
 #### Acceptance criteria
-- [ ] Edit CTA disabled when `editableUntil` is past.
-- [ ] Moderation status visible (e.g., "Hidden by moderation").
-- [ ] AR + EN.
-- [ ] Tests.
+- [x] Edit CTA disabled when `editableUntil` is past.
+- [x] Moderation status visible (e.g., "Hidden by moderation").
+- [x] AR + EN.
+- [x] Tests.
 
 ---
 
 ### S-7.8 Report review (other users' reviews)
 
-**Status:** Planned
+**Status:** Done
 **Route:** `/reviews/{id}/report` (or modal from PDP review list)
 **OpenAPI source:** `openapi.reviews.json`
 **Wireframe:** [`#phase-7-report`](../../../docs/mobile-screens-wireframes.md#phase-7-report--s-78-report-review)
@@ -357,21 +357,21 @@ reasons load → radio + note → submit → toast "Thanks — we'll review" →
 `ReportReviewBloc` standard.
 
 #### Acceptance criteria
-- [ ] Reasons from server (BR-9).
-- [ ] Note optional.
-- [ ] Tests.
+- [x] Reasons from server (BR-9).
+- [x] Note optional.
+- [x] Tests.
 
 ---
 
 ## 5. Acceptance criteria — phase-wide
 
-- [ ] 8 screens above pass per-screen DoD.
-- [ ] Verification form rendered dynamically from server schema (BR-1).
-- [ ] Verification submit + review submit both use Idempotency-Key.
-- [ ] Review edit gated by `editableUntil`.
-- [ ] Report reasons from server.
-- [ ] `flutter analyze` + `flutter test` green.
-- [ ] §8 row → **Done**.
+- [x] 8 screens above pass per-screen DoD.
+- [x] Verification form rendered dynamically from server schema (BR-1).
+- [x] Verification submit + review submit both use Idempotency-Key.
+- [x] Review edit gated by `editableUntil`.
+- [x] Report reasons from server.
+- [x] `flutter analyze` + `flutter test` green.
+- [x] §8 row → **Done**.
 
 ## 6. Dependencies
 

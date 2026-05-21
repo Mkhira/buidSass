@@ -28,6 +28,10 @@ class MoreScreen extends StatelessWidget {
             onTap: () => context.go('/returns'),
           ),
           AppListTile(
+            title: l10n.moreMyReviews,
+            onTap: () => context.go('/my-reviews'),
+          ),
+          AppListTile(
             title: l10n.moreLanguage,
             trailing: TextButton(
               onPressed: () =>
@@ -39,7 +43,7 @@ class MoreScreen extends StatelessWidget {
           ),
           AppListTile(
             title: l10n.moreVerification,
-            onTap: () => context.go('/more/verification'),
+            onTap: () => context.go('/verification'),
             subtitle: flags.verificationCtaShipped ? null : 'soon',
           ),
           AppListTile(

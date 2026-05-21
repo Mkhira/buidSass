@@ -2,28 +2,28 @@
 
 ## Verification
 
-- [ ] `VerificationGateway` covers 8 endpoints; submit + resubmit + renew use Idempotency-Key on intent boundaries.
-- [ ] Dynamic schema form renders text/number/enum/date/doc field types.
-- [ ] Document upload: per-slot progress; bounded parallelism (≤2).
-- [ ] Requested-info checklist surfaced; Resubmit CTA enabled once addressed.
-- [ ] State transitions (submitted → info_requested → approved | rejected | expired) all rendered cleanly.
+- [x] `VerificationGateway` covers 8 endpoints; submit + resubmit + renew use Idempotency-Key on intent boundaries.
+- [x] Dynamic schema form renders text/number/enum/date/doc field types.
+- [x] Document upload: per-slot progress; bounded parallelism (≤2).
+- [x] Requested-info checklist surfaced; Resubmit CTA enabled once addressed.
+- [x] State transitions (submitted → info_requested → approved | rejected | expired) all rendered cleanly.
 
 ## Reviews
 
-- [ ] `ReviewsCustomerGateway` covers 6 endpoints.
-- [ ] Review submit gated by verified-buyer; 403 surfaces friendly state.
-- [ ] Edit gated by `editableUntil`.
-- [ ] Report reasons from server.
+- [x] `ReviewsCustomerGateway` covers 6 endpoints.
+- [x] Review submit gated by verified-buyer; 403 surfaces friendly state.
+- [x] Edit gated by `editableUntil`.
+- [x] Report reasons from server.
 
 ## Cross-cutting
 
-- [ ] AR + EN editorial copy throughout.
-- [ ] No client-side schema assumptions (BR-1).
-- [ ] Telemetry never captures verification field values or review comment text.
+- [x] AR + EN editorial copy throughout.
+- [x] No client-side schema assumptions (BR-1).
+- [x] Telemetry never captures verification field values or review comment text.
 
 ## Phase exit
 
-- [ ] `flutter analyze` clean.
-- [ ] `flutter test` green.
-- [ ] Smoke test recorded.
-- [ ] §8 row → **Done**.
+- [x] `flutter analyze` clean.
+- [x] `flutter test` green.
+- [x] Smoke test recorded.
+- [x] §8 row → **Done**.

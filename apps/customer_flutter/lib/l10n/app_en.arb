@@ -439,5 +439,203 @@
     "placeholders": {
       "value": { "type": "int" }
     }
-  }
+  },
+  "moreCompany": "Company",
+  "moreQuotes": "My quotes",
+  "moreAwaitingApproval": "Awaiting my approval",
+  "moreLegacyQuotations": "Legacy quotations",
+  "quoteStateDraft": "Draft",
+  "quoteStatePublished": "Published",
+  "quoteStateAwaitingAcceptance": "Awaiting acceptance",
+  "quoteStateAwaitingFinalization": "Awaiting finalization",
+  "quoteStateAccepted": "Accepted",
+  "quoteStateRejected": "Rejected",
+  "quoteStateWithdrawn": "Withdrawn",
+  "quoteStateExpired": "Expired",
+  "quoteStateUnknown": "Status updating…",
+  "quotesListTitle": "My quotes",
+  "quotesListEmpty": "No quotes yet",
+  "quotesListEmptyBody": "Quotes you request will show up here.",
+  "quotesListFilterAll": "All",
+  "quotesListFilterDraft": "Draft",
+  "quotesListFilterAwaiting": "Awaiting",
+  "quotesListFilterAccepted": "Accepted",
+  "quotesListFilterRejected": "Rejected",
+  "quotesListCreatedAt": "Created {date}",
+  "@quotesListCreatedAt": {
+    "placeholders": {
+      "date": { "type": "String" }
+    }
+  },
+  "quotesListExpiresOn": "Expires {date}",
+  "@quotesListExpiresOn": {
+    "placeholders": {
+      "date": { "type": "String" }
+    }
+  },
+  "quotesListTotal": "Total {amount}",
+  "@quotesListTotal": {
+    "placeholders": {
+      "amount": { "type": "String" }
+    }
+  },
+  "quotesAwaitingTitle": "Awaiting my approval",
+  "quotesAwaitingEmpty": "Nothing waiting on you",
+  "quotesAwaitingEmptyBody": "Quotes submitted for your approval will show up here.",
+  "quotesAwaitingSubmittedBy": "Submitted by {name}",
+  "@quotesAwaitingSubmittedBy": {
+    "placeholders": {
+      "name": { "type": "String" }
+    }
+  },
+  "quoteFromCartTitle": "Request quote",
+  "quoteFromCartHeader": "Cart summary",
+  "quoteFromCartTermsLabel": "Payment terms",
+  "quoteFromCartEtaLabel": "Expected delivery",
+  "quoteFromCartNoteLabel": "Note (optional)",
+  "quoteFromCartSubmitCta": "Send request",
+  "quoteFromCartEmptyCart": "Your cart is empty.",
+  "quoteFromProductTitle": "Request a quote",
+  "quoteFromProductQtyLabel": "Quantity",
+  "quoteFromProductSubmitCta": "Send request",
+  "quoteDetailTitle": "Quote",
+  "quoteDetailVersionsLabel": "Versions",
+  "quoteDetailVersionLabel": "Version {n}",
+  "@quoteDetailVersionLabel": {
+    "placeholders": {
+      "n": { "type": "int" }
+    }
+  },
+  "quoteDetailPublishedAt": "Published {date}",
+  "@quoteDetailPublishedAt": {
+    "placeholders": {
+      "date": { "type": "String" }
+    }
+  },
+  "quoteDetailValidUntil": "Valid until {date}",
+  "@quoteDetailValidUntil": {
+    "placeholders": {
+      "date": { "type": "String" }
+    }
+  },
+  "quoteDetailTermsLabel": "Terms",
+  "quoteDetailSubtotal": "Subtotal",
+  "quoteDetailDiscount": "Discount",
+  "quoteDetailTax": "Tax",
+  "quoteDetailGrandTotal": "Total",
+  "quoteDetailLineRow": "{qty} × {price}",
+  "@quoteDetailLineRow": {
+    "placeholders": {
+      "qty": { "type": "int" },
+      "price": { "type": "String" }
+    }
+  },
+  "quoteActionSubmitAcceptance": "Submit acceptance",
+  "quoteActionFinalizeAcceptance": "Finalize acceptance",
+  "quoteActionRejectAcceptance": "Reject",
+  "quoteActionRequestRevision": "Request revision",
+  "quoteActionWithdraw": "Withdraw",
+  "quoteActionSaveAsTemplate": "Save as template",
+  "quoteAcceptanceStep1of2": "Step 1 of 2 — submit",
+  "quoteAcceptanceStep2of2": "Step 2 of 2 — finalize",
+  "quoteActionNoteLabel": "Note (optional)",
+  "quoteActionNoteRequired": "Note",
+  "quoteActionConfirm": "Confirm",
+  "quoteActionCancel": "Cancel",
+  "quoteTemplateNameLabel": "Template name",
+  "quoteSubmittedBy": "Submitted by {name}",
+  "@quoteSubmittedBy": {
+    "placeholders": {
+      "name": { "type": "String" }
+    }
+  },
+  "quoteDocumentTitle": "Quote document",
+  "quoteDocumentDownloadCta": "Download PDF",
+  "quoteDocumentOpenCta": "Open",
+  "quoteDocumentShareCta": "Share",
+  "quoteDocumentRedownloadCta": "Download again",
+  "quoteDocumentDownloading": "Downloading…",
+  "quoteDocumentLocaleLabel": "Language",
+  "quoteDocumentReadyTitle": "Ready",
+  "quoteDocumentReadyBody": "Open the PDF or share it.",
+  "quoteDocumentUnavailableTitle": "Document not yet available",
+  "quoteDocumentUnavailableBody": "This version of the quote does not have a document for the selected language yet.",
+  "quoteDocumentFilenameAr": "عرض-سعر-{quoteNumber}-{versionId}.pdf",
+  "@quoteDocumentFilenameAr": {
+    "placeholders": {
+      "quoteNumber": { "type": "String" },
+      "versionId": { "type": "String" }
+    }
+  },
+  "quoteDocumentFilenameEn": "quote-{quoteNumber}-{versionId}.pdf",
+  "@quoteDocumentFilenameEn": {
+    "placeholders": {
+      "quoteNumber": { "type": "String" },
+      "versionId": { "type": "String" }
+    }
+  },
+  "companyRegisterTitle": "Register a company",
+  "companyNameLabel": "Company name",
+  "companyVatNumberLabel": "VAT number",
+  "companyAddressLabel": "Address",
+  "companyCommercialRegistrationLabel": "Commercial registration",
+  "companyMarketLabel": "Market",
+  "companyRegisterSubmitCta": "Register company",
+  "companyProfileTitle": "Company",
+  "companyProfileSectionProfile": "Profile",
+  "companyProfileSectionBranches": "Branches",
+  "companyProfileSectionMembers": "Members",
+  "companyProfileSaveCta": "Save",
+  "companyProfileReadOnlyHint": "Only company admins can edit these details.",
+  "branchesTitle": "Branches",
+  "branchesEmpty": "No branches yet",
+  "branchesAddCta": "Add branch",
+  "branchesDeleteConfirmTitle": "Remove branch?",
+  "branchesDeleteConfirmBody": "This action cannot be undone.",
+  "branchesDeleteCta": "Remove",
+  "branchNameLabel": "Branch name",
+  "branchAddressLabel": "Address",
+  "branchSaveCta": "Save branch",
+  "inviteUserTitle": "Invite a user",
+  "inviteUserEmailLabel": "Email",
+  "inviteUserRoleLabel": "Role",
+  "inviteUserSubmitCta": "Send invitation",
+  "inviteUserSent": "Invitation sent.",
+  "companyRoleAdmin": "Admin",
+  "companyRoleBuyer": "Buyer",
+  "companyRoleApprover": "Approver",
+  "invitationsTitle": "Invitation",
+  "invitationsBody": "You've been invited to join {company} as {role}.",
+  "@invitationsBody": {
+    "placeholders": {
+      "company": { "type": "String" },
+      "role": { "type": "String" }
+    }
+  },
+  "invitationsAcceptCta": "Accept",
+  "invitationsDeclineCta": "Decline",
+  "invitationsExpiredTitle": "Invitation expired",
+  "invitationsExpiredBody": "Ask the company admin to send a new invitation.",
+  "membershipsTitle": "Members",
+  "membershipsRemoveConfirmTitle": "Remove member?",
+  "membershipsRemoveConfirmBody": "{name} will lose access to this company.",
+  "@membershipsRemoveConfirmBody": {
+    "placeholders": {
+      "name": { "type": "String" }
+    }
+  },
+  "membershipsRemoveCta": "Remove",
+  "membershipsRoleChangeCta": "Change role",
+  "legacyQuotationsTitle": "Legacy quotations",
+  "legacyQuotationsEmpty": "No legacy quotations",
+  "legacyQuotationsEmptyBody": "Quotations issued under the previous system show up here.",
+  "legacyQuotationDetailTitle": "Quotation",
+  "legacyQuotationAcceptCta": "Accept",
+  "legacyQuotationRejectCta": "Reject",
+  "legacyQuotationAcceptConfirmTitle": "Accept quotation?",
+  "legacyQuotationAcceptConfirmBody": "You're about to accept this quotation. This action can't be undone.",
+  "legacyQuotationStatePending": "Pending",
+  "legacyQuotationStateAccepted": "Accepted",
+  "legacyQuotationStateRejected": "Rejected",
+  "legacyQuotationStateExpired": "Expired"
 }

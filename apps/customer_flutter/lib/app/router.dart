@@ -17,6 +17,19 @@ import '../features/auth/screens/login_screen.dart';
 import '../features/auth/screens/otp_screen.dart';
 import '../features/auth/screens/password_reset_screen.dart';
 import '../features/auth/screens/register_screen.dart';
+import '../features/b2b/bloc/awaiting_approval_bloc.dart';
+import '../features/b2b/bloc/my_quotes_bloc.dart';
+import '../features/b2b/bloc/quote_detail_bloc.dart';
+import '../features/b2b/bloc/quote_document_bloc.dart';
+import '../features/b2b/bloc/quote_from_cart_bloc.dart';
+import '../features/b2b/bloc/quote_from_product_bloc.dart';
+import '../features/b2b/data/quotes_gateway.dart';
+import '../features/b2b/screens/awaiting_approval_screen.dart';
+import '../features/b2b/screens/my_quotes_screen.dart';
+import '../features/b2b/screens/quote_detail_screen.dart';
+import '../features/b2b/screens/quote_document_screen.dart';
+import '../features/b2b/screens/quote_from_cart_screen.dart';
+import '../features/b2b/screens/quote_from_product_screen.dart';
 import '../features/cart/bloc/cart_v2_bloc.dart';
 import '../features/cart/data/cart_store.dart';
 import '../features/cart/screens/cart_screen_v2.dart';
@@ -651,6 +664,88 @@ GoRouter buildRouter(AuthSessionBloc authBloc) {
           );
         },
       ),
+      // Phase 8 — b2b. Quote-side first (S-8.1..S-8.6). The static
+      // /quotes/awaiting-approval + /quotes/from-cart routes come BEFORE
+      // /quotes/:id so go_router matches them first.
+      GoRoute(
+        path: '/quotes',
+        name: 'quotes',
+        builder: (context, _) => BlocProvider(
+          create: (_) => MyQuotesBloc(gateway: sl<QuotesGateway>())
+            ..add(const MyQuotesStarted()),
+          child: const MyQuotesScreen(),
+        ),
+      ),
+      GoRoute(
+        path: '/quotes/awaiting-approval',
+        name: 'quotesAwaiting',
+        builder: (context, _) => BlocProvider(
+          create: (_) => AwaitingApprovalBloc(gateway: sl<QuotesGateway>())
+            ..add(const AwaitingApprovalStarted()),
+          child: const AwaitingApprovalScreen(),
+        ),
+      ),
+      GoRoute(
+        path: '/quotes/from-cart',
+        name: 'quoteFromCart',
+        builder: (context, _) => BlocProvider(
+          create: (_) => QuoteFromCartBloc(
+            gateway: sl<QuotesGateway>(),
+            cartStore: sl<CartStore>(),
+          )..add(const QuoteFromCartStarted()),
+          child: const QuoteFromCartScreen(),
+        ),
+      ),
+      GoRoute(
+        path: '/products/:slug/quote',
+        name: 'quoteFromProduct',
+        builder: (context, s) {
+          final productId = s.pathParameters['slug'] ?? '';
+          return BlocProvider(
+            create: (_) => QuoteFromProductBloc(gateway: sl<QuotesGateway>())
+              ..add(QuoteFromProductStarted(productId: productId)),
+            child: QuoteFromProductScreen(productId: productId),
+          );
+        },
+      ),
+      // Document deep-link comes before /quotes/:id since its prefix is
+      // /quotes/:id/versions/...
+      GoRoute(
+        path: '/quotes/:quoteId/versions/:versionId/document',
+        name: 'quoteDocument',
+        builder: (context, s) {
+          final quoteId = s.pathParameters['quoteId']!;
+          final versionId = s.pathParameters['versionId']!;
+          final locale = s.uri.queryParameters['locale'] ??
+              sl<LocaleBloc>().state.locale.code;
+          return BlocProvider(
+            create: (_) => QuoteDocumentBloc(gateway: sl<QuotesGateway>())
+              ..add(QuoteDocumentDownloadRequested(
+                quoteId: quoteId,
+                versionId: versionId,
+                locale: locale,
+              )),
+            child: QuoteDocumentScreen(
+              quoteId: quoteId,
+              versionId: versionId,
+              initialLocale: locale,
+            ),
+          );
+        },
+      ),
+      GoRoute(
+        path: '/quotes/:id',
+        name: 'quoteDetail',
+        builder: (context, s) {
+          final id = s.pathParameters['id']!;
+          return BlocProvider(
+            create: (_) =>
+                QuoteDetailBloc(gateway: sl<QuotesGateway>(), quoteId: id)
+                  ..add(const QuoteDetailStarted()),
+            child: QuoteDetailScreen(quoteId: id),
+          );
+        },
+      ),
     ],
   );
 }
@@ -664,6 +759,9 @@ const _authGatedPrefixes = <String>[
   '/verification',
   '/reviews',
   '/my-reviews',
+  '/quotes',
+  '/company',
+  '/legacy-quotations',
 ];
 
 class _BlocRefresh extends ChangeNotifier {

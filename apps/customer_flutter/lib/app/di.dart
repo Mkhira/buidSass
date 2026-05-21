@@ -16,6 +16,15 @@ import '../core/platform/secure_storage_web.dart';
 import '../core/platform/sms_autofill_adapter.dart';
 import '../features/auth/data/auth_repository.dart';
 import '../features/auth/data/auth_repository_impl.dart';
+import '../features/b2b/data/companies_gateway.dart';
+import '../features/b2b/data/companies_gateway_impl.dart';
+import '../features/b2b/data/legacy_quotations_gateway.dart';
+import '../features/b2b/data/legacy_quotations_gateway_impl.dart';
+import '../features/b2b/data/quotes_gateway.dart';
+import '../features/b2b/data/quotes_gateway_impl.dart';
+import '../features/b2b/data/stub_companies_gateway.dart';
+import '../features/b2b/data/stub_legacy_quotations_gateway.dart';
+import '../features/b2b/data/stub_quotes_gateway.dart';
 import '../features/cart/data/cart_repository.dart';
 import '../features/cart/data/cart_store.dart';
 import '../features/catalog/data/catalog_repository.dart';
@@ -230,6 +239,31 @@ Future<void> bootstrap({
       return ReviewsCustomerGatewayImpl(dio: sl<ApiModule>().dio);
     }
     return StubReviewsCustomerGateway();
+  });
+
+  // Phase 8 — b2b (quotes + companies + legacy quotations). Same
+  // stub-vs-Dio flip pattern. `B2B_CLIENT_SHIPPED` flips all three
+  // together because the backend ships them as one bounded context.
+  sl.registerLazySingleton<QuotesGateway>(() {
+    final flags = sl<FeatureFlags>();
+    if (flags.realB2bClientShipped) {
+      return QuotesGatewayImpl(dio: sl<ApiModule>().dio);
+    }
+    return StubQuotesGateway();
+  });
+  sl.registerLazySingleton<CompaniesGateway>(() {
+    final flags = sl<FeatureFlags>();
+    if (flags.realB2bClientShipped) {
+      return CompaniesGatewayImpl(dio: sl<ApiModule>().dio);
+    }
+    return StubCompaniesGateway();
+  });
+  sl.registerLazySingleton<LegacyQuotationsGateway>(() {
+    final flags = sl<FeatureFlags>();
+    if (flags.realB2bClientShipped) {
+      return LegacyQuotationsGatewayImpl(dio: sl<ApiModule>().dio);
+    }
+    return StubLegacyQuotationsGateway();
   });
 
   // Clear cart on sign-out (BR-1). The subscription survives DI bootstrap

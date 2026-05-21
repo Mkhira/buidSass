@@ -12,6 +12,7 @@ class FeatureFlags {
     this.realInvoicesClientShipped = false,
     this.realVerificationClientShipped = false,
     this.realReviewsClientShipped = false,
+    this.realB2bClientShipped = false,
   });
 
   factory FeatureFlags.fromEnvironment() {
@@ -37,6 +38,7 @@ class FeatureFlags {
     );
     const reviews =
         bool.fromEnvironment('REVIEWS_CLIENT_SHIPPED', defaultValue: false);
+    const b2b = bool.fromEnvironment('B2B_CLIENT_SHIPPED', defaultValue: false);
     return const FeatureFlags(
       verificationCtaShipped: verification,
       cmsContentShipped: cms,
@@ -48,6 +50,7 @@ class FeatureFlags {
       realInvoicesClientShipped: invoices,
       realVerificationClientShipped: verificationClient,
       realReviewsClientShipped: reviews,
+      realB2bClientShipped: b2b,
     );
   }
 
@@ -110,4 +113,10 @@ class FeatureFlags {
   /// in place of `StubReviewsCustomerGateway`. Default `false`. Flip via
   /// `--dart-define=REVIEWS_CLIENT_SHIPPED=true`.
   final bool realReviewsClientShipped;
+
+  /// `specs/mobile/phase-8-b2b` — when `true`, DI wires the Dio impls
+  /// for `QuotesGateway`, `CompaniesGateway`, and
+  /// `LegacyQuotationsGateway` in place of their deterministic stubs.
+  /// Default `false`. Flip via `--dart-define=B2B_CLIENT_SHIPPED=true`.
+  final bool realB2bClientShipped;
 }

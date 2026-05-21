@@ -135,7 +135,9 @@ class _Loaded extends StatelessWidget {
               AppButton(
                 label: l10n.verificationDetailRenewCta,
                 expand: true,
-                onPressed: () => context.push('/verification/renew'),
+                onPressed: () => context.push(
+                  '/verification/renew?prior=${Uri.encodeComponent(detail.id)}',
+                ),
               ),
             ],
           ],

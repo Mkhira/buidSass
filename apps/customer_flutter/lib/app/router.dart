@@ -75,10 +75,14 @@ import '../features/search/data/recent_searches_store.dart';
 import '../features/search/data/search_gateway.dart';
 import '../features/search/screens/lookup_screen.dart';
 import '../features/search/screens/search_screen.dart';
+import '../features/verification/bloc/renew_bloc.dart';
+import '../features/verification/bloc/resubmit_cubit.dart';
 import '../features/verification/bloc/verification_detail_bloc.dart';
 import '../features/verification/bloc/verification_list_bloc.dart';
 import '../features/verification/bloc/verification_submit_bloc.dart';
 import '../features/verification/data/verification_gateway.dart';
+import '../features/verification/screens/renew_screen.dart';
+import '../features/verification/screens/resubmit_screen.dart';
 import '../features/verification/screens/verification_detail_screen.dart';
 import '../features/verification/screens/verification_list_screen.dart';
 import '../features/verification/screens/verification_submit_screen.dart';
@@ -520,6 +524,42 @@ GoRouter buildRouter(AuthSessionBloc authBloc) {
             )),
           child: const VerificationSubmitScreen(),
         ),
+      ),
+      // S-7.4 renew. Static path declared BEFORE the dynamic `:id`
+      // route so go_router matches it first. Reads the prior case id
+      // from the `prior` query param when arriving via the detail
+      // screen's Renew CTA.
+      GoRoute(
+        path: '/verification/renew',
+        name: 'verificationRenew',
+        builder: (context, s) {
+          final priorId = s.uri.queryParameters['prior'] ?? '';
+          final marketCode = sl<MarketResolver>().resolve().code;
+          return BlocProvider(
+            create: (_) => RenewBloc(gateway: sl<VerificationGateway>())
+              ..add(RenewStarted(
+                priorVerificationId: priorId,
+                marketCode: marketCode,
+              )),
+            child: const RenewScreen(),
+          );
+        },
+      ),
+      // S-7.4 resubmit. Nested under the dynamic `:id` parent so the
+      // detail screen's Resubmit CTA can deep-link directly.
+      GoRoute(
+        path: '/verification/:id/resubmit',
+        name: 'verificationResubmit',
+        builder: (context, s) {
+          final id = s.pathParameters['id']!;
+          return BlocProvider(
+            create: (_) => ResubmitCubit(
+              gateway: sl<VerificationGateway>(),
+              verificationId: id,
+            )..load(),
+            child: ResubmitScreen(verificationId: id),
+          );
+        },
       ),
       // S-7.3 detail + doc upload. Path :id parameter doubles as the
       // bloc's verificationId so the URL is bookmarkable/deeplinkable.

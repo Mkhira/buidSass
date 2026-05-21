@@ -4,75 +4,95 @@
 
 ### T-8.1 · QuotesGateway
 - **Files:** `features/b2b/data/quotes_gateway*.dart`.
+- **Status:** Done
 - **DoD:** unit tests for 13 quote ops.
 
 ### T-8.2 · CompaniesGateway
 - **Files:** `features/b2b/data/companies_gateway*.dart`.
+- **Status:** Done
 - **DoD:** unit tests for 7 company ops.
 
 ### T-8.3 · LegacyQuotationsGateway
 - **Files:** `features/b2b/data/legacy_quotations_gateway*.dart`.
+- **Status:** Done
 - **DoD:** unit tests for 4 ops; 404 handled gracefully.
 
 ### T-8.4 · Shared widgets
 - **Files:** `features/b2b/widgets/{quote_state_pill,quote_version_timeline,quote_actions_toolbar,member_row,role_picker}.dart`.
+- **Status:** Done
 - **DoD:** golden tests; actions toolbar gated by `actions.*` map.
 
 ## Block B — Quotes
 
 ### T-8.5 · MyQuotesBloc + screen (S-8.1)
+- **Status:** Done
 - **DoD:** S-8.1 criteria green.
 
 ### T-8.6 · AwaitingApprovalBloc + screen (S-8.2)
+- **Status:** Done
 - **DoD:** S-8.2 criteria green; route guard for non-approvers.
 
 ### T-8.7 · QuoteFromCartBloc + screen (S-8.3)
+- **Status:** Done
 - **DoD:** S-8.3 criteria green; Idempotency-Key once per intent.
 
 ### T-8.8 · QuoteFromProductBloc + screen (S-8.4)
+- **Status:** Done
 - **DoD:** S-8.4 criteria green.
 
 ### T-8.9 · QuoteDetailBloc + screen + actions (S-8.5)
+- **Status:** Done
 - **DoD:** S-8.5 criteria green; action gating verified for all `actions.*` combos.
 
 ### T-8.10 · QuoteDocumentBloc + download + share (S-8.6)
+- **Status:** Done
 - **DoD:** S-8.6 criteria green; reuses Phase 6 PDF caching pattern.
 
 ## Block C — Companies
 
 ### T-8.11 · CompanyRegisterBloc + screen (S-8.7)
+- **Status:** Done
 - **DoD:** S-8.7 criteria green; Idempotency-Key once per intent.
 
 ### T-8.12 · CompanyProfileBloc + screen (S-8.8)
+- **Status:** Done
 - **DoD:** S-8.8 criteria green; role-based read-only enforced.
 
 ### T-8.13 · BranchesBloc + screen (S-8.9)
+- **Status:** Done
 - **DoD:** S-8.9 criteria green; admin-only.
 
 ### T-8.14 · InviteUserBloc + screen (S-8.10)
+- **Status:** Done
 - **DoD:** S-8.10 criteria green; admin-only.
 
 ### T-8.15 · InvitationAcceptBloc + deep-link screen (S-8.11)
 - **Steps:** deep-link registration; cold-start handling.
+- **Status:** Done
 - **DoD:** S-8.11 criteria green.
 
 ### T-8.16 · MembershipsBloc + screen (S-8.12)
+- **Status:** Done
 - **DoD:** S-8.12 criteria green; cannot demote last admin.
 
 ## Block D — Legacy
 
 ### T-8.17 · LegacyQuotationsListBloc + screen (S-8.legacy.1)
+- **Status:** Done
 - **DoD:** S-8.legacy.1 criteria green; menu hidden when empty.
 
 ### T-8.18 · LegacyQuotationDetailBloc + screen (S-8.legacy.2)
+- **Status:** Done
 - **DoD:** S-8.legacy.2 criteria green; confirm modal on Accept.
 
 ## Block E — Phase exit
 
 ### T-8.19 · Analyze + tests
+- **Status:** Done
 - **DoD:** zero warnings; tests green; matrix test of (role × quote-state) for actions toolbar.
 
 ### T-8.20 · Update overview doc + close out
+- **Status:** Done
 - **DoD:** Phase 8 → **Done**; overall §8 status row Phase 8 flipped; final smoke test recorded.
 
 ## Screen ↔ task map

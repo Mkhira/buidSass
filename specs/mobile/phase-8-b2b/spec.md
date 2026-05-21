@@ -40,7 +40,7 @@ After Phase 8, a B2B buyer can request a quote, approve one as an approver, fina
 
 ### S-8.1 My quotes list
 
-**Status:** Planned
+**Status:** Done
 **Route:** `/quotes` · **Bottom nav:** visible (More → Company → Quotes)
 **OpenAPI source:** `openapi.b2b.json`
 **Wireframe:** [`#phase-8-quotes-list`](../../../docs/mobile-screens-wireframes.md#phase-8-quotes-list--s-81-my-quotes)
@@ -74,16 +74,16 @@ loading → list with filter chips → empty → error/offline.
 `MyQuotesBloc` standard.
 
 #### Acceptance criteria
-- [ ] Filter chips reflect server enum.
-- [ ] State pill per row.
-- [ ] AR + EN.
-- [ ] Tests.
+- [x] Filter chips reflect server enum.
+- [x] State pill per row.
+- [x] AR + EN.
+- [x] Tests.
 
 ---
 
 ### S-8.2 Awaiting my approval
 
-**Status:** Planned
+**Status:** Done
 **Route:** `/quotes/awaiting-approval` · **Bottom nav:** visible (Approver role)
 **OpenAPI source:** `openapi.b2b.json`
 **Wireframe:** [`#phase-8-quotes-awaiting`](../../../docs/mobile-screens-wireframes.md#phase-8-quotes-awaiting--s-82-awaiting-my-approval)
@@ -97,15 +97,15 @@ loading → list with filter chips → empty → error/offline.
 Same shape as S-8.1 items, possibly with `submittedAt` + submitter info.
 
 #### Acceptance criteria
-- [ ] Hidden from buyers who aren't approvers (gate via `me.roles`).
-- [ ] Tap routes to quote detail (S-8.5).
-- [ ] Tests.
+- [x] Hidden from buyers who aren't approvers (gate via `me.roles`).
+- [x] Tap routes to quote detail (S-8.5).
+- [x] Tests.
 
 ---
 
 ### S-8.3 Request quote from cart
 
-**Status:** Planned
+**Status:** Done
 **Route:** `/quotes/from-cart` · **Bottom nav:** hidden
 **OpenAPI source:** `openapi.b2b.json`
 **Wireframe:** [`#phase-8-quote-from-cart`](../../../docs/mobile-screens-wireframes.md#phase-8-quote-from-cart--s-83-quote-from-cart)
@@ -127,16 +127,16 @@ form (cart summary read-only + terms field + expected delivery + note) → submi
 `QuoteFromCartBloc` — events: started(cartSnapshot), termsChanged, etaChanged, noteChanged, submitted. States: form, submitting, submitted(quoteId), failure.
 
 #### Acceptance criteria
-- [ ] Submit reuses cart contents at the moment of entry (no mutation).
-- [ ] Idempotency-Key generated once on entry.
-- [ ] AR + EN.
-- [ ] Tests.
+- [x] Submit reuses cart contents at the moment of entry (no mutation).
+- [x] Idempotency-Key generated once on entry.
+- [x] AR + EN.
+- [x] Tests.
 
 ---
 
 ### S-8.4 Request quote from product
 
-**Status:** Planned
+**Status:** Done
 **Route:** `/products/{slug}/quote` · **Bottom nav:** hidden
 **OpenAPI source:** `openapi.b2b.json`
 **Wireframe:** [`#phase-8-quote-from-product`](../../../docs/mobile-screens-wireframes.md#phase-8-quote-from-product--s-84-quote-from-product)
@@ -156,14 +156,14 @@ form (product snapshot + qty + terms + note) → submitting → success routes t
 `QuoteFromProductBloc` standard.
 
 #### Acceptance criteria
-- [ ] CTA visible from PDP (Phase 2) under "Request Quote" for B2B accounts.
-- [ ] Tests.
+- [x] CTA visible from PDP (Phase 2) under "Request Quote" for B2B accounts.
+- [x] Tests.
 
 ---
 
 ### S-8.5 Quote detail + actions
 
-**Status:** Planned
+**Status:** Done
 **Route:** `/quotes/{id}` · **Bottom nav:** hidden
 **OpenAPI source:** `openapi.b2b.json`
 **Wireframe:** [`#phase-8-quote-detail`](../../../docs/mobile-screens-wireframes.md#phase-8-quote-detail--s-85-quote-detail--actions)
@@ -217,18 +217,18 @@ loading → loaded (version timeline + pricing table + terms + actions toolbar) 
 - States: `QuoteLoading`, `QuoteLoaded(quote)`, `QuoteActing(kind)`, `QuoteActionResult(kind, success)`, `QuoteFailure(reason, correlationId)`.
 
 #### Acceptance criteria
-- [ ] Action buttons gated by `actions.*` (BR-2 enforced server-side; UI mirrors).
-- [ ] Version timeline shows all versions with publish dates.
-- [ ] Submit-then-finalize flow is clear in the UI (current step badge).
-- [ ] On any action 409 → refresh detail silently and re-render gating.
-- [ ] AR + EN.
-- [ ] Tests.
+- [x] Action buttons gated by `actions.*` (BR-2 enforced server-side; UI mirrors).
+- [x] Version timeline shows all versions with publish dates.
+- [x] Submit-then-finalize flow is clear in the UI (current step badge).
+- [x] On any action 409 → refresh detail silently and re-render gating.
+- [x] AR + EN.
+- [x] Tests.
 
 ---
 
 ### S-8.6 Quote document download
 
-**Status:** Planned
+**Status:** Done
 **Route:** triggered from S-8.5 (no dedicated route)
 **OpenAPI source:** `openapi.b2b.json`
 **Wireframe:** [`#phase-8-quote-document`](../../../docs/mobile-screens-wireframes.md#phase-8-quote-document--s-86-quote-document-download)
@@ -248,16 +248,16 @@ downloading → ready (Open / Share) → 404 (no document for this locale yet) �
 `QuoteDocumentBloc` mirrors Phase 6 `InvoicePdfBloc` structure (download → temp cache → open/share).
 
 #### Acceptance criteria
-- [ ] Locale picker between AR / EN; default to current locale.
-- [ ] Cache key `quoteId-versionId-locale`.
-- [ ] AR filename `عرض-سعر-{quoteNumber}-{versionId}.pdf`; EN `quote-{quoteNumber}-{versionId}.pdf`.
-- [ ] Tests.
+- [x] Locale picker between AR / EN; default to current locale.
+- [x] Cache key `quoteId-versionId-locale`.
+- [x] AR filename `عرض-سعر-{quoteNumber}-{versionId}.pdf`; EN `quote-{quoteNumber}-{versionId}.pdf`.
+- [x] Tests.
 
 ---
 
 ### S-8.7 Company registration
 
-**Status:** Planned
+**Status:** Done
 **Route:** `/company/register` · **Bottom nav:** hidden
 **OpenAPI source:** `openapi.b2b.json`
 **Wireframe:** [`#phase-8-company-register`](../../../docs/mobile-screens-wireframes.md#phase-8-company-register--s-87-company-registration)
@@ -279,16 +279,16 @@ form (name + VAT + address + commercial registration number) → submitting → 
 `CompanyRegisterBloc` standard.
 
 #### Acceptance criteria
-- [ ] VAT number validated per market regex (server confirms).
-- [ ] Idempotency-Key once on entry.
-- [ ] AR + EN.
-- [ ] Tests.
+- [x] VAT number validated per market regex (server confirms).
+- [x] Idempotency-Key once on entry.
+- [x] AR + EN.
+- [x] Tests.
 
 ---
 
 ### S-8.8 Company profile
 
-**Status:** Planned
+**Status:** Done
 **Route:** `/company/{id}` · **Bottom nav:** visible (More → Company)
 **OpenAPI source:** `openapi.b2b.json`
 **Wireframe:** [`#phase-8-company-profile`](../../../docs/mobile-screens-wireframes.md#phase-8-company-profile--s-88-company-profile)
@@ -321,16 +321,16 @@ loading → loaded (read-only for non-admins; editable for admins) → saving �
 `CompanyProfileBloc` events: started, refreshed, fieldChanged, saved. States: loading, loaded(company, editable?), saving, failure.
 
 #### Acceptance criteria
-- [ ] Non-admins see all fields as read-only (BR-4).
-- [ ] Tabs/sections for Profile / Branches / Members.
-- [ ] AR + EN.
-- [ ] Tests.
+- [x] Non-admins see all fields as read-only (BR-4).
+- [x] Tabs/sections for Profile / Branches / Members.
+- [x] AR + EN.
+- [x] Tests.
 
 ---
 
 ### S-8.9 Branches
 
-**Status:** Planned
+**Status:** Done
 **Route:** `/company/{id}/branches` · **Bottom nav:** hidden
 **OpenAPI source:** `openapi.b2b.json`
 **Wireframe:** [`#phase-8-branches`](../../../docs/mobile-screens-wireframes.md#phase-8-branches--s-89-branches)
@@ -348,16 +348,16 @@ list (from S-8.8 response) → add-form modal → submitting → success refresh
 `BranchesBloc` events: addRequested, addSubmitted, deleteRequested, deleteConfirmed. States: list, adding, deleting, failure.
 
 #### Acceptance criteria
-- [ ] Admin only (BR-4).
-- [ ] Delete requires confirmation modal.
-- [ ] AR + EN.
-- [ ] Tests.
+- [x] Admin only (BR-4).
+- [x] Delete requires confirmation modal.
+- [x] AR + EN.
+- [x] Tests.
 
 ---
 
 ### S-8.10 Invite user
 
-**Status:** Planned
+**Status:** Done
 **Route:** `/company/{id}/invitations/new` · **Bottom nav:** hidden
 **OpenAPI source:** `openapi.b2b.json`
 **Wireframe:** [`#phase-8-invite-user`](../../../docs/mobile-screens-wireframes.md#phase-8-invite-user--s-810-invite-user)
@@ -374,15 +374,15 @@ form (email + role) → submitting → success toast → 422 → 5xx / offline.
 `InviteUserBloc` standard.
 
 #### Acceptance criteria
-- [ ] Role enum from server.
-- [ ] Admin only.
-- [ ] Tests.
+- [x] Role enum from server.
+- [x] Admin only.
+- [x] Tests.
 
 ---
 
 ### S-8.11 Invitations (accept/decline deep link)
 
-**Status:** Planned
+**Status:** Done
 **Route:** `/invitations/{token}` · **Bottom nav:** hidden
 **OpenAPI source:** `openapi.b2b.json`
 **Wireframe:** [`#phase-8-invitations`](../../../docs/mobile-screens-wireframes.md#phase-8-invitations--s-811-invitations-acceptdecline-deep-link)
@@ -400,16 +400,16 @@ loading-validation → loaded (company name + role + Accept / Decline) → succe
 `InvitationAcceptBloc` events: started(token), accepted, declined. States: validating, loaded(companyName, role), submitting, success(companyId | declined), failure.
 
 #### Acceptance criteria
-- [ ] Deep-link entry works from cold start (waits on SessionStore).
-- [ ] Authenticated path required (BR — server enforces); anonymous user prompted to sign in then resumed.
-- [ ] AR + EN.
-- [ ] Tests.
+- [x] Deep-link entry works from cold start (waits on SessionStore).
+- [x] Authenticated path required (BR — server enforces); anonymous user prompted to sign in then resumed.
+- [x] AR + EN.
+- [x] Tests.
 
 ---
 
 ### S-8.12 Memberships
 
-**Status:** Planned
+**Status:** Done
 **Route:** `/company/{id}/members` · **Bottom nav:** hidden
 **OpenAPI source:** `openapi.b2b.json`
 **Wireframe:** [`#phase-8-memberships`](../../../docs/mobile-screens-wireframes.md#phase-8-memberships--s-812-memberships)
@@ -427,15 +427,15 @@ list (from S-8.8) → editing-role per row → saving → success refresh → co
 `MembershipsBloc` events: roleChanged, removeRequested, removeConfirmed. States: list, editing(membershipId), removing(membershipId), failure.
 
 #### Acceptance criteria
-- [ ] Admin only (BR-6).
-- [ ] Cannot demote self below admin if last admin (server enforces; UI defensive).
-- [ ] Tests.
+- [x] Admin only (BR-6).
+- [x] Cannot demote self below admin if last admin (server enforces; UI defensive).
+- [x] Tests.
 
 ---
 
 ### S-8.legacy.1 Legacy quotations list
 
-**Status:** Planned
+**Status:** Done
 **Route:** `/legacy-quotations` · **Bottom nav:** visible (More → Legacy Quotations)
 **OpenAPI source:** `openapi.orders.json`
 **Wireframe:** [`#phase-8-legacy-quotations`](../../../docs/mobile-screens-wireframes.md#phase-8-legacy-quotations--s-8legacy12-legacy-quotations)
@@ -446,14 +446,14 @@ list (from S-8.8) → editing-role per row → saving → success refresh → co
 | GET | /v1/customer/quotations | mount | safe | |
 
 #### Acceptance criteria
-- [ ] If empty (most modern accounts), screen is hidden from menu entirely.
-- [ ] Tests.
+- [x] If empty (most modern accounts), screen is hidden from menu entirely.
+- [x] Tests.
 
 ---
 
 ### S-8.legacy.2 Legacy quotation detail / accept / reject
 
-**Status:** Planned
+**Status:** Done
 **Route:** `/legacy-quotations/{id}`
 **OpenAPI source:** `openapi.orders.json`
 **Wireframe:** see S-8.legacy.1 wireframe (combined).
@@ -466,22 +466,22 @@ list (from S-8.8) → editing-role per row → saving → success refresh → co
 | POST | /v1/customer/quotations/{id}/reject | Reject tap | yes | |
 
 #### Acceptance criteria
-- [ ] Detail renders line items + totals + Accept/Reject toolbar.
-- [ ] Confirm modal on Accept.
-- [ ] Tests.
+- [x] Detail renders line items + totals + Accept/Reject toolbar.
+- [x] Confirm modal on Accept.
+- [x] Tests.
 
 ---
 
 ## 5. Acceptance criteria — phase-wide
 
-- [ ] 12 screens above + 2 legacy pass per-screen DoD.
-- [ ] All quote/company create endpoints carry Idempotency-Key.
-- [ ] Action gating reads from `actions.*` payload — not from state inspection (BR-2).
-- [ ] Company profile is read-only for non-admins.
-- [ ] Invitation deep link resumes from cold start.
-- [ ] Quote document download reuses Phase 6 PDF cache pattern.
-- [ ] `flutter analyze` + `flutter test` green.
-- [ ] §8 row → **Done**.
+- [x] 12 screens above + 2 legacy pass per-screen DoD.
+- [x] All quote/company create endpoints carry Idempotency-Key.
+- [x] Action gating reads from `actions.*` payload — not from state inspection (BR-2).
+- [x] Company profile is read-only for non-admins.
+- [x] Invitation deep link resumes from cold start.
+- [x] Quote document download reuses Phase 6 PDF cache pattern.
+- [x] `flutter analyze` + `flutter test` green.
+- [x] §8 row → **Done**.
 
 ## 6. Dependencies
 

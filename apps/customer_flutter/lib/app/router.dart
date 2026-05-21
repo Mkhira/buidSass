@@ -75,9 +75,11 @@ import '../features/search/data/recent_searches_store.dart';
 import '../features/search/data/search_gateway.dart';
 import '../features/search/screens/lookup_screen.dart';
 import '../features/search/screens/search_screen.dart';
+import '../features/verification/bloc/verification_detail_bloc.dart';
 import '../features/verification/bloc/verification_list_bloc.dart';
 import '../features/verification/bloc/verification_submit_bloc.dart';
 import '../features/verification/data/verification_gateway.dart';
+import '../features/verification/screens/verification_detail_screen.dart';
 import '../features/verification/screens/verification_list_screen.dart';
 import '../features/verification/screens/verification_submit_screen.dart';
 
@@ -518,6 +520,22 @@ GoRouter buildRouter(AuthSessionBloc authBloc) {
             )),
           child: const VerificationSubmitScreen(),
         ),
+      ),
+      // S-7.3 detail + doc upload. Path :id parameter doubles as the
+      // bloc's verificationId so the URL is bookmarkable/deeplinkable.
+      GoRoute(
+        path: '/verification/:id',
+        name: 'verificationDetail',
+        builder: (context, s) {
+          final id = s.pathParameters['id']!;
+          return BlocProvider(
+            create: (_) => VerificationDetailBloc(
+              gateway: sl<VerificationGateway>(),
+              verificationId: id,
+            )..add(const VerificationDetailStarted()),
+            child: VerificationDetailScreen(verificationId: id),
+          );
+        },
       ),
     ],
   );

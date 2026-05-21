@@ -604,6 +604,7 @@
   "companyRoleAdmin": "Admin",
   "companyRoleBuyer": "Buyer",
   "companyRoleApprover": "Approver",
+  "companyRoleUnknown": "Member",
   "invitationsTitle": "Invitation",
   "invitationsBody": "You've been invited to join {company} as {role}.",
   "@invitationsBody": {

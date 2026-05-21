@@ -84,12 +84,14 @@ class _Form extends StatelessWidget {
                   onChanged: submitting
                       ? null
                       : (raw) {
-                          final parsed = int.tryParse(raw);
-                          if (parsed != null) {
-                            context
-                                .read<QuoteFromProductBloc>()
-                                .add(QuoteFromProductQtyChanged(parsed));
-                          }
+                          // Dispatch 0 for empty / unparseable input so
+                          // bloc state stays in sync with the field;
+                          // canSubmit gates on qty > 0 and disables
+                          // the button.
+                          final parsed = int.tryParse(raw) ?? 0;
+                          context
+                              .read<QuoteFromProductBloc>()
+                              .add(QuoteFromProductQtyChanged(parsed));
                         },
                 ),
                 const SizedBox(height: AppSpacing.md),

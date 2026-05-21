@@ -144,8 +144,11 @@ class QuoteFromProductBloc
   ) {
     final s = state;
     if (s is! QuoteFromProductForm) return;
-    final clamped = e.value < 1 ? 1 : e.value;
-    emit(s.copyWith(qty: clamped));
+    // Accept 0 (empty / unparseable input) verbatim — `canSubmit`
+    // gates on qty > 0 so the submit button disables until the user
+    // enters a real number. Previously we clamped 0 to 1, which left
+    // bloc state stale relative to the empty input field.
+    emit(s.copyWith(qty: e.value < 0 ? 0 : e.value));
   }
 
   void _onTerms(

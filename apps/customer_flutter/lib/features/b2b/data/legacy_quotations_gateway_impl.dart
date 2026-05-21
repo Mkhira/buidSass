@@ -24,11 +24,18 @@ class LegacyQuotationsGatewayImpl implements LegacyQuotationsGateway {
       // The server has two flavours — bare array or `{items:[...]}`.
       // Accept either so a future API tweak doesn't break the list
       // screen.
-      final items = raw is List
-          ? raw
-          : (raw is Map
-              ? (raw['items'] as List? ?? const <Object?>[])
-              : const <Object?>[]);
+      // The server has two flavours — bare array or `{items:[...]}`.
+      // Use a type check on the wrapped value too so a malformed
+      // `items: <not-a-list>` body doesn't `TypeError` past the
+      // graceful-fallback path.
+      List<Object?> items;
+      if (raw is List) {
+        items = raw;
+      } else if (raw is Map && raw['items'] is List) {
+        items = raw['items'] as List;
+      } else {
+        items = const <Object?>[];
+      }
       return items
           .whereType<Map>()
           .map(

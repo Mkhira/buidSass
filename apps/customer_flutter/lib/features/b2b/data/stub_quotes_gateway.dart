@@ -43,8 +43,11 @@ class StubQuotesGateway implements QuotesGateway {
   Future<QuotesPage> awaitingMyApproval() async {
     return QuotesPage(
       items: [
+        // Distinct id from `_seedList()` so list + detail don't
+        // disagree on state for the same quote (CodeRabbit flag).
+        // `q-pending` is the canonical awaiting-approval fixture.
         QuoteListItem(
-          id: 'q-2',
+          id: 'q-pending',
           quoteNumber: 'Q-2026-05-000044',
           state: 'awaiting_acceptance',
           createdAt: _now.subtract(const Duration(days: 1)),

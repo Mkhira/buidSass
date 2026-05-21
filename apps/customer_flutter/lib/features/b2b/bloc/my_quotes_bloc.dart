@@ -123,9 +123,9 @@ class MyQuotesBloc extends Bloc<MyQuotesEvent, MyQuotesState> {
         items: page.items,
         totalCount: page.totalCount,
       ));
-    } on Object catch (err) {
+    } on Object catch (_) {
       if (version != _refreshVersion) return;
-      emit(MyQuotesFailure(filter: filter, reason: err.toString()));
+      emit(MyQuotesFailure(filter: filter, reason: 'quote.list_failed'));
     }
   }
 

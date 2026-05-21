@@ -602,6 +602,7 @@
   "companyRoleAdmin": "مسؤول",
   "companyRoleBuyer": "مشتري",
   "companyRoleApprover": "معتمِد",
+  "companyRoleUnknown": "عضو",
   "invitationsTitle": "الدعوة",
   "invitationsBody": "تمت دعوتك للانضمام إلى {company} بدور {role}.",
   "@invitationsBody": {

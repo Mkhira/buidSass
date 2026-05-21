@@ -26,10 +26,22 @@ class InviteUserScreen extends StatelessWidget {
           }
         },
         builder: (context, state) {
-          final form = state is InviteUserSubmitting
-              ? state.form
-              : state as InviteUserForm;
-          final submitting = state is InviteUserSubmitting;
+          // Use the sealed type — the previous `as InviteUserForm` cast
+          // crashed when the bloc emitted InviteUserDone (the listener
+          // navigates async, but the builder still runs once on Done
+          // before the route changes).
+          final InviteUserForm form;
+          final bool submitting;
+          switch (state) {
+            case InviteUserForm():
+              form = state;
+              submitting = false;
+            case InviteUserSubmitting():
+              form = state.form;
+              submitting = true;
+            case InviteUserDone():
+              return LoadingState(semanticsLabel: l10n.commonLoading);
+          }
           return SafeArea(
             child: Column(
               children: [

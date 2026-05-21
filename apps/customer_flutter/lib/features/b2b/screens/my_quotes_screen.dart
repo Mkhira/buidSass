@@ -83,9 +83,9 @@ class _MyQuotesScreenState extends State<MyQuotesScreen> {
                         },
                       ),
                     ),
-                  MyQuotesFailure(:final reason) => ErrorState(
+                  MyQuotesFailure() => ErrorState(
                       title: l10n.commonErrorTitle,
-                      body: reason,
+                      body: l10n.commonErrorBody,
                       retryLabel: l10n.commonRetry,
                       onRetry: () => context
                           .read<MyQuotesBloc>()
@@ -201,12 +201,17 @@ class _Row extends StatelessWidget {
   }
 
   String _money(BuildContext context, String raw, String currency) {
+    // Don't coerce unparseable totals to 0 — that would show a
+    // fabricated zero to the user. Pass through the raw value verbatim
+    // so the screen never shows a fake total.
+    final parsed = double.tryParse(raw);
+    if (parsed == null) return '$raw $currency';
     final locale = Localizations.localeOf(context).toString();
     final fmt = NumberFormat.currency(
       locale: locale,
       symbol: currency,
       decimalDigits: 2,
     );
-    return fmt.format(double.tryParse(raw) ?? 0);
+    return fmt.format(parsed);
   }
 }

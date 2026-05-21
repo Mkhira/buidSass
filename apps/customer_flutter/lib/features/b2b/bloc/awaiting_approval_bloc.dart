@@ -66,8 +66,10 @@ class AwaitingApprovalBloc
         return;
       }
       emit(AwaitingApprovalLoaded(items: page.items));
-    } on Object catch (err) {
-      emit(AwaitingApprovalFailure(reason: err.toString()));
+    } on Object catch (_) {
+      emit(const AwaitingApprovalFailure(
+        reason: 'quote.awaiting_approval_failed',
+      ));
     }
   }
 }

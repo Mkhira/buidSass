@@ -118,7 +118,9 @@ class _Row extends StatelessWidget {
       'accepted' => l10n.legacyQuotationStateAccepted,
       'rejected' => l10n.legacyQuotationStateRejected,
       'expired' => l10n.legacyQuotationStateExpired,
-      _ => state,
+      // Unknown wire value — fall back to a generic localized
+      // placeholder instead of the raw enum code.
+      _ => l10n.quoteStateUnknown,
     };
   }
 }

@@ -45,9 +45,9 @@ class AwaitingApprovalScreen extends StatelessWidget {
                   itemBuilder: (context, i) => _Row(item: state.items[i]),
                 ),
               ),
-            AwaitingApprovalFailure(:final reason) => ErrorState(
+            AwaitingApprovalFailure() => ErrorState(
                 title: l10n.commonErrorTitle,
-                body: reason,
+                body: l10n.commonErrorBody,
                 retryLabel: l10n.commonRetry,
                 onRetry: () => context
                     .read<AwaitingApprovalBloc>()

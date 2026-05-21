@@ -331,5 +331,113 @@
       "orderNumber": { "type": "String" }
     }
   },
-  "moreReturns": "My returns"
+  "moreReturns": "My returns",
+  "verificationListTitle": "Verification",
+  "verificationListEmptyTitle": "No verification on file",
+  "verificationListEmptyBody": "Start a verification to access restricted products.",
+  "verificationStartNewCta": "Start verification",
+  "verificationResumeCta": "Resume",
+  "verificationActiveBannerTitle": "Active verification",
+  "verificationActiveExpiresOn": "Expires {date}",
+  "@verificationActiveExpiresOn": {
+    "placeholders": {
+      "date": { "type": "String" }
+    }
+  },
+  "verificationStateSubmitted": "Submitted",
+  "verificationStateInfoRequested": "Action needed",
+  "verificationStateApproved": "Approved",
+  "verificationStateRejected": "Rejected",
+  "verificationStateExpired": "Expired",
+  "verificationStateUnknown": "Status updating…",
+  "verificationKindBusinessLicense": "Business license",
+  "verificationListSubmittedOn": "Submitted {date}",
+  "@verificationListSubmittedOn": {
+    "placeholders": {
+      "date": { "type": "String" }
+    }
+  },
+  "verificationListLoadFailed": "Couldn't load verifications.",
+  "verificationSubmitTitle": "Submit verification",
+  "verificationSubmitRequiredHint": "Required",
+  "verificationSubmitCta": "Submit",
+  "verificationSubmitErrorMissingRequired": "Please fill all required fields.",
+  "verificationSubmitErrorPattern": "Doesn't match the expected format.",
+  "verificationDetailTitle": "Verification",
+  "verificationDetailKindLabel": "Type",
+  "verificationDetailFieldsLabel": "Submitted information",
+  "verificationDetailDocumentsLabel": "Documents",
+  "verificationDetailTimelineLabel": "Timeline",
+  "verificationDetailRequestedInfoTitle": "Admin needs the following",
+  "verificationDetailRequestedDoc": "Document — {key}",
+  "@verificationDetailRequestedDoc": {
+    "placeholders": {
+      "key": { "type": "String" }
+    }
+  },
+  "verificationDetailRequestedField": "Field — {key}",
+  "@verificationDetailRequestedField": {
+    "placeholders": {
+      "key": { "type": "String" }
+    }
+  },
+  "verificationDetailUploadCta": "Upload",
+  "verificationDetailUploadInProgress": "Uploading…",
+  "verificationDetailUploadRetryCta": "Retry upload",
+  "verificationDetailUploaded": "Uploaded",
+  "verificationDetailResubmitCta": "Resubmit",
+  "verificationDetailRenewCta": "Renew",
+  "verificationResubmitTitle": "Resubmit",
+  "verificationResubmitNoteLabel": "Note to reviewer (optional)",
+  "verificationResubmitCta": "Resubmit verification",
+  "verificationRenewTitle": "Renew verification",
+  "verificationRenewBody": "Renew your verification before it expires. Your prior details will be pre-filled.",
+  "verificationRenewCta": "Renew verification",
+  "verificationActorCustomer": "You",
+  "verificationActorAdmin": "Reviewer",
+  "verificationActorSystem": "System",
+  "verificationTimelineSubmitted": "Submitted",
+  "verificationTimelineInfoRequested": "More info requested",
+  "verificationTimelineApproved": "Approved",
+  "verificationTimelineRejected": "Rejected",
+  "verificationTimelineExpired": "Expired",
+  "reviewSubmitTitle": "Write a review",
+  "reviewSubmitRatingLabel": "Your rating",
+  "reviewSubmitCommentLabel": "Your review",
+  "reviewSubmitCommentHint": "Share what worked well, or what didn't.",
+  "reviewSubmitLocaleLabel": "Language",
+  "reviewSubmitCta": "Submit review",
+  "reviewSubmitNotEligibleTitle": "Only verified buyers can review",
+  "reviewSubmitNotEligibleBody": "Once your order is delivered you can write a review.",
+  "reviewSubmitSubmittedTitle": "Thanks for your review",
+  "reviewSubmitSubmittedBody": "It'll appear once moderation is complete.",
+  "reviewStatePendingModeration": "Pending review",
+  "reviewStateVisible": "Visible",
+  "reviewStateFlagged": "Flagged",
+  "reviewStateHidden": "Hidden",
+  "reviewStateUnknown": "Status updating…",
+  "myReviewsTitle": "My reviews",
+  "myReviewsEmptyTitle": "No reviews yet",
+  "myReviewsEmptyBody": "Reviews you submit will show up here.",
+  "myReviewsFilterAll": "All",
+  "myReviewsFilterPending": "Pending",
+  "myReviewsFilterVisible": "Visible",
+  "myReviewsFilterHidden": "Hidden",
+  "myReviewDetailTitle": "Review",
+  "myReviewDetailEditCta": "Edit",
+  "myReviewDetailEditWindowClosed": "Edit window closed",
+  "myReviewDetailModerationNoteLabel": "Moderation note",
+  "myReviewDetailSaveCta": "Save",
+  "moreMyReviews": "My reviews",
+  "reportReviewTitle": "Report review",
+  "reportReviewReasonLabel": "Reason",
+  "reportReviewNoteLabel": "Add a note (optional)",
+  "reportReviewSubmitCta": "Report",
+  "reportReviewThanks": "Thanks — we'll look into it.",
+  "reviewRatingValue": "{value} of 5",
+  "@reviewRatingValue": {
+    "placeholders": {
+      "value": { "type": "int" }
+    }
+  }
 }

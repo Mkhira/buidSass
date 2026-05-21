@@ -329,5 +329,113 @@
       "orderNumber": { "type": "String" }
     }
   },
-  "moreReturns": "مرتجعاتي"
+  "moreReturns": "مرتجعاتي",
+  "verificationListTitle": "التوثيق المهني",
+  "verificationListEmptyTitle": "لا يوجد توثيق بعد",
+  "verificationListEmptyBody": "ابدأ التوثيق للوصول إلى المنتجات المخصّصة للمهنيين.",
+  "verificationStartNewCta": "بدء التوثيق",
+  "verificationResumeCta": "متابعة",
+  "verificationActiveBannerTitle": "التوثيق الحالي",
+  "verificationActiveExpiresOn": "ينتهي في {date}",
+  "@verificationActiveExpiresOn": {
+    "placeholders": {
+      "date": { "type": "String" }
+    }
+  },
+  "verificationStateSubmitted": "قيد المراجعة",
+  "verificationStateInfoRequested": "بحاجة إلى إجراء",
+  "verificationStateApproved": "تمت الموافقة",
+  "verificationStateRejected": "مرفوض",
+  "verificationStateExpired": "منتهي الصلاحية",
+  "verificationStateUnknown": "جاري تحديث الحالة…",
+  "verificationKindBusinessLicense": "رخصة مزاولة المهنة",
+  "verificationListSubmittedOn": "أُرسل في {date}",
+  "@verificationListSubmittedOn": {
+    "placeholders": {
+      "date": { "type": "String" }
+    }
+  },
+  "verificationListLoadFailed": "تعذّر تحميل ملفات التوثيق.",
+  "verificationSubmitTitle": "إرسال طلب التوثيق",
+  "verificationSubmitRequiredHint": "مطلوب",
+  "verificationSubmitCta": "إرسال",
+  "verificationSubmitErrorMissingRequired": "يرجى تعبئة جميع الحقول المطلوبة.",
+  "verificationSubmitErrorPattern": "الإدخال لا يطابق الصيغة المطلوبة.",
+  "verificationDetailTitle": "تفاصيل التوثيق",
+  "verificationDetailKindLabel": "النوع",
+  "verificationDetailFieldsLabel": "البيانات المقدّمة",
+  "verificationDetailDocumentsLabel": "المستندات",
+  "verificationDetailTimelineLabel": "الخط الزمني",
+  "verificationDetailRequestedInfoTitle": "المراجع يطلب التالي",
+  "verificationDetailRequestedDoc": "مستند — {key}",
+  "@verificationDetailRequestedDoc": {
+    "placeholders": {
+      "key": { "type": "String" }
+    }
+  },
+  "verificationDetailRequestedField": "حقل — {key}",
+  "@verificationDetailRequestedField": {
+    "placeholders": {
+      "key": { "type": "String" }
+    }
+  },
+  "verificationDetailUploadCta": "رفع",
+  "verificationDetailUploadInProgress": "جاري الرفع…",
+  "verificationDetailUploadRetryCta": "إعادة الرفع",
+  "verificationDetailUploaded": "تم الرفع",
+  "verificationDetailResubmitCta": "إعادة الإرسال",
+  "verificationDetailRenewCta": "تجديد",
+  "verificationResubmitTitle": "إعادة الإرسال",
+  "verificationResubmitNoteLabel": "ملاحظة للمراجع (اختيارية)",
+  "verificationResubmitCta": "إعادة إرسال التوثيق",
+  "verificationRenewTitle": "تجديد التوثيق",
+  "verificationRenewBody": "جدّد توثيقك قبل انتهاء صلاحيته. سيتم استرجاع بياناتك السابقة.",
+  "verificationRenewCta": "تجديد التوثيق",
+  "verificationActorCustomer": "أنت",
+  "verificationActorAdmin": "المراجع",
+  "verificationActorSystem": "النظام",
+  "verificationTimelineSubmitted": "تم الإرسال",
+  "verificationTimelineInfoRequested": "طُلبت معلومات إضافية",
+  "verificationTimelineApproved": "تمت الموافقة",
+  "verificationTimelineRejected": "تم الرفض",
+  "verificationTimelineExpired": "انتهت الصلاحية",
+  "reviewSubmitTitle": "كتابة تقييم",
+  "reviewSubmitRatingLabel": "تقييمك",
+  "reviewSubmitCommentLabel": "تعليقك",
+  "reviewSubmitCommentHint": "شارك ما أعجبك أو ما يمكن تحسينه.",
+  "reviewSubmitLocaleLabel": "اللغة",
+  "reviewSubmitCta": "إرسال التقييم",
+  "reviewSubmitNotEligibleTitle": "التقييم متاح للمشترين الموثّقين",
+  "reviewSubmitNotEligibleBody": "بعد استلام طلبك يمكنك كتابة تقييم.",
+  "reviewSubmitSubmittedTitle": "شكرًا لتقييمك",
+  "reviewSubmitSubmittedBody": "سيظهر التقييم بعد مراجعته.",
+  "reviewStatePendingModeration": "قيد المراجعة",
+  "reviewStateVisible": "ظاهر",
+  "reviewStateFlagged": "مُبلَّغ عنه",
+  "reviewStateHidden": "مخفي",
+  "reviewStateUnknown": "جاري تحديث الحالة…",
+  "myReviewsTitle": "تقييماتي",
+  "myReviewsEmptyTitle": "لم تكتب تقييمات بعد",
+  "myReviewsEmptyBody": "ستظهر هنا التقييمات التي ترسلها.",
+  "myReviewsFilterAll": "الكل",
+  "myReviewsFilterPending": "قيد المراجعة",
+  "myReviewsFilterVisible": "ظاهر",
+  "myReviewsFilterHidden": "مخفي",
+  "myReviewDetailTitle": "التقييم",
+  "myReviewDetailEditCta": "تعديل",
+  "myReviewDetailEditWindowClosed": "انتهت فترة التعديل",
+  "myReviewDetailModerationNoteLabel": "ملاحظة المراجعة",
+  "myReviewDetailSaveCta": "حفظ",
+  "moreMyReviews": "تقييماتي",
+  "reportReviewTitle": "الإبلاغ عن تقييم",
+  "reportReviewReasonLabel": "السبب",
+  "reportReviewNoteLabel": "أضف ملاحظة (اختيارية)",
+  "reportReviewSubmitCta": "إبلاغ",
+  "reportReviewThanks": "شكرًا — سننظر في الأمر.",
+  "reviewRatingValue": "{value} من 5",
+  "@reviewRatingValue": {
+    "placeholders": {
+      "value": { "type": "int" }
+    }
+  }
 }

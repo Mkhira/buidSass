@@ -39,7 +39,7 @@ class MoreScreen extends StatelessWidget {
           ),
           AppListTile(
             title: l10n.moreVerification,
-            onTap: () => context.go('/more/verification'),
+            onTap: () => context.go('/verification'),
             subtitle: flags.verificationCtaShipped ? null : 'soon',
           ),
           AppListTile(

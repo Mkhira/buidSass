@@ -75,6 +75,9 @@ import '../features/search/data/recent_searches_store.dart';
 import '../features/search/data/search_gateway.dart';
 import '../features/search/screens/lookup_screen.dart';
 import '../features/search/screens/search_screen.dart';
+import '../features/verification/bloc/verification_list_bloc.dart';
+import '../features/verification/data/verification_gateway.dart';
+import '../features/verification/screens/verification_list_screen.dart';
 
 /// Customer-app routing. Routes mirror `contracts/deeplink-routes.md`.
 /// Auth-gated paths redirect through `/auth/login?continueTo=…`.
@@ -484,8 +487,20 @@ GoRouter buildRouter(AuthSessionBloc authBloc) {
       ),
       GoRoute(
         path: '/more/verification',
-        name: 'verification',
+        name: 'verificationCta',
         builder: (context, _) => const VerificationCtaScreen(),
+      ),
+      // Phase 7 — verification list. Path matches the spec's S-7.1
+      // route. The legacy `/more/verification` CTA stays alive until
+      // the More hub link migrates over.
+      GoRoute(
+        path: '/verification',
+        name: 'verification',
+        builder: (context, _) => BlocProvider(
+          create: (_) => VerificationListBloc(gateway: sl<VerificationGateway>())
+            ..add(const VerificationListStarted()),
+          child: const VerificationListScreen(),
+        ),
       ),
     ],
   );
@@ -497,6 +512,7 @@ const _authGatedPrefixes = <String>[
   '/o/',
   '/more',
   '/returns',
+  '/verification',
 ];
 
 class _BlocRefresh extends ChangeNotifier {

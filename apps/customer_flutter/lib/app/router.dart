@@ -43,6 +43,11 @@ import '../features/checkout/screens/shipping_step_screen.dart';
 import '../features/home/bloc/home_bloc.dart';
 import '../features/home/data/home_repository.dart';
 import '../features/home/screens/home_screen.dart';
+import '../features/invoices/bloc/invoice_pdf_bloc.dart';
+import '../features/invoices/bloc/invoice_preview_bloc.dart';
+import '../features/invoices/data/invoices_gateway.dart';
+import '../features/invoices/screens/invoice_pdf_screen.dart';
+import '../features/invoices/screens/invoice_preview_screen.dart';
 import '../features/more/bloc/addresses_bloc.dart';
 import '../features/more/data/addresses_repository.dart';
 import '../features/more/screens/addresses_screen.dart';
@@ -57,13 +62,19 @@ import '../features/orders/screens/cancel_order_screen.dart';
 import '../features/orders/screens/order_detail_v2_screen.dart';
 import '../features/orders/screens/orders_list_v2_screen.dart';
 import '../features/orders/screens/reorder_screen.dart';
+import '../features/returns/bloc/return_detail_bloc.dart';
+import '../features/returns/bloc/return_wizard_bloc.dart';
+import '../features/returns/bloc/returns_list_bloc.dart';
+import '../features/returns/data/returns_gateway.dart';
+import '../features/returns/screens/return_detail_screen.dart';
+import '../features/returns/screens/return_wizard_screen.dart';
+import '../features/returns/screens/returns_list_screen.dart';
 import '../features/search/bloc/lookup_bloc.dart';
 import '../features/search/bloc/search_bloc.dart';
 import '../features/search/data/recent_searches_store.dart';
 import '../features/search/data/search_gateway.dart';
 import '../features/search/screens/lookup_screen.dart';
 import '../features/search/screens/search_screen.dart';
-import '../generated/l10n/app_localizations.dart';
 
 /// Customer-app routing. Routes mirror `contracts/deeplink-routes.md`.
 /// Auth-gated paths redirect through `/auth/login?continueTo=…`.
@@ -320,28 +331,72 @@ GoRouter buildRouter(AuthSessionBloc authBloc) {
           );
         },
       ),
+      // Phase 6 — return wizard. Path matches the order-detail
+      // "Request return" CTA that has shipped since Phase 5; the
+      // placeholder body is now retired.
       GoRoute(
-        // Return wizard ships in Phase 6; this placeholder keeps the
-        // detail-screen CTA navigable without a 404. Once spec
-        // `phase-6-returns-invoices` lands, this route swaps to the
-        // real `ReturnWizardScreen`.
         path: '/o/:orderId/return',
         name: 'orderReturn',
         builder: (context, s) {
-          return Builder(
-            builder: (ctx) {
-              final l10n = AppLocalizations.of(ctx);
-              return Scaffold(
-                appBar: AppBar(title: Text(l10n.orderReturnPlaceholderTitle)),
-                body: Center(
-                  child: Padding(
-                    padding: const EdgeInsets.all(24),
-                    child: Text(l10n.orderReturnPlaceholderBody,
-                        textAlign: TextAlign.center),
-                  ),
-                ),
-              );
-            },
+          final orderId = s.pathParameters['orderId']!;
+          return BlocProvider(
+            create: (_) => ReturnWizardBloc(
+              ordersGateway: sl<OrdersGateway>(),
+              returnsGateway: sl<ReturnsGateway>(),
+              orderId: orderId,
+            )..add(ReturnWizardStarted(orderId)),
+            child: ReturnWizardScreen(orderId: orderId),
+          );
+        },
+      ),
+      GoRoute(
+        path: '/returns',
+        name: 'returns',
+        builder: (context, _) => BlocProvider(
+          create: (_) => ReturnsListBloc(gateway: sl<ReturnsGateway>())
+            ..add(const ReturnsListStarted()),
+          child: const ReturnsListScreen(),
+        ),
+      ),
+      GoRoute(
+        path: '/returns/:id',
+        name: 'returnDetail',
+        builder: (context, s) {
+          final id = s.pathParameters['id']!;
+          return BlocProvider(
+            create: (_) => ReturnDetailBloc(
+              gateway: sl<ReturnsGateway>(),
+              returnId: id,
+            )..add(const ReturnDetailStarted()),
+            child: ReturnDetailScreen(returnId: id),
+          );
+        },
+      ),
+      GoRoute(
+        path: '/o/:orderId/invoice',
+        name: 'orderInvoice',
+        builder: (context, s) {
+          final orderId = s.pathParameters['orderId']!;
+          return BlocProvider(
+            create: (_) => InvoicePreviewBloc(
+              gateway: sl<InvoicesGateway>(),
+              orderId: orderId,
+            )..add(const InvoicePreviewStarted()),
+            child: InvoicePreviewScreen(orderId: orderId),
+          );
+        },
+      ),
+      GoRoute(
+        path: '/o/:orderId/invoice/pdf',
+        name: 'orderInvoicePdf',
+        builder: (context, s) {
+          final orderId = s.pathParameters['orderId']!;
+          return BlocProvider(
+            create: (_) => InvoicePdfBloc(
+              gateway: sl<InvoicesGateway>(),
+              orderId: orderId,
+            )..add(const InvoicePdfDownloadRequested()),
+            child: InvoicePdfScreen(orderId: orderId),
           );
         },
       ),
@@ -441,6 +496,7 @@ const _authGatedPrefixes = <String>[
   '/orders',
   '/o/',
   '/more',
+  '/returns',
 ];
 
 class _BlocRefresh extends ChangeNotifier {

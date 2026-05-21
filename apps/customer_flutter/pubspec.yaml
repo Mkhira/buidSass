@@ -58,6 +58,21 @@ dependencies:
   # Image caching
   cached_network_image: ^3.4.1
 
+  # Phase 6 — return wizard photo upload + invoice PDF download.
+  # `image_picker` pulls the camera/gallery picker; `image` downscales
+  # files > 10 MB to ≤ 2 MB before upload (plan §Risk 2). `crypto` hashes
+  # the byte buffer for checksum-based dedupe (data-model.md). `uuid`
+  # generates per-tile clientPhotoKey + per-wizard idempotency keys.
+  # `path_provider` resolves the temp cache dir; `share_plus` opens the
+  # share-sheet; `open_filex` launches the system PDF viewer.
+  image_picker: ^1.1.2
+  image: ^4.3.0
+  crypto: ^3.0.3
+  uuid: ^4.5.1
+  path_provider: ^2.1.5
+  share_plus: ^10.1.2
+  open_filex: ^4.5.0
+
   # Platform adapters — research §R7 + §R8
   sms_autofill: ^2.4.0
   app_links: ^6.3.2

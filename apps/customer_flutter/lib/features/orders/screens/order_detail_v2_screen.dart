@@ -88,9 +88,16 @@ class _LoadedBody extends StatelessWidget {
         _ActionsToolbar(
           order: order,
           canReturn: canReturn,
+          // Phase 6 — Invoice CTA. BR-6 + Principle 18: the invoice is
+          // only meaningful once payment is captured, so we gate the
+          // chip on `paymentState == captured`. The screen behind it
+          // also defends against 404 in case the user lands here via
+          // a stale link (e.g. push notification).
+          canShowInvoice: order.states.paymentState == 'captured',
           onCancel: () => context.push('/o/$orderId/cancel'),
           onReorder: () => context.push('/o/$orderId/reorder'),
           onReturn: () => context.push('/o/$orderId/return'),
+          onInvoice: () => context.push('/o/$orderId/invoice'),
           onRetry: () => context.go('/checkout'),
           onTrack: () async {
             final url = order.shipment.tracking?.url;
@@ -159,18 +166,22 @@ class _ActionsToolbar extends StatelessWidget {
   const _ActionsToolbar({
     required this.order,
     required this.canReturn,
+    required this.canShowInvoice,
     required this.onCancel,
     required this.onReorder,
     required this.onReturn,
+    required this.onInvoice,
     required this.onRetry,
     required this.onTrack,
   });
 
   final OrderDetail order;
   final bool canReturn;
+  final bool canShowInvoice;
   final VoidCallback onCancel;
   final VoidCallback onReorder;
   final VoidCallback onReturn;
+  final VoidCallback onInvoice;
   final VoidCallback onRetry;
   final VoidCallback onTrack;
 
@@ -198,6 +209,12 @@ class _ActionsToolbar extends StatelessWidget {
             icon: const Icon(Icons.assignment_return_outlined),
             label: Text(l10n.orderActionReturn),
             onPressed: onReturn,
+          ),
+        if (canShowInvoice)
+          OutlinedButton.icon(
+            icon: const Icon(Icons.receipt_long_outlined),
+            label: Text(l10n.orderActionInvoice),
+            onPressed: onInvoice,
           ),
         if (order.actions.canRetryPayment)
           FilledButton.icon(

@@ -150,8 +150,6 @@
     }
   },
   "orderReorderReasonUnknown": "Not available — EN_PLACEHOLDER",
-  "orderReturnPlaceholderTitle": "Returns coming soon — EN_PLACEHOLDER",
-  "orderReturnPlaceholderBody": "The return wizard ships in Phase 6. — EN_PLACEHOLDER",
   "ordersTitle": "Orders — EN_PLACEHOLDER",
   "ordersFilterAll": "All — EN_PLACEHOLDER",
   "ordersFilterPending": "Pending — EN_PLACEHOLDER",
@@ -174,6 +172,7 @@
   "orderActionReturn": "Request return — EN_PLACEHOLDER",
   "orderActionRetryPayment": "Retry payment — EN_PLACEHOLDER",
   "orderActionTrack": "Open tracking — EN_PLACEHOLDER",
+  "orderActionInvoice": "عرض الفاتورة",
   "orderTrackingEmpty": "Tracking will appear once your order ships. — EN_PLACEHOLDER",
   "orderCancelTitle": "Cancel order — EN_PLACEHOLDER",
   "orderCancelReasonLabel": "Reason — EN_PLACEHOLDER",
@@ -196,5 +195,139 @@
       "added": { "type": "int" },
       "skipped": { "type": "int" }
     }
-  }
+  },
+  "returnsTitle": "المرتجعات",
+  "returnsEmpty": "لا توجد مرتجعات بعد",
+  "returnsEmptyBody": "بمجرد إنشاء طلب إرجاع، ستظهر حالته هنا.",
+  "returnsFilterAll": "الكل",
+  "returnsFilterPending": "قيد المراجعة",
+  "returnsFilterApproved": "تمت الموافقة",
+  "returnsFilterReceived": "تم الاستلام",
+  "returnsFilterInspected": "تم الفحص",
+  "returnsFilterIssued": "تم رد المبلغ",
+  "returnsFilterRejected": "مرفوض",
+  "returnsListCreatedAt": "أُرسل في {date}",
+  "@returnsListCreatedAt": {
+    "placeholders": {
+      "date": { "type": "String" }
+    }
+  },
+  "returnsListRefundAmount": "تم رد {amount}",
+  "@returnsListRefundAmount": {
+    "placeholders": {
+      "amount": { "type": "String" }
+    }
+  },
+  "returnsListOrderLabel": "الطلب {orderNumber}",
+  "@returnsListOrderLabel": {
+    "placeholders": {
+      "orderNumber": { "type": "String" }
+    }
+  },
+  "returnStatePending": "قيد المراجعة",
+  "returnStateApproved": "تمت الموافقة",
+  "returnStateReceived": "تم الاستلام",
+  "returnStateInspected": "تم الفحص",
+  "returnStateIssued": "تم رد المبلغ",
+  "returnStateRejected": "مرفوض",
+  "returnStateUnknown": "جاري تحديث الحالة…",
+  "returnDetailTitle": "تفاصيل الإرجاع",
+  "returnDetailTimelineTitle": "سجل الحالة",
+  "returnDetailLinesTitle": "المنتجات",
+  "returnDetailPhotosTitle": "الصور",
+  "returnDetailRefundTitle": "المبلغ المسترد",
+  "returnDetailRejectionTitle": "سبب الرفض",
+  "returnDetailRefundMethodLabel": "طريقة الاسترداد",
+  "returnDetailRefundIssuedAtLabel": "تاريخ الاسترداد",
+  "returnTimelineKindCreated": "تم الإرسال",
+  "returnTimelineKindApproved": "تمت الموافقة",
+  "returnTimelineKindReceived": "تم الاستلام",
+  "returnTimelineKindInspected": "تم الفحص",
+  "returnTimelineKindIssued": "تم رد المبلغ",
+  "returnTimelineKindRejected": "تم الرفض",
+  "returnTimelineActorCustomer": "بواسطتك",
+  "returnTimelineActorAdmin": "بواسطة الدعم",
+  "returnTimelineActorSystem": "بواسطة النظام",
+  "returnReasonWrongItem": "وصلني منتج خاطئ",
+  "returnReasonDamaged": "تالف أو معيب",
+  "returnReasonNotAsDescribed": "غير مطابق للوصف",
+  "returnReasonOther": "سبب آخر",
+  "returnWizardTitle": "طلب إرجاع",
+  "returnWizardStepLines": "اختر المنتجات التي ترغب بإرجاعها",
+  "returnWizardStepReason": "السبب",
+  "returnWizardStepPhotos": "الصور",
+  "returnWizardPhotosCaption": "أضف صورًا لتسريع مراجعة طلبك (اختياري).",
+  "returnWizardAddPhoto": "أضف صورة",
+  "returnWizardRemovePhoto": "إزالة",
+  "returnWizardRetryPhoto": "إعادة المحاولة",
+  "returnWizardPhotoUploading": "جاري الرفع…",
+  "returnWizardPhotoFailed": "فشل الرفع",
+  "returnWizardSelectLineCta": "اختر",
+  "returnWizardLineQty": "الكمية {qty}",
+  "@returnWizardLineQty": {
+    "placeholders": {
+      "qty": { "type": "int" }
+    }
+  },
+  "returnWizardLineIneligible": "غير قابل للإرجاع",
+  "returnWizardNoteHint": "ملاحظة اختيارية للدعم",
+  "returnWizardSubmit": "إرسال طلب الإرجاع",
+  "returnWizardSubmitting": "جاري الإرسال…",
+  "returnWizardIneligibleTitle": "لا توجد منتجات قابلة للإرجاع",
+  "returnWizardIneligibleBody": "لا يمكن إرجاع أي من منتجات هذا الطلب حاليًا.",
+  "returnWizardEligibilityStale": "تغيّرت أهلية الإرجاع. حدّث لرؤية الخيارات الأخيرة.",
+  "returnWizardRefreshEligibility": "تحديث",
+  "returnWizardValidationSelectLine": "اختر منتجًا واحدًا على الأقل لإرجاعه.",
+  "returnWizardValidationReasonRequired": "اختر سببًا لكل منتج تم تحديده.",
+  "returnRefundMethodOriginalPayment": "إعادة للمبلغ إلى وسيلة الدفع الأصلية",
+  "returnRefundMethodBankTransfer": "إعادة المبلغ عبر تحويل بنكي",
+  "returnRefundMethodWallet": "إعادة المبلغ إلى المحفظة",
+  "returnRefundMethodLabel": "طريقة الاسترداد",
+  "invoicePreviewTitle": "الفاتورة الضريبية",
+  "invoicePreviewBillingTitle": "بيانات العميل",
+  "invoicePreviewLinesTitle": "المنتجات",
+  "invoicePreviewTotalsTitle": "الإجماليات",
+  "invoicePreviewSubtotalLabel": "الإجمالي قبل الضريبة",
+  "invoicePreviewTaxLabel": "ضريبة القيمة المضافة ({rate})",
+  "@invoicePreviewTaxLabel": {
+    "placeholders": {
+      "rate": { "type": "String" }
+    }
+  },
+  "invoicePreviewGrandTotalLabel": "الإجمالي المستحق",
+  "invoicePreviewInvoiceNumberLabel": "رقم الفاتورة",
+  "invoicePreviewIssuedAtLabel": "تاريخ الإصدار",
+  "invoicePreviewVatNumberLabel": "الرقم الضريبي",
+  "invoicePreviewLineVatLabel": "ض.ق.م {rate}",
+  "@invoicePreviewLineVatLabel": {
+    "placeholders": {
+      "rate": { "type": "String" }
+    }
+  },
+  "invoicePreviewDownloadCta": "تحميل بصيغة PDF",
+  "invoicePreviewShareCta": "مشاركة",
+  "invoiceUnavailableTitle": "الفاتورة غير جاهزة بعد",
+  "invoiceUnavailableBody": "ستتاح الفاتورة بعد تأكيد الدفع.",
+  "invoicePdfTitle": "ملف الفاتورة",
+  "invoicePdfDownloading": "جاري تحميل الفاتورة…",
+  "invoicePdfReadyTitle": "الفاتورة جاهزة",
+  "invoicePdfReadyBody": "افتحها في عارض PDF أو شاركها مع جهة أخرى.",
+  "invoicePdfOpenCta": "فتح",
+  "invoicePdfShareCta": "مشاركة",
+  "invoicePdfRedownloadCta": "إعادة التحميل",
+  "invoicePdfDiskFullTitle": "لا توجد مساحة كافية",
+  "invoicePdfDiskFullBody": "حرّر بعض المساحة على جهازك ثم أعد المحاولة.",
+  "invoicePdfFilenameAr": "فاتورة-{orderNumber}.pdf",
+  "@invoicePdfFilenameAr": {
+    "placeholders": {
+      "orderNumber": { "type": "String" }
+    }
+  },
+  "invoicePdfFilenameEn": "invoice-{orderNumber}.pdf",
+  "@invoicePdfFilenameEn": {
+    "placeholders": {
+      "orderNumber": { "type": "String" }
+    }
+  },
+  "moreReturns": "مرتجعاتي"
 }

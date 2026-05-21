@@ -2,26 +2,26 @@
 
 ## Returns
 
-- [ ] `ReturnsGateway` covers list/detail/photos/create with Idempotency-Key on create.
-- [ ] Return wizard requires eligibility + at least one selected line.
-- [ ] Photo upload tiles support add / cancel / retry; checksum-based dedupe on server.
-- [ ] Return detail renders timeline + photos gallery + refund + rejection reason.
+- [x] `ReturnsGateway` covers list/detail/photos/create with Idempotency-Key on create.
+- [x] Return wizard requires eligibility + at least one selected line.
+- [x] Photo upload tiles support add / cancel / retry; checksum-based dedupe on server.
+- [x] Return detail renders timeline + photos gallery + refund + rejection reason.
 
 ## Invoices
 
-- [ ] `InvoicesGateway` returns typed preview + binary PDF.
-- [ ] Preview shows VAT rate explicitly.
-- [ ] PDF caches to temp dir; Open + Share work on iOS + Android.
-- [ ] 404 (not yet available) handled with friendly empty state.
+- [x] `InvoicesGateway` returns typed preview + binary PDF.
+- [x] Preview shows VAT rate explicitly.
+- [x] PDF caches to temp dir; Open + Share work on iOS + Android.
+- [x] 404 (not yet available) handled with friendly empty state.
 
 ## Cross-cutting
 
-- [ ] PDF cache sweeper removes files > 30 days on app start.
-- [ ] No client-side tax math.
+- [x] PDF cache sweeper removes files > 30 days on app start.
+- [x] No client-side tax math.
 
 ## Phase exit
 
-- [ ] `flutter analyze` clean.
-- [ ] `flutter test` green.
-- [ ] Smoke test recorded.
-- [ ] §8 row → **Done**.
+- [x] `flutter analyze` clean.
+- [x] `flutter test` green.
+- [x] Smoke test recorded.
+- [x] §8 row → **Done**.

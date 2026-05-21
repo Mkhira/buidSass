@@ -69,6 +69,15 @@ import '../features/returns/data/returns_gateway.dart';
 import '../features/returns/screens/return_detail_screen.dart';
 import '../features/returns/screens/return_wizard_screen.dart';
 import '../features/returns/screens/returns_list_screen.dart';
+import '../features/reviews/bloc/my_review_detail_bloc.dart';
+import '../features/reviews/bloc/my_reviews_bloc.dart';
+import '../features/reviews/bloc/report_review_bloc.dart';
+import '../features/reviews/bloc/review_submit_bloc.dart';
+import '../features/reviews/data/reviews_customer_gateway.dart';
+import '../features/reviews/screens/my_review_detail_screen.dart';
+import '../features/reviews/screens/my_reviews_screen.dart';
+import '../features/reviews/screens/report_review_screen.dart';
+import '../features/reviews/screens/review_submit_screen.dart';
 import '../features/search/bloc/lookup_bloc.dart';
 import '../features/search/bloc/search_bloc.dart';
 import '../features/search/data/recent_searches_store.dart';
@@ -577,6 +586,70 @@ GoRouter buildRouter(AuthSessionBloc authBloc) {
           );
         },
       ),
+      // S-7.5 review submit. productId + orderId from query params so
+      // the order-detail "Write review" CTA can deep-link directly.
+      GoRoute(
+        path: '/reviews/new',
+        name: 'reviewSubmit',
+        builder: (context, s) {
+          final productId = s.uri.queryParameters['productId'] ?? '';
+          final orderId = s.uri.queryParameters['orderId'] ?? '';
+          final locale = sl<LocaleBloc>().state.locale.code;
+          return BlocProvider(
+            create: (_) => ReviewSubmitBloc(
+              gateway: sl<ReviewsCustomerGateway>(),
+            )..add(ReviewSubmitStarted(
+                productId: productId,
+                orderId: orderId,
+                locale: locale,
+              )),
+            child: ReviewSubmitScreen(
+              productId: productId,
+              orderId: orderId,
+            ),
+          );
+        },
+      ),
+      // S-7.8 report someone else's review.
+      GoRoute(
+        path: '/reviews/:id/report',
+        name: 'reviewReport',
+        builder: (context, s) {
+          final id = s.pathParameters['id']!;
+          return BlocProvider(
+            create: (_) => ReportReviewBloc(
+              gateway: sl<ReviewsCustomerGateway>(),
+              reviewId: id,
+            )..add(const ReportReviewStarted()),
+            child: const ReportReviewScreen(),
+          );
+        },
+      ),
+      // S-7.6 my reviews list.
+      GoRoute(
+        path: '/my-reviews',
+        name: 'myReviews',
+        builder: (context, _) => BlocProvider(
+          create: (_) => MyReviewsBloc(gateway: sl<ReviewsCustomerGateway>())
+            ..add(const MyReviewsStarted()),
+          child: const MyReviewsScreen(),
+        ),
+      ),
+      // S-7.7 my review detail / edit.
+      GoRoute(
+        path: '/my-reviews/:id',
+        name: 'myReviewDetail',
+        builder: (context, s) {
+          final id = s.pathParameters['id']!;
+          return BlocProvider(
+            create: (_) => MyReviewDetailBloc(
+              gateway: sl<ReviewsCustomerGateway>(),
+              reviewId: id,
+            )..add(const MyReviewDetailStarted()),
+            child: const MyReviewDetailScreen(),
+          );
+        },
+      ),
     ],
   );
 }
@@ -588,6 +661,8 @@ const _authGatedPrefixes = <String>[
   '/more',
   '/returns',
   '/verification',
+  '/reviews',
+  '/my-reviews',
 ];
 
 class _BlocRefresh extends ChangeNotifier {

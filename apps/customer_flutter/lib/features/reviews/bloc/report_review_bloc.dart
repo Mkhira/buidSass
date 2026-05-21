@@ -65,8 +65,9 @@ class ReportReviewReady extends ReportReviewState {
       reasons: reasons,
       selectedReason: selectedReason ?? this.selectedReason,
       note: note ?? this.note,
-      formError:
-          identical(formError, _sentinel) ? this.formError : formError as String?,
+      formError: identical(formError, _sentinel)
+          ? this.formError
+          : formError as String?,
     );
   }
 }

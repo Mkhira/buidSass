@@ -156,7 +156,8 @@ void main() {
         reviewId: 'rv-9',
         request: const ReportReviewRequest(reasonKey: 'spam', note: 'why'),
       );
-      expect(pair.stub.requests.single.path, '/v1/customer/reviews/rv-9/report');
+      expect(
+          pair.stub.requests.single.path, '/v1/customer/reviews/rv-9/report');
       expect(r.state, 'submitted');
     });
   });

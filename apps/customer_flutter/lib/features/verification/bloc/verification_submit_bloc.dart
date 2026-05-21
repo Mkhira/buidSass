@@ -24,7 +24,8 @@ class VerificationSubmitStarted extends VerificationSubmitEvent {
 }
 
 class VerificationSubmitFieldChanged extends VerificationSubmitEvent {
-  const VerificationSubmitFieldChanged({required this.key, required this.value});
+  const VerificationSubmitFieldChanged(
+      {required this.key, required this.value});
   final String key;
   final Object? value;
 }
@@ -81,8 +82,9 @@ class VerificationSubmitForm extends VerificationSubmitState {
       values: values ?? this.values,
       fieldErrors: fieldErrors ?? this.fieldErrors,
       marketCode: marketCode,
-      formError:
-          identical(formError, _sentinel) ? this.formError : formError as String?,
+      formError: identical(formError, _sentinel)
+          ? this.formError
+          : formError as String?,
     );
   }
 }
@@ -123,13 +125,23 @@ class VerificationSubmitBloc
   final VerificationGateway _gateway;
   final String _idempotencyKey;
 
+  /// Last `marketCode` seen from `VerificationSubmitStarted`. Stored so
+  /// the schema-failure screen can dispatch a fresh `Started` event to
+  /// reload in-place instead of popping the route.
+  String? _lastMarketCode;
+
   @visibleForTesting
   String get idempotencyKey => _idempotencyKey;
+
+  /// Exposed for the failure screen's retry CTA. Null when the bloc
+  /// has never received a `Started` event.
+  String? get lastMarketCode => _lastMarketCode;
 
   Future<void> _onStarted(
     VerificationSubmitStarted event,
     Emitter<VerificationSubmitState> emit,
   ) async {
+    _lastMarketCode = event.marketCode;
     emit(const VerificationSubmitSchemaLoading());
     try {
       final schema = await _gateway.getSchema();
@@ -139,8 +151,10 @@ class VerificationSubmitBloc
         fieldErrors: const {},
         marketCode: event.marketCode,
       ));
-    } on Object catch (e) {
-      emit(VerificationSubmitSchemaFailure(reason: e.toString()));
+    } on Object catch (_) {
+      emit(const VerificationSubmitSchemaFailure(
+        reason: 'verification.schema_failed',
+      ));
     }
   }
 
@@ -151,7 +165,8 @@ class VerificationSubmitBloc
     final s = state;
     if (s is! VerificationSubmitForm) return;
     final nextValues = Map<String, Object?>.from(s.values);
-    if (event.value == null || (event.value is String && (event.value as String).isEmpty)) {
+    if (event.value == null ||
+        (event.value is String && (event.value as String).isEmpty)) {
       nextValues.remove(event.key);
     } else {
       nextValues[event.key] = event.value;

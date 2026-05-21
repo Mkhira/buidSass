@@ -261,8 +261,7 @@ void main() {
       skip: 4,
       expect: () => [
         isA<VerificationSubmitSubmitting>(),
-        isA<VerificationSubmitDone>()
-            .having((s) => s.result.id, 'id', 'v-new'),
+        isA<VerificationSubmitDone>().having((s) => s.result.id, 'id', 'v-new'),
       ],
       verify: (b) {
         expect(b.idempotencyKey, 'wizard-key-1');

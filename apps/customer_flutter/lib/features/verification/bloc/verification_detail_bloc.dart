@@ -90,8 +90,7 @@ class VerificationDetailLoaded extends VerificationDetailState {
   /// (S-7.3 AC).
   bool get resubmitReady {
     if (detail.requestedInfo.isEmpty) return false;
-    final serverSlots =
-        detail.documents.map((d) => d.slotKey).toSet();
+    final serverSlots = detail.documents.map((d) => d.slotKey).toSet();
     for (final ri in detail.requestedInfo) {
       if (ri.kind == 'doc') {
         final hasServer = serverSlots.contains(ri.key);
@@ -130,7 +129,11 @@ class VerificationDetailBloc
     required VerificationGateway gateway,
     required String verificationId,
     int maxConcurrentUploads = 2,
-  })  : _gateway = gateway,
+  })  : assert(
+          maxConcurrentUploads > 0,
+          'maxConcurrentUploads must be > 0 — 0 or negative stalls upload processing.',
+        ),
+        _gateway = gateway,
         _verificationId = verificationId,
         _semaphore = _Semaphore(maxConcurrentUploads),
         super(const VerificationDetailLoading()) {
@@ -176,12 +179,15 @@ class VerificationDetailBloc
     // Mark slot as uploading immediately so the UI can show progress.
     emit(s.copyWith(uploads: {
       ...s.uploads,
-      event.slotKey:
-          const SlotUploadState(status: SlotUploadStatus.uploading),
+      event.slotKey: const SlotUploadState(status: SlotUploadStatus.uploading),
     }));
 
-    final ticket = await _semaphore.acquire();
+    _Ticket? ticket;
     try {
+      // Acquire inside the guard so a bloc-close-while-queued (which
+      // completes pending acquires with an error) surfaces as a normal
+      // failed-upload tile rather than an unhandled exception.
+      ticket = await _semaphore.acquire();
       final result = await _gateway.uploadDocument(
         verificationId: _verificationId,
         slotKey: event.slotKey,
@@ -232,7 +238,7 @@ class VerificationDetailBloc
         }));
       }
     } finally {
-      ticket.release();
+      ticket?.release();
     }
   }
 

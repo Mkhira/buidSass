@@ -8,7 +8,8 @@ import 'package:customer_flutter/features/verification/data/verification_gateway
 import 'package:flutter_test/flutter_test.dart';
 
 class _FakeGateway implements VerificationGateway {
-  _FakeGateway({this.detail, this.throwOnLoad = false, this.throwOnUpload = false});
+  _FakeGateway(
+      {this.detail, this.throwOnLoad = false, this.throwOnUpload = false});
 
   VerificationDetail? detail;
   bool throwOnLoad;
@@ -131,7 +132,8 @@ void main() {
   });
 
   group('upload', () {
-    test('bounded concurrency caps in-flight at maxConcurrentUploads', () async {
+    test('bounded concurrency caps in-flight at maxConcurrentUploads',
+        () async {
       final gw = _FakeGateway(detail: _detail());
       final bloc = VerificationDetailBloc(
         gateway: gw,
@@ -164,7 +166,8 @@ void main() {
     });
 
     test('upload success splices the document into detail', () async {
-      final gw = _FakeGateway(detail: _detail(
+      final gw = _FakeGateway(
+          detail: _detail(
         requestedInfo: const [
           VerificationRequestedInfo(kind: 'doc', key: 'id_back'),
         ],

@@ -73,7 +73,13 @@ class _Loaded extends StatelessWidget {
       onRefresh: () async {
         final bloc = context.read<VerificationListBloc>();
         bloc.add(const VerificationListRefreshed());
-        await bloc.stream.firstWhere((s) => s is! VerificationListLoading);
+        // Bound the spinner — see my_reviews_screen for the rationale.
+        await bloc.stream
+            .firstWhere((s) => s is! VerificationListLoading)
+            .timeout(
+              const Duration(seconds: 10),
+              onTimeout: () => bloc.state,
+            );
       },
       child: ListView(
         padding: const EdgeInsets.all(AppSpacing.md),
@@ -185,7 +191,8 @@ class _Row extends StatelessWidget {
               ),
               const SizedBox(height: AppSpacing.xs),
               Text(
-                l10n.verificationListSubmittedOn(dateFmt.format(item.createdAt)),
+                l10n.verificationListSubmittedOn(
+                    dateFmt.format(item.createdAt.toLocal())),
                 style: Theme.of(context).textTheme.bodySmall,
               ),
               if (item.expiresAt != null) ...[

@@ -12,12 +12,18 @@ class StubReviewsCustomerGateway implements ReviewsCustomerGateway {
 
   static const _currency = 'SAR';
 
+  /// Trim or pad an idempotency key down to an 8-char id suffix without
+  /// crashing on short keys — test factories and custom callers may
+  /// inject keys shorter than 8 chars.
+  static String _shortId(String key) =>
+      key.length >= 8 ? key.substring(0, 8) : key;
+
   @override
   Future<CreateReviewResult> submit({
     required CreateReviewRequest request,
     required String idempotencyKey,
   }) async {
-    final id = 'rv-${idempotencyKey.substring(0, 8)}';
+    final id = 'rv-${_shortId(idempotencyKey)}';
     _mine[id] = MyReviewDetail(
       id: id,
       productId: request.productId,
@@ -46,8 +52,9 @@ class StubReviewsCustomerGateway implements ReviewsCustomerGateway {
     final page = filter.page < 1 ? 1 : filter.page;
     final pageSize = filter.pageSize < 1 ? 20 : filter.pageSize;
     final start = (page - 1) * pageSize;
-    final end =
-        (start + pageSize) > filtered.length ? filtered.length : start + pageSize;
+    final end = (start + pageSize) > filtered.length
+        ? filtered.length
+        : start + pageSize;
     final items = start >= filtered.length
         ? const <MyReviewListItem>[]
         : filtered.sublist(start, end);
@@ -117,7 +124,8 @@ class StubReviewsCustomerGateway implements ReviewsCustomerGateway {
     required String reviewId,
     required ReportReviewRequest request,
   }) async {
-    return ReportReviewResult(id: 'rep-${reviewId.hashCode}', state: 'submitted');
+    return ReportReviewResult(
+        id: 'rep-${reviewId.hashCode}', state: 'submitted');
   }
 
   List<MyReviewListItem> _seedList() {

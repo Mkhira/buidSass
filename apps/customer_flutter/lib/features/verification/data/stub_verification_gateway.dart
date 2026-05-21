@@ -146,12 +146,17 @@ class StubVerificationGateway implements VerificationGateway {
     return detail;
   }
 
+  /// Trim a key down to an 8-char id suffix without crashing on short
+  /// keys (test factories / custom callers may inject < 8 chars).
+  static String _shortId(String key) =>
+      key.length >= 8 ? key.substring(0, 8) : key;
+
   @override
   Future<SubmitVerificationResult> submit({
     required SubmitVerificationRequest request,
     required String idempotencyKey,
   }) async {
-    final id = 'v-${idempotencyKey.substring(0, 8)}';
+    final id = 'v-${_shortId(idempotencyKey)}';
     return SubmitVerificationResult(
       id: id,
       state: 'submitted',
@@ -208,7 +213,7 @@ class StubVerificationGateway implements VerificationGateway {
     required String idempotencyKey,
   }) async {
     return SubmitVerificationResult(
-      id: 'v-renew-${idempotencyKey.substring(0, 8)}',
+      id: 'v-renew-${_shortId(idempotencyKey)}',
       state: 'submitted',
       createdAt: _now,
     );

@@ -38,8 +38,7 @@ class _FakeGateway implements ReviewsCustomerGateway {
   Future<MyReviewsPage> listMine(MyReviewsFilter filter) =>
       throw UnimplementedError();
   @override
-  Future<MyReviewDetail> getMine(String reviewId) =>
-      throw UnimplementedError();
+  Future<MyReviewDetail> getMine(String reviewId) => throw UnimplementedError();
   @override
   Future<MyReviewDetail> edit({
     required String reviewId,

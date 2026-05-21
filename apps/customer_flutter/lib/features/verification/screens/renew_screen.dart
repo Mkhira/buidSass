@@ -26,14 +26,26 @@ class RenewScreen extends StatelessWidget {
         builder: (context, state) {
           return switch (state) {
             RenewLoading() => LoadingState(semanticsLabel: l10n.commonLoading),
-            RenewLoadFailure(:final reason) => ErrorState(
+            RenewLoadFailure() => ErrorState(
                 title: l10n.commonErrorTitle,
-                body: reason,
+                body: l10n.commonErrorBody,
                 retryLabel: l10n.commonRetry,
-                onRetry: () => Navigator.of(context).maybePop(),
+                onRetry: () {
+                  final bloc = context.read<RenewBloc>();
+                  final args = bloc.lastStartArgs;
+                  if (args == null) {
+                    Navigator.of(context).maybePop();
+                    return;
+                  }
+                  bloc.add(RenewStarted(
+                    priorVerificationId: args.priorVerificationId,
+                    marketCode: args.marketCode,
+                  ));
+                },
               ),
             RenewReady() => _Ready(state: state, submitting: false),
-            RenewSubmitting(:final ready) => _Ready(state: ready, submitting: true),
+            RenewSubmitting(:final ready) =>
+              _Ready(state: ready, submitting: true),
             RenewDone() => LoadingState(semanticsLabel: l10n.commonLoading),
           };
         },
@@ -64,8 +76,11 @@ class _Ready extends StatelessWidget {
                   border: Border.all(color: AppColors.danger),
                   borderRadius: BorderRadius.circular(8),
                 ),
+                // Always show a stable, localized message — never the
+                // raw exception text. The error code is logged via the
+                // bloc state for debugging.
                 child: Text(
-                  state.formError!,
+                  l10n.commonErrorBody,
                   style: const TextStyle(color: AppColors.danger),
                 ),
               ),

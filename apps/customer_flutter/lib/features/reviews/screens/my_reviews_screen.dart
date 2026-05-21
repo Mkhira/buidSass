@@ -60,8 +60,15 @@ class _MyReviewsScreenState extends State<MyReviewsScreen> {
                       onRefresh: () async {
                         final bloc = context.read<MyReviewsBloc>();
                         bloc.add(const MyReviewsRefreshed());
+                        // Bound the spinner so it can't hang forever if
+                        // the bloc closes mid-refresh or the stream
+                        // never emits a non-loading state.
                         await bloc.stream
-                            .firstWhere((s) => s is! MyReviewsLoading);
+                            .firstWhere((s) => s is! MyReviewsLoading)
+                            .timeout(
+                              const Duration(seconds: 10),
+                              onTimeout: () => bloc.state,
+                            );
                       },
                       child: ListView.builder(
                         controller: _scroll,

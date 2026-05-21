@@ -37,8 +37,13 @@ class ReviewSubmitScreen extends StatelessWidget {
           }
         },
         builder: (context, state) {
-          if (state is ReviewSubmitNotEligible) {
-            return Column(
+          // Use the sealed type's exhaustive switch so we never reach an
+          // unsafe `as ReviewSubmitForm` cast. `ReviewSubmitDone` shows
+          // a loading shell because the listener navigates async — the
+          // builder still runs once on that state before the route
+          // changes.
+          return switch (state) {
+            ReviewSubmitNotEligible() => Column(
               children: [
                 Expanded(
                   child: EmptyState(
@@ -56,11 +61,13 @@ class ReviewSubmitScreen extends StatelessWidget {
                   ),
                 ),
               ],
-            );
-          }
-          final form = state is ReviewSubmitSubmitting ? state.form : state as ReviewSubmitForm;
-          final submitting = state is ReviewSubmitSubmitting;
-          return _Form(form: form, submitting: submitting);
+            ),
+            ReviewSubmitForm() => _Form(form: state, submitting: false),
+            ReviewSubmitSubmitting(:final form) =>
+              _Form(form: form, submitting: true),
+            ReviewSubmitDone() =>
+              LoadingState(semanticsLabel: l10n.commonLoading),
+          };
         },
       ),
     );

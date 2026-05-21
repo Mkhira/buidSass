@@ -30,13 +30,22 @@ class VerificationSubmitScreen extends StatelessWidget {
           return switch (state) {
             VerificationSubmitSchemaLoading() =>
               LoadingState(semanticsLabel: l10n.commonLoading),
-            VerificationSubmitSchemaFailure(:final reason) => ErrorState(
+            VerificationSubmitSchemaFailure() => ErrorState(
                 title: l10n.commonErrorTitle,
-                body: reason,
+                body: l10n.commonErrorBody,
                 retryLabel: l10n.commonRetry,
-                onRetry: () => Navigator.of(context).maybePop(),
+                onRetry: () {
+                  final bloc = context.read<VerificationSubmitBloc>();
+                  final market = bloc.lastMarketCode;
+                  if (market == null) {
+                    Navigator.of(context).maybePop();
+                    return;
+                  }
+                  bloc.add(VerificationSubmitStarted(marketCode: market));
+                },
               ),
-            VerificationSubmitForm() => _FormView(state: state, submitting: false),
+            VerificationSubmitForm() =>
+              _FormView(state: state, submitting: false),
             VerificationSubmitSubmitting(:final form) =>
               _FormView(state: form, submitting: true),
             VerificationSubmitDone() =>

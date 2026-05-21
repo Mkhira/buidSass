@@ -56,7 +56,19 @@ class SchemaFieldWidget extends StatelessWidget {
           initialValue: value?.toString() ?? '',
           decoration: InputDecoration(labelText: label, errorText: errorText),
           keyboardType: const TextInputType.numberWithOptions(decimal: true),
-          onChanged: onChanged,
+          // Parse the raw text to `num` so downstream consumers (the
+          // submit request body) get numeric types, not strings. Empty
+          // input → null so the bloc treats it as "cleared". `tryParse`
+          // returning null on unfinished input (e.g. "1.") keeps the
+          // value sticky until a parseable digit lands.
+          onChanged: (raw) {
+            if (raw.isEmpty) {
+              onChanged(null);
+              return;
+            }
+            final parsed = num.tryParse(raw);
+            if (parsed != null) onChanged(parsed);
+          },
         );
       case 'doc':
         return Card(
@@ -98,8 +110,9 @@ class SchemaFieldWidget extends StatelessWidget {
       case 'verificationSubmitErrorPattern':
         return l10n.verificationSubmitErrorPattern;
       default:
-        // Server-side validation errors arrive verbatim; surface them.
-        return key;
+        // Unknown validation key — fall back to a localized generic
+        // message instead of echoing the raw key/text to the user.
+        return l10n.verificationSubmitErrorPattern;
     }
   }
 }

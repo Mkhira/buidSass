@@ -26,7 +26,8 @@ class ResubmitScreen extends StatelessWidget {
         },
         builder: (context, state) {
           return switch (state) {
-            ResubmitLoading() => LoadingState(semanticsLabel: l10n.commonLoading),
+            ResubmitLoading() =>
+              LoadingState(semanticsLabel: l10n.commonLoading),
             ResubmitFailureLoad(:final reason) => ErrorState(
                 title: l10n.commonErrorTitle,
                 body: reason,
@@ -34,9 +35,9 @@ class ResubmitScreen extends StatelessWidget {
                 onRetry: () => context.read<ResubmitCubit>().load(),
               ),
             ResubmitForm() => _Form(state: state, submitting: false),
-            ResubmitSubmitting(:final form) => _Form(state: form, submitting: true),
-            ResubmitDone() =>
-              LoadingState(semanticsLabel: l10n.commonLoading),
+            ResubmitSubmitting(:final form) =>
+              _Form(state: form, submitting: true),
+            ResubmitDone() => LoadingState(semanticsLabel: l10n.commonLoading),
           };
         },
       ),
@@ -58,7 +59,8 @@ class _Form extends StatelessWidget {
           if (state.formError != null)
             Padding(
               padding: const EdgeInsets.all(AppSpacing.md),
-              child: _ErrorBanner(message: _resolveFormError(l10n, state.formError!)),
+              child: _ErrorBanner(
+                  message: _resolveFormError(l10n, state.formError!)),
             ),
           Expanded(
             child: ListView(
@@ -120,7 +122,9 @@ class _Form extends StatelessWidget {
     if (key == 'verificationSubmitErrorMissingRequired') {
       return l10n.verificationSubmitErrorMissingRequired;
     }
-    return key;
+    // Unknown error code — fall back to a generic localized message
+    // rather than echoing the raw code/exception text to the user.
+    return l10n.commonErrorBody;
   }
 }
 

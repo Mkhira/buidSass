@@ -34,7 +34,8 @@ class VerificationGatewayImpl implements VerificationGateway {
   Future<VerificationActive> getActive() async {
     try {
       final res = await _dio.get<Object?>('$_root/active');
-      return VerificationActive.fromJson(_asMap(res.data, 'verifications/active'));
+      return VerificationActive.fromJson(
+          _asMap(res.data, 'verifications/active'));
     } on DioException catch (e) {
       throw _errors.fromDio(e);
     }
@@ -44,7 +45,8 @@ class VerificationGatewayImpl implements VerificationGateway {
   Future<VerificationSchema> getSchema() async {
     try {
       final res = await _dio.get<Object?>('$_root/schema');
-      return VerificationSchema.fromJson(_asMap(res.data, 'verifications/schema'));
+      return VerificationSchema.fromJson(
+          _asMap(res.data, 'verifications/schema'));
     } on DioException catch (e) {
       throw _errors.fromDio(e);
     }

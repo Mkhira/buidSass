@@ -243,7 +243,8 @@ void main() {
         pair.stub.requests.single.headers[IdempotencyInterceptor.headerName],
         'renew-key-1',
       );
-      expect(pair.stub.requests.single.path, '/api/customer/verifications/renew');
+      expect(
+          pair.stub.requests.single.path, '/api/customer/verifications/renew');
       expect(r.id, 'v-new');
     });
   });

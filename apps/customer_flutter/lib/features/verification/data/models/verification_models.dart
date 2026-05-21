@@ -52,8 +52,8 @@ class VerificationListItem {
         id: j['id'] as String? ?? '',
         kind: j['kind'] as String? ?? '',
         state: j['state'] as String? ?? 'submitted',
-        createdAt:
-            DateTime.tryParse(j['createdAt'] as String? ?? '') ?? DateTime.now(),
+        createdAt: DateTime.tryParse(j['createdAt'] as String? ?? '') ??
+            DateTime.now(),
         expiresAt: j['expiresAt'] is String
             ? DateTime.tryParse(j['expiresAt']! as String)
             : null,
@@ -156,9 +156,11 @@ class SchemaField {
       label: j['label'] as String? ?? '',
       type: j['type'] as String? ?? 'text',
       required: j['required'] == true,
-      options: options is List ? options.whereType<String>().toList() : const [],
+      options:
+          options is List ? options.whereType<String>().toList() : const [],
       validation: validation is Map
-          ? SchemaFieldValidation.fromJson(Map<String, Object?>.from(validation))
+          ? SchemaFieldValidation.fromJson(
+              Map<String, Object?>.from(validation))
           : null,
     );
   }
@@ -322,8 +324,7 @@ class VerificationDetail {
       kind: j['kind'] as String? ?? '',
       createdAt:
           DateTime.tryParse(j['createdAt'] as String? ?? '') ?? DateTime.now(),
-      fields:
-          fields is Map ? Map<String, Object?>.from(fields) : const {},
+      fields: fields is Map ? Map<String, Object?>.from(fields) : const {},
       documents: docs is List
           ? docs
               .whereType<Map>()

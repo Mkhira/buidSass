@@ -104,7 +104,8 @@ void main() {
     },
     skip: 1,
     expect: () => [
-      isA<ReviewSubmitForm>().having((s) => s.formError, 'formError', isNotNull),
+      isA<ReviewSubmitForm>()
+          .having((s) => s.formError, 'formError', isNotNull),
     ],
   );
 

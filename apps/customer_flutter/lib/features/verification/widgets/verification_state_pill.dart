@@ -19,8 +19,10 @@ class VerificationStatePill extends StatelessWidget {
     final l10n = AppLocalizations.of(context);
     final (label, color) = switch (state) {
       'submitted' => (l10n.verificationStateSubmitted, AppColors.secondary),
-      'info_requested' =>
-        (l10n.verificationStateInfoRequested, AppColors.warning),
+      'info_requested' => (
+          l10n.verificationStateInfoRequested,
+          AppColors.warning
+        ),
       'approved' => (l10n.verificationStateApproved, AppColors.success),
       'rejected' => (l10n.verificationStateRejected, AppColors.danger),
       'expired' => (l10n.verificationStateExpired, AppColors.textSecondary),

@@ -162,12 +162,12 @@ class DocumentSlotDispatcher extends InheritedWidget {
     required super.child,
   });
 
-  final void Function(String slotKey, ({Uint8List bytes, String filename}) picked)
-      onPicked;
+  final void Function(
+      String slotKey, ({Uint8List bytes, String filename}) picked) onPicked;
 
   static DocumentSlotDispatcher of(BuildContext context) {
-    final d = context
-        .dependOnInheritedWidgetOfExactType<DocumentSlotDispatcher>();
+    final d =
+        context.dependOnInheritedWidgetOfExactType<DocumentSlotDispatcher>();
     assert(d != null, 'No DocumentSlotDispatcher above this widget');
     return d!;
   }

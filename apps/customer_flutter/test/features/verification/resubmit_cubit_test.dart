@@ -171,8 +171,7 @@ void main() {
     skip: 4,
     expect: () => [
       isA<ResubmitSubmitting>(),
-      isA<ResubmitDone>()
-          .having((s) => s.detail.state, 'state', 'submitted'),
+      isA<ResubmitDone>().having((s) => s.detail.state, 'state', 'submitted'),
     ],
     verify: (c) {
       expect(c.idempotencyKey, 'wizard-key-1');

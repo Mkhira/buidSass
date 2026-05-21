@@ -78,8 +78,9 @@ class MyReviewDetailLoaded extends MyReviewDetailState {
       editing: editing ?? this.editing,
       rating: rating ?? this.rating,
       comment: comment ?? this.comment,
-      saveError:
-          identical(saveError, _sentinel) ? this.saveError : saveError as String?,
+      saveError: identical(saveError, _sentinel)
+          ? this.saveError
+          : saveError as String?,
     );
   }
 }
@@ -164,8 +165,7 @@ class MyReviewDetailBloc
   ) {
     final s = state;
     if (s is! MyReviewDetailLoaded || !s.editing) return;
-    final capped =
-        e.value.length > 2000 ? e.value.substring(0, 2000) : e.value;
+    final capped = e.value.length > 2000 ? e.value.substring(0, 2000) : e.value;
     emit(s.copyWith(comment: capped));
   }
 

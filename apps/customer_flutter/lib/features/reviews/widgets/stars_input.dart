@@ -24,16 +24,12 @@ class StarsInput extends StatelessWidget {
     return Semantics(
       slider: true,
       value: l10n.reviewRatingValue(value),
-      increasedValue:
-          value < 5 ? l10n.reviewRatingValue(value + 1) : null,
-      decreasedValue:
-          value > 1 ? l10n.reviewRatingValue(value - 1) : null,
-      onIncrease: onChanged == null || value >= 5
-          ? null
-          : () => onChanged!(value + 1),
-      onDecrease: onChanged == null || value <= 1
-          ? null
-          : () => onChanged!(value - 1),
+      increasedValue: value < 5 ? l10n.reviewRatingValue(value + 1) : null,
+      decreasedValue: value > 1 ? l10n.reviewRatingValue(value - 1) : null,
+      onIncrease:
+          onChanged == null || value >= 5 ? null : () => onChanged!(value + 1),
+      onDecrease:
+          onChanged == null || value <= 1 ? null : () => onChanged!(value - 1),
       child: ExcludeSemantics(
         child: Row(
           mainAxisSize: MainAxisSize.min,
@@ -46,7 +42,9 @@ class StarsInput extends StatelessWidget {
                   child: Icon(
                     i <= value ? Icons.star : Icons.star_border,
                     size: size,
-                    color: i <= value ? AppColors.warning : AppColors.textSecondary,
+                    color: i <= value
+                        ? AppColors.warning
+                        : AppColors.textSecondary,
                   ),
                 ),
               ),

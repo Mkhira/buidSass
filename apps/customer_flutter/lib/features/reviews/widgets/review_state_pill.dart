@@ -15,8 +15,10 @@ class ReviewStatePill extends StatelessWidget {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
     final (label, color) = switch (state) {
-      'pending_moderation' =>
-        (l10n.reviewStatePendingModeration, AppColors.warning),
+      'pending_moderation' => (
+          l10n.reviewStatePendingModeration,
+          AppColors.warning
+        ),
       'visible' => (l10n.reviewStateVisible, AppColors.success),
       'flagged' => (l10n.reviewStateFlagged, AppColors.warning),
       'hidden' => (l10n.reviewStateHidden, AppColors.danger),

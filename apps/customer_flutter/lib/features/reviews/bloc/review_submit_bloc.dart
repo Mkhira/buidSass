@@ -70,8 +70,7 @@ class ReviewSubmitForm extends ReviewSubmitState {
   final String locale;
   final String? formError;
 
-  bool get canSubmit =>
-      rating >= 1 && rating <= 5 && comment.trim().isNotEmpty;
+  bool get canSubmit => rating >= 1 && rating <= 5 && comment.trim().isNotEmpty;
 
   ReviewSubmitForm copyWith({
     int? rating,
@@ -85,8 +84,9 @@ class ReviewSubmitForm extends ReviewSubmitState {
       rating: rating ?? this.rating,
       comment: comment ?? this.comment,
       locale: locale ?? this.locale,
-      formError:
-          identical(formError, _sentinel) ? this.formError : formError as String?,
+      formError: identical(formError, _sentinel)
+          ? this.formError
+          : formError as String?,
     );
   }
 }
@@ -173,8 +173,9 @@ class ReviewSubmitBloc extends Bloc<ReviewSubmitEvent, ReviewSubmitState> {
     if (s is! ReviewSubmitForm) return;
     // Comment cap from spec (≤ 2000 chars) — enforced here, server is
     // the final word.
-    final capped =
-        event.value.length > 2000 ? event.value.substring(0, 2000) : event.value;
+    final capped = event.value.length > 2000
+        ? event.value.substring(0, 2000)
+        : event.value;
     emit(s.copyWith(comment: capped));
   }
 

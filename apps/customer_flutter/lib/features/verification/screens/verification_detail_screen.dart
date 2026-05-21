@@ -68,7 +68,11 @@ class _Loaded extends StatelessWidget {
           final bloc = context.read<VerificationDetailBloc>();
           bloc.add(const VerificationDetailRefreshed());
           await bloc.stream
-              .firstWhere((s) => s is! VerificationDetailLoading);
+              .firstWhere((s) => s is! VerificationDetailLoading)
+              .timeout(
+                const Duration(seconds: 10),
+                onTimeout: () => bloc.state,
+              );
         },
         child: ListView(
           padding: const EdgeInsets.all(AppSpacing.md),
@@ -99,8 +103,8 @@ class _Loaded extends StatelessWidget {
                       slotLabel: slotKey,
                       uploadState:
                           state.uploads[slotKey] ?? SlotUploadState.idle,
-                      alreadyUploaded: detail.documents
-                          .any((d) => d.slotKey == slotKey),
+                      alreadyUploaded:
+                          detail.documents.any((d) => d.slotKey == slotKey),
                       onPick: pickDocumentImage,
                       onRetry: () async {
                         // Re-pick on retry: the bloc only sees a
@@ -249,8 +253,11 @@ class _RequestedInfoCard extends StatelessWidget {
     final done = ri.kind == 'doc'
         ? detail.documents.any((d) => d.slotKey == ri.key) ||
             uploads[ri.key]?.status == SlotUploadStatus.ready
-        : (detail.fields[ri.key] is String &&
-            (detail.fields[ri.key] as String).isNotEmpty);
+        // Field values can be String / num / bool / date-string —
+        // anything non-null and not an empty string counts as filled.
+        // The earlier `is String && isNotEmpty` check incorrectly
+        // marked numeric/date fields pending.
+        : _isFieldFilled(detail.fields[ri.key]);
     final label = ri.kind == 'doc'
         ? l10n.verificationDetailRequestedDoc(ri.key)
         : l10n.verificationDetailRequestedField(ri.key);
@@ -277,13 +284,26 @@ class _RequestedInfoCard extends StatelessWidget {
                   ),
                 if (ri.kind == 'doc' && !done) ...[
                   const SizedBox(height: AppSpacing.xs),
-                  DocumentSlotTile(
-                    slotKey: ri.key,
-                    slotLabel: ri.key,
-                    uploadState: uploads[ri.key] ?? SlotUploadState.idle,
-                    alreadyUploaded: false,
-                    onPick: pickDocumentImage,
-                    onRetry: () {},
+                  Builder(
+                    builder: (innerContext) => DocumentSlotTile(
+                      slotKey: ri.key,
+                      slotLabel: ri.key,
+                      uploadState: uploads[ri.key] ?? SlotUploadState.idle,
+                      alreadyUploaded: false,
+                      onPick: pickDocumentImage,
+                      // Retry re-picks a file and dispatches a new
+                      // upload event, same as the documents-section
+                      // tile. The earlier no-op left the tile stuck
+                      // on failed.
+                      onRetry: () async {
+                        final dispatcher =
+                            DocumentSlotDispatcher.of(innerContext);
+                        final picked = await pickDocumentImage();
+                        if (picked != null) {
+                          dispatcher.onPicked(ri.key, picked);
+                        }
+                      },
+                    ),
                   ),
                 ],
               ],
@@ -292,6 +312,13 @@ class _RequestedInfoCard extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  static bool _isFieldFilled(Object? v) {
+    if (v == null) return false;
+    if (v is String) return v.isNotEmpty;
+    if (v is Iterable) return v.isNotEmpty;
+    return true;
   }
 }
 

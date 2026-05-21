@@ -514,8 +514,9 @@ GoRouter buildRouter(AuthSessionBloc authBloc) {
         path: '/verification',
         name: 'verification',
         builder: (context, _) => BlocProvider(
-          create: (_) => VerificationListBloc(gateway: sl<VerificationGateway>())
-            ..add(const VerificationListStarted()),
+          create: (_) =>
+              VerificationListBloc(gateway: sl<VerificationGateway>())
+                ..add(const VerificationListStarted()),
           child: const VerificationListScreen(),
         ),
       ),

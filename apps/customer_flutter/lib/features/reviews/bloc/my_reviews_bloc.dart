@@ -88,6 +88,12 @@ class MyReviewsBloc extends Bloc<MyReviewsEvent, MyReviewsState> {
 
   final ReviewsCustomerGateway _gateway;
 
+  /// Monotonic refresh counter — bumped on every refresh/filter start.
+  /// Stale async responses (e.g. fast filter switch while the previous
+  /// request is still in-flight) drop their result rather than
+  /// overwriting newer list state.
+  int _refreshVersion = 0;
+
   Future<void> _onStarted(MyReviewsStarted e, Emitter<MyReviewsState> emit) =>
       _refresh(state.filter, emit);
 
@@ -107,9 +113,11 @@ class MyReviewsBloc extends Bloc<MyReviewsEvent, MyReviewsState> {
     MyReviewsFilter filter,
     Emitter<MyReviewsState> emit,
   ) async {
+    final version = ++_refreshVersion;
     emit(MyReviewsLoading(filter: filter));
     try {
       final page = await _gateway.listMine(filter);
+      if (version != _refreshVersion) return; // newer refresh in flight
       if (page.items.isEmpty) {
         emit(MyReviewsEmpty(filter: filter));
         return;
@@ -120,6 +128,7 @@ class MyReviewsBloc extends Bloc<MyReviewsEvent, MyReviewsState> {
         totalCount: page.totalCount,
       ));
     } on Object catch (err) {
+      if (version != _refreshVersion) return;
       emit(MyReviewsFailure(filter: filter, reason: err.toString()));
     }
   }
@@ -130,22 +139,34 @@ class MyReviewsBloc extends Bloc<MyReviewsEvent, MyReviewsState> {
   ) async {
     final s = state;
     if (s is! MyReviewsLoaded || !s.hasMore || s.isLoadingMore) return;
+    // Snapshot the version: if a refresh kicks off mid-pagination, drop
+    // the page result rather than splicing it onto a different list.
+    final version = _refreshVersion;
     emit(s.copyWith(isLoadingMore: true));
     try {
       final nextFilter = s.filter.copyWith(page: s.filter.page + 1);
       final page = await _gateway.listMine(nextFilter);
-      emit(s.copyWith(
+      if (version != _refreshVersion) return;
+      // The list might have been replaced under us (filter chip), so
+      // re-read state before splicing.
+      final current = state;
+      if (current is! MyReviewsLoaded) return;
+      emit(current.copyWith(
         filter: nextFilter,
-        items: [...s.items, ...page.items],
+        items: [...current.items, ...page.items],
         totalCount: page.totalCount,
         isLoadingMore: false,
       ));
     } on Object catch (err) {
       // Match returns/orders pattern: a pagination error must NOT wipe
       // the loaded list. Stop the spinner; the user can pull-to-refresh.
+      if (version != _refreshVersion) return;
       // ignore: avoid_print
       print('MyReviewsBloc pagination error (preserving loaded list): $err');
-      emit(s.copyWith(isLoadingMore: false));
+      final current = state;
+      if (current is MyReviewsLoaded) {
+        emit(current.copyWith(isLoadingMore: false));
+      }
     }
   }
 }

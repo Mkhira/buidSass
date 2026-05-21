@@ -110,8 +110,8 @@ class MyReviewsPage {
       items: items is List
           ? items
               .whereType<Map>()
-              .map(
-                  (m) => MyReviewListItem.fromJson(Map<String, Object?>.from(m)))
+              .map((m) =>
+                  MyReviewListItem.fromJson(Map<String, Object?>.from(m)))
               .toList(growable: false)
           : const [],
       page: (j['page'] as num?)?.toInt() ?? 1,
@@ -164,8 +164,8 @@ class MyReviewDetail {
       rating: (j['rating'] as num?)?.toInt() ?? 0,
       comment: j['comment'] as String? ?? '',
       state: j['state'] as String? ?? 'pending_moderation',
-      createdAt: DateTime.tryParse(j['createdAt'] as String? ?? '') ??
-          DateTime.now(),
+      createdAt:
+          DateTime.tryParse(j['createdAt'] as String? ?? '') ?? DateTime.now(),
       media: media is List
           ? media
               .whereType<Map>()

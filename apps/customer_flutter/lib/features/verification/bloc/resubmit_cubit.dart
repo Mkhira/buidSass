@@ -54,8 +54,9 @@ class ResubmitForm extends ResubmitState {
       editableFields: editableFields,
       values: values ?? this.values,
       note: note ?? this.note,
-      formError:
-          identical(formError, _sentinel) ? this.formError : formError as String?,
+      formError: identical(formError, _sentinel)
+          ? this.formError
+          : formError as String?,
     );
   }
 }
@@ -110,8 +111,8 @@ class ResubmitCubit extends Cubit<ResubmitState> {
         values: const {},
         note: '',
       ));
-    } on Object catch (e) {
-      emit(ResubmitFailureLoad(reason: e.toString()));
+    } on Object catch (_) {
+      emit(const ResubmitFailureLoad(reason: 'resubmit.load_failed'));
     }
   }
 
@@ -162,8 +163,9 @@ class ResubmitCubit extends Cubit<ResubmitState> {
         idempotencyKey: _idempotencyKey,
       );
       emit(ResubmitDone(result));
-    } on Object catch (e) {
-      emit(s.copyWith(formError: e.toString()));
+    } on Object catch (_) {
+      // Stable error key — screen resolves to a localized fallback.
+      emit(s.copyWith(formError: 'resubmit.submit_failed'));
     }
   }
 }
